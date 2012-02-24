@@ -35,7 +35,7 @@ MAINTAINERCLEANFILES = \
 
 EXTRA_DIST = easy-rsa
 
-SUBDIRS = doc
+SUBDIRS = doc distro
 
 dist_doc_DATA = \
 	COPYRIGHT.GPL \
