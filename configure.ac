@@ -47,5 +47,6 @@ AC_SUBST([easyrsadir])
 
 AC_CONFIG_FILES([
 	Makefile
+	doc/Makefile
 ])
 AC_OUTPUT
