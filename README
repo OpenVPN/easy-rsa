@@ -1,0 +1,13 @@
+SIGNING:
+ $ gpg -a -b [file]
+
+VERIFY SIGNATURE:
+We sign easy-rsa packages with a GPG private key.  The public key is available
+in the git repository (PUBLIC_KEY) as well as on various GPG/PGP public key
+servers around the net.
+
+To verify the package signature download and import our public key into GPG:
+  $ gpg --import pubkey.txt
+Then download and verify the signature:
+  $ gpg -v --verify [file].asc
+Note that the [file].asc and tarball need to be in the same directory.
