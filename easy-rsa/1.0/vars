@@ -37,7 +37,7 @@ echo NOTE: when you run ./clean-all, I will be doing a rm -rf on $KEY_DIR
 # down TLS negotiation performance
 # as well as the one-time DH parms
 # generation process.
-export KEY_SIZE=1024
+export KEY_SIZE=2048
 
 # These are the default values for fields
 # which will be placed in the certificate.
