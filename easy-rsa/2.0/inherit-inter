@@ -27,9 +27,9 @@ if [ "$KEY_DIR" ]; then
     cp "$1/$2.key" "$KEY_DIR/ca.key"
 
     if [ -e "$1/$EXPORT_CA" ]; then
-	PARENT_CA="$1/$EXPORT_CA"
+        PARENT_CA="$1/$EXPORT_CA"
     else
-	PARENT_CA="$1/ca.crt"
+        PARENT_CA="$1/ca.crt"
     fi
     cp "$PARENT_CA" "$KEY_DIR/$EXPORT_CA"
     cat "$KEY_DIR/ca.crt" >> "$KEY_DIR/$EXPORT_CA"
