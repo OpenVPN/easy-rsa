@@ -24,8 +24,8 @@
 
 # pkitool is a front-end for the openssl tool.
 
-# Calling scripts can set the certificate organizational 
-# unit with the KEY_OU environmental variable. 
+# Calling scripts can set the certificate organizational
+# unit with the KEY_OU environmental variable.
 
 # Calling scripts can also set the KEY_NAME environmental
 # variable to set the "name" X509 subject field.
@@ -202,7 +202,7 @@ while [ $# -gt 0 ]; do
         --*        ) die "$PROGNAME: unknown option: $1" ;;
         *          ) break ;;
     esac
-    shift   
+    shift
 done
 
 if ! [ -z "$BATCH" ]; then
@@ -325,7 +325,7 @@ if [ -d "$KEY_DIR" ] && [ "$KEY_CONFIG" ]; then
         $OPENSSL req $BATCH -days $CA_EXPIRE $NODES_REQ -new -newkey rsa:$KEY_SIZE \
             -x509 -keyout "$CA.key" -out "$CA.crt" -config "$KEY_CONFIG" && \
             chmod 0600 "$CA.key"
-    else        
+    else
         # Make sure CA key/cert is available
         if [ $DO_CA -eq 1 ] || [ $DO_P12 -eq 1 ]; then
             if [ ! -r "$CA.crt" ] || [ ! -r "$CA.key" ]; then
@@ -367,7 +367,7 @@ if [ -d "$KEY_DIR" ] && [ "$KEY_CONFIG" ]; then
                 $OPENSSL x509 -in "$FN.crt" -inform PEM -out "$FN.crt.der" -outform DER && \
                   $PKCS11TOOL --module "$PKCS11_MODULE_PATH" --write-object "$FN.crt.der" --type cert \
                         --login --pin "$PKCS11_PIN" \
-                        --slot "$PKCS11_SLOT" --id "$PKCS11_ID" --label "$PKCS11_LABEL" 
+                        --slot "$PKCS11_SLOT" --id "$PKCS11_ID" --label "$PKCS11_LABEL"
                 [ -e "$FN.crt.der" ]; rm "$FN.crt.der"
         fi
 
