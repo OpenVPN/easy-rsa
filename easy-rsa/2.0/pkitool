@@ -44,81 +44,94 @@ die()
 
 need_vars()
 {
-    echo '  Please edit the vars script to reflect your configuration,'
-    echo '  then source it with "source ./vars".'
-    echo '  Next, to start with a fresh PKI configuration and to delete any'
-    echo '  previous certificates and keys, run "./clean-all".'
-    echo "  Finally, you can run this tool ($PROGNAME) to build certificates/keys."
+    cat <<EOM
+  Please edit the vars script to reflect your configuration,
+  then source it with "source ./vars".
+  Next, to start with a fresh PKI configuration and to delete any
+  previous certificates and keys, run "./clean-all".
+  Finally, you can run this tool ($PROGNAME) to build certificates/keys.
+EOM
 }
 
 usage()
 {
-    echo "$PROGNAME $VERSION"
-    echo "Usage: $PROGNAME [options...] [common-name]"
-    echo "Options:"
-    echo "  --batch    : batch mode (default)"
-    echo "  --keysize  : Set keysize"
-    echo "      size   : size (default=1024)"
-    echo "  --interact : interactive mode"
-    echo "  --server   : build server cert"
-    echo "  --initca   : build root CA"
-    echo "  --inter    : build intermediate CA"
-    echo "  --pass     : encrypt private key with password"
-    echo "  --csr      : only generate a CSR, do not sign"
-    echo "  --sign     : sign an existing CSR"
-    echo "  --pkcs12   : generate a combined PKCS#12 file"
-    echo "  --pkcs11   : generate certificate on PKCS#11 token"
-    echo "      lib    : PKCS#11 library"
-    echo "      slot   : PKCS#11 slot"
-    echo "      id     : PKCS#11 object id (hex string)"
-    echo "      label  : PKCS#11 object label"
-    echo "Standalone options:"
-    echo "  --pkcs11-slots   : list PKCS#11 slots"
-    echo "      lib    : PKCS#11 library"
-    echo "  --pkcs11-objects : list PKCS#11 token objects"
-    echo "      lib    : PKCS#11 library"
-    echo "      slot   : PKCS#11 slot"
-    echo "  --pkcs11-init    : initialize PKCS#11 token DANGEROUS!!!"
-    echo "      lib    : PKCS#11 library"
-    echo "      slot   : PKCS#11 slot"
-    echo "      label  : PKCS#11 token label"
-    echo "Notes:"
+    cat <<EOM
+$PROGNAME $VERSION
+Usage: $PROGNAME [options...] [common-name]
+
+Options:
+  --batch    : batch mode (default)
+  --keysize  : Set keysize
+      size   : size (default=1024)
+  --interact : interactive mode
+  --server   : build server cert
+  --initca   : build root CA
+  --inter    : build intermediate CA
+  --pass     : encrypt private key with password
+  --csr      : only generate a CSR, do not sign
+  --sign     : sign an existing CSR
+  --pkcs12   : generate a combined PKCS#12 file
+  --pkcs11   : generate certificate on PKCS#11 token
+      lib    : PKCS#11 library
+      slot   : PKCS#11 slot
+      id     : PKCS#11 object id (hex string)
+      label  : PKCS#11 object label
+
+Standalone options:
+  --pkcs11-slots   : list PKCS#11 slots
+      lib    : PKCS#11 library
+  --pkcs11-objects : list PKCS#11 token objects
+      lib    : PKCS#11 library
+      slot   : PKCS#11 slot
+  --pkcs11-init    : initialize PKCS#11 token DANGEROUS!!!
+      lib    : PKCS#11 library
+      slot   : PKCS#11 slot
+      label  : PKCS#11 token label
+
+Notes:
+EOM
     need_vars
-    echo "  In order to use PKCS#11 interface you must have opensc-0.10.0 or higher."
-    echo "Generated files and corresponding OpenVPN directives:"
-    echo '(Files will be placed in the $KEY_DIR directory, defined in ./vars)'
-    echo "  ca.crt     -> root certificate (--ca)"
-    echo "  ca.key     -> root key, keep secure (not directly used by OpenVPN)"
-    echo "  .crt files -> client/server certificates (--cert)"
-    echo "  .key files -> private keys, keep secure (--key)"
-    echo "  .csr files -> certificate signing request (not directly used by OpenVPN)"
-    echo "  dh1024.pem or dh2048.pem -> Diffie Hellman parameters (--dh)"
-    echo "Examples:"
-    echo "  $PROGNAME --initca          -> Build root certificate"
-    echo "  $PROGNAME --initca --pass   -> Build root certificate with password-protected key"
-    echo "  $PROGNAME --server server1  -> Build \"server1\" certificate/key"
-    echo "  $PROGNAME client1           -> Build \"client1\" certificate/key"
-    echo "  $PROGNAME --pass client2    -> Build password-protected \"client2\" certificate/key"
-    echo "  $PROGNAME --pkcs12 client3  -> Build \"client3\" certificate/key in PKCS#12 format"
-    echo "  $PROGNAME --csr client4     -> Build \"client4\" CSR to be signed by another CA"
-    echo "  $PROGNAME --sign client4    -> Sign \"client4\" CSR"
-    echo "  $PROGNAME --inter interca   -> Build an intermediate key-signing certificate/key"
-    echo "                               Also see ./inherit-inter script."
-    echo "  $PROGNAME --pkcs11 /usr/lib/pkcs11/lib1 0 010203 \"client5 id\" client5"
-    echo "                              -> Build \"client5\" certificate/key in PKCS#11 token"
-    echo "Typical usage for initial PKI setup.  Build myserver, client1, and client2 cert/keys."
-    echo "Protect client2 key with a password.  Build DH parms.  Generated files in ./keys :"
-    echo "  [edit vars with your site-specific info]"
-    echo "  source ./vars"
-    echo "  ./clean-all"
-    echo "  ./build-dh     -> takes a long time, consider backgrounding"
-    echo "  ./$PROGNAME --initca"
-    echo "  ./$PROGNAME --server myserver"
-    echo "  ./$PROGNAME client1"
-    echo "  ./$PROGNAME --pass client2"
-    echo "Typical usage for adding client cert to existing PKI:"
-    echo "  source ./vars"
-    echo "  ./$PROGNAME client-new"
+    cat <<EOM
+  In order to use PKCS#11 interface you must have opensc-0.10.0 or higher.
+
+Generated files and corresponding OpenVPN directives:
+(Files will be placed in the \$KEY_DIR directory, defined in ./vars)
+  ca.crt     -> root certificate (--ca)
+  ca.key     -> root key, keep secure (not directly used by OpenVPN)
+  .crt files -> client/server certificates (--cert)
+  .key files -> private keys, keep secure (--key)
+  .csr files -> certificate signing request (not directly used by OpenVPN)
+  dh1024.pem or dh2048.pem -> Diffie Hellman parameters (--dh)
+
+Examples:
+  $PROGNAME --initca          -> Build root certificate
+  $PROGNAME --initca --pass   -> Build root certificate with password-protected key
+  $PROGNAME --server server1  -> Build "server1" certificate/key
+  $PROGNAME client1           -> Build "client1" certificate/key
+  $PROGNAME --pass client2    -> Build password-protected "client2" certificate/key
+  $PROGNAME --pkcs12 client3  -> Build "client3" certificate/key in PKCS#12 format
+  $PROGNAME --csr client4     -> Build "client4" CSR to be signed by another CA
+  $PROGNAME --sign client4    -> Sign "client4" CSR
+  $PROGNAME --inter interca   -> Build an intermediate key-signing certificate/key
+                               Also see ./inherit-inter script.
+  $PROGNAME --pkcs11 /usr/lib/pkcs11/lib1 0 010203 "client5 id" client5
+                              -> Build "client5" certificate/key in PKCS#11 token
+
+Typical usage for initial PKI setup.  Build myserver, client1, and client2 cert/keys.
+Protect client2 key with a password.  Build DH parms.  Generated files in ./keys :
+  [edit vars with your site-specific info]
+  source ./vars
+  ./clean-all
+  ./build-dh     -> takes a long time, consider backgrounding
+  ./$PROGNAME --initca
+  ./$PROGNAME --server myserver
+  ./$PROGNAME client1
+  ./$PROGNAME --pass client2
+
+Typical usage for adding client cert to existing PKI:
+  source ./vars
+  ./$PROGNAME client-new
+EOM
 }
 
 # Set tool defaults
@@ -228,9 +241,9 @@ if [ $DO_P12 -eq 1 ]; then
 fi
 
 if [ $DO_P11 -eq 1 ]; then
-        if [ -z "$PKCS11_LABEL" ]; then
-                die "PKCS#11 arguments incomplete"
-        fi
+    if [ -z "$PKCS11_LABEL" ]; then
+        die "PKCS#11 arguments incomplete"
+    fi
 fi
 
 # If undefined, set default key expiration intervals
