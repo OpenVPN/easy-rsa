@@ -6,13 +6,13 @@
 #
 
 if test $# -ne 1; then
-        echo "usage: revoke-crt <file.crt>";
-        exit 1
+    echo "usage: revoke-crt <file.crt>";
+    exit 1
 fi
 
 if test $KEY_DIR; then
-       cd $KEY_DIR && \
-       openssl ca -revoke $1 -config $KEY_CONFIG
+    cd $KEY_DIR && \
+    openssl ca -revoke $1 -config $KEY_CONFIG
 else
-       echo you must define KEY_DIR
+    echo you must define KEY_DIR
 fi
