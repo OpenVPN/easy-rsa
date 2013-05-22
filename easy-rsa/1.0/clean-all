@@ -9,11 +9,11 @@
 d=$KEY_DIR
 
 if test $d; then
-	rm -rf $d
-	mkdir $d && \
-	chmod go-rwx $d && \
-	touch $d/index.txt && \
-	echo 01 >$d/serial
+    rm -rf $d
+    mkdir $d && \
+    chmod go-rwx $d && \
+    touch $d/index.txt && \
+    echo 01 >$d/serial
 else
-	echo you must define KEY_DIR
+    echo you must define KEY_DIR
 fi

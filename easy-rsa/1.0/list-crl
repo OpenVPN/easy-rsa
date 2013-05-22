@@ -6,13 +6,13 @@
 #
 
 if test $# -ne 1; then
-        echo "usage: list-crl <crlfile.pem>";
-        exit 1
+    echo "usage: list-crl <crlfile.pem>";
+    exit 1
 fi
 
 if test $KEY_DIR; then
-       cd $KEY_DIR && \
-       openssl crl -text -noout -in $1
+    cd $KEY_DIR && \
+    openssl crl -text -noout -in $1
 else
-       echo you must define KEY_DIR
+    echo you must define KEY_DIR
 fi
