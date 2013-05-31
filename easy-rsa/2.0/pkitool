@@ -339,7 +339,7 @@ if [ -d "$KEY_DIR" ] && [ "$KEY_CONFIG" ]; then
 	PKCS11_ARGS=
 	if [ $DO_P11 -eq 1 ]; then
 	        stty -echo
-	        echo -n "User PIN: "
+	        printf "User PIN: "
 	        read -r PKCS11_PIN
 	        stty echo
 		export PKCS11_PIN
@@ -347,7 +347,7 @@ if [ -d "$KEY_DIR" ] && [ "$KEY_CONFIG" ]; then
 		echo "Generating key pair on PKCS#11 token..."
 		$PKCS11TOOL --module "$PKCS11_MODULE_PATH" --keypairgen \
 			--login --pin "$PKCS11_PIN" \
-			--key-type rsa:1024 \
+			--key-type rsa:$PKCS11_KEY_SIZE \
 			--slot "$PKCS11_SLOT" --id "$PKCS11_ID" --label "$PKCS11_LABEL" || exit 1
 		PKCS11_ARGS="-engine pkcs11 -keyform engine -key $PKCS11_SLOT:$PKCS11_ID"
 	fi
