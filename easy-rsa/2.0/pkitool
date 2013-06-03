@@ -67,7 +67,13 @@ usage()
     echo "  --csr      : only generate a CSR, do not sign"
     echo "  --sign     : sign an existing CSR"
     echo "  --pkcs12   : generate a combined PKCS#12 file"
-    echo "  --pkcs11   : generate certificate on PKCS#11 token"
+	echo " "
+	echo "  --pkcs11-use-tokenca : Use root CA stored on PKCS#11 token"
+ 	echo "      lib    : PKCS#11 library"
+    echo "      slot   : PKCS#11 slot"
+    echo "      id     : PKCS#11 object id (hex string)"
+	echo "      options: [client|--server|--inter|--sign|--pkcs11]"
+	echo "  --pkcs11   : generate certificate on PKCS#11 token"
     echo "      lib    : PKCS#11 library"
     echo "      slot   : PKCS#11 slot"
     echo "      id     : PKCS#11 object id (hex string)"
@@ -82,7 +88,16 @@ usage()
     echo "      lib    : PKCS#11 library"
     echo "      slot   : PKCS#11 slot"
     echo "      label  : PKCS#11 token label"
-    echo "Notes:"
+    echo "  --pkcs11-initca   : Build root CA inside PKCS#11 token"
+    echo "      lib           : PKCS#11 library"
+    echo "      slot          : PKCS#11 slot"
+    echo "      id            : PKCS#11 object id (hex string)"
+    echo "      label         : PKCS#11 object label"
+	echo "  --pkcs11-loadca   : Load root CA (priv/pub/crt) into PKCS#11 token"
+    echo "      slot          : PKCS#11 slot"
+    echo "      id            : PKCS#11 object id (hex string)"
+    echo "      label         : PKCS#11 object label"
+	echo "Notes:"
     need_vars
     echo "  In order to use PKCS#11 interface you must have opensc-0.10.0 or higher."
     echo "Generated files and corresponding OpenVPN directives:"
@@ -102,6 +117,11 @@ usage()
     echo "  $PROGNAME --pkcs12 client3  -> Build \"client3\" certificate/key in PKCS#12 format"
     echo "  $PROGNAME --csr client4     -> Build \"client4\" CSR to be signed by another CA"
     echo "  $PROGNAME --sign client4    -> Sign \"client4\" CSR"
+	echo "  $PROGNAME --pkcs11-use-tokenca  /usr/lib/pkcs11/lib1 1 010203 --sign client4"
+	echo "                              -> Sign \"client4\" CSR with the CA in the token slot:1 id:010203"
+	echo "  $PROGNAME --pkcs11-use-tokenca  /usr/lib/pkcs11/lib1 1 010203 \"client5\" "   
+	echo "                              -> Build \"client5\" certificate/key and sign it with"
+	echo "                                 the CA stored on the PKCS#11 token slot:1 id:010203"
     echo "  $PROGNAME --inter interca   -> Build an intermediate key-signing certificate/key"
     echo "                               Also see ./inherit-inter script."
     echo "  $PROGNAME --pkcs11 /usr/lib/pkcs11/lib1 0 010203 \"client5 id\" client5"
@@ -124,6 +144,7 @@ usage()
 # Set tool defaults
 [ -n "$OPENSSL" ] || export OPENSSL="openssl"
 [ -n "$PKCS11TOOL" ] || export PKCS11TOOL="pkcs11-tool"
+[ -n "$PKCS15INIT" ] || export PKCS15INIT="pkcs15-init"
 [ -n "$GREP" ] || export GREP="grep"
 
 # Set defaults
@@ -134,6 +155,9 @@ CA_EXT=""
 DO_P12="0"
 DO_P11="0"
 DO_ROOT="0"
+DO_ROOT_PKCS11="0"
+USE_PKCS11_CA="0"
+DO_LOAD_CA="0"
 NODES_REQ="-nodes"
 NODES_P12=""
 BATCH="-batch"
@@ -157,13 +181,18 @@ while [ $# -gt 0 ]; do
         --csr      ) DO_CA="0" ;;
         --sign     ) DO_REQ="0" ;;
         --pkcs12   ) DO_P12="1" ;;
-	--pkcs11   ) DO_P11="1"
+  	  --pkcs11   ) DO_P11="1"
 	             PKCS11_MODULE_PATH="$2"
 		     PKCS11_SLOT="$3"
 		     PKCS11_ID="$4"
 		     PKCS11_LABEL="$5"
 		     shift 4;;
 
+	--pkcs11-use-tokenca ) USE_PKCS11_CA="1"
+	             	PKCS11_MODULE_PATH="$2"
+		     		CA_PKCS11_SLOT="$3"
+		     		CA_PKCS11_ID="$4"
+					shift 3;;		
 	# standalone
 	--pkcs11-init)
 	             PKCS11_MODULE_PATH="$2"
@@ -176,6 +205,18 @@ while [ $# -gt 0 ]; do
 		     	--label "$PKCS11_LABEL" &&
 			$PKCS11TOOL --module "$PKCS11_MODULE_PATH" --init-pin --slot "$PKCS11_SLOT"
 		     exit $?;;
+	--pkcs11-initca ) DO_ROOT_PKCS11="1"
+	             	PKCS11_MODULE_PATH="$2"
+		     		PKCS11_SLOT="$3"
+		     		PKCS11_ID="$4"
+		     		PKCS11_LABEL="$5"
+					shift 3;;
+
+  	--pkcs11-loadca ) DO_LOAD_CA="1"
+		     		PKCS11_SLOT="$2"
+		     		PKCS11_ID="$3"
+		     		PKCS11_LABEL="$4"
+					shift 2;;			
 	--pkcs11-slots)
 	             PKCS11_MODULE_PATH="$2"
 		     if [ -z "$PKCS11_MODULE_PATH" ]; then
@@ -294,7 +335,9 @@ if [ $DEBUG -eq 1 ]; then
     echo KEY_CN $KEY_CN
     echo BATCH $BATCH
     echo DO_ROOT $DO_ROOT
-    echo KEY_EXPIRE $KEY_EXPIRE
+	echo DO_ROOT_PKCS11 $DO_ROOT_PKCS11
+	echo DO_STOCA $DO_STOCA
+	echo KEY_EXPIRE $KEY_EXPIRE
     echo CA_EXPIRE $CA_EXPIRE
     echo KEY_OU $KEY_OU
     echo KEY_NAME $KEY_NAME
@@ -320,7 +363,30 @@ if [ -d "$KEY_DIR" ] && [ "$KEY_CONFIG" ]; then
 	exit 1;
     fi
 
-    # Build root CA
+	# Generate a self signed CA inside a smartcard or token
+	if [ $DO_ROOT_PKCS11 -eq 1 ]; then
+	        stty -echo
+	        printf "User PIN: "
+	        read -r PKCS11_PIN
+	        stty echo
+		export PKCS11_PIN
+
+		echo "Generating a rsa:$PKCS11_KEY_SIZE bits ROOT CA key pair on PKCS#11 token..."
+		$PKCS15INIT --generate-key rsa/$PKCS11_KEY_SIZE \
+		  	--auth-id 01 \
+			--pin "$PKCS11_PIN" \
+			--key-usage digitalSignature \
+		    --id "$PKCS11_ID" --label "$PKCS11_LABEL" || exit 1
+		PKCS11_ARGS="-engine pkcs11 -keyform engine -key $PKCS11_SLOT:$PKCS11_ID"
+		echo "Self signing CA on token..."
+		$OPENSSL req $PKCS11_ARGS -new -x509 -days $KEY_EXPIRE -out "$CA.crt" -config "$KEY_CONFIG"  || exit 1
+
+		DO_REQ="0"
+		DO_CA="0"
+		DO_LOAD_CA="1"
+	fi
+
+	# Build root CA
     if [ $DO_ROOT -eq 1 ]; then
 	$OPENSSL req $BATCH -days $CA_EXPIRE $NODES_REQ -new -newkey rsa:$KEY_SIZE \
 	    -x509 -keyout "$CA.key" -out "$CA.crt" -config "$KEY_CONFIG" && \
@@ -328,18 +394,23 @@ if [ -d "$KEY_DIR" ] && [ "$KEY_CONFIG" ]; then
     else        
         # Make sure CA key/cert is available
 	if [ $DO_CA -eq 1 ] || [ $DO_P12 -eq 1 ]; then
-	    if [ ! -r "$CA.crt" ] || [ ! -r "$CA.key" ]; then
+	  if [ ! -r "$CA.crt" ] || ([ ! -r "$CA.key" ] && [ $USE_PKCS11_CA -eq 0 ]) ; then
 		echo "$PROGNAME: Need a readable $CA.crt and $CA.key in $KEY_DIR"
-		echo "Try $PROGNAME --initca to build a root certificate/key."
+		echo "Try $PROGNAME --initca or --pkcs11-initca to build a root certificate/key."
 		exit 1
 	    fi
+	  if [ ! -r "$CA.crt" ] && [ $USE_PKCS11_CA -eq 1 ] ; then
+		echo "$PROGNAME: Need a readable $CA.crt in $KEY_DIR"
+		echo "Try $PROGNAME --initca or --pkcs11-initca to build a root certificate/key."
+		exit 1
+	    fi	
 	fi
 
 	# Generate key for PKCS#11 token
 	PKCS11_ARGS=
 	if [ $DO_P11 -eq 1 ]; then
 	        stty -echo
-	        echo -n "User PIN: "
+			printf "Connect your client/server Token with slot:$PKCS11_SLOT\nUser PIN:"
 	        read -r PKCS11_PIN
 	        stty echo
 		export PKCS11_PIN
@@ -347,32 +418,84 @@ if [ -d "$KEY_DIR" ] && [ "$KEY_CONFIG" ]; then
 		echo "Generating key pair on PKCS#11 token..."
 		$PKCS11TOOL --module "$PKCS11_MODULE_PATH" --keypairgen \
 			--login --pin "$PKCS11_PIN" \
-			--key-type rsa:1024 \
+			--key-type rsa:$PKCS11_KEY_SIZE \
 			--slot "$PKCS11_SLOT" --id "$PKCS11_ID" --label "$PKCS11_LABEL" || exit 1
 		PKCS11_ARGS="-engine pkcs11 -keyform engine -key $PKCS11_SLOT:$PKCS11_ID"
 	fi
 
+	# Load the soft CA inside a smartcard or token
+	if [ $DO_LOAD_CA -eq 1 ] &&  [ $DO_ROOT_PKCS11 -eq 0 ]; then
+	        stty -echo
+	        printf "User PIN: "
+	        read -r PKCS11_PIN
+	        stty echo
+		export PKCS11_PIN		
+		echo "Loading private CA key into PKCS#11 token..."
+	 	$PKCS15INIT --store-private-key "$CA.key" --auth-id 01 --pin "$PKCS11_PIN" --key-usage digitalSignature --id "$PKCS11_ID" --label "$PKCS11_LABEL" 
+		
+		DO_REQ="0"
+		DO_CA="0"	
+  	  fi
+
+# Function for signing a certificate with a CA stored on a hardware Token. Use it recursive in case the pin fails
+signWithCAToken(){
+	  	stty -echo
+	    printf "Connect your ** CA Token ** with slot:$CA_PKCS11_SLOT\n*CA Token* user PIN: "
+	    read -r PKCS11_PIN
+	    stty echo
+		export PKCS11_PIN	
+	  	
+		KEY=slot_$CA_PKCS11_SLOT-id_$CA_PKCS11_ID
+		CA_PKCS11_ARGS="-engine pkcs11 -keyfile $KEY -keyform engine"
+		$OPENSSL ca $CA_PKCS11_ARGS $BATCH -days $KEY_EXPIRE -out "$FN.crt" \
+		 -in "$FN.csr" $CA_EXT -config "$KEY_CONFIG" || signWithCAToken
+}
+
         # Build cert/key
 	( [ $DO_REQ -eq 0 ] || $OPENSSL req $BATCH -days $KEY_EXPIRE $NODES_REQ -new -newkey rsa:$KEY_SIZE \
 	        -keyout "$FN.key" -out "$FN.csr" $REQ_EXT -config "$KEY_CONFIG" $PKCS11_ARGS ) && \
-	    ( [ $DO_CA -eq 0 ]  || $OPENSSL ca $BATCH -days $KEY_EXPIRE -out "$FN.crt" \
-	        -in "$FN.csr" $CA_EXT -config "$KEY_CONFIG" ) && \
-	    ( [ $DO_P12 -eq 0 ] || $OPENSSL pkcs12 -export -inkey "$FN.key" \
+	  ( ([ $DO_CA -eq 0 ] || [ $USE_PKCS11_CA -eq 1 ]) || $OPENSSL ca $BATCH -days $KEY_EXPIRE -out "$FN.crt" \
+		-in "$FN.csr" $CA_EXT -config "$KEY_CONFIG" ) && \
+	  ( ([ $DO_CA -eq 0 ] || [ $USE_PKCS11_CA -eq 0 ]) || signWithCAToken ) &&\
+	  ( [ $DO_P12 -eq 0 ] || $OPENSSL pkcs12 -export -inkey "$FN.key" \
 	        -in "$FN.crt" -certfile "$CA.crt" -out "$FN.p12" $NODES_P12 ) && \
-	    ( [ $DO_CA -eq 0 -o $DO_P11 -eq 1 ]  || chmod 0600 "$FN.key" ) && \
-	    ( [ $DO_P12 -eq 0 ] || chmod 0600 "$FN.p12" )
+	  ( [ $DO_CA -eq 0 -o $DO_P11 -eq 1 ]  || chmod 0600 "$FN.key" ) && \
+	  ( [ $DO_P12 -eq 0 ] || chmod 0600 "$FN.p12" )
+	
+
+	# Load CA authority into PKCS#11 token
+	if [ $DO_LOAD_CA -eq 1 ]; then
+		# Convert crt into der formats needed for storage on a SC 
+		$OPENSSL x509 -in  "$CA.crt" -out  "$CA.der"  -outform DER
+		echo "Loading CA Certificate into PKCS#11 token as an authority certificate.."
+		# We need to use pkcs15-init here for setting the --authority bit on the certificate
+	    $PKCS15INIT  --store-certificate "$CA.der" --authority --auth-id 01 --id "$PKCS11_ID" \
+		             --pin "$PKCS11_PIN" --format der --label  "$PKCS11_LABEL" || exit 1
+	fi
+
+# Function for loading a certificate into a PKCS#11 token. Use it recursive in case the pin fails	
+loadCertificateIntoToken(){
+	    if [ $USE_PKCS11_CA -eq 1 ]; then
+			stty -echo
+	    	printf "Enter your client/server Token in slot:$PKCS11_SLOT, and it will be loaded with the signed certificate: \"$FN.crt\" \nUser PIN: "
+	    	read -r PKCS11_PIN
+	    	stty echo
+			export PKCS11_PIN	
+		fi
+		echo "Loading certificate into Token....."
+		$OPENSSL x509 -in "$FN.crt" -inform PEM -out "$FN.der" -outform DER && \
+		  $PKCS11TOOL --module "$PKCS11_MODULE_PATH" --write-object "$FN.der" --type cert \
+			--login --pin "$PKCS11_PIN" \
+			--slot "$PKCS11_SLOT" --id "$PKCS11_ID" --label "$PKCS11_LABEL" || (USE_PKCS11_CA="1" && loadCertificateIntoToken) 
+		[ -e "$FN.der" ]; rm -f "$FN.der"	
+	}	
 
 	# Load certificate into PKCS#11 token
 	if [ $DO_P11 -eq 1 ]; then
-		$OPENSSL x509 -in "$FN.crt" -inform PEM -out "$FN.crt.der" -outform DER && \
-		  $PKCS11TOOL --module "$PKCS11_MODULE_PATH" --write-object "$FN.crt.der" --type cert \
-			--login --pin "$PKCS11_PIN" \
-			--slot "$PKCS11_SLOT" --id "$PKCS11_ID" --label "$PKCS11_LABEL" 
-		[ -e "$FN.crt.der" ]; rm "$FN.crt.der"
+		loadCertificateIntoToken
 	fi
 
     fi
-
 # Need definitions
 else
     need_vars

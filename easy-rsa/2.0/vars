@@ -74,6 +74,9 @@ export KEY_NAME="EasyRSA"
 # PKCS11 Smart Card
 # export PKCS11_MODULE_PATH="/usr/lib/changeme.so"
 # export PKCS11_PIN=1234
+# If your smartcard/token can handle 2048, set to 2048 else use the default of 1024
+# export PKCS11_KEY_SIZE=2048
+export PKCS11_KEY_SIZE=1024
 
 # If you'd like to sign all keys with the same Common Name, uncomment the KEY_CN export below
 # You will also need to make sure your OpenVPN server config has the duplicate-cn option set
