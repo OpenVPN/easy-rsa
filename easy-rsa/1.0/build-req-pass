@@ -8,7 +8,7 @@
 if test $# -ne 1; then
     echo "usage: build-req-pass <name>";
     exit 1
-fi                                                                             
+fi
 
 if test $KEY_DIR; then
     cd $KEY_DIR && \

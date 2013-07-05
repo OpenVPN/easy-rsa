@@ -6,14 +6,14 @@
 #
 
 if test $# -ne 1; then
-        echo "usage: build-inter <name>";
-        exit 1
-fi                                                                             
+    echo "usage: build-inter <name>";
+    exit 1
+fi
 
 if test $KEY_DIR; then
-	cd $KEY_DIR && \
-	openssl req -days 3650 -nodes -new -keyout $1.key -out $1.csr -config $KEY_CONFIG && \
-	openssl ca -extensions v3_ca -days 3650 -out $1.crt -in $1.csr -config $KEY_CONFIG
+    cd $KEY_DIR && \
+    openssl req -days 3650 -nodes -new -keyout $1.key -out $1.csr -config $KEY_CONFIG && \
+    openssl ca -extensions v3_ca -days 3650 -out $1.crt -in $1.csr -config $KEY_CONFIG
 else
-	echo you must define KEY_DIR
+    echo you must define KEY_DIR
 fi
