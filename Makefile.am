@@ -44,6 +44,7 @@ dist_doc_DATA = \
 dist_easyrsa_DATA =
 
 install-data-local:	install-dist_easyrsaDATA
+	mkdir -p "$(DESTDIR)$(easyrsadir)"
 	cp "$(srcdir)/easy-rsa/2.0"/* "$(DESTDIR)$(easyrsadir)"
 
 uninstall-local:
