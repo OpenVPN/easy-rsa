@@ -366,7 +366,7 @@ if [ -d "$KEY_DIR" ] && [ "$KEY_CONFIG" ]; then
         fi
 
         # Build cert/key
-        ( [ $DO_REQ -eq 0 ] || $OPENSSL req $BATCH -days $KEY_EXPIRE $NODES_REQ -new -newkey rsa:$KEY_SIZE \
+        ( [ $DO_REQ -eq 0 ] || $OPENSSL req $BATCH $NODES_REQ -new -newkey rsa:$KEY_SIZE \
                 -keyout "$FN.key" -out "$FN.csr" $REQ_EXT -config "$KEY_CONFIG" $PKCS11_ARGS ) && \
             ( [ $DO_CA -eq 0 ]  || $OPENSSL ca $BATCH -days $KEY_EXPIRE -out "$FN.crt" \
                 -in "$FN.csr" $CA_EXT -config "$KEY_CONFIG" ) && \
