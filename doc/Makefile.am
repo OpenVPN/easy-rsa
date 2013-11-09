@@ -13,4 +13,3 @@ MAINTAINERCLEANFILES = \
 	$(srcdir)/Makefile.in
 
 dist_doc_DATA = README-2.0
-dist_noinst_DATA = README-1.0
