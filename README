@@ -1,3 +1,12 @@
+STRUCTURE:
+Once a new major release has started, currently 3.0, the former release will
+be branched for back porting and tracking.  Currently, we have:
+
+  release/1.x
+  release/2.x
+  master       <- 3.x, currently
+
+
 SIGNING:
  $ gpg -a -b [file]
 
