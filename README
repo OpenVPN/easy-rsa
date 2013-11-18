@@ -1,0 +1,23 @@
+STRUCTURE:
+
+The easy-rsa master branch is currently tracking development for the 3.x release
+cycle. The prior 2.x and 1.x versions are available as release branches for
+tracking and possible back-porting of relevant fixes. Branch layout is:
+
+  release/1.x
+  release/2.x
+  master <- 3.x, at present
+
+DOWNLOADS:
+
+If you are looking for release downloads, please see the releases section on
+GitHub. Releases are also available as source checkouts using named tags.
+
+DOCUMENTATION:
+
+For 3.x project documentation and usage, see the README.quickstart.md file or
+the more detailed docs under the doc/ directory. The .md files are in Markdown
+format and can be converted to html files as desired for release packages, or
+read as-is in plaintext.
+
+LICENSING info for 3.x is in the COPYING file

@@ -1,0 +1,7 @@
+Easy-RSA 3 ChangeLog
+
+3.x: (Current development cycle; upcoming release series)
+    * The 3.x release is a nearly complete re-write of the 2.x codebase
+    * Initial 3.x series code by Josh Cepek <josh.cepek AT usa.net> with
+      ongoing maintenance by the OpenVPN community development team and
+      associated contributors

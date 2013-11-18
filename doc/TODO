@@ -1,0 +1,18 @@
+Easy-RSA 3 TODO / wishlist
+
+Feature support:
+    * makefile
+        * It may be useful to port the Makefile from the 2.x series
+        * This may be desirable for building and downstream packaging
+    * add pkcs11 support
+        * Much of this may be distro-dependent
+        * Keep platform-specific tools separate from platform-neutral code
+    * add detection for duplicate CN prior to OpenSSL failure
+        * This gets tricky if `updatedb` requires a CA passphrase
+	* It would help to warn users before OpenSSL throws errors
+
+Longer term wishlist:
+    * Support openssl's -password source mechanism:
+        * allow for batching currently "unbatchable" operations, like pkcs12
+        * support one password input that can apply to multiple operations
+        * support a variety of password sources (interactive, pipe, file, etc)
