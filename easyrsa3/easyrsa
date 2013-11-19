@@ -275,6 +275,26 @@ The OpenSSL config file cannot be found.
 Expected location: $EASYRSA_SSL_CONF"
 } # => vars_source_check()
 
+# Verify supplied curve exists and generate curve file if needed
+verify_curve() {
+	if ! $EASYRSA_OPENSSL ecparam -name $EASYRSA_CURVE > /dev/null; then
+		die "\
+Curve $EASYRSA_CURVE not found. Run openssl ecparam -list_curves to show a
+list of supported curves."
+	fi
+
+	# Check that the ecparams dir exists
+	[ -d ecparams ] || mkdir ecparams
+
+	# Check that the required ecparams file exists
+	[ -f ecparams/${EASYRSA_CURVE}.pem ] || \
+		$EASYRSA_OPENSSL ecparam -name $EASYRSA_CURVE \
+			-out ecparams/${EASYRSA_CURVE}.pem
+
+	# Explicitly return success for caller
+	return 0
+}
+
 # Basic sanity-check of PKI init and complain if missing
 verify_pki_init() {
 	local help_note="Run easyrsa without commands for usage and command help."
@@ -377,6 +397,7 @@ build_ca() {
 	done
 
 	verify_pki_init
+	[ "$EASYRSA_ALGO" = "ec" ] && verify_curve
 
 	# setup for the simpler sub-CA situation and overwrite with root-CA if needed:
 	local out_file="$EASYRSA_PKI/reqs/ca.req"
@@ -412,8 +433,8 @@ current CA keypair. If you intended to start a new CA, run init-pki first."
 	# Default CN only when not in global EASYRSA_BATCH mode:
 	[ $EASYRSA_BATCH -eq 1 ] && opts="$opts -batch" || export EASYRSA_REQ_CN="Easy-RSA CA"
 	# create the CA keypair:
-	"$EASYRSA_OPENSSL" req -new -newkey rsa:$EASYRSA_KEY_SIZE -config "$EASYRSA_SSL_CONF" \
-		-keyout "$out_key" -out "$out_file" $opts || \
+	"$EASYRSA_OPENSSL" req -new -newkey $EASYRSA_ALGO:$EASYRSA_ALGO_PARAMS \
+		-config "$EASYRSA_SSL_CONF" -keyout "$out_key" -out "$out_file" $opts || \
 		die "Failed to build the CA"
 
 	# Success messages
@@ -469,6 +490,7 @@ Run easyrsa without commands for usage and commands."
 	done
 
 	verify_pki_init
+	[ "$EASYRSA_ALGO" = "ec" ] && verify_curve
 
 	# don't wipe out an existing private key without confirmation
 	[ -f "$key_out" ] && confirm "Confirm key overwrite: " "yes" "\
@@ -496,8 +518,8 @@ Continuing with key generation will replace this key."
 
 	# generate request
 	[ $EASYRSA_BATCH -eq 1 ] && opts="$opts -batch"
-	"$EASYRSA_OPENSSL" req -new -newkey rsa:$EASYRSA_KEY_SIZE -config "$EASYRSA_SSL_CONF" \
-		-keyout "$key_out" -out "$req_out" $opts
+	"$EASYRSA_OPENSSL" req -new -newkey $EASYRSA_ALGO:$EASYRSA_ALGO_PARAMS \
+		-config "$EASYRSA_SSL_CONF" -keyout "$key_out" -out "$req_out" $opts
 	local ret=$?
 	[ -n "$EASYRSA_EXTRA_EXTS" ] && rm "$EASYRSA_TEMP_FILE"
 	[ $ret -eq 0 ] || die "Failed to generate request"
@@ -892,7 +914,9 @@ Note: using Easy-RSA configuration from: $vars"
 	set_var EASYRSA_REQ_ORG		"Copyleft Certificate Co"
 	set_var EASYRSA_REQ_EMAIL	me@example.net
 	set_var EASYRSA_REQ_OU		"My Organizational Unit"
+	set_var EASYRSA_ALGO		rsa
 	set_var EASYRSA_KEY_SIZE	2048
+	set_var EASYRSA_CURVE		secp384r1
 	set_var EASYRSA_CA_EXPIRE	3650
 	set_var EASYRSA_CERT_EXPIRE	3650
 	set_var EASYRSA_CRL_DAYS	180
@@ -949,8 +973,12 @@ while :; do
 		;;
 	--pki-dir)
 		export EASYRSA_PKI="$val" ;;
+	--use-algo)
+		export EASYRSA_ALGO="$val" ;;
 	--keysize)
 		export EASYRSA_KEY_SIZE="$val" ;;
+	--curve)
+		export EASYRSA_CURVE="$val" ;;
 	--dn-mode)
 		export EASYRSA_DN="$val" ;;
 	--req-cn)
@@ -1012,6 +1040,14 @@ vars_setup
 	EASYRSA_BATCH=0
 	warn "Invalid 'EASYRSA_BATCH' var has been defined to 0. Bad value was: '$EASYRSA_BATCH'"
 }
+
+# EASYRSA_ALGO_PARAMS must be set depending on config
+if [ $EASYRSA_ALGO = "ec" ]; then
+	export EASYRSA_ALGO_PARAMS="ecparams/${EASYRSA_CURVE}.pem"
+else
+	# Default to rsa
+	export EASYRSA_ALGO_PARAMS="${EASYRSA_KEY_SIZE}"
+fi
 
 # determine how we were called, then hand off to the function responsible
 cmd="$1"
