@@ -92,9 +92,21 @@ fi
 # 2048-bit keys is considered more than sufficient for many years into the
 # future. Larger keysizes will slow down TLS negotiation and make key/DH param
 # generation take much longer. Values up to 4096 should be accepted by most
-# software.
+# software. Only used when the crypto alg is rsa (see below.)
 
 #set_var EASYRSA_KEY_SIZE	2048
+
+# The default crypto mode is rsa; ec can enable elliptic curve support.
+# Note that not all software supports ECC, so use care when enabling it.
+# Choices for crypto alg are: (each in lower-case)
+#  * rsa
+#  * ec
+
+#set_var EASYRSA_ALGO		rsa
+
+# Define the named curve, used in ec mode only:
+
+#set_var EASYRSA_CURVE		secp384r1
 
 # In how many days should the root CA key expire?
 

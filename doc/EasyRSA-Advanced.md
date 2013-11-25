@@ -93,6 +93,9 @@ possible terse description is shown below:
  *  `EASYRSA_REQ_OU` (CLI: `--req-ou`) - set the DN organizational unit with org
     mode
  *  `EASYRSA_KEY_SIZE` (CLI: `--key-size`) - set the keysize in bits to generate
+ *  `EASYRSA_ALGO` (CLI: `--use-algo`) - set the crypto alg to use: rsa or ec
+ *  `EASYRSA_CURVE` (CLI: `--curve`) - define the named EC curve to use
+ *  `EASYRSA_EC_DIR` - dir to store generated ecparams
  *  `EASYRSA_CA_EXPIRE` (CLI: `--days`) - set the CA expiration time in days
  *  `EASYRSA_CERT_EXPIRE` (CLI: `--days`) - set the issued cert expiration time
     in days
