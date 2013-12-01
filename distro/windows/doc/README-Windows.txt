@@ -25,7 +25,8 @@ Contents of this file:
 
     (1) Add the location of openssl.exe to the system PATH
 
-    (2) Define the OPENSSL env-var to reference the full path to openssl.exe
+    (2) Define the EASYRSA_OPENSSL env-var to reference the full path to
+    openssl.exe
 
     (3) Edit the vars file (copy vars.example as a starting point) as instructed
     in the comments

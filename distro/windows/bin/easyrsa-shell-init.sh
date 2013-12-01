@@ -14,7 +14,7 @@ export HOME="$setup_path"
 export ENV="/disable-env"
 
 # Verify required externals are present
-extern_list="which awk cp mkdir printf rm"
+extern_list="which awk cat cp mkdir printf rm"
 for f in $extern_list; do
 	if ! which "${f}.exe" >/dev/null 2>&1; then
 		echo ""
@@ -42,8 +42,8 @@ set_var() {
 [ -r "vars" ] && EASYRSA_CALLER=1 . "vars" 2>/dev/null
 if [ -z "$EASYRSA_OPENSSL" ] && ! which openssl.exe >/dev/null 2>&1; then
 	echo "WARNING: openssl isn't in your system PATH. The openssl binary must be"
-	echo "  available in the PATH, defined in the 'vars' file, or defined in the"
-	echo "  OPENSSL environment variable. See README-Windows.txt for more info."
+	echo "  available in the PATH, defined in the 'vars' file, or defined in a"
+	echo "  named environment variable. See README-Windows.txt for more info."
 fi
 
 [ -f "$setup_path/easyrsa" ] || {
