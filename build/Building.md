@@ -34,14 +34,9 @@ Windows Build Extras
 Windows has additional build steps to provide a suitable POSIX environment.
 Starting with a basic build dir from earlier, proceed as follows.
 
-1. Copy the following files/dirs into the target dir. Unless specified, all
-   source files or referenced dirs go into the root of the target dir. Take care
-   that txt/bat files follow Windows EOL convention (CR+LF.)
-
-   * `distro/windows/EasyRSA Start.bat`
-   * `distro/windows/doc/README-Windows.txt`
-   * `distro/windows/bin/`
-   * `distro/windows/Licensing/`
+1. Copy everything from `distro/windows/` into the target dir root. Make sure
+   that text files follow the Windows EOL convention (CR+LF) -- a git checkout
+   of the source project on Windows generally does this for you already.
 
 2. Convert the .md readme/doc files into html for easier viewing by Windows
    clients. One option using the python3 `markdown` module is:
