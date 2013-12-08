@@ -57,10 +57,8 @@ default_keyfile 	= privkey.pem
 default_md		= $ENV::EASYRSA_DIGEST
 distinguished_name	= $ENV::EASYRSA_DN
 x509_extensions		= easyrsa_ca	# The extentions to add to the self signed cert
-# A section to handle the $EXTRA_EXTS feature
-req_extensions		= req_extra
 
-[ req_extra ]
+# A placeholder to handle the $EXTRA_EXTS feature:
 #%EXTRA_EXTS%	# Do NOT remove or change this line as $EXTRA_EXTS support requires it
 
 ####################################################################

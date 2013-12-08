@@ -508,12 +508,16 @@ Continuing with key generation will replace this key."
 
 	# When EASYRSA_EXTRA_EXTS is defined, append it to openssl's [req] section:
 	if [ -n "$EASYRSA_EXTRA_EXTS" ]; then
+		# Setup & insert the extra ext data keyed by a magic line
+		EASYRSA_EXTRA_EXTS="
+req_extensions = req_extra
+[ req_extra ]
+$EASYRSA_EXTRA_EXTS"
 		local awkscript='
 {if ( match($0, "^#%EXTRA_EXTS%") )
 	{ while ( getline<"/dev/stdin" ) {print} next }
  {print}
 }'
-		# This awk inserts the extra ext data keyed by a magic line
 		print "$EASYRSA_EXTRA_EXTS" | \
 			awk "$awkscript" "$EASYRSA_SSL_CONF" \
 			> "$EASYRSA_TEMP_FILE" \
