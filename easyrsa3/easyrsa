@@ -810,7 +810,8 @@ Missing cert expected at: $crt_in"
 
 		if [ $want_key -eq 1 ]; then
 			[ -f "$key_in" ] || die "\
-Unable to export p12 for short name '$short_name' without the key (missing file, or use nokey option.)
+Unable to export p12 for short name '$short_name' without the key
+(if you want a p12 without the private key, use nokey option.)
 Missing key expected at: $key_in"
 		else
 			pkcs_opts="$pkcs_opts -nokeys"
