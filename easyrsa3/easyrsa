@@ -224,14 +224,14 @@ $1" 1>&2
 
 # non-fatal warning output
 warn() {
-	[ -z "$EASYRSA_BATCH" ] || [ $EASYRSA_BATCH -eq 0 ] && \
+	[ ! $EASYRSA_BATCH ] && \
 		print "
 $1" 1>&2
 } # => warn()
 
 # informational notices to stdout
 notice() {
-	[ -z "$EASYRSA_BATCH" ] || [ $EASYRSA_BATCH -eq 0 ] && \
+	[ ! $EASYRSA_BATCH ] && \
 		print "
 $1"
 } # => notice()
@@ -251,7 +251,7 @@ BEGIN {IGNORECASE=1; r=2}
 # intent confirmation helper func
 # returns without prompting in EASYRSA_BATCH
 confirm() {
-	[ $EASYRSA_BATCH -eq 1 ] && return
+	[ $EASYRSA_BATCH ] && return
 	local prompt="$1" value="$2" msg="$3" input
 	print "
 $msg
@@ -362,8 +362,7 @@ $help_note"
 
 # init-pki backend:
 init_pki() {
-	local opt_force=0
-	[ $EASYRSA_BATCH -eq 1 ] && opt_force=1
+	[ $EASYRSA_BATCH ] && opt_force=1
 	while [ -n "$1" ]; do
 		case "$1" in
 			force) opt_force=1 ;;
@@ -376,7 +375,7 @@ init_pki() {
 
 	# If EASYRSA_PKI exists, confirm before we rm -rf (skipped when forced)
 	if [ -e "$EASYRSA_PKI" ]; then
-		[ $opt_force -eq 0 ] && confirm "Confirm removal: " "yes" "
+		[ !$opt_force ] && confirm "Confirm removal: " "yes" "
 WARNING!!!
 
 You are about to remove the EASYRSA_PKI at: $EASYRSA_PKI
@@ -399,7 +398,7 @@ Your newly created PKI dir is: $EASYRSA_PKI
 
 # build-ca backend:
 build_ca() {
-	local opts= sub_ca=0
+	local opts= sub_ca=
 	while [ -n "$1" ]; do
 		case "$1" in
 			nopass) opts="$opts -nodes" ;;
@@ -415,7 +414,7 @@ build_ca() {
 	# setup for the simpler sub-CA situation and overwrite with root-CA if needed:
 	local out_file="$EASYRSA_PKI/reqs/ca.req"
 	local out_key="$EASYRSA_PKI/private/ca.key"
-	if [ $sub_ca -eq 0 ]; then
+	if [ ! $sub_ca ]; then
 		out_file="$EASYRSA_PKI/ca.crt"
 		opts="$opts -x509 -days $EASYRSA_CA_EXPIRE"
 	fi
@@ -444,14 +443,14 @@ current CA keypair. If you intended to start a new CA, run init-pki first."
 	print "01" > "$EASYRSA_PKI/serial" || die "$err_file"
 
 	# Default CN only when not in global EASYRSA_BATCH mode:
-	[ $EASYRSA_BATCH -eq 1 ] && opts="$opts -batch" || export EASYRSA_REQ_CN="Easy-RSA CA"
+	[ $EASYRSA_BATCH ] && opts="$opts -batch" || export EASYRSA_REQ_CN="Easy-RSA CA"
 	# create the CA keypair:
 	"$EASYRSA_OPENSSL" req -new -newkey $EASYRSA_ALGO:"$EASYRSA_ALGO_PARAMS" \
 		-config "$EASYRSA_SSL_CONF" -keyout "$out_key" -out "$out_file" $opts || \
 		die "Failed to build the CA"
 
 	# Success messages
-	if [ $sub_ca -eq 1 ]; then
+	if [ $sub_ca ]; then
 		notice "\
 NOTE: Your sub-CA request is at $out_file
 and now must be sent to you parent CA for signing. Place your resulting cert
@@ -487,7 +486,7 @@ Error: gen-req must have a file base as the first argument.
 Run easyrsa without commands for usage and commands."
 	local key_out="$EASYRSA_PKI/private/$1.key"
 	local req_out="$EASYRSA_PKI/reqs/$1.req"
-	[ $EASYRSA_BATCH -eq 0 ] && EASYRSA_REQ_CN="$1"
+	[ ! $EASYRSA_BATCH ] && EASYRSA_REQ_CN="$1"
 	shift
 
 	# function opts support
@@ -534,7 +533,7 @@ $EASYRSA_EXTRA_EXTS"
 	fi
 
 	# generate request
-	[ $EASYRSA_BATCH -eq 1 ] && opts="$opts -batch"
+	[ $EASYRSA_BATCH ] && opts="$opts -batch"
 	"$EASYRSA_OPENSSL" req -new -newkey $EASYRSA_ALGO:"$EASYRSA_ALGO_PARAMS" \
 		-config "$EASYRSA_SSL_CONF" -keyout "$key_out" -out "$req_out" $opts
 	local ret=$?
@@ -621,7 +620,6 @@ Failed to create temp extension file (bad permissions?) at:
 $EASYRSA_TEMP_FILE"
 
 	# sign request
-	#[ $EASYRSA_BATCH -eq 1 ] && opts="$opts -batch"
 	"$EASYRSA_OPENSSL" ca -in "$req_in" -out "$crt_out" -config "$EASYRSA_SSL_CONF" \
 		-extfile "$EASYRSA_TEMP_FILE" -days $EASYRSA_CERT_EXPIRE -batch $opts
 	local ret=$?
@@ -784,15 +782,15 @@ Run easyrsa without commands for usage and command help."
 	local want_key=1
 	while [ -n "$1" ]; do
 		case "$1" in
-			noca) want_ca=0 ;;
-			nokey) want_key=0 ;;
+			noca) want_ca= ;;
+			nokey) want_key= ;;
 			*) warn "Ignoring unknown command option: '$1'" ;;
 		esac
 		shift
 	done
 
 	local pkcs_opts=
-	if [ $want_ca -eq 1 ]; then
+	if [ $want_ca ]; then
 		verify_file x509 "$crt_ca" || die "\
 Unable to include CA cert in the $pkcs_type output (missing file, or use noca option.)
 Missing file expected at: $crt_ca"
@@ -808,7 +806,7 @@ Missing cert expected at: $crt_in"
 	p12)
 		local pkcs_out="$EASYRSA_PKI/private/$short_name.p12"
 
-		if [ $want_key -eq 1 ]; then
+		if [ $want_key ]; then
 			[ -f "$key_in" ] || die "\
 Unable to export p12 for short name '$short_name' without the key
 (if you want a p12 without the private key, use nokey option.)
