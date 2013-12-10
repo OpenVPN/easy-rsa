@@ -38,6 +38,7 @@ Here is the list of commands available with a short syntax reminder. Use the
   show-req <filename_base> [ cmd-opts ]
   show-cert <filename_base> [ cmd-opts ]
   import-req <request_file_path> <short_basename>
+  export-p7 <filename_base> [ cmd-opts ]
   export-p12 <filename_base> [ cmd-opts ]
 "
 
@@ -128,7 +129,13 @@ cmd_help() {
   export-p12 <filename_base> [ cmd-opts ]
       Export a PKCS#12 file with the keypair specified by <filename_base>"
 			opts="
-        noca  - do not include the ca.crt file in the PKCS12 output" ;;
+        noca  - do not include the ca.crt file in the PKCS12 output
+        nokey - do not include the private key in the PKCS12 output" ;;
+		export-p7) text="
+  export-p7 <filename_base> [ cmd-opts ]
+      Export a PKCS#7 file with the pubkey specified by <filename_base>"
+			opts="
+        noca  - do not include the ca.crt file in the PKCS7 output" ;;
 		altname|subjectaltname|san) text="
   --subject-alt-name=SAN_FORMAT_STRING
       This global option adds a subjectAltName to the request or issued
@@ -755,8 +762,11 @@ You may now use this name to perform signing operations on this request.
 	return 0
 } # => import_req()
 
-# export-p12 backend
-export_p12() {
+# export pkcs#12 or pkcs#7
+export_pkcs() {
+	local pkcs_type="$1"
+	shift
+
 	[ -n "$1" ] || die "\
 Unable to export p12: incorrect command syntax.
 Run easyrsa without commands for usage and command help."
@@ -764,7 +774,6 @@ Run easyrsa without commands for usage and command help."
 	local short_name="$1"
 	local crt_in="$EASYRSA_PKI/issued/$1.crt"
 	local key_in="$EASYRSA_PKI/private/$1.key"
-	local p12_out="$EASYRSA_PKI/private/$1.p12"
 	local crt_ca="$EASYRSA_PKI/ca.crt"
 	shift
 
@@ -772,42 +781,63 @@ Run easyrsa without commands for usage and command help."
 
 	# opts support
 	local want_ca=1
+	local want_key=1
 	while [ -n "$1" ]; do
 		case "$1" in
 			noca) want_ca=0 ;;
+			nokey) want_key=0 ;;
 			*) warn "Ignoring unknown command option: '$1'" ;;
 		esac
 		shift
 	done
 
-	local p12_opts=
+	local pkcs_opts=
 	if [ $want_ca -eq 1 ]; then
 		verify_file x509 "$crt_ca" || die "\
-Unable to include CA cert in the p12 output (missing file, or use noca option.)
+Unable to include CA cert in the $pkcs_type output (missing file, or use noca option.)
 Missing file expected at: $crt_ca"
-		p12_opts="$p12_opts -certfile $crt_ca"
+		pkcs_opts="$pkcs_opts -certfile $crt_ca"
 	fi
 
 	# input files must exist
 	verify_file x509 "$crt_in" || die "\
-Unable to export p12 for short name '$short_name' without the certificate.
+Unable to export $pkcs_type for short name '$short_name' without the certificate.
 Missing cert expected at: $crt_in"
 
-	[ -f "$key_in" ] || die "\
-Unable to export p12 for short name '$short_name' without the key.
-Missing key expected at: $key_in"
+	case "$pkcs_type" in
+	p12)
+		local pkcs_out="$EASYRSA_PKI/private/$short_name.p12"
 
-	# export the p12:
-	"$EASYRSA_OPENSSL" pkcs12 -in "$crt_in" -inkey "$key_in" -export \
-		-out "$p12_out" $p12_opts || die "\
+		if [ $want_key -eq 1 ]; then
+			[ -f "$key_in" ] || die "\
+Unable to export p12 for short name '$short_name' without the key
+(if you want a p12 without the private key, use nokey option.)
+Missing key expected at: $key_in"
+		else
+			pkcs_opts="$pkcs_opts -nokeys"
+		fi
+
+		# export the p12:
+		"$EASYRSA_OPENSSL" pkcs12 -in "$crt_in" -inkey "$key_in" -export \
+			-out "$pkcs_out" $pkcs_opts || die "\
 Export of p12 failed: see above for related openssl errors."
+	;;
+	p7)
+		local pkcs_out="$EASYRSA_PKI/issued/$short_name.p7b"
+
+		# export the p7:
+		"$EASYRSA_OPENSSL" crl2pkcs7 -nocrl -certfile "$crt_in" \
+			-out "$pkcs_out" $pkcs_opts || die "\
+Export of p7 failed: see above for related openssl errors."
+	;;
+esac
 
 	notice "\
-Successful export of p12 file. Your exported file is at the following
-location: $p12_out
+Successful export of $pkcs_type file. Your exported file is at the following
+location: $pkcs_out
 "
 	return 0
-} # => export_p12()
+} # => export_pkcs()
 
 # update-db backend
 update_db() {
@@ -1097,8 +1127,12 @@ case "$cmd" in
 		import_req "$@"
 		;;
 	export-p12)
-		export_p12 "$@"
+		export_pkcs p12 "$@"
 		;;
+	export-p7)
+		export_pkcs p7 "$@"
+		;;
+
 	update-db)
 		update_db
 		;;
