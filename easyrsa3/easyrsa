@@ -217,6 +217,7 @@ die() {
 Easy-RSA error:
 
 $1" 1>&2
+	clean_temp
 	exit ${2:-1}
 } # => die()
 
@@ -261,6 +262,13 @@ Type the word '$value' to continue, or any other input to abort."
 	notice "Aborting without confirmation."
 	exit 9
 } # => confirm()
+
+# remove temp files
+clean_temp() {
+	for f in "$EASYRSA_TEMP_FILE"
+	do	[ -f "$f" ] && rm "$f" 2>/dev/null
+	done
+} # => clean_temp()
 
 vars_source_check() {
 	# Check for defined EASYRSA_PKI
@@ -524,15 +532,14 @@ $EASYRSA_EXTRA_EXTS"
 	# generate request
 	[ $EASYRSA_BATCH ] && opts="$opts -batch"
 	"$EASYRSA_OPENSSL" req -new -newkey $EASYRSA_ALGO:"$EASYRSA_ALGO_PARAMS" \
-		-config "$EASYRSA_SSL_CONF" -keyout "$key_out" -out "$req_out" $opts
-	local ret=$?
-	[ -n "$EASYRSA_EXTRA_EXTS" ] && rm "$EASYRSA_TEMP_FILE"
-	[ $ret -eq 0 ] || die "Failed to generate request"
+		-config "$EASYRSA_SSL_CONF" -keyout "$key_out" -out "$req_out" $opts \
+		|| die "Failed to generate request"
 	notice "\
 Keypair and certificate request completed. Your files are:
 req: $req_out
 key: $key_out
 "
+	clean_temp
 	return 0
 } # => gen_req()
 
@@ -610,13 +617,12 @@ $EASYRSA_TEMP_FILE"
 
 	# sign request
 	"$EASYRSA_OPENSSL" ca -in "$req_in" -out "$crt_out" -config "$EASYRSA_SSL_CONF" \
-		-extfile "$EASYRSA_TEMP_FILE" -days $EASYRSA_CERT_EXPIRE -batch $opts
-	local ret=$?
-	rm "$EASYRSA_TEMP_FILE"
-	[ $ret -eq 0 ] || die "signing failed (openssl output above may have more detail)"
+		-extfile "$EASYRSA_TEMP_FILE" -days $EASYRSA_CERT_EXPIRE -batch $opts \
+		|| die "signing failed (openssl output above may have more detail)"
 	notice "\
 Certificate created at: $crt_out
 "
+	clean_temp
 	return 0
 } # => sign_req()
 
