@@ -110,3 +110,5 @@ possible terse description is shown below:
     mode
  *  `EASYRSA_DIGEST` (CLI: `--digest`) - set a hash diget to use for req/cert
     signing
+ *  `EASYRSA_BATCH` (CLI: `--batch`) - enable batch (no-prompt) mode; set
+    env-var to non-zero string to enable (CLI takes no options)

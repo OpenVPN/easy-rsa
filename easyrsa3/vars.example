@@ -191,9 +191,9 @@ fi
 
 #set_var EASYRSA_DIGEST		"sha256"
 
-# Batch mode. Leave this disabled (set to 0) unless you intend to call Easy-RSA
-# explicitly in batch mode without any user input, confirmation on dangerous
-# operations, or most output.
+# Batch mode. Leave this disabled unless you intend to call Easy-RSA explicitly
+# in batch mode without any user input, confirmation on dangerous operations,
+# or most output. Setting this to any non-blank string enables batch mode.
 
-#set_var EASYRSA_BATCH		0
+#set_var EASYRSA_BATCH		""
 

@@ -25,7 +25,7 @@ For a listing of options that can be supplied before the command, use:
 Here is the list of commands available with a short syntax reminder. Use the
 'help' command above to get full usage details.
 
-  init-pki [ cmd-opts ]
+  init-pki
   build-ca [ cmd-opts ]
   gen-dh
   gen-req <filename_base> [ cmd-opts ]
@@ -60,9 +60,7 @@ cmd_help() {
 	case "$1" in
 		init-pki|clean-all) text="
   init-pki [ cmd-opts ]
-      Removes & re-initializes the PKI dir for a clean PKI"
-      			opts="
-        force   - do not prompt when removing existing files" ;;
+      Removes & re-initializes the PKI dir for a clean PKI" ;;
 		build-ca) text="
   build-ca [ cmd-opts ]
       Creates a new CA"
@@ -175,7 +173,7 @@ non-empty values to options are mandatory.
 
 General options:
 
---batch=#       : set automatic (no-prompts when possible) mode; must be 0 or 1
+--batch         : set automatic (no-prompts when possible) mode
 --pki-dir=DIR   : declares the PKI directory
 --vars=FILE     : define a specific 'vars' file to use for Easy-RSA config
 
@@ -213,7 +211,7 @@ Deprecated features:
 print() { printf "%s\n" "$*"; }
 
 # Exit fatally with a message to stderr
-# present even with EASYRSA_BATCH=1 as these are fatal problems
+# present even with EASYRSA_BATCH as these are fatal problems
 die() {
 	print "
 Easy-RSA error:
@@ -362,20 +360,11 @@ $help_note"
 
 # init-pki backend:
 init_pki() {
-	[ $EASYRSA_BATCH ] && opt_force=1
-	while [ -n "$1" ]; do
-		case "$1" in
-			force) opt_force=1 ;;
-			*) warn "Ignoring unknown command option: '$1'" ;;
-		esac
-		shift
-	done
-	
 	vars_source_check
 
-	# If EASYRSA_PKI exists, confirm before we rm -rf (skipped when forced)
+	# If EASYRSA_PKI exists, confirm before we rm -rf (skiped with EASYRSA_BATCH)
 	if [ -e "$EASYRSA_PKI" ]; then
-		[ !$opt_force ] && confirm "Confirm removal: " "yes" "
+		confirm "Confirm removal: " "yes" "
 WARNING!!!
 
 You are about to remove the EASYRSA_PKI at: $EASYRSA_PKI
@@ -1012,7 +1001,7 @@ while :; do
 	# Separate option from value:
 	opt="${1%%=*}"
 	val="${1#*=}"
-	empty_ok=0 # Empty values are not allowed unless excepted
+	empty_ok= # Empty values are not allowed unless excepted
 
 	case "$opt" in
 	--days)
@@ -1058,7 +1047,8 @@ while :; do
 		empty_ok=1
 		export EASYRSA_NS_COMMENT="$val" ;;
 	--batch)
-		export EASYRSA_BATCH="$val" ;;
+		empty_ok=1
+		export EASYRSA_BATCH=1 ;;
 	--subca-len)
 		export EASYRSA_SUBCA_LEN="$val" ;;
 	--vars)
@@ -1072,7 +1062,7 @@ subjectAltName = $val" ;;
 	esac
 
 	# fatal error when no value was provided
-	if [ "$val" = "$1" ] || { [ $empty_ok = 0 ] && [ -z "$val" ]; }; then
+	if [ ! $empty_ok ] && { [ "$val" = "$1" ] || [ -z "$val" ]; }; then
 		die "Missing value to option: $opt"
 	fi
 
@@ -1081,14 +1071,6 @@ done
 
 # Intelligent env-var detection and auto-loading:
 vars_setup
-
-# EASYRSA_BATCH must be defined or numeric tests will fail.
-[ -n "$EASYRSA_BATCH" ] || EASYRSA_BATCH=0
-# Fix & warn user if defined value is not 0 or 1.
-[ "$EASYRSA_BATCH" = 1 ] || [ "$EASYRSA_BATCH" = 0 ] || {
-	EASYRSA_BATCH=0
-	warn "Invalid 'EASYRSA_BATCH' var has been defined to 0. Bad value was: '$EASYRSA_BATCH'"
-}
 
 # determine how we were called, then hand off to the function responsible
 cmd="$1"
