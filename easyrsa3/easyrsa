@@ -966,14 +966,13 @@ Note: using Easy-RSA configuration from: $vars"
 	else	set_var EASYRSA_EXT_DIR		"$EASYRSA/x509-types"
 	fi
 
-	# EASYRSA_ALGO_PARAMS must be set depending on config. Defaults to rsa
-	if [ $EASYRSA_ALGO = "ec" ]; then
-		export EASYRSA_ALGO_PARAMS="$EASYRSA_EC_DIR/${EASYRSA_CURVE}.pem"
+	# EASYRSA_ALGO_PARAMS must be set depending on selected algo
+	if [ "ec" = "$EASYRSA_ALGO" ]; then
+		EASYRSA_ALGO_PARAMS="$EASYRSA_EC_DIR/${EASYRSA_CURVE}.pem"
+	elif [ "rsa" = "$EASYRSA_ALGO" ]; then
+		EASYRSA_ALGO_PARAMS="${EASYRSA_KEY_SIZE}"
 	else
-		export EASYRSA_ALGO_PARAMS="${EASYRSA_KEY_SIZE}"
-		# Warn if the ALGO isn't rsa as we default to rsa anyway
-		[ "$EASYRSA_ALGO" = "rsa" ] || warn "\
-Warning: unknown algo '$EASYRSA_ALGO' -- using rsa default"
+		die "Alg '$EASYRSA_ALGO' is invalid: must be 'rsa' or 'ec'"
 	fi
 
 	# Setting OPENSSL_CONF prevents bogus warnings (especially useful on win32)
