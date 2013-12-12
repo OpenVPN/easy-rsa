@@ -1,38 +1,34 @@
 Building Easy-RSA 3
 ===
 
-Until a formal buildscript is available, this document serves as the build
-reference. Note that Windows builds require external binary files from the
-unxutils and mksh/Win32 projects which are not included in the Easy-RSA source
-tree.
+This document serves as the packaging reference.
 
-Basic Builds
+Using the buildscript
 ---
 
-This build sequence applies to all platforms, including Windows.
+build/build-dist.sh prepares a release-ready tarball from the current source
+tree. Ensure a clean checkout (remove your left-over temp files) and verify
+release changes are in order:
 
-1. Checkout the release tag of interest
+ * ChangeLog updated for version, date, & feature changes
+ * Release-tag prepared in git
 
-2. Create a target directory named EasyRSA-3.x.y (matching the release version)
+When ready, set a match version on the tarball & inside dir with:
 
-3. Copy the `easyrsa3/*` structure to the target dir root (not named easyrsa3)
+    ./build/build-dist.sh --version=3.2.1
 
-4. Copy the following files/dirs into the target dir:
-
-   * `Licensing/`
-   * `doc/`
-   * `COPYING`
-   * `ChangeLog`
-   * `README.quickstart.md`
-
-5. For Windows, continue to `Windows Build Extras`. Otherwise, tar up the target
-   directory for release distribution.
+For development use, omitting the --version param creates by default a
+`git-development` version.
 
 Windows Build Extras
 ---
 
-Windows has additional build steps to provide a suitable POSIX environment.
-Starting with a basic build dir from earlier, proceed as follows.
+When the build-script is updated to support Windows, this section will be
+updated to match.
+
+Note that Windows builds require external binary files from the unxutils and
+mksh/Win32 projects which are not included in the Easy-RSA source tree. Starting
+with a basic build dir from earlier, proceed as follows.
 
 1. Copy everything from `distro/windows/` into the target dir root. Make sure
    that text files follow the Windows EOL convention (CR+LF) -- a git checkout
