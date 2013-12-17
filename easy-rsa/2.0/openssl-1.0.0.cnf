@@ -216,6 +216,8 @@ subjectKeyIdentifier=hash
 authorityKeyIdentifier=keyid,issuer:always
 extendedKeyUsage=serverAuth
 keyUsage = digitalSignature, keyEncipherment
+#crlDistributionPoints = $ENV::KEY_CRL
+
 
 [ v3_req ]
 
@@ -254,6 +256,8 @@ basicConstraints = CA:true
 # subjectAltName=email:copy
 # Copy issuer details
 # issuerAltName=issuer:copy
+
+#crlDistributionPoints = $ENV::KEY_CRL
 
 # DER hex encoding of an extension: beware experts only!
 # obj=DER:02:03
