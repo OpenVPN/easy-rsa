@@ -40,6 +40,8 @@ Here is the list of commands available with a short syntax reminder. Use the
   import-req <request_file_path> <short_basename>
   export-p7 <filename_base> [ cmd-opts ]
   export-p12 <filename_base> [ cmd-opts ]
+  set-rsa-pass <filename_base> [ cmd-opts ]
+  set-ec-pass <filename_base> [ cmd-opts ]
 "
 
 	# collect/show dir status:
@@ -134,6 +136,13 @@ cmd_help() {
       Export a PKCS#7 file with the pubkey specified by <filename_base>"
 			opts="
         noca  - do not include the ca.crt file in the PKCS7 output" ;;
+		set-rsa-pass|set-ec-pass) text="
+  set-rsa-pass <filename_base> [ cmd-opts ]
+  set-ec-pass <filename_base> [ cmd-opts ]
+      Set a new passphrase on an RSA or EC key for the listed <filename_base>."
+                        opts="
+        nopass - use no password and leave the key unencrypted
+        file   - (advanced) treat the file as a raw path, not a short-name" ;;
 		altname|subjectaltname|san) text="
   --subject-alt-name=SAN_FORMAT_STRING
       This global option adds a subjectAltName to the request or issued
@@ -832,6 +841,48 @@ location: $pkcs_out
 	return 0
 } # => export_pkcs()
 
+# set-pass backend
+set_pass() {
+	verify_pki_init
+
+	# key type, supplied internally from frontend command call (rsa/ec)
+	local key_type="$1"
+
+	# values supplied by the user:
+	local raw_file="$2"
+	local file="$EASYRSA_PKI/private/$raw_file.key"
+	[ -n "$raw_file" ] || die "\
+Missing argument to 'set-$key_type-pass' command: no name/file supplied.
+See help output for usage details."
+
+	# parse command options
+	shift 2
+	local crypto="-des3"
+	while [ -n "$1" ]; do
+		case "$1" in
+			nopass)	crypto= ;;
+			file)	file="$raw_file" ;;
+			*)	warn "Ignoring unknown command option: '$1'" ;;
+		esac
+		shift
+	done
+
+	[ -f "$file" ] || die "\
+Missing private key: expected to find the private key component at:
+$file"
+
+	notice "\
+If the key is currently encrypted you must supply the decryption passphrase.
+${crypto:+You will then enter a new PEM passphrase for this key.$NL}"
+
+	"$EASYRSA_OPENSSL" $key_type -in "$file" -out "$file" $crypto || die "\
+Failed to change the private key passphrase. See above for possible openssl
+error messages."
+
+	notice "Key passphrase successfully changed"
+	
+} # => set_pass()
+
 # update-db backend
 update_db() {
 	verify_ca_init
@@ -998,6 +1049,9 @@ set_var() {
 ########################################
 # Invocation entry point:
 
+NL='
+'
+
 # Be secure with a restrictive umask
 [ -z "$EASYRSA_NO_UMASK" ] && umask 077
 
@@ -1117,7 +1171,12 @@ case "$cmd" in
 	export-p7)
 		export_pkcs p7 "$@"
 		;;
-
+	set-rsa-pass)
+		set_pass rsa "$@"
+		;;
+	set-ec-pass)
+		set_pass ec "$@"
+		;;
 	update-db)
 		update_db
 		;;
