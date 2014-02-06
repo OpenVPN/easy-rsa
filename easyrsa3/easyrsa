@@ -28,7 +28,7 @@ Here is the list of commands available with a short syntax reminder. Use the
   init-pki
   build-ca [ cmd-opts ]
   gen-dh
-  gen-req <filename_base> [ cmd-opts ]
+  gen-req <type> <filename_base> [ cmd-opts ]
   sign-req <type> <filename_base>
   build-client-full <filename_base> [ cmd-opts ]
   build-server-full <filename_base> [ cmd-opts ]
@@ -73,8 +73,10 @@ cmd_help() {
   gen-dh
       Generates DH (Diffie-Helllman) parameters" ;;
 		gen-req) text="
-  gen-req <filename_base> [ cmd-opts ]
-      Generate a standalone keypair and request (CSR)
+  gen-req <type> <filename_base> [ cmd-opts ]
+      Generate a standalone keypair and request (CSR) of the defined type.
+      <type> must be a known type such as 'client', 'server', or 'ca'
+      (or a user-added type.)
 
       This request is suitable for sending to a remote CA for signing."
       			opts="
@@ -486,23 +488,28 @@ DH parameters of size $EASYRSA_KEY_SIZE created at $out_file
 
 # gen-req backend:
 gen_req() {
+    local req_type="$1"
+    # Cert type must exist under the EASYRSA_EXT_DIR
+    [ -r "$EASYRSA_EXT_DIR/$req_type" ] || die "\
+Unknown cert type '$req_type'"
+
 	# pull filename base and use as default interactive CommonName:
-	[ -n "$1" ] || die "\
+	[ -n "$2" ] || die "\
 Error: gen-req must have a file base as the first argument.
 Run easyrsa without commands for usage and commands."
-	local key_out="$EASYRSA_PKI/private/$1.key"
-	local req_out="$EASYRSA_PKI/reqs/$1.req"
-	[ ! $EASYRSA_BATCH ] && EASYRSA_REQ_CN="$1"
+	local key_out="$EASYRSA_PKI/private/$2.key"
+	local req_out="$EASYRSA_PKI/reqs/$2.req"
+	[ ! $EASYRSA_BATCH ] && EASYRSA_REQ_CN="$2"
 	shift
 
 	# function opts support
 	local opts=
-	while [ -n "$1" ]; do
-		case "$1" in
+	while [ -n "$2" ]; do
+		case "$2" in
 			nopass) opts="$opts -nodes" ;;
 			# batch flag supports internal callers needing silent operation
 			batch) local EASYRSA_BATCH=1 ;;
-			*) warn "Ignoring unknown command option: '$1'" ;;
+			*) warn "Ignoring unknown command option: '$2'" ;;
 		esac
 		shift
 	done
@@ -517,6 +524,22 @@ WARNING!!!
 
 An existing private key was found at $key_out
 Continuing with key generation will replace this key."
+
+	# Generate the temporary config file for this cert:
+	{
+		# Append first any COMMON file (if present) then the cert-type
+		cat "$EASYRSA_SSL_CONF"
+		print "
+"
+		cat "$EASYRSA_EXT_DIR/COMMON"
+		print "
+"
+		cat "$EASYRSA_EXT_DIR/$req_type"
+		: # needed to keep die from inherting the above test
+	} > "$EASYRSA_TEMP_FILE" || die "\
+Failed to create temp extension file (bad permissions?) at:
+$EASYRSA_TEMP_FILE"
+	local EASYRSA_SSL_CONF="$EASYRSA_TEMP_FILE"
 
 	# When EASYRSA_EXTRA_EXTS is defined, append it to openssl's [req] section:
 	if [ -n "$EASYRSA_EXTRA_EXTS" ]; then

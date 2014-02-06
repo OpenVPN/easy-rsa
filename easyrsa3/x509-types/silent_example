@@ -1,0 +1,18 @@
+# X509 extensions for a client
+
+basicConstraints = CA:FALSE
+subjectKeyIdentifier = hash
+authorityKeyIdentifier = keyid,issuer:always
+extendedKeyUsage = clientAuth
+keyUsage = digitalSignature
+
+[ req ]
+distinguished_name  = test_DN
+prompt  = no
+
+[test_DN]
+commonName          = $ENV::EASYRSA_REQ_CN
+emailAddress        = $ENV::EASYRSA_REQ_CN@company.com
+organizationName    = Company
+countryName         = US
+
