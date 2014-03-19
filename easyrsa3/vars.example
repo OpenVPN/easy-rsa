@@ -142,7 +142,7 @@ fi
 # be fine for most users; however, some users might want an alternative under a
 # RAM-based FS, such as /dev/shm or /tmp on some systems.
 
-#set_var EASYRSA_TEMP_FILE	"$PKI_DIR/extensions.temp"
+#set_var EASYRSA_TEMP_FILE	"$EASYRSA_PKI/extensions.temp"
 
 # !!
 # NOTE: ADVANCED OPTIONS BELOW THIS POINT
@@ -164,7 +164,7 @@ fi
 # If you want to customize the X509 extensions used, set the directory to look
 # for extensions here. Each cert type you sign must have a matching filename,
 # and an optional file named 'COMMON' is included first when present. Note that
-# when undefined here, default behaviour is to look in $PKI_DIR first, then
+# when undefined here, default behaviour is to look in $EASYRSA_PKI first, then
 # fallback to $EASYRSA for the 'x509-types' dir.  You may override this
 # detection with an explicit dir here.
 #
@@ -173,7 +173,7 @@ fi
 # OpenSSL config file:
 # If you need to use a specific openssl config file, you can reference it here.
 # Normally this file is auto-detected from a file named openssl-1.0.cnf from the
-# PKI_DIR or EASYRSA dir (in that order.) NOTE that this file is Easy-RSA
+# EASYRSA_PKI or EASYRSA dir (in that order.) NOTE that this file is Easy-RSA
 # specific and you cannot just use a standard config file, so this is an
 # advanced feature.
 
