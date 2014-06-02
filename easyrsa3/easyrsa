@@ -965,6 +965,9 @@ vars_setup() {
 	# set up program path
 	local prog_vars="${0%/*}/vars"
 
+	# set up working directory
+	local wd_vars="$(pwd)/vars"
+
 	# command-line path:
 	if [ -f "$EASYRSA_VARS_FILE" ]; then
 		vars="$EASYRSA_VARS_FILE"
@@ -977,6 +980,9 @@ vars_setup() {
 	# program location:
 	elif [ -f "$prog_vars" ]; then
 		vars="$prog_vars"
+	# working directory:
+	elif [ -f "$wd_vars" ]; then
+		vars="$wd_vars"
 	fi
 	
 	# If a vars file was located, source it
