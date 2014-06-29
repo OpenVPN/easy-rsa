@@ -457,7 +457,7 @@ current CA keypair. If you intended to start a new CA, run init-pki first."
 	out_key_tmp="$(mktemp -u "$out_key.XXXXXXXXXX")"; EASYRSA_TEMP_FILE_2="$out_key_tmp"
 	out_file_tmp="$(mktemp -u "$out_file.XXXXXXXXXX")"; EASYRSA_TEMP_FILE_3="$out_file_tmp"
 	# create the CA keypair:
-	"$EASYRSA_OPENSSL" req -new -newkey $EASYRSA_ALGO:"$EASYRSA_ALGO_PARAMS" \
+	"$EASYRSA_OPENSSL" req -utf8 -new -newkey $EASYRSA_ALGO:"$EASYRSA_ALGO_PARAMS" \
 		-config "$EASYRSA_SSL_CONF" -keyout "$out_key_tmp" -out "$out_file_tmp" $opts || \
 		die "Failed to build the CA"
 	mv "$out_key_tmp" "$out_key"; EASYRSA_TEMP_FILE_2=
@@ -550,7 +550,7 @@ $EASYRSA_EXTRA_EXTS"
 	req_out_tmp="$(mktemp -u "$req_out.XXXXXXXXXX")"; EASYRSA_TEMP_FILE_3="$req_out_tmp"
 	# generate request
 	[ $EASYRSA_BATCH ] && opts="$opts -batch"
-	"$EASYRSA_OPENSSL" req -new -newkey $EASYRSA_ALGO:"$EASYRSA_ALGO_PARAMS" \
+	"$EASYRSA_OPENSSL" req -utf8 -new -newkey $EASYRSA_ALGO:"$EASYRSA_ALGO_PARAMS" \
 		-config "$EASYRSA_SSL_CONF" -keyout "$key_out_tmp" -out "$req_out_tmp" $opts \
 		|| die "Failed to generate request"
 	mv "$key_out_tmp" "$key_out"; EASYRSA_TEMP_FILE_2=
@@ -637,7 +637,7 @@ $EASYRSA_TEMP_FILE"
 
 	# sign request
 	crt_out_tmp="$(mktemp -u "$crt_out.XXXXXXXXXX")"; EASYRSA_TEMP_FILE_2="$crt_out_tmp"
-	"$EASYRSA_OPENSSL" ca -in "$req_in" -out "$crt_out_tmp" -config "$EASYRSA_SSL_CONF" \
+	"$EASYRSA_OPENSSL" ca -utf8 -in "$req_in" -out "$crt_out_tmp" -config "$EASYRSA_SSL_CONF" \
 		-extfile "$EASYRSA_TEMP_FILE" -days $EASYRSA_CERT_EXPIRE -batch $opts \
 		|| die "signing failed (openssl output above may have more detail)"
 	mv "$crt_out_tmp" "$crt_out"; EASYRSA_TEMP_FILE_2=
@@ -716,7 +716,7 @@ $(display_dn x509 "$crt_in")
 Unable to revoke as no certificate was found. Certificate was expected
 at: $crt_in"
 
-	"$EASYRSA_OPENSSL" ca -revoke "$crt_in" -config "$EASYRSA_SSL_CONF" || die "\
+	"$EASYRSA_OPENSSL" ca -utf8 -revoke "$crt_in" -config "$EASYRSA_SSL_CONF" || die "\
 Failed to revoke certificate: revocation command failed."
 
 	notice "\
@@ -734,7 +734,7 @@ gen_crl() {
 
 	local out_file="$EASYRSA_PKI/crl.pem"
 	out_file_tmp="$(mktemp -u "$out_file.XXXXXXXXXX")"; EASYRSA_TEMP_FILE_2="$out_file_tmp"
-	"$EASYRSA_OPENSSL" ca -gencrl -out "$out_file" -config "$EASYRSA_SSL_CONF" || die "\
+	"$EASYRSA_OPENSSL" ca -utf8 -gencrl -out "$out_file" -config "$EASYRSA_SSL_CONF" || die "\
 CRL Generation failed.
 "
 	mv "$out_file_tmp" "$out_file"; EASYRSA_TEMP_FILE_2=
@@ -901,7 +901,7 @@ error messages."
 update_db() {
 	verify_ca_init
 
-	"$EASYRSA_OPENSSL" ca -updatedb -config "$EASYRSA_SSL_CONF" || die "\
+	"$EASYRSA_OPENSSL" ca -utf8 -updatedb -config "$EASYRSA_SSL_CONF" || die "\
 Failed to perform update-db: see above for related openssl errors."
 	return 0
 } # => update_db()
