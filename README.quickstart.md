@@ -5,6 +5,9 @@ This is a quickstart guide to using Easy-RSA version 3. Detailed help on usage
 and specific commands by running easyrsa with the 'help' command. Additional
 documentation can be found in the doc/ directory.
 
+If you're upgrading from the Easy-RSA 2.x series there are Upgrade-Notes
+available, also under the doc/ path.
+
 Setup and signing the first request
 -----------------------------------
 
@@ -16,11 +19,11 @@ first entity certificate.
         ./easyrsa init-pki
         ./easyrsa build-ca
 
-2. On the separate system that is requesting a certificate, init its own PKI and
-   generate a keypair/request. Note that the init-pki is used _only_ when this
-   is done on a separate system (or at least a separate PKI dir.) This is the
-   recommended procedure. If you are not using this recommended procedure, skip
-   the next import-req step as well.
+2. On the system that is requesting a certificate, init its own PKI and generate
+   a keypair/request. Note that the init-pki is used _only_ when this is done on
+   a separate system (or at least a separate PKI dir.) This is the recommended
+   procedure. If you are not using this recommended procedure, skip the next
+   import-req step as well.
 
         ./easyrsa init-pki
         ./easyrsa gen-req EntityName
@@ -82,3 +85,16 @@ without a matching file.
 
         ./easyrsa show-req EntityName
         ./easyrsa show-cert EntityName
+
+Changing private key passphrases
+--------------------------------
+
+RSA and EC private keys can be re-encrypted so a new passphrase can be supplied
+with one of the following commands depending on the key type:
+
+        ./easyrsa set-rsa-pass EntityName
+
+        ./easyrsa set-ec-pass EntityName
+
+Optionally, the passphrase can be removed completely with the 'nopass' flag.
+Consult the command help for details.

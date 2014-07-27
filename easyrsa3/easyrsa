@@ -2,7 +2,8 @@
 
 # Easy-RSA 3 -- A Shell-based CA Utility
 #
-# Copyright (C) 2013 by the Open-Source OpenVPN development community
+# Copyright (C) 2013 by the Open-Source OpenVPN development community.
+# A full list of contributors can be found in the ChangeLog.
 #
 # This code released under version 2 of the GNU GPL; see COPYING and the
 # Licensing/ directory of this project for full licensing details.

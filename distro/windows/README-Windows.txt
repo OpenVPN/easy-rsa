@@ -3,6 +3,10 @@ Easy-RSA 3 Windows README
 Easy-RSA 3 runs POSIX shell code, so use on Windows has some additional
 requirements: an OpenSSL installation, and a usable shell environment.
 
+If you don't have OpenSSL, you'll need to install an OpenSSL package (see
+section 1.) The Easy-RSA Windows release includes a ready-to-use shell
+environment with special thanks to the mksh/Win32 project.
+
 Contents of this file:
   1. OpenSSL
   2. shell environment
@@ -10,6 +14,8 @@ Contents of this file:
   4. Appendix:
    4.1: reference links
    4.2: license of included components
+  5. Special Thanks
+   5.1: mksh/Win32
 
 1. Obtaining OpenSSL for use with Easy-RSA
 
@@ -114,5 +120,13 @@ Contents of this file:
        The full source for this win32 port can be found here:
        http://sourceforge.net/projects/unxutils/
 
+5. Special Thanks
+
+ 5.1: mksh/Win32
+
+    A special thanks is in order to the mksh/Win32 project and its primary
+    maintainer, Michael Langguth <mksh-w32@gmx.net>. This shell offers featurs
+    that allow Easy-RSA to run smoothly under Windows; by using mksh/Win32,
+    Easy-RSA can deliver the same PKI flexibility to all major platforms.
        
 vim: wrap tw=80 expandtab
