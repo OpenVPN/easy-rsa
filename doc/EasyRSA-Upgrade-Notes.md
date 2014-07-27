@@ -2,8 +2,8 @@ Upgrading to Easy-RSA 3 from earlier versions
 =========
 
 People upgrading to Easy-RSA 3 from a 2.x version should note some important
-changes start with version 3. For a better overview of version 3 in general, see
-the Readme in the doc/ directory.
+changes starting with version 3. For a better overview of version 3 in general,
+see the Readme in the doc/ directory.
 
 List of important changes
 ----
