@@ -62,7 +62,7 @@ Usage: $PROGNAME [options...] [common-name]
 Options:
   --batch    : batch mode (default)
   --keysize  : Set keysize
-      size   : size (default=1024)
+      size   : size (default=2048)
   --interact : interactive mode
   --server   : build server cert
   --initca   : build root CA
@@ -360,7 +360,7 @@ if [ -d "$KEY_DIR" ] && [ "$KEY_CONFIG" ]; then
                 echo "Generating key pair on PKCS#11 token..."
                 $PKCS11TOOL --module "$PKCS11_MODULE_PATH" --keypairgen \
                         --login --pin "$PKCS11_PIN" \
-                        --key-type rsa:1024 \
+                        --key-type rsa:20482048204820482048204820482048204820482048204820482048204820482048204820482048 \
                         --slot "$PKCS11_SLOT" --id "$PKCS11_ID" --label "$PKCS11_LABEL" || exit 1
                 PKCS11_ARGS="-engine pkcs11 -keyform engine -key $PKCS11_SLOT:$PKCS11_ID"
         fi
