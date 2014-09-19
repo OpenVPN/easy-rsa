@@ -1,0 +1,29 @@
+#! /bin/sh
+
+if [ $# -ne 1 ]
+then
+    echo "Usage: $0 New-CA-Dir"
+    echo "    New-CA-Dir will be created and populated"
+    exit 1
+fi
+
+if [ -e "$1" ]
+then
+    echo "Please give an unexistant directory. $1 exists"
+    exit 1
+fi
+
+set -e
+
+mkdir "$1"
+cd "$1"
+
+for i in easyrsa openssl-1.0.cnf x509-types
+do
+    ln -s /usr/share/easyrsa3/$i .
+done
+
+./easyrsa init-pki
+
+echo "Your main CA directory is now: $1"
+echo "Change there and use ./easyrsa help"

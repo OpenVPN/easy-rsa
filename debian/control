@@ -1,0 +1,10 @@
+Source: easyrsa3
+Maintainer: CosmoKey Packages <packages@cosmokey.com>
+Section: net
+Priority: extra
+Standards-Version: 3.9
+
+Package: easyrsa3
+Architecture: all
+Depends: openssl
+Description: Simple shell based CA/PKI utility

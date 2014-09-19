@@ -1,0 +1,5 @@
+easyrsa3 (3.0.0~rc2) unstable; urgency=low
+
+  * Initial packaging.
+
+ -- CosmoKey Packages <packages@cosmokey.com>  Tue, 26 Aug 2014 20:50:12 +0200

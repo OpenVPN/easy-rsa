@@ -1,0 +1,2 @@
+easyrsa3/* /usr/share/easyrsa3/
+debian/additions/make-easyrsa3-dir /usr/bin
