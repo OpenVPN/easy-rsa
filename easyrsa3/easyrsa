@@ -822,7 +822,7 @@ Missing key expected at: $key_in"
 
 		# export the p12:
 		"$EASYRSA_OPENSSL" pkcs12 -in "$crt_in" -inkey "$key_in" -export \
-			-out "$pkcs_out" $pkcs_opts || die "\
+			-name "$short_name" -out "$pkcs_out" $pkcs_opts || die "\
 Export of p12 failed: see above for related openssl errors."
 	;;
 	p7)
