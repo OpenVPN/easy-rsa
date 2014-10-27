@@ -130,8 +130,9 @@ cmd_help() {
   export-p12 <filename_base> [ cmd-opts ]
       Export a PKCS#12 file with the keypair specified by <filename_base>"
 			opts="
-        noca  - do not include the ca.crt file in the PKCS12 output
-        nokey - do not include the private key in the PKCS12 output" ;;
+        noca   - do not include the ca.crt file in the PKCS12 output
+        nokey  - do not include the private key in the PKCS12 output
+        nopass - use blank password" ;;
 		export-p7) text="
   export-p7 <filename_base> [ cmd-opts ]
       Export a PKCS#7 file with the pubkey specified by <filename_base>"
@@ -785,10 +786,12 @@ Run easyrsa without commands for usage and command help."
 	# opts support
 	local want_ca=1
 	local want_key=1
+	local want_pass=1
 	while [ -n "$1" ]; do
 		case "$1" in
 			noca) want_ca= ;;
 			nokey) want_key= ;;
+			nopass) want_pass= ;;
 			*) warn "Ignoring unknown command option: '$1'" ;;
 		esac
 		shift
@@ -818,6 +821,10 @@ Unable to export p12 for short name '$short_name' without the key
 Missing key expected at: $key_in"
 		else
 			pkcs_opts="$pkcs_opts -nokeys"
+		fi
+
+		if [ ! $want_pass ]; then
+			pkcs_opts="$pkcs_opts -password pass:"
 		fi
 
 		# export the p12:
