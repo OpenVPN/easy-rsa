@@ -1,0 +1,9 @@
+# X509 extensions for an IKE/IPSec endpoint (server or client)
+#
+# Based on policy recommendations in RFC4945
+
+basicConstraints = CA:FALSE
+subjectKeyIdentifier = hash
+authorityKeyIdentifier = keyid,issuer:always
+keyUsage = digitalSignature,nonRepudiation
+
