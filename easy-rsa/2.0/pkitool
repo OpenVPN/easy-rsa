@@ -68,6 +68,10 @@ Options:
   --initca   : build root CA
   --inter    : build intermediate CA
   --pass     : encrypt private key with password
+  --password : password to encrypt private key
+      pass:password     : password is "password"
+      file:password.txt : password in file "password.txt"
+      stdin             : use standard input
   --csr      : only generate a CSR, do not sign
   --sign     : sign an existing CSR
   --pkcs12   : generate a combined PKCS#12 file
@@ -147,6 +151,7 @@ CA_EXT=""
 DO_P12="0"
 DO_P11="0"
 DO_ROOT="0"
+PASS="0"
 NODES_REQ="-nodes"
 NODES_P12=""
 BATCH="-batch"
@@ -166,7 +171,9 @@ while [ $# -gt 0 ]; do
         --interact ) BATCH="" ;;
         --inter    ) CA_EXT="$CA_EXT -extensions v3_ca" ;;
         --initca   ) DO_ROOT="1" ;;
-        --pass     ) NODES_REQ="" ;;
+        --pass     ) PASS="1" ;; # NODES_REQ="" ;;
+        --password ) PASSWORD=$2
+                     shift;;
         --csr      ) DO_CA="0" ;;
         --sign     ) DO_REQ="0" ;;
         --pkcs12   ) DO_P12="1" ;;
@@ -232,6 +239,14 @@ if [ $DO_P11 -eq 1 ]; then
         if ! grep "^pkcs11.*=" "$KEY_CONFIG" > /dev/null; then
                 die "Please edit $KEY_CONFIG and setup PKCS#11 engine"
         fi
+fi
+
+if [ $PASS -eq 1]; then
+    if [ -z $PASSWORD ]; then
+      NODES_REQ=""
+    else
+      NODES_REQ="-passout $PASSWORD"
+    fi
 fi
 
 # If we are generating pkcs12, only encrypt the final step
