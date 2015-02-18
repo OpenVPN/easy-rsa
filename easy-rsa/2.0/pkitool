@@ -241,7 +241,7 @@ if [ $DO_P11 -eq 1 ]; then
         fi
 fi
 
-if [ $PASS -eq 1]; then
+if [ $PASS -eq 1 ]; then
     if [ -z $PASSWORD ]; then
       NODES_REQ=""
     else
