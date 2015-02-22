@@ -960,39 +960,39 @@ OpenSSL failure to process the input"
 
 # set default vars, preferring existing env-vars if present.
 set_default_vars() {
-	set_var EASYRSA			"$PWD"
-	set_var EASYRSA_OPENSSL		openssl
-	set_var EASYRSA_PKI		"$EASYRSA/pki"
-	set_var EASYRSA_DN		cn_only
-	set_var EASYRSA_REQ_COUNTRY	"US"
-	set_var EASYRSA_REQ_PROVINCE	"California"
-	set_var EASYRSA_REQ_CITY	"San Francisco"
-	set_var EASYRSA_REQ_ORG		"Copyleft Certificate Co"
-	set_var EASYRSA_REQ_EMAIL	me@example.net
-	set_var EASYRSA_REQ_OU		"My Organizational Unit"
-	set_var EASYRSA_ALGO		rsa
-	set_var EASYRSA_KEY_SIZE	2048
-	set_var EASYRSA_CURVE		secp384r1
-	set_var EASYRSA_EC_DIR		"$EASYRSA_PKI/ecparams"
-	set_var EASYRSA_CA_EXPIRE	3650
-	set_var EASYRSA_CERT_EXPIRE	3650
-	set_var EASYRSA_CRL_DAYS	180
-	set_var EASYRSA_NS_SUPPORT	no
-	set_var EASYRSA_NS_COMMENT	"Easy-RSA Generated Certificate"
-	set_var EASYRSA_TEMP_FILE	"$EASYRSA_PKI/extensions.temp"
-	set_var EASYRSA_REQ_CN		ChangeMe
-	set_var EASYRSA_DIGEST		sha256
+	set_uninitialized_var EASYRSA			"$PWD"
+	set_uninitialized_var EASYRSA_OPENSSL		openssl
+	set_uninitialized_var EASYRSA_PKI		"$EASYRSA/pki"
+	set_uninitialized_var EASYRSA_DN		cn_only
+	set_uninitialized_var EASYRSA_REQ_COUNTRY	"US"
+	set_uninitialized_var EASYRSA_REQ_PROVINCE	"California"
+	set_uninitialized_var EASYRSA_REQ_CITY	"San Francisco"
+	set_uninitialized_var EASYRSA_REQ_ORG		"Copyleft Certificate Co"
+	set_uninitialized_var EASYRSA_REQ_EMAIL	me@example.net
+	set_uninitialized_var EASYRSA_REQ_OU		"My Organizational Unit"
+	set_uninitialized_var EASYRSA_ALGO		rsa
+	set_uninitialized_var EASYRSA_KEY_SIZE	2048
+	set_uninitialized_var EASYRSA_CURVE		secp384r1
+	set_uninitialized_var EASYRSA_EC_DIR		"$EASYRSA_PKI/ecparams"
+	set_uninitialized_var EASYRSA_CA_EXPIRE	3650
+	set_uninitialized_var EASYRSA_CERT_EXPIRE	3650
+	set_uninitialized_var EASYRSA_CRL_DAYS	180
+	set_uninitialized_var EASYRSA_NS_SUPPORT	no
+	set_uninitialized_var EASYRSA_NS_COMMENT	"Easy-RSA Generated Certificate"
+	set_uninitialized_var EASYRSA_TEMP_FILE	"$EASYRSA_PKI/extensions.temp"
+	set_uninitialized_var EASYRSA_REQ_CN		ChangeMe
+	set_uninitialized_var EASYRSA_DIGEST		sha256
 
 	# Detect openssl config, preferring EASYRSA_PKI over EASYRSA
 	if [ -f "$EASYRSA_PKI/openssl-1.0.cnf" ]; then
-		set_var EASYRSA_SSL_CONF	"$EASYRSA_PKI/openssl-1.0.cnf"
-	else	set_var EASYRSA_SSL_CONF	"$EASYRSA/openssl-1.0.cnf"
+		set_uninitialized_var EASYRSA_SSL_CONF	"$EASYRSA_PKI/openssl-1.0.cnf"
+	else	set_uninitialized_var EASYRSA_SSL_CONF	"$EASYRSA/openssl-1.0.cnf"
 	fi
 
 	# Same as above for the x509-types extensions dir
 	if [ -d "$EASYRSA_PKI/x509-types" ]; then
-		set_var EASYRSA_EXT_DIR		"$EASYRSA_PKI/x509-types"
-	else	set_var EASYRSA_EXT_DIR		"$EASYRSA/x509-types"
+		set_uninitialized_var EASYRSA_EXT_DIR		"$EASYRSA_PKI/x509-types"
+	else	set_uninitialized_var EASYRSA_EXT_DIR		"$EASYRSA/x509-types"
 	fi
 
 	# EASYRSA_ALGO_PARAMS must be set depending on selected algo
@@ -1046,15 +1046,25 @@ Note: using Easy-RSA configuration from: $vars"
 	export OPENSSL_CONF="$EASYRSA_SSL_CONF"
 } # vars_setup()
 
-# variable assignment by indirection when undefined; merely exports
-# the variable when it is already defined (even if currently null)
+# variable assignment by overwriting any existing value.
+# See set_uninitialized_var() to avoid overwriting an existing value.
 # Sets $1 as the value contained in $2 and exports (may be blank)
 set_var() {
 	local var=$1
 	shift
 	local value="$*"
-	eval "export $var=\"\${$var-$value}\""
+	export $var="$value"
 } #=> set_var()
+
+# variable assignment by indirection when undefined; merely exports
+# the variable when it is already defined (even if currently null)
+# Sets $1 as the value contained in $2 and exports (may be blank)
+set_uninitialized_var() {
+	local var=$1
+	shift
+	local value="$*"
+	eval "export $var=\"\${$var-$value}\""
+} #=> set_uninitialized_var()
 
 ########################################
 # Invocation entry point:
