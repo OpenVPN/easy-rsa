@@ -67,7 +67,7 @@ cmd_help() {
 		build-ca) text="
   build-ca [ cmd-opts ]
       Creates a new CA"
-      			opts="
+			opts="
         nopass  - do not encrypt the CA key (default is encrypted)
         subca   - create a sub-CA keypair and request (default is a root CA)" ;;
 		gen-dh) text="
@@ -78,7 +78,7 @@ cmd_help() {
       Generate a standalone keypair and request (CSR)
 
       This request is suitable for sending to a remote CA for signing."
-      			opts="
+			opts="
         nopass  - do not encrypt the private key (default is encrypted)" ;;
 		sign|sign-req) text="
   sign-req <type> <filename_base>
@@ -107,14 +107,14 @@ cmd_help() {
 
       This command will use the system time to update the status of issued
       certificates." ;;
-      		show-req|show-cert) text="
+		show-req|show-cert) text="
   show-req  <filename_base> [ cmd-opts ]
   show-cert <filename_base> [ cmd-opts ]
       Shows details of the req or cert referenced by filename_base
 
       Human-readable output is shown, including any requested cert options when
       showing a request."
-      			opts="
+			opts="
           full   - show full req/cert info, including pubkey/sig data" ;;
 		import-req) text="
   import-req <request_file_path> <short_basename>
@@ -141,7 +141,7 @@ cmd_help() {
   set-rsa-pass <filename_base> [ cmd-opts ]
   set-ec-pass <filename_base> [ cmd-opts ]
       Set a new passphrase on an RSA or EC key for the listed <filename_base>."
-                        opts="
+			opts="
         nopass - use no password and leave the key unencrypted
         file   - (advanced) treat the file as a raw path, not a short-name" ;;
 		altname|subjectaltname|san) text="
@@ -622,7 +622,7 @@ $(display_dn req "$req_in")
 
 		# Add any advanced extensions supplied by env-var:
 		[ -n "$EASYRSA_EXTRA_EXTS" ] && print "$EASYRSA_EXTRA_EXTS"
-		
+
 		: # needed to keep die from inherting the above test
 	} > "$EASYRSA_TEMP_FILE" || die "\
 Failed to create temp extension file (bad permissions?) at:
@@ -742,7 +742,7 @@ import_req() {
 
 	# pull passed paths
 	local in_req="$1" short_name="$2"
-	local out_req="$EASYRSA_PKI/reqs/$2.req" 
+	local out_req="$EASYRSA_PKI/reqs/$2.req"
 
 	[ -n "$short_name" ] || die "\
 Unable to import: incorrect command syntax.
@@ -757,7 +757,7 @@ Offending file: $in_req"
 Unable to import the request as the destination file already exists.
 Please choose a different name for your imported request file.
 Existing file at: $out_req"
-	
+
 	# now import it
 	cp "$in_req" "$out_req"
 
@@ -884,7 +884,7 @@ Failed to change the private key passphrase. See above for possible openssl
 error messages."
 
 	notice "Key passphrase successfully changed"
-	
+
 } # => set_pass()
 
 # update-db backend
@@ -958,10 +958,59 @@ $in_file
 OpenSSL failure to process the input"
 } # => show()
 
+# set default vars, preferring existing env-vars if present.
+set_default_vars() {
+	set_uninitialized_var EASYRSA			"$PWD"
+	set_uninitialized_var EASYRSA_OPENSSL		openssl
+	set_uninitialized_var EASYRSA_PKI		"$EASYRSA/pki"
+	set_uninitialized_var EASYRSA_DN		cn_only
+	set_uninitialized_var EASYRSA_REQ_COUNTRY	"US"
+	set_uninitialized_var EASYRSA_REQ_PROVINCE	"California"
+	set_uninitialized_var EASYRSA_REQ_CITY	"San Francisco"
+	set_uninitialized_var EASYRSA_REQ_ORG		"Copyleft Certificate Co"
+	set_uninitialized_var EASYRSA_REQ_EMAIL	me@example.net
+	set_uninitialized_var EASYRSA_REQ_OU		"My Organizational Unit"
+	set_uninitialized_var EASYRSA_ALGO		rsa
+	set_uninitialized_var EASYRSA_KEY_SIZE	2048
+	set_uninitialized_var EASYRSA_CURVE		secp384r1
+	set_uninitialized_var EASYRSA_EC_DIR		"$EASYRSA_PKI/ecparams"
+	set_uninitialized_var EASYRSA_CA_EXPIRE	3650
+	set_uninitialized_var EASYRSA_CERT_EXPIRE	3650
+	set_uninitialized_var EASYRSA_CRL_DAYS	180
+	set_uninitialized_var EASYRSA_NS_SUPPORT	no
+	set_uninitialized_var EASYRSA_NS_COMMENT	"Easy-RSA Generated Certificate"
+	set_uninitialized_var EASYRSA_TEMP_FILE	"$EASYRSA_PKI/extensions.temp"
+	set_uninitialized_var EASYRSA_REQ_CN		ChangeMe
+	set_uninitialized_var EASYRSA_DIGEST		sha256
+
+	# Detect openssl config, preferring EASYRSA_PKI over EASYRSA
+	if [ -f "$EASYRSA_PKI/openssl-1.0.cnf" ]; then
+		set_uninitialized_var EASYRSA_SSL_CONF	"$EASYRSA_PKI/openssl-1.0.cnf"
+	else	set_uninitialized_var EASYRSA_SSL_CONF	"$EASYRSA/openssl-1.0.cnf"
+	fi
+
+	# Same as above for the x509-types extensions dir
+	if [ -d "$EASYRSA_PKI/x509-types" ]; then
+		set_uninitialized_var EASYRSA_EXT_DIR		"$EASYRSA_PKI/x509-types"
+	else	set_uninitialized_var EASYRSA_EXT_DIR		"$EASYRSA/x509-types"
+	fi
+
+	# EASYRSA_ALGO_PARAMS must be set depending on selected algo
+	if [ "$EASYRSA_ALGO" = "ec" ]; then
+		EASYRSA_ALGO_PARAMS="$EASYRSA_EC_DIR/${EASYRSA_CURVE}.pem"
+	elif [ "$EASYRSA_ALGO" = "rsa" ]; then
+		EASYRSA_ALGO_PARAMS="${EASYRSA_KEY_SIZE}"
+	else
+		die "Alg '$EASYRSA_ALGO' is invalid: must be 'rsa' or 'ec'"
+	fi
+}
+
 # vars setup
 # Here sourcing of 'vars' if present occurs. If not present, defaults are used
 # to support running without a sourced config format
 vars_setup() {
+	set_default_vars
+
 	# Try to locate a 'vars' file in order of location preference.
 	# If one is found, source it
 	local vars=
@@ -982,7 +1031,7 @@ vars_setup() {
 	elif [ -f "$prog_vars" ]; then
 		vars="$prog_vars"
 	fi
-	
+
 	# If a vars file was located, source it
 	# If $EASYRSA_NO_VARS is defined (not blank) this is skipped
 	if [ -z "$EASYRSA_NO_VARS" ] && [ -n "$vars" ]; then
@@ -990,65 +1039,32 @@ vars_setup() {
 		notice "\
 Note: using Easy-RSA configuration from: $vars"
 	fi
-	
-	# Set defaults, preferring existing env-vars if present
-	set_var EASYRSA		"$PWD"
-	set_var EASYRSA_OPENSSL	openssl
-	set_var EASYRSA_PKI	"$EASYRSA/pki"
-	set_var EASYRSA_DN	cn_only
-	set_var EASYRSA_REQ_COUNTRY	"US"
-	set_var EASYRSA_REQ_PROVINCE	"California"
-	set_var EASYRSA_REQ_CITY	"San Francisco"
-	set_var EASYRSA_REQ_ORG		"Copyleft Certificate Co"
-	set_var EASYRSA_REQ_EMAIL	me@example.net
-	set_var EASYRSA_REQ_OU		"My Organizational Unit"
-	set_var EASYRSA_ALGO		rsa
-	set_var EASYRSA_KEY_SIZE	2048
-	set_var EASYRSA_CURVE		secp384r1
-	set_var EASYRSA_EC_DIR		"$EASYRSA_PKI/ecparams"
-	set_var EASYRSA_CA_EXPIRE	3650
-	set_var EASYRSA_CERT_EXPIRE	3650
-	set_var EASYRSA_CRL_DAYS	180
-	set_var EASYRSA_NS_SUPPORT	no
-	set_var EASYRSA_NS_COMMENT	"Easy-RSA Generated Certificate"
-	set_var EASYRSA_TEMP_FILE	"$EASYRSA_PKI/extensions.temp"
-	set_var EASYRSA_REQ_CN		ChangeMe
-	set_var EASYRSA_DIGEST		sha256
 
-	# Detect openssl config, preferring EASYRSA_PKI over EASYRSA
-	if [ -f "$EASYRSA_PKI/openssl-1.0.cnf" ]; then
-		set_var EASYRSA_SSL_CONF	"$EASYRSA_PKI/openssl-1.0.cnf"
-	else	set_var EASYRSA_SSL_CONF	"$EASYRSA/openssl-1.0.cnf"
-	fi
-
-	# Same as above for the x509-types extensions dir
-	if [ -d "$EASYRSA_PKI/x509-types" ]; then
-		set_var EASYRSA_EXT_DIR		"$EASYRSA_PKI/x509-types"
-	else	set_var EASYRSA_EXT_DIR		"$EASYRSA/x509-types"
-	fi
-
-	# EASYRSA_ALGO_PARAMS must be set depending on selected algo
-	if [ "ec" = "$EASYRSA_ALGO" ]; then
-		EASYRSA_ALGO_PARAMS="$EASYRSA_EC_DIR/${EASYRSA_CURVE}.pem"
-	elif [ "rsa" = "$EASYRSA_ALGO" ]; then
-		EASYRSA_ALGO_PARAMS="${EASYRSA_KEY_SIZE}"
-	else
-		die "Alg '$EASYRSA_ALGO' is invalid: must be 'rsa' or 'ec'"
-	fi
+	set_default_vars
 
 	# Setting OPENSSL_CONF prevents bogus warnings (especially useful on win32)
 	export OPENSSL_CONF="$EASYRSA_SSL_CONF"
 } # vars_setup()
 
-# variable assignment by indirection when undefined; merely exports
-# the variable when it is already defined (even if currently null)
+# variable assignment by overwriting any existing value.
+# See set_uninitialized_var() to avoid overwriting an existing value.
 # Sets $1 as the value contained in $2 and exports (may be blank)
 set_var() {
 	local var=$1
 	shift
 	local value="$*"
-	eval "export $var=\"\${$var-$value}\""
+	export $var="$value"
 } #=> set_var()
+
+# variable assignment by indirection when undefined; merely exports
+# the variable when it is already defined (even if currently null)
+# Sets $1 as the value contained in $2 and exports (may be blank)
+set_uninitialized_var() {
+	local var=$1
+	shift
+	local value="$*"
+	eval "export $var=\"\${$var-$value}\""
+} #=> set_uninitialized_var()
 
 ########################################
 # Invocation entry point:
