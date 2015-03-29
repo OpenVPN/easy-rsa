@@ -408,10 +408,11 @@ Your newly created PKI dir is: $EASYRSA_PKI
 
 # build-ca backend:
 build_ca() {
-	local opts= sub_ca=
+	declare -a opts
+	local sub_ca=
 	while [ -n "$1" ]; do
 		case "$1" in
-			nopass) opts="$opts -nodes" ;;
+			nopass) opts+=(-nodes) ;;
 			subca) sub_ca=1 ;;
 			*) warn "Ignoring unknown command option: '$1'" ;;
 		esac
@@ -426,7 +427,7 @@ build_ca() {
 	local out_key="$EASYRSA_PKI/private/ca.key"
 	if [ ! $sub_ca ]; then
 		out_file="$EASYRSA_PKI/ca.crt"
-		opts="$opts -x509 -days $EASYRSA_CA_EXPIRE"
+		opts+=(-x509 -days $EASYRSA_CA_EXPIRE)
 	fi
 
 	# Test for existing CA, and complain if already present
@@ -453,10 +454,10 @@ current CA keypair. If you intended to start a new CA, run init-pki first."
 	print "01" > "$EASYRSA_PKI/serial" || die "$err_file"
 
 	# Default CN only when not in global EASYRSA_BATCH mode:
-	[ $EASYRSA_BATCH ] && opts="$opts -batch" || export EASYRSA_REQ_CN="Easy-RSA CA"
+	[ $EASYRSA_BATCH ] && opts+=(-batch) || export EASYRSA_REQ_CN="Easy-RSA CA"
 	# create the CA keypair:
 	"$EASYRSA_OPENSSL" req -new -newkey $EASYRSA_ALGO:"$EASYRSA_ALGO_PARAMS" \
-		-config "$EASYRSA_SSL_CONF" -keyout "$out_key" -out "$out_file" $opts || \
+		-config "$EASYRSA_SSL_CONF" -keyout "$out_key" -out "$out_file" "${opts[@]}" || \
 		die "Failed to build the CA"
 
 	# Success messages
@@ -500,10 +501,10 @@ Run easyrsa without commands for usage and commands."
 	shift
 
 	# function opts support
-	local opts=
+	declare -a opts
 	while [ -n "$1" ]; do
 		case "$1" in
-			nopass) opts="$opts -nodes" ;;
+			nopass) opts+=(-nodes) ;;
 			# batch flag supports internal callers needing silent operation
 			batch) local EASYRSA_BATCH=1 ;;
 			*) warn "Ignoring unknown command option: '$1'" ;;
@@ -543,9 +544,9 @@ $EASYRSA_EXTRA_EXTS"
 	fi
 
 	# generate request
-	[ $EASYRSA_BATCH ] && opts="$opts -batch"
+	[ $EASYRSA_BATCH ] && opts+=(-batch)
 	"$EASYRSA_OPENSSL" req -new -newkey $EASYRSA_ALGO:"$EASYRSA_ALGO_PARAMS" \
-		-config "$EASYRSA_SSL_CONF" -keyout "$key_out" -out "$req_out" $opts \
+		-config "$EASYRSA_SSL_CONF" -keyout "$key_out" -out "$req_out" "${opts[@]}" \
 		|| die "Failed to generate request"
 	notice "\
 Keypair and certificate request completed. Your files are:
@@ -558,7 +559,8 @@ key: $key_out
 
 # common signing backend
 sign_req() {
-	local crt_type="$1" opts=
+	declare -a opts
+	local crt_type="$1"
 	local req_in="$EASYRSA_PKI/reqs/$2.req"
 	local crt_out="$EASYRSA_PKI/issued/$2.crt"
 
@@ -630,7 +632,7 @@ $EASYRSA_TEMP_FILE"
 
 	# sign request
 	"$EASYRSA_OPENSSL" ca -in "$req_in" -out "$crt_out" -config "$EASYRSA_SSL_CONF" \
-		-extfile "$EASYRSA_TEMP_FILE" -days $EASYRSA_CERT_EXPIRE -batch $opts \
+		-extfile "$EASYRSA_TEMP_FILE" -days $EASYRSA_CERT_EXPIRE -batch "${opts[@]}" \
 		|| die "signing failed (openssl output above may have more detail)"
 	notice "\
 Certificate created at: $crt_out
@@ -797,12 +799,12 @@ Run easyrsa without commands for usage and command help."
 		shift
 	done
 
-	local pkcs_opts=
+	declare -a pkcs_opts
 	if [ $want_ca ]; then
 		verify_file x509 "$crt_ca" || die "\
 Unable to include CA cert in the $pkcs_type output (missing file, or use noca option.)
 Missing file expected at: $crt_ca"
-		pkcs_opts="$pkcs_opts -certfile $crt_ca"
+		pkcs_opts+=(-certfile "$crt_ca")
 	fi
 
 	# input files must exist
@@ -820,12 +822,12 @@ Unable to export p12 for short name '$short_name' without the key
 (if you want a p12 without the private key, use nokey option.)
 Missing key expected at: $key_in"
 		else
-			pkcs_opts="$pkcs_opts -nokeys"
+			pkcs_opts+=(-nokeys)
 		fi
 
 		# export the p12:
 		"$EASYRSA_OPENSSL" pkcs12 -in "$crt_in" -inkey "$key_in" -export \
-			-out "$pkcs_out" $pkcs_opts || die "\
+			-out "$pkcs_out" "${pkcs_opts[@]}" || die "\
 Export of p12 failed: see above for related openssl errors."
 	;;
 	p7)
@@ -833,7 +835,7 @@ Export of p12 failed: see above for related openssl errors."
 
 		# export the p7:
 		"$EASYRSA_OPENSSL" crl2pkcs7 -nocrl -certfile "$crt_in" \
-			-out "$pkcs_out" $pkcs_opts || die "\
+			-out "$pkcs_out" "${pkcs_opts[@]}" || die "\
 Export of p7 failed: see above for related openssl errors."
 	;;
 esac
@@ -919,10 +921,11 @@ Run easyrsa without commands for usage help."
 	shift 2
 
 	# opts support
-	local opts="-${type}opt no_pubkey,no_sigdump"
+	declare -a opts
+	opts+=(-${type}opt no_pubkey,no_sigdump)
 	while [ -n "$1" ]; do
 		case "$1" in
-			full) opts= ;;
+			full) opts=() ;;
 			*) warn "Ignoring unknown command option: '$1'" ;;
 		esac
 		shift
@@ -954,7 +957,7 @@ This file is stored at:
 $in_file
 "
 	"$EASYRSA_OPENSSL" $format -in "$in_file" -noout -text\
-		-nameopt multiline $opts || die "\
+		-nameopt multiline "${opts[@]}" || die "\
 OpenSSL failure to process the input"
 } # => show()
 
