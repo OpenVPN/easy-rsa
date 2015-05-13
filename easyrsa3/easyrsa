@@ -131,7 +131,9 @@ cmd_help() {
       Export a PKCS#12 file with the keypair specified by <filename_base>"
 			opts="
         noca  - do not include the ca.crt file in the PKCS12 output
-        nokey - do not include the private key in the PKCS12 output" ;;
+        nokey - do not include the private key in the PKCS12 output
+        passin arg - (advanced) See PASS PHRASE ARGUMENTS in openssl
+        passout arg - (advanced) See PASS PHRASE ARGUMENTS in openssl" ;;
 		export-p7) text="
   export-p7 <filename_base> [ cmd-opts ]
       Export a PKCS#7 file with the pubkey specified by <filename_base>"
@@ -143,7 +145,9 @@ cmd_help() {
       Set a new passphrase on an RSA or EC key for the listed <filename_base>."
                         opts="
         nopass - use no password and leave the key unencrypted
-        file   - (advanced) treat the file as a raw path, not a short-name" ;;
+        file   - (advanced) treat the file as a raw path, not a short-name
+        passin arg - (advanced) See PASS PHRASE ARGUMENTS in openssl
+        passout arg - (advanced) See PASS PHRASE ARGUMENTS in openssl" ;;
 		altname|subjectaltname|san) text="
   --subject-alt-name=SAN_FORMAT_STRING
       This global option adds a subjectAltName to the request or issued
@@ -788,11 +792,15 @@ Run easyrsa without commands for usage and command help."
 	# opts support
 	local want_ca=1
 	local want_key=1
+	local passin=""
+	local passout=""
 	while [ -n "$1" ]; do
 		case "$1" in
-			noca) want_ca= ;;
-			nokey) want_key= ;;
-			*) warn "Ignoring unknown command option: '$1'" ;;
+			noca)		want_ca= ;;
+			nokey)		want_key= ;;
+			passin)		shift; passin="-passin $1" ;;
+			passout)	shift; passout="-passout $1" ;;
+			*)		warn "Ignoring unknown command option: '$1'" ;;
 		esac
 		shift
 	done
@@ -825,7 +833,7 @@ Missing key expected at: $key_in"
 
 		# export the p12:
 		"$EASYRSA_OPENSSL" pkcs12 -in "$crt_in" -inkey "$key_in" -export \
-			-out "$pkcs_out" $pkcs_opts || die "\
+			-out "$pkcs_out" $pkcs_opts $passin $passout || die "\
 Export of p12 failed: see above for related openssl errors."
 	;;
 	p7)
@@ -862,11 +870,15 @@ See help output for usage details."
 	# parse command options
 	shift 2
 	local crypto="-des3"
+	local passin=""
+	local passout=""
 	while [ -n "$1" ]; do
 		case "$1" in
-			nopass)	crypto= ;;
-			file)	file="$raw_file" ;;
-			*)	warn "Ignoring unknown command option: '$1'" ;;
+			nopass)		crypto= ;;
+			file)		file="$raw_file" ;;
+			passin)		shift; passin="-passin $1" ;;
+			passout)	shift; passout="-passout $1" ;;
+			*)		warn "Ignoring unknown command option: '$1'" ;;
 		esac
 		shift
 	done
@@ -879,7 +891,7 @@ $file"
 If the key is currently encrypted you must supply the decryption passphrase.
 ${crypto:+You will then enter a new PEM passphrase for this key.$NL}"
 
-	"$EASYRSA_OPENSSL" $key_type -in "$file" -out "$file" $crypto || die "\
+	"$EASYRSA_OPENSSL" $key_type -in "$file" -out "$file" $crypto $passin $passout || die "\
 Failed to change the private key passphrase. See above for possible openssl
 error messages."
 
