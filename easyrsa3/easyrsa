@@ -861,7 +861,7 @@ See help output for usage details."
 
 	# parse command options
 	shift 2
-	local crypto="-aes256"
+	local crypto="-des3"
 	while [ -n "$1" ]; do
 		case "$1" in
 			nopass)	crypto= ;;
