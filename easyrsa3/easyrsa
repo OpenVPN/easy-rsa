@@ -72,7 +72,7 @@ cmd_help() {
         subca   - create a sub-CA keypair and request (default is a root CA)" ;;
 		gen-dh) text="
   gen-dh
-      Generates DH (Diffie-Helllman) parameters" ;;
+      Generates DH (Diffie-Hellman) parameters" ;;
 		gen-req) text="
   gen-req <filename_base> [ cmd-opts ]
       Generate a standalone keypair and request (CSR)
