@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 # Easy-RSA 3 distribution packager:
 # creates ready-to-use tarball files for Unixes
@@ -47,6 +47,7 @@ main() {
 	dist_clean
 	stage_files
 	make_tar
+	make_zip
 }
 
 # prep DIST_ROOT
@@ -69,12 +70,17 @@ stage_files() {
 	done
 
 	# files not included
-	rm "$DIST_ROOT/$PV/doc/TODO" || die "failed rm TODO"
+	rm -rf "$DIST_ROOT/$PV/doc/TODO" || die "failed rm TODO"
 }
 
 make_tar() {
 	(cd "$DIST_ROOT"; tar cz "$PV") > "$BIN_DEST/${PV}.tgz" || die "tar failed"
 	note "tarball created at: $BIN_DEST/${PV}.tgz" 
+}
+
+make_zip() {
+	(cd "$DIST_ROOT"; zip -qr "../$BIN_DEST/${PV}.zip" "$PV") || die "zip failed"
+	note "zip file created at: $BIN_DEST/${PV}.zip" 
 }
 
 # parse CLI options:

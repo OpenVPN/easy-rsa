@@ -25,6 +25,12 @@ List of important changes
  * The 3.0 release lacks PKCS#11 (smartcard/token) support. This is anticipated
    to be supported in a future point-release to target each platform's need.
 
+ * The -utf8 option has been added for all supported commands.  This should be
+   backwards compatible with ASCII strings.
+
+ * The default private key encryption has been changed from 3des to aes256.
+
+
 Some new concepts
 ----
 
