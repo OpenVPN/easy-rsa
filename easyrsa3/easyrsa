@@ -734,7 +734,7 @@ gen_crl() {
 
 	local out_file="$EASYRSA_PKI/crl.pem"
 	out_file_tmp="$(mktemp -u "$out_file.XXXXXXXXXX")"; EASYRSA_TEMP_FILE_2="$out_file_tmp"
-	"$EASYRSA_OPENSSL" ca -utf8 -gencrl -out "$out_file" -config "$EASYRSA_SSL_CONF" || die "\
+	"$EASYRSA_OPENSSL" ca -utf8 -gencrl -out "$out_file_tmp" -config "$EASYRSA_SSL_CONF" || die "\
 CRL Generation failed.
 "
 	mv "$out_file_tmp" "$out_file"; EASYRSA_TEMP_FILE_2=
