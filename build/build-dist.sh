@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Easy-RSA 3 distribution packager:
-# creates ready-to-use tarball files for Unixes
+# creates ready-to-use tarball files for Unixes and a zip file for windows
 
 # operational defaults (CLI processing overrides)
 VERSION="git-development"
@@ -45,7 +45,8 @@ main() {
 	PV="$PRODUCT-$VERSION"
 
 	dist_clean
-	stage_files
+	stage_unix
+	stage_win
 	make_tar
 	make_zip
 }
@@ -60,26 +61,71 @@ dist_clean() {
 	mkdir -p "$DIST_ROOT" || die "dist_clean failed to mkdir"
 }
 
-# file stager
-stage_files() {
+# stage unix files
+stage_unix() {
+	# make our unix stage if it doesn't exist
+	mkdir -p "$DIST_ROOT/unix/$PV"
+	
 	# Copy files into $PV, starting with easyrsa3 as the initial root dir
-	src_files="easyrsa3/ Licensing/ doc/ COPYING ChangeLog README.quickstart.md"
+	src_files="easyrsa3/ Licensing/ COPYING ChangeLog README.quickstart.md"
 	for f in $src_files
 	do
-		cp -a "$SRC_ROOT/$f" "$DIST_ROOT/$PV" || die "failed to copy $f"
+		cp -a "$SRC_ROOT/$f" "$DIST_ROOT/unix/$PV" || die "failed to copy $f"
 	done
+	
+	cp -R $SRC_ROOT/doc $DIST_ROOT/unix/$PV/ || die "failed to copy unix doc"
 
 	# files not included
-	rm -rf "$DIST_ROOT/$PV/doc/TODO" || die "failed rm TODO"
+	rm -rf "$DIST_ROOT/unix/$PV/doc/TODO" || die "failed rm TODO"
+}
+
+stage_win() {
+	# make our windows stage if it doesn't exist
+	mkdir -p "$DIST_ROOT/windows/$PV"
+	
+	# make doc dir
+	mkdir -p "$DIST_ROOT/windows/$PV/doc"
+
+	for f in `ls $SRC_ROOT/doc/*.md`;
+	do
+		fname=`basename -s .md $f`
+		python -m markdown $f > $DIST_ROOT/windows/$PV/doc/$fname.html
+	done
+	
+	python -m markdown $SRC_ROOT/README.quickstart.md > $DIST_ROOT/windows/$PV/README.quickstart.html
+	# Copy files into $PV, starting with easyrsa3 as the initial root dir
+	src_files="easyrsa3/ COPYING ChangeLog"
+	for f in $src_files
+	do
+		cp -a "$SRC_ROOT/$f" "$DIST_ROOT/windows/$PV" || die "failed to copy $f"
+	done
+	
+	src_files="Licensing distro/windows/Licensing"
+	for f in $src_files
+	do
+		cp -R "$SRC_ROOT/$f" "$DIST_ROOT/windows/$PV" || die "failed to copy $f"
+	done
+	src_files="README-Windows.txt EasyRSA-Start.bat"
+	for f in $src_files
+	do
+		cp -a "$SRC_ROOT/distro/windows/$f" "$DIST_ROOT/windows/$PV" || die "failed to copy $f"
+	done
+	
+	# create bin dir with windows binaries
+	cp -R "$SRC_ROOT/distro/windows/bin" "$DIST_ROOT/windows/$PV/" || die "failed to copy bin"
+
+	# files not included
+	rm -rf "$DIST_ROOT/windows/$PV/doc/TODO" || die "failed rm TODO"
+
 }
 
 make_tar() {
-	(cd "$DIST_ROOT"; tar cz "$PV") > "$BIN_DEST/${PV}.tgz" || die "tar failed"
+	(cd "$DIST_ROOT/unix/"; tar cz "$PV") > "$BIN_DEST/${PV}.tgz" || die "tar failed"
 	note "tarball created at: $BIN_DEST/${PV}.tgz" 
 }
 
 make_zip() {
-	(cd "$DIST_ROOT"; zip -qr "../$BIN_DEST/${PV}.zip" "$PV") || die "zip failed"
+	(cd "$DIST_ROOT/windows/"; zip -qr "../$BIN_DEST/${PV}.zip" "$PV") || die "zip failed"
 	note "zip file created at: $BIN_DEST/${PV}.zip" 
 }
 
