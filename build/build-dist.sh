@@ -125,7 +125,7 @@ make_tar() {
 }
 
 make_zip() {
-	(cd "$DIST_ROOT/windows/"; zip -qr "../$BIN_DEST/${PV}.zip" "$PV") || die "zip failed"
+	(cd "$DIST_ROOT/windows/"; zip -qr "../../$BIN_DEST/${PV}.zip" "$PV") || die "zip failed"
 	note "zip file created at: $BIN_DEST/${PV}.zip" 
 }
 
