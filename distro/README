@@ -1,0 +1,5 @@
+This distro/ directory contains distro/platform specific tools.
+
+Components that are not platform neutral end up here, sorted into further dirs
+based on the platform.
+

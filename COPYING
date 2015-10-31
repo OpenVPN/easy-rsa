@@ -1,42 +1,32 @@
-OpenVPN (TM) -- An Open Source VPN daemon
+Easy-RSA -- A Shell-based CA Utility
 
-Copyright (C) 2002-2010 OpenVPN Technologies, Inc. <sales@openvpn.net>
+Copyright (C) 2013 by the Open-Source OpenVPN development community
 
-This distribution contains multiple components, some
-of which fall under different licenses.  By using OpenVPN
-or any of the bundled components enumerated below, you
-agree to be bound by the conditions of the license for
-each respective component.
+Easy-RSA 3 license: GPLv2:
+-------------------------
 
-OpenVPN trademark
------------------
+All the Easy-RSA code contained in this project falls under a GPLv2 license with
+full text available in the Licensing/ directory. Additional components used by
+this project fall under additional licenses:
 
-  "OpenVPN" is a trademark of OpenVPN Technologies, Inc.
+Additional licenses for external components:
+-------------------------------------------
 
+The following components are under different licenses; while not part of the
+Easy-RSA source code, these components are used by Easy-RSA or provided in
+platform distributions as described below:
 
-OpenVPN license:
-----------------
+### OpenSSL
 
-  OpenVPN is distributed under the GPL license version 2 (see Below).
+  OpenSSL is not linked by Easy-RSA, nor is it currently provided in any release
+  package by Easy-RSA. However, Easy-RSA is tightly coupled with OpenSSL, so
+  effective use of this code will require your acceptance and installation of
+  OpenSSL.
 
-  Special exception for linking OpenVPN with OpenSSL:
+### Additional Windows Components
 
-  In addition, as a special exception, OpenVPN Technologies, Inc. gives
-  permission to link the code of this program with the OpenSSL
-  library (or with modified versions of OpenSSL that use the same
-  license as OpenSSL), and distribute linked combinations including
-  the two.  You must obey the GNU General Public License in all
-  respects for all of the code used other than OpenSSL.  If you modify
-  this file, you may extend this exception to your version of the
-  file, but you are not obligated to do so.  If you do not wish to
-  do so, delete this exception statement from your version.
-
-GNU Public License (GPL)
-------------------------
-
-  OpenVPN, LZO, and the TAP-Win32 distributions are
-  licensed under the GPL version 2 (see COPYRIGHT.GPL).
-
-  In the Windows binary distribution of OpenVPN, the
-  GPL is reproduced below.
-
+  The Windows binary package includes mksh/Win32 and unxutils binary components,
+  with full licensing details available in the distro/windows/Licensing/
+  subdirectory of this project. mksh/Win32 is under a MirOS license (with some
+  additional component licenses present there) and unxutils is under a GPLv2
+  license.

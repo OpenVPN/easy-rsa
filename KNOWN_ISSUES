@@ -1,0 +1,8 @@
+* Issue #24: Incorrect variable name in vars.example
+
+    vars.example does not currently handle un-commenting a line that references
+    a variable that was not also defined earlier with set_var. Currently it is
+    necessary to un-comment the line referencing the used variables.
+
+    When this issue is corrected, this work-around will no longer be necessary.
+

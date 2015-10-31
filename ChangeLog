@@ -1,0 +1,78 @@
+Easy-RSA 3 ChangeLog
+
+3.0.0 (2015-09-07)
+
+    * cab4a07 Fix typo: Hellman
+        (ljani: Github)
+
+    * 171834d Fix typo: Default
+        (allo-: Github)
+
+    * 8b42eea Make aes256 default, replacing 3des
+        (keros: Github)
+    
+    * f2f4ac8 Make -utf8 default
+        (roubert: Github)
+
+	
+3.0.0-rc2 (2014/07/27)
+
+    * 1551e5f docs: fix typo
+        (Josh Cepek <josh.cepek@usa.net>)
+
+    * 7ae44b3 Add KNOWN_ISSUES to stage next -rc release
+        (Josh Cepek <josh.cepek@usa.net>)
+
+    * a0d58b2 Update documentation
+        (Josh Cepek <josh.cepek@usa.net>)
+
+    * 5758825 Fix vars.example with proper path to extensions.temp
+        (Josh Cepek <josh.cepek@usa.net>)
+
+    * 89f369c Add support to change private key passphrases
+        (Josh Cepek <josh.cepek@usa.net>)
+
+    * 49d7c10 Improve docs: add Upgrade-Notes; add online support refs
+        (Josh Cepek <josh.cepek@usa.net>)
+
+    * fcc4547 Add build-dist packaging script; update Building docs
+        (Josh Cepek <josh.cepek@usa.net>)
+
+    * f74d08e docs: update Hacking.md with layout & git conventions
+        (Josh Cepek <josh.cepek@usa.net>)
+
+    * 0754f23 Offload temp file removal to a clean_temp() function
+        (Josh Cepek <josh.cepek@usa.net>)
+
+    * 1c90df9 Fix incorrect handling of invalid --use-algo option
+        (Josh Cepek <josh.cepek@usa.net>)
+
+    * c86289b Fix batch-mode handling with changes in e75ad75
+        (Josh Cepek <josh.cepek@usa.net>)
+
+    * e75ad75 refine how booleans are evaluated
+        (Eric F Crist <ecrist@secure-computing.net>)
+
+    * cc19823 Merge PKCS#7 feature from pull req #14
+        (Author: Luiz Angelo Daros de Luca <luizluca@tre-sc.gov.br>)
+        (Modified-By: Josh Cepek <josh.cepek@usa.net>)
+
+    * 8b1fe01 Support OpenSSL-0.9.8 with the EXTRA_EXTS feature
+        (Josh Cepek <josh.cepek@usa.net>)
+
+    * d5516d5 Windows: make builds easier by using a matching dir structure
+        (Josh Cepek <josh.cepek@usa.net>)
+
+    * dc2e6dc Windows: improve external checks and env-var help
+        (Josh Cepek <josh.cepek@usa.net>)
+
+3.0.0-rc1 (2013/12/01)
+
+    * The 3.x release is a nearly complete re-write of the 2.x codebase
+
+    * Initial 3.x series code by Josh Cepek <josh.cepek@usa.net> -- continuing
+    maintenance by the OpenVPN community development team and associated
+    contributors
+
+    * Add ECDSA (elliptic curve) support, thanks to Steffan Karger
+    <steffan@karger.me>
