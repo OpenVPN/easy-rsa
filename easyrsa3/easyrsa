@@ -94,7 +94,9 @@ cmd_help() {
 
       This mode uses the <filename_base> as the X509 CN."
 			opts="
-        nopass  - do not encrypt the private key (default is encrypted)" ;;
+        nopass     - do not encrypt the private key (default is encrypted)
+        nodatetime - generate certificate with start and end date
+                     of 01 January 00:00:00 changing year only" ;;
 		revoke) text="
   revoke <filename_base>
       Revoke a certificate specified by the filename_base" ;;
@@ -568,6 +570,8 @@ sign_req() {
 	local crt_type="$1" opts=
 	local req_in="$EASYRSA_PKI/reqs/$2.req"
 	local crt_out="$EASYRSA_PKI/issued/$2.crt"
+	local startdate=$(date "+%Y")"0101000000Z"
+	local enddate=$(date "+%Y" -d "$EASYRSA_CERT_EXPIRE day")"0101000000Z"
 
 	# Support batch by internal caller:
 	[ "$3" = "batch" ] && local EASYRSA_BATCH=1
@@ -638,6 +642,7 @@ $EASYRSA_TEMP_FILE"
 	# sign request
 	crt_out_tmp="$(mktemp -u "$crt_out.XXXXXXXXXX")"; EASYRSA_TEMP_FILE_2="$crt_out_tmp"
 	"$EASYRSA_OPENSSL" ca -utf8 -in "$req_in" -out "$crt_out_tmp" -config "$EASYRSA_SSL_CONF" \
+		$([ "$4" ] && echo "-startdate" "$startdate" "-enddate" "$enddate") \
 		-extfile "$EASYRSA_TEMP_FILE" -days $EASYRSA_CERT_EXPIRE -batch $opts \
 		|| die "signing failed (openssl output above may have more detail)"
 	mv "$crt_out_tmp" "$crt_out"; EASYRSA_TEMP_FILE_2=
@@ -660,6 +665,7 @@ Run easyrsa without commands for usage and commands."
 	local req_out="$EASYRSA_PKI/reqs/$2.req"
 	local key_out="$EASYRSA_PKI/private/$2.key"
 	local crt_out="$EASYRSA_PKI/issued/$2.crt"
+	local nodatetime=
 	shift 2
 
 	# function opts support
@@ -667,6 +673,7 @@ Run easyrsa without commands for usage and commands."
 	while [ -n "$1" ]; do
 		case "$1" in
 			nopass) req_opts="$req_opts nopass" ;;
+			nodatetime) nodatetime=1 ;;
 			*) warn "Ignoring unknown command option: '$1'" ;;
 		esac
 		shift
@@ -686,7 +693,7 @@ Matching file found at: "
 	gen_req "$name" batch $req_opts
 
 	# Sign it
-	sign_req "$crt_type" "$name" batch
+	sign_req "$crt_type" "$name" batch "$nodatetime"
 
 } # => build_full()
 
