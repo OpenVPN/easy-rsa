@@ -712,7 +712,7 @@ at: $crt_in"
 Failed to revoke certificate: revocation command failed."
 
 	# move revoked files so we can reissue certificates with the same name
-	move_revoked $1
+	move_revoked "$1"
 
 	notice "\
 IMPORTANT!!!
@@ -746,7 +746,7 @@ Unable to move request. The file is not a valid request. Unexpected
 input in file: $req_in"
 
 	# get the serial number of the certificate -> serial=XXXX
-	local cert_serial="$($EASYRSA_OPENSSL x509 -in $crt_in -noout -serial)"
+	local cert_serial="$("$EASYRSA_OPENSSL" x509 -in "$crt_in" -noout -serial)"
 	# remove the serial= part -> we only need the XXXX part
 	local cert_serial=${cert_serial##*=}
 
@@ -767,12 +767,12 @@ input in file: $req_in"
 	fi
 
 	# move the rest of the files (p12, p7, ...)
-	for file in $EASYRSA_PKI/private/$1\.???
+	for file in "$EASYRSA_PKI/private/$1\.???"
 	do
 		# get file extension
 		file_ext="${file##*.}"
 
-		mv $file "$EASYRSA_PKI/revoked/private_by_serial/$cert_serial.$file_ext"
+		mv "$file" "$EASYRSA_PKI/revoked/private_by_serial/$cert_serial.$file_ext"
 	done
 
 	# remove the dublicate certificate in the certs_by_serial folder
