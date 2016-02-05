@@ -37,6 +37,9 @@ preserve	= no			# keep passed DN ordering
 # and supplied fields are just that :-)
 policy		= policy_anything
 
+# Allow subjectAlternativeNames to be copied fromt the certificate signing request
+copy_extensions = copy
+
 # For the 'anything' policy, which defines allowed DN fields
 [ policy_anything ]
 countryName		= optional
