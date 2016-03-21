@@ -88,7 +88,7 @@ stage_win() {
 
 	for f in `ls $SRC_ROOT/doc/*.md`;
 	do
-		fname=`basename -s .md $f`
+		fname=`basename $f .md`
 		python -m markdown $f > $DIST_ROOT/windows/$PV/doc/$fname.html
 	done
 	
