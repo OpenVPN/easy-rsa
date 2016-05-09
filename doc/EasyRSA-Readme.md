@@ -74,7 +74,7 @@ Obtaining and Using Easy-RSA
   General usage and command help can be shown with:
 
     ./easyrsa help [ command ]
-  
+
   When run without any command, general usage and a list of available commands
   are shown; when a command is supplied, detailed help output for that command
   is shown.
@@ -135,7 +135,7 @@ you need a more basic description of how a PKI works.
 
   When building a CA, a number of new files are created by a combination of
   Easy-RSA and (indirectly) openssl. The important CA files are:
-  
+
   * `ca.crt` - This is the CA certificate
   * `index.txt` - This is the "master database" of all issued certs
   * `serial` - Stores the next serial number (serial numbers increment)
@@ -224,7 +224,7 @@ Easy-RSA can generate a keypair and request with the following command:
     ./easyrsa gen-req nameOfRequest
 
 You will then be given a chance to modify the Subject details of your request.
-By default Easy-RSA uses the short name supplied on the command-line, though you
+Easy-RSA uses the short name supplied on the command-line by default, though you
 are free to change it if necessary. After providing a passphrase and Subject
 details, the keypair and request files will be shown.
 

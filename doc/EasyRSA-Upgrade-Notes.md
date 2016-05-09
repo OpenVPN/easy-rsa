@@ -54,5 +54,5 @@ Easy-RSA 3 has some new concepts compared to the prior v2 series.
   generation as the requester doesn't need to know the CA's values in advance.
 
   Previously in v2, the Country, State, and Org values all had to match or a
-  request couldn't be signed. If you want the old behavior your can change the
+  request couldn't be signed. If you want the old behavior you can change the
   OpenSSL config to require it or simply look over the DN at signing time.
