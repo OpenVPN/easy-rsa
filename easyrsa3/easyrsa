@@ -65,7 +65,7 @@ cmd_help() {
   init-pki [ cmd-opts ]
       Removes & re-initializes the PKI dir for a clean PKI" ;;
 		build-ca) text="
-  build-ca [ cmd-opts ]
+  build-ca [ cmd-opts ] [ -- openssl-opts ]
       Creates a new CA"
       			opts="
         nopass  - do not encrypt the CA key (default is encrypted)
@@ -74,14 +74,14 @@ cmd_help() {
   gen-dh
       Generates DH (Diffie-Hellman) parameters" ;;
 		gen-req) text="
-  gen-req <filename_base> [ cmd-opts ]
+  gen-req <filename_base> [ cmd-opts ] [ -- openssl-opts ]
       Generate a standalone keypair and request (CSR)
 
       This request is suitable for sending to a remote CA for signing."
       			opts="
         nopass  - do not encrypt the private key (default is encrypted)" ;;
 		sign|sign-req) text="
-  sign-req <type> <filename_base>
+  sign-req <type> <filename_base> [ cmd-opts ] [ -- openssl-opts ]
       Sign a certificate request of the defined type. <type> must be a known
       type such as 'client', 'server', or 'ca' (or a user-added type.)
 
@@ -412,6 +412,11 @@ build_ca() {
 		case "$1" in
 			nopass) opts="$opts -nodes" ;;
 			subca) sub_ca=1 ;;
+			--)
+				shift
+				opts="$opts $@"
+				break
+				;;
 			*) warn "Ignoring unknown command option: '$1'" ;;
 		esac
 		shift
@@ -505,11 +510,17 @@ Run easyrsa without commands for usage and commands."
 
 	# function opts support
 	local opts=
+	local openssl_opts=
 	while [ -n "$1" ]; do
 		case "$1" in
 			nopass) opts="$opts -nodes" ;;
 			# batch flag supports internal callers needing silent operation
 			batch) local EASYRSA_BATCH=1 ;;
+			--)
+				shift
+				opts="$opts $@"
+				break
+				;;
 			*) warn "Ignoring unknown command option: '$1'" ;;
 		esac
 		shift
@@ -568,9 +579,22 @@ sign_req() {
 	local crt_type="$1" opts=
 	local req_in="$EASYRSA_PKI/reqs/$2.req"
 	local crt_out="$EASYRSA_PKI/issued/$2.crt"
+	shift; shift
 
-	# Support batch by internal caller:
-	[ "$3" = "batch" ] && local EASYRSA_BATCH=1
+	while [ -n "$1" ]; do
+		case "$1" in
+			# Support batch by internal caller:
+			batch) local EASYRSA_BATCH=1 ;;
+			--)
+				shift
+				opts="$opts $@"
+				break
+				;;
+			*) warn "Ignoring unknown command option: '$1'" ;;
+		esac
+		shift
+	done
+
 
 	verify_ca_init
 
@@ -629,7 +653,7 @@ $(display_dn req "$req_in")
 
 		# Add any advanced extensions supplied by env-var:
 		[ -n "$EASYRSA_EXTRA_EXTS" ] && print "$EASYRSA_EXTRA_EXTS"
-		
+
 		: # needed to keep die from inherting the above test
 	} > "$EASYRSA_TEMP_FILE" || die "\
 Failed to create temp extension file (bad permissions?) at:
@@ -675,6 +699,7 @@ Run easyrsa without commands for usage and commands."
 
 	# function opts support
 	local req_opts=
+	local openssl_opts=
 	while [ -n "$1" ]; do
 		case "$1" in
 			nopass) req_opts="$req_opts nopass" ;;
@@ -763,7 +788,7 @@ import_req() {
 
 	# pull passed paths
 	local in_req="$1" short_name="$2"
-	local out_req="$EASYRSA_PKI/reqs/$2.req" 
+	local out_req="$EASYRSA_PKI/reqs/$2.req"
 
 	[ -n "$short_name" ] || die "\
 Unable to import: incorrect command syntax.
@@ -778,7 +803,7 @@ Offending file: $in_req"
 Unable to import the request as the destination file already exists.
 Please choose a different name for your imported request file.
 Existing file at: $out_req"
-	
+
 	# now import it
 	cp "$in_req" "$out_req"
 
@@ -905,7 +930,7 @@ Failed to change the private key passphrase. See above for possible openssl
 error messages."
 
 	notice "Key passphrase successfully changed"
-	
+
 } # => set_pass()
 
 # update-db backend
@@ -1003,7 +1028,7 @@ vars_setup() {
 	elif [ -f "$prog_vars" ]; then
 		vars="$prog_vars"
 	fi
-	
+
 	# If a vars file was located, source it
 	# If $EASYRSA_NO_VARS is defined (not blank) this is skipped
 	if [ -z "$EASYRSA_NO_VARS" ] && [ -n "$vars" ]; then
@@ -1011,7 +1036,7 @@ vars_setup() {
 		notice "\
 Note: using Easy-RSA configuration from: $vars"
 	fi
-	
+
 	# Set defaults, preferring existing env-vars if present
 	set_var EASYRSA		"$PWD"
 	set_var EASYRSA_OPENSSL	openssl
