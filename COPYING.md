@@ -1,15 +1,16 @@
 Easy-RSA -- A Shell-based CA Utility
+====================================
 
 Copyright (C) 2013 by the Open-Source OpenVPN development community
 
-Easy-RSA 3 license: GPLv2:
+Easy-RSA 3 license: GPLv2
 -------------------------
 
 All the Easy-RSA code contained in this project falls under a GPLv2 license with
 full text available in the Licensing/ directory. Additional components used by
 this project fall under additional licenses:
 
-Additional licenses for external components:
+Additional licenses for external components
 -------------------------------------------
 
 The following components are under different licenses; while not part of the
