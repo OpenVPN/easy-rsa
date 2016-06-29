@@ -928,7 +928,7 @@ verify_file() {
 	local format="$1" path="$2"
 	"$EASYRSA_OPENSSL" $format -in "$path" -noout 2>/dev/null || return 1
 	return 0
-} # => verify_x509()
+} # => verify_file()
 
 # show-* command backend
 # Prints req/cert details in a readable format
