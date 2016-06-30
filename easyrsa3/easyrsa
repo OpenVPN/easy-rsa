@@ -576,6 +576,11 @@ key: $key_out
 
 # common signing backend
 sign_req() {
+	# Check argument sanity:
+	[ -n "$2" ] || die "\
+Incorrect number of arguments provided to sign-req:
+expected at lease 2, got $# (see command help for usage)"
+
 	local crt_type="$1" opts=
 	local req_in="$EASYRSA_PKI/reqs/$2.req"
 	local crt_out="$EASYRSA_PKI/issued/$2.crt"
@@ -597,11 +602,6 @@ sign_req() {
 
 
 	verify_ca_init
-
-	# Check argument sanity:
-	[ -n "$2" ] || die "\
-Incorrect number of arguments provided to sign-req:
-expected 2, got $# (see command help for usage)"
 
 	# Cert type must exist under the EASYRSA_EXT_DIR
 	[ -r "$EASYRSA_EXT_DIR/$crt_type" ] || die "\
