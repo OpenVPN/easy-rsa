@@ -184,6 +184,7 @@ non-empty values to options are mandatory.
 General options:
 
 --batch         : set automatic (no-prompts when possible) mode
+--root=DIR      : declares the root (top level) of the Easy-RSA directory tree
 --pki-dir=DIR   : declares the PKI directory
 --vars=FILE     : define a specific 'vars' file to use for Easy-RSA config
 
@@ -1139,6 +1140,8 @@ while :; do
 		export EASYRSA_SUBCA_LEN="$val" ;;
 	--vars)
 		export EASYRSA_VARS_FILE="$val" ;;
+	--root)
+		export EASYRSA="$val" ;;
 	--subject-alt-name)
 		export EASYRSA_EXTRA_EXTS="\
 $EASYRSA_EXTRA_EXTS
