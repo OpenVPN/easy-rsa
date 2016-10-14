@@ -37,7 +37,7 @@ PKI mixed in with one used to generate end-entity certificates, such as clients
 or servers (VPN or web servers.)
 
 To start a new PKI, the CA is first created on the secure environment.
-Depending on security needs, this could managed under a locked down account,
+Depending on security needs, this could be managed under a locked down account,
 dedicated system, or even a completely offline system or using removable media
 to improve security (after all, you can't suffer an online break-in if your
 system or PKI is not online.) The exact steps to create a CA are described in a

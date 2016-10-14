@@ -179,7 +179,7 @@ fi
 
 #set_var EASYRSA_SSL_CONF	"$EASYRSA/openssl-1.0.cnf"
 
-# Defualt CN:
+# Default CN:
 # This is best left alone. Interactively you will set this manually, and BATCH
 # callers are expected to set this themselves.
 

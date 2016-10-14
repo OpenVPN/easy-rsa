@@ -1,5 +1,20 @@
 Easy-RSA 3 ChangeLog
 
+3.0.0 (2015-09-07)
+
+    * cab4a07 Fix typo: Hellman
+        (ljani: Github)
+
+    * 171834d Fix typo: Default
+        (allo-: Github)
+
+    * 8b42eea Make aes256 default, replacing 3des
+        (keros: Github)
+    
+    * f2f4ac8 Make -utf8 default
+        (roubert: Github)
+
+	
 3.0.0-rc2 (2014/07/27)
 
     * 1551e5f docs: fix typo
