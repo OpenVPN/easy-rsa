@@ -67,7 +67,7 @@ stage_unix() {
 	mkdir -p "$DIST_ROOT/unix/$PV"
 	
 	# Copy files into $PV, starting with easyrsa3 as the initial root dir
-	src_files="easyrsa3/ Licensing/ COPYING ChangeLog README.quickstart.md"
+	src_files="easyrsa3/ Licensing/ COPYING.md ChangeLog README.quickstart.md"
 	for f in $src_files
 	do
 		cp -a "$SRC_ROOT/$f" "$DIST_ROOT/unix/$PV" || die "failed to copy $f"
@@ -92,9 +92,12 @@ stage_win() {
 		python -m markdown $f > $DIST_ROOT/windows/$PV/doc/$fname.html
 	done
 	
-	python -m markdown $SRC_ROOT/README.quickstart.md > $DIST_ROOT/windows/$PV/README.quickstart.html
+	for f in "README.quickstart" "COPYING"
+	do
+		python -m markdown $SRC_ROOT/$f.md > $DIST_ROOT/windows/$PV/$f.html
+	done
 	# Copy files into $PV, starting with easyrsa3 as the initial root dir
-	src_files="easyrsa3/ COPYING ChangeLog"
+	src_files="easyrsa3/ ChangeLog"
 	for f in $src_files
 	do
 		cp -a "$SRC_ROOT/$f" "$DIST_ROOT/windows/$PV" || die "failed to copy $f"
