@@ -164,8 +164,28 @@ while [ $# -gt 0 ]; do
                      CA_EXT="$CA_EXT -extensions server" ;;
         --batch    ) BATCH="-batch" ;;
         --interact ) BATCH="" ;;
-        --inter    ) CA_EXT="$CA_EXT -extensions v3_ca" ;;
-        --initca   ) DO_ROOT="1" ;;
+        --inter    ) CA_EXT="$CA_EXT -extensions v3_ca"
+                     if ! [ -z $KEY_CRL ];then
+                        echo "You are about to build an Intermediate CA. It is recommended to specify different CRL distribution Points. Enter the new URI(s) or hit return to adopt the current one."
+                        echo -n "current crlDistributionPoints: "
+                        echo $KEY_CRL
+                        read -r TMP_CRL
+                        if ! [ -z ${TMP_CRL} ]; then
+                            KEY_CRL=$TMP_CRL
+                            export KEY_CRL
+                        fi
+                     else
+                        # no CRL in current CA -> assume user does not need one / know what it is
+                        /usr/bin/env perl -i -p -e 's/^crlDistributionPoints/#crlDistributionPoints/' $KEY_CONFIG
+                     fi
+                    ;;
+        --initca   ) DO_ROOT="1"
+                     if ! [ -z $KEY_CRL ];then
+                         /usr/bin/env perl -i -p -e 's/^#crlDistributionPoints/crlDistributionPoints/' $KEY_CONFIG
+                     else
+                         /usr/bin/env perl -i -p -e 's/^crlDistributionPoints/#crlDistributionPoints/' $KEY_CONFIG
+                     fi
+                    ;;
         --pass     ) NODES_REQ="" ;;
         --csr      ) DO_CA="0" ;;
         --sign     ) DO_REQ="0" ;;

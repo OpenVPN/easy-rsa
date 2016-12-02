@@ -68,6 +68,11 @@ export KEY_ORG="Fort-Funston"
 export KEY_EMAIL="me@myhost.mydomain"
 export KEY_OU="MyOrganizationalUnit"
 
+#################################################################
+# New Feature include CRLs in your Certs
+export KEY_CRL="URI:http://example.com/crl.pem"
+#################################################################
+
 # X509 Subject Field
 export KEY_NAME="EasyRSA"
 
