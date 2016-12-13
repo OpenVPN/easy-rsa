@@ -52,7 +52,7 @@ Here is the list of commands available with a short syntax reminder. Use the
 	print "\
 DIRECTORY STATUS (commands would take effect on these locations)
   EASYRSA: $work_dir
-      PKI:  $pki_dir
+      PKI: $pki_dir
 "
 } # => usage()
 
