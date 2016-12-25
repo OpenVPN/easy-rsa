@@ -112,6 +112,10 @@ fi
 
 #set_var EASYRSA_CA_EXPIRE	3650
 
+# Maximum depth of sub-CAs below this CA
+
+#set_var EASYRSA_SUBCA_LEN	""
+
 # In how many days should certificates expire?
 
 #set_var EASYRSA_CERT_EXPIRE	3650
