@@ -1,3 +1,10 @@
+easyrsa3 (3.0.1-0) unstable; urgency=low
+
+  * Update to 3.0.1
+  * Upgrade to debhelper level 9
+
+ -- CosmoKey Packages <packages@cosmokey.com>  Thu, 06 Apr 2017 18:36:38 +0200
+
 easyrsa3 (3.0.0~rc2) unstable; urgency=low
 
   * Initial packaging.
