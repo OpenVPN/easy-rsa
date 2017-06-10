@@ -296,6 +296,9 @@ cmd_help() {
 
       The <short_name_base> is the <file_name_base> to create.
 
+      Note: the first parameter can be skipped the file will be looked up
+      in the publish directory
+
       Example usage:
         import-req /some/where/bob_request.req bob"
 	;;
@@ -2913,10 +2916,17 @@ import_req() {
 	# Verify PKI has been initialised
 	verify_pki_init
 
-	# pull passed paths
-	in_req="$1"
-	short_name="$2"
-	out_req="$EASYRSA_PKI/reqs/$2.req"
+	if [ -n "$EASYRSA_PUBLISH" -a -f "$EASYRSA_PUBLISH/reqs/$1.req" ]; then
+		# take from publish dir
+		in_req="$EASYRSA_PUBLISH/reqs/$1.req"
+		short_name="$1"
+		out_req="$EASYRSA_PKI/reqs/$1.req"
+	else
+		# pull passed paths
+		in_req="$1"
+		short_name="$2"
+		out_req="$EASYRSA_PKI/reqs/$2.req"
+	fi
 
 	[ "$short_name" ] || die "\
 Unable to import: incorrect command syntax.
