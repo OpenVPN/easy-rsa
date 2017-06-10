@@ -2941,7 +2941,7 @@ publish() {
 	want_strip=1
 	while [ -n "$1" ]; do
 		case "$1" in
-			nostrip) want_strip= ;;
+			nostrip|noregen) want_strip= ;;
 			*) warn "Ignoring unknown command option: '$1'" ;;
 		esac
 		shift
@@ -2951,25 +2951,56 @@ publish() {
 	[ -d "$EASYRSA_PUBLISH" ] || die "\
 Missing publish dir : $EASYRSA_PUBLISH"
 
-	if [ "$type" = "cert" ]; then
+	do_verify=1
+	case "$type" in
+	cert)
 		verify_ca_init
 		in_file="$EASYRSA_PKI/issued/${name}.crt"
 		out_file="$EASYRSA_PUBLISH/issued/${name}.crt"
 		format="x509"
 		mkdir -p "$EASYRSA_PUBLISH/issued"
-	else
+		;;
+	p12)
+		verify_pki_init
+		in_file="$EASYRSA_PKI/private/$short_name.p12"
+		out_file="$EASYRSA_PUBLISH/private/$short_name.p12"
+		format="pkcs12"
+		#skip verification when passout is set to avoid prompt
+		if [ ${EASYRSA_PASSOUT:+1} ]; then do_verify= ; fi
+		mkdir -p "$EASYRSA_PUBLISH/private"
+		;;
+	p7)
+		verify_pki_init
+		in_file="$EASYRSA_PKI/issued/$short_name.p7b"
+		out_file="$EASYRSA_PUBLISH/issued/$short_name.p7b"
+		format="pkcs7"
+		mkdir -p "$EASYRSA_PUBLISH/issued"
+		;;
+	p8)
+		verify_pki_init
+		in_file="$EASYRSA_PKI/private/$short_name.p8"
+		out_file="$EASYRSA_PUBLISH/private/$short_name.p8"
+		format="pkcs8"
+		do_verify=
+		mkdir -p "$EASYRSA_PUBLISH/private"
+		;;
+	#TODO add p1)
+	*)
 		die "\
 Unknown publish type : $type"
-	fi
+		;;
+	esac
 
 	# Verify file exists and is of the correct type
 	[ -f "$in_file" ] || die "\
 No such $type file with a basename of '$name' is present.
 Expected to find this file at:
 $in_file"
-	verify_file $format "$in_file" || die "\
+	if [ $do_verify ]; then
+		verify_file $format "$in_file" || die "\
 This file is not a valid $type file:
 $in_file"
+	fi
 
 	if [ $want_strip ]; then
 		easyrsa_openssl $format -in "$in_file" -out "$out_file"
@@ -3095,6 +3126,10 @@ Missing key expected at: $key_in"
 Successful export of $pkcs_type file. Your exported file is at the following
 location: $pkcs_out"
 
+	# publish
+	if [ -n "$EASYRSA_PUBLISH" ]; then
+		publish $pkcs_type "$short_name" noregen
+	fi
 	return 0
 } # => export_pkcs()
 
