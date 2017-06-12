@@ -1815,6 +1815,10 @@ basicConstraints is not defined, cannot use 'pathlen'"
 			# Add any advanced extensions supplied by env-var:
 			[ -z "$EASYRSA_EXTRA_EXTS" ] || print "$EASYRSA_EXTRA_EXTS"
 		fi
+
+		# Append last any COMMON-SECTIONS file (if present)
+		cat "$EASYRSA_EXT_DIR/COMMON-SECTIONS"
+
 	} > "$ext_tmp" || die "\
 Failed to create temp extension file (bad permissions?) at:
 $ext_tmp"
