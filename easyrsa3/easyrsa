@@ -627,6 +627,15 @@ $(display_dn req "$req_in")
 			esac
 		fi
 
+		# If type is server and no subjectAltName was requested,
+		# add one to the extensions file
+		if [[ "$crt_type" == 'server' ]]
+		then
+			echo "$EASYRSA_EXTRA_EXTS" | 
+				grep -q subjectAltName || 
+				print $(default_server_san "$req_in")
+		fi
+
 		# Add any advanced extensions supplied by env-var:
 		[ -n "$EASYRSA_EXTRA_EXTS" ] && print "$EASYRSA_EXTRA_EXTS"
 		
@@ -922,6 +931,22 @@ display_dn() {
 	local format="$1" path="$2"
 	print "$("$EASYRSA_OPENSSL" $format -in "$path" -noout -subject -nameopt multiline)"
 } # => display_dn()
+
+# generate default SAN from req/X509, passed by full pathname
+default_server_san() {
+	local path="$1"
+	local cn=$(
+		"$EASYRSA_OPENSSL" req -in "$path" -noout -subject -nameopt sep_multiline |
+		awk -F'=' '/^  *CN=/{print $2}'
+		)
+	echo "$cn" | egrep -q '^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$'
+	if [[ $? -eq 0 ]]
+	then
+		print "subjectAltName = IP:$cn"
+	else
+		print "subjectAltName = DNS:$cn"
+	fi
+} # => default_server_san()
 
 # verify a file seems to be a valid req/X509
 verify_file() {
