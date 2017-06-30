@@ -1030,6 +1030,10 @@ vars_setup() {
 	# program location:
 	elif [ -f "$prog_vars" ]; then
 		vars="$prog_vars"
+	elif [ -f "$PWD/pki/vars" ]; then
+		vars="$PWD/pki/vars"
+	elif [ -f "$PWD/vars" ]; then
+		vars="$PWD/vars"
 	fi
 	
 	# If a vars file was located, source it
