@@ -569,6 +569,18 @@ sign_req() {
 	local req_in="$EASYRSA_PKI/reqs/$2.req"
 	local crt_out="$EASYRSA_PKI/issued/$2.crt"
 
+	# Randomize Serial number
+	local i= serial= check_serial=
+	for i in 1 2 3 4 5; do
+		"$EASYRSA_OPENSSL" rand -hex 16 -out "$EASYRSA_PKI/serial"
+		serial="$(cat "$EASYRSA_PKI/serial")"
+		check_serial="$("$EASYRSA_OPENSSL" ca -config "$EASYRSA_SSL_CONF" -status "$serial" 2>&1)"
+		case "$check_serial" in
+			*"not present in db"*) break ;;
+			*) continue ;;
+		esac
+	done
+
 	# Support batch by internal caller:
 	[ "$3" = "batch" ] && local EASYRSA_BATCH=1
 
@@ -660,17 +672,6 @@ Certificate created at: $crt_out
 # used to generate+sign in 1 step
 build_full() {
 	verify_ca_init
-
-	local i= serial= check_serial=
-	for i in 1 2 3 4 5; do
-		"$EASYRSA_OPENSSL" rand -hex 16 -out "$EASYRSA_PKI/serial"
-		serial="$(cat "$EASYRSA_PKI/serial")"
-		check_serial="$("$EASYRSA_OPENSSL" ca -config "$EASYRSA_SSL_CONF" -status "$serial" 2>&1)"
-		case "$check_serial" in
-			*"not present in db"*) break ;;
-			*) continue ;;
-		esac
-	done
 
 	# pull filename base:
 	[ -n "$2" ] || die "\
