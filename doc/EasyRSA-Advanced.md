@@ -34,6 +34,7 @@ Configuration Reference
   1. File referenced by the --vars CLI option
   2. The file referenced by the env-var named `EASYRSA_VARS_FILE`
   3. The `EASYRSA_PKI` directory
+  4. The default PKI directory at $PWD/pki (usually will be the same as above)
   4. The `EASYRSA` directory
   5. The location of the easyrsa program (usually will be the same as above)
 
@@ -80,7 +81,7 @@ possible terse description is shown below:
  *  `EASYRSA` - should point to the Easy-RSA top-level dir, normally $PWD
  *  `EASYRSA_OPENSSL` - command to invoke openssl
  *  `EASYRSA_SSL_CONF` - the openssl config file to use
- *  `EASYRSA_PKI` (CLI: `--pki-dir`) - dir to use to hold all PKI-specific files
+ *  `EASYRSA_PKI` (CLI: `--pki-dir`) - dir to use to hold all PKI-specific files, normally $PWD/pki.
  *  `EASYRSA_DN` (CLI: `--dn-mode`) - set to the string `cn_only` or `org` to
     alter the fields to include in the req DN
  *  `EASYRSA_REQ_COUNTRY` (CLI: `--req-c`) - set the DN country with org mode

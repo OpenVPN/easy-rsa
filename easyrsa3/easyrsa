@@ -1015,13 +1015,15 @@ vars_setup() {
 
 	# set up program path
 	local prog_vars="${0%/*}/vars"
+	# set up PKI path
+	local pki_vars="${EASYRSA_PKI:-$PWD/pki}/vars"
 
 	# command-line path:
 	if [ -f "$EASYRSA_VARS_FILE" ]; then
 		vars="$EASYRSA_VARS_FILE"
-	# EASYRSA_PKI, if defined:
-	elif [ -n "$EASYRSA_PKI" ] && [ -f "$EASYRSA_PKI/vars" ]; then
-		vars="$EASYRSA_PKI/vars"
+	# PKI location, if present:
+	elif [ -f "$pki_vars" ]; then
+		vars="$pki_vars"
 	# EASYRSA, if defined:
 	elif [ -n "$EASYRSA" ] && [ -f "$EASYRSA/vars" ]; then
 		vars="$EASYRSA/vars"
@@ -1039,9 +1041,9 @@ Note: using Easy-RSA configuration from: $vars"
 	fi
 	
 	# Set defaults, preferring existing env-vars if present
-	set_var EASYRSA		"$PWD"
+	set_var EASYRSA		"${0%/*}"
 	set_var EASYRSA_OPENSSL	openssl
-	set_var EASYRSA_PKI	"$EASYRSA/pki"
+	set_var EASYRSA_PKI	"$PWD/pki"
 	set_var EASYRSA_DN	cn_only
 	set_var EASYRSA_REQ_COUNTRY	"US"
 	set_var EASYRSA_REQ_PROVINCE	"California"
@@ -1251,4 +1253,4 @@ case "$cmd" in
 		;;
 esac
 
-# vim: ft=sh nu ai sw=8 ts=8
+# vim: ft=sh nu ai sw=8 ts=8 noet
