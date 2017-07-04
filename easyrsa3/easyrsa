@@ -641,8 +641,7 @@ $(display_dn req "$req_in")
 
 		# If type is server and no subjectAltName was requested,
 		# add one to the extensions file
-		if [[ "$crt_type" == 'server' ]]
-		then
+		if [ "$crt_type" = 'server' ]; then
 			echo "$EASYRSA_EXTRA_EXTS" | 
 				grep -q subjectAltName || 
 				print $(default_server_san "$req_in")
@@ -941,8 +940,7 @@ default_server_san() {
 		awk -F'=' '/^  *CN=/{print $2}'
 		)
 	echo "$cn" | egrep -q '^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$'
-	if [[ $? -eq 0 ]]
-	then
+	if [ $? -eq 0 ]; then
 		print "subjectAltName = IP:$cn"
 	else
 		print "subjectAltName = DNS:$cn"
