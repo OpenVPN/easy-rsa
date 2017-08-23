@@ -115,7 +115,8 @@ cmd_help() {
       Human-readable output is shown, including any requested cert options when
       showing a request."
       			opts="
-          full   - show full req/cert info, including pubkey/sig data" ;;
+          full   - show full req/cert info, including pubkey/sig data
+          pem    - show PEM format req/cert" ;;
 		import-req) text="
   import-req <request_file_path> <short_basename>
       Import a certificate request from a file
@@ -184,6 +185,7 @@ non-empty values to options are mandatory.
 General options:
 
 --batch         : set automatic (no-prompts when possible) mode
+--root=DIR      : declares the root (top level) of the Easy-RSA directory tree
 --pki-dir=DIR   : declares the PKI directory
 --vars=FILE     : define a specific 'vars' file to use for Easy-RSA config
 
@@ -965,9 +967,11 @@ Run easyrsa without commands for usage help."
 
 	# opts support
 	local opts="-${type}opt no_pubkey,no_sigdump"
+	local output_opts='-text -noout'
 	while [ -n "$1" ]; do
 		case "$1" in
 			full) opts= ;;
+			 pem) output_opts='-outform pem' ;;
 			*) warn "Ignoring unknown command option: '$1'" ;;
 		esac
 		shift
@@ -998,7 +1002,7 @@ Showing $type details for '$name'.
 This file is stored at:
 $in_file
 "
-	"$EASYRSA_OPENSSL" $format -in "$in_file" -noout -text\
+	"$EASYRSA_OPENSSL" $format -in "$in_file" $output_opts \
 		-nameopt multiline $opts || die "\
 OpenSSL failure to process the input"
 } # => show()
@@ -1165,6 +1169,8 @@ while :; do
 		export EASYRSA_SUBCA_LEN="$val" ;;
 	--vars)
 		export EASYRSA_VARS_FILE="$val" ;;
+	--root)
+		export EASYRSA="$val" ;;
 	--subject-alt-name)
 		export EASYRSA_EXTRA_EXTS="\
 $EASYRSA_EXTRA_EXTS
