@@ -199,6 +199,7 @@ Certificate & Request options: (these impact cert/req field values)
                      ./easyrsa help altname
 --use-algo=ALG  : crypto alg to use: choose rsa (default) or ec
 --curve=NAME    : for elliptic curve, sets the named curve to use
+--copy-ext      : Copy included request X509 extensions (namely subjAltName
 
 Organizational DN options: (only used with the 'org' DN mode)
   (values may be blank for org DN options)
@@ -623,6 +624,8 @@ $(display_dn req "$req_in")
 		# Append first any COMMON file (if present) then the cert-type extensions
 		cat "$EASYRSA_EXT_DIR/COMMON"
 		cat "$EASYRSA_EXT_DIR/$crt_type"
+		# copy req extensions
+		[ $EASYRSA_CP_EXT ] && print "copy_extensions = copy"
 
 		# Support a dynamic CA path length when present:
 		[ "$crt_type" = "ca" ] && [ -n "$EASYRSA_SUBCA_LEN" ] && \
@@ -1063,6 +1066,7 @@ Note: using Easy-RSA configuration from: $vars"
 	set_var EASYRSA_TEMP_FILE_3	""
 	set_var EASYRSA_REQ_CN		ChangeMe
 	set_var EASYRSA_DIGEST		sha256
+	set_var EASYRSA_CP_EXT		0
 
 	# Detect openssl config, preferring EASYRSA_PKI over EASYRSA
 	if [ -f "$EASYRSA_PKI/openssl-1.0.cnf" ]; then
@@ -1165,6 +1169,8 @@ while :; do
 		export EASYRSA_SUBCA_LEN="$val" ;;
 	--vars)
 		export EASYRSA_VARS_FILE="$val" ;;
+	--copy-ext)
+		export EASYRSA_CP_EXT=1 ;;
 	--subject-alt-name)
 		export EASYRSA_EXTRA_EXTS="\
 $EASYRSA_EXTRA_EXTS
