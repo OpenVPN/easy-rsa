@@ -573,7 +573,7 @@ sign_req() {
 	# Randomize Serial number
 	local i= serial= check_serial=
 	for i in 1 2 3 4 5; do
-		"$EASYRSA_OPENSSL" rand -hex -out "$EASYRSA_PKI/serial 16"
+		"$EASYRSA_OPENSSL" rand -hex -out "$EASYRSA_PKI/serial" 16
 		serial="$(cat "$EASYRSA_PKI/serial")"
 		check_serial="$("$EASYRSA_OPENSSL" ca -config "$EASYRSA_SSL_CONF" -status "$serial" 2>&1)"
 		case "$check_serial" in
