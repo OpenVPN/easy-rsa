@@ -92,7 +92,7 @@ cmd_help() {
   build-server-full <filename_base> [ cmd-opts ]
       Generate a keypair and sign locally for a client or server
 
-      This mode uses the <filename_base> as the X509 CN."
+      This mode uses the <filename_base> as the default X509 CN."
 			opts="
         nopass  - do not encrypt the private key (default is encrypted)" ;;
 		revoke) text="
@@ -453,7 +453,7 @@ current CA keypair. If you intended to start a new CA, run init-pki first."
 	print "01" > "$EASYRSA_PKI/serial" || die "$err_file"
 
 	# Default CN only when not in global EASYRSA_BATCH mode:
-	[ $EASYRSA_BATCH ] && opts="$opts -batch" || export EASYRSA_REQ_CN="Easy-RSA CA"
+	[ $EASYRSA_BATCH ] && opts="$opts -batch" || set_var EASYRSA_REQ_CN "Easy-RSA CA"
 
 	out_key_tmp="$(mktemp -u "$out_key.XXXXXXXXXX")"; EASYRSA_TEMP_FILE_2="$out_key_tmp"
 	out_file_tmp="$(mktemp -u "$out_file.XXXXXXXXXX")"; EASYRSA_TEMP_FILE_3="$out_file_tmp"
@@ -501,7 +501,7 @@ Error: gen-req must have a file base as the first argument.
 Run easyrsa without commands for usage and commands."
 	local key_out="$EASYRSA_PKI/private/$1.key"
 	local req_out="$EASYRSA_PKI/reqs/$1.req"
-	[ ! $EASYRSA_BATCH ] && EASYRSA_REQ_CN="$1"
+	[ ! $EASYRSA_BATCH ] && set_var EASYRSA_REQ_CN "$1"
 	shift
 
 	# function opts support
@@ -705,7 +705,7 @@ Matching file found at: "
 	[ -f "$crt_out" ] && die "Certificate $err_exists $crt_out"
 
 	# create request
-	EASYRSA_REQ_CN="$name"
+	set_var EASYRSA_REQ_CN "$name"
 	gen_req "$name" batch $req_opts
 
 	# Sign it
