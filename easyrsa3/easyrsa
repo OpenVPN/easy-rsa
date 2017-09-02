@@ -1066,7 +1066,6 @@ Note: using Easy-RSA configuration from: $vars"
 	set_var EASYRSA_TEMP_FILE_3	""
 	set_var EASYRSA_REQ_CN		ChangeMe
 	set_var EASYRSA_DIGEST		sha256
-	set_var EASYRSA_CP_EXT		0
 
 	# Detect openssl config, preferring EASYRSA_PKI over EASYRSA
 	if [ -f "$EASYRSA_PKI/openssl-1.0.cnf" ]; then
