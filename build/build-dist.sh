@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 # Easy-RSA 3 distribution packager:
 # creates ready-to-use tarball files for Unixes and a zip file for windows
@@ -11,21 +11,23 @@ SRC_ROOT="."
 BIN_DEST="."
 
 usage() {
-	echo "build-dist options:"
-	echo
-	echo " --version=X	set version string, default=git-development"
-	echo " --dist-root=X	set DIST_ROOT, default=dist-staging"
-	echo " --src-root=X	set SRC_ROOT for git src dir, default=."
-	echo " --bin-dest=X	set BIN_DEST where to put tar/zip, default=."
-	echo
-	echo " --dist-clean	rm -rf the DIST_ROOT w/out prompts"
+	cat << __EOF__
+build-dist options:
+
+ --version=X	set version string, default=git-development
+ --dist-root=X	set DIST_ROOT, default=dist-staging
+ --src-root=X	set SRC_ROOT for git src dir, default=.
+ --bin-dest=X	set BIN_DEST where to put tar/zip, default=.
+
+ --dist-clean	rm -rf the DIST_ROOT w/out prompts
+__EOF__
 
 	exit
 }
 
 die() {
-	echo "build-dist ERROR:"
-	echo "$1"
+	echo "build-dist ERROR:" >&2
+	echo "$1" >&2
 	exit "${2:-1}"
 }
 
@@ -73,7 +75,7 @@ stage_unix() {
 		cp -a "$SRC_ROOT/$f" "$DIST_ROOT/unix/$PV" || die "failed to copy $f"
 	done
 	
-	cp -R $SRC_ROOT/doc $DIST_ROOT/unix/$PV/ || die "failed to copy unix doc"
+	cp -R "$SRC_ROOT/doc" "$DIST_ROOT/unix/$PV/" || die "failed to copy unix doc"
 
 	# files not included
 	rm -rf "$DIST_ROOT/unix/$PV/doc/TODO" || die "failed rm TODO"
@@ -89,10 +91,10 @@ stage_win() {
 	for f in `ls $SRC_ROOT/doc/*.md`;
 	do
 		fname=`basename $f .md`
-		python -m markdown $f > $DIST_ROOT/windows/$PV/doc/$fname.html
+		python -m markdown "$f" > "$DIST_ROOT/windows/$PV/doc/$fname.html"
 	done
 	
-	python -m markdown $SRC_ROOT/README.quickstart.md > $DIST_ROOT/windows/$PV/README.quickstart.html
+	python -m markdown "$SRC_ROOT/README.quickstart.md" > "$DIST_ROOT/windows/$PV/README.quickstart.html"
 	# Copy files into $PV, starting with easyrsa3 as the initial root dir
 	src_files="easyrsa3/ COPYING.md ChangeLog"
 	for f in $src_files
