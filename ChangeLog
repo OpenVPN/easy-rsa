@@ -1,5 +1,18 @@
 Easy-RSA 3 ChangeLog
 
+3.0.3 (2017-08-22)
+    * Include mktemp windows binary
+    * copy CSR extensions into signed certificate
+
+
+3.0.2 (2017-08-21)
+    * add missing windows binaries
+
+
+3.0.1 (2015-10-25)
+    * correct some packaging errors
+
+
 3.0.0 (2015-09-07)
 
     * cab4a07 Fix typo: Hellman

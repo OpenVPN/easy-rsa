@@ -31,11 +31,12 @@ Configuration Reference
   The following locations are checked, in this order, for a vars file. Only the
   first one found is used:
 
-  1. File referenced by the --vars CLI option
+  1. The file referenced by the --vars CLI option
   2. The file referenced by the env-var named `EASYRSA_VARS_FILE`
-  3. The `EASYRSA_PKI` directory
-  4. The `EASYRSA` directory
-  5. The location of the easyrsa program (usually will be the same as above)
+  3. The directory referenced by the `EASYRSA_PKI` env-var
+  4. The default PKI directory at $PWD/pki
+  4. The directory referenced by the `EASYRSA` env-var
+  5. The directory containing the easyrsa program
 
   Defining the env-var `EASYRSA_NO_VARS` will override the sourcing of the vars
   file in all cases, including defining it subsequently as a global option.
@@ -77,10 +78,10 @@ Environmental Variables Reference
 A list of env-vars, any matching global option (CLI) to set/override it, and a
 possible terse description is shown below:
 
- *  `EASYRSA` - should point to the Easy-RSA top-level dir, normally $PWD
+ *  `EASYRSA` - should point to the Easy-RSA top-level dir, where the easyrsa script is located.
  *  `EASYRSA_OPENSSL` - command to invoke openssl
  *  `EASYRSA_SSL_CONF` - the openssl config file to use
- *  `EASYRSA_PKI` (CLI: `--pki-dir`) - dir to use to hold all PKI-specific files
+ *  `EASYRSA_PKI` (CLI: `--pki-dir`) - dir to use to hold all PKI-specific files, defaults to $PWD/pki.
  *  `EASYRSA_DN` (CLI: `--dn-mode`) - set to the string `cn_only` or `org` to
     alter the fields to include in the req DN
  *  `EASYRSA_REQ_COUNTRY` (CLI: `--req-c`) - set the DN country with org mode
