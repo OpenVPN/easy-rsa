@@ -52,8 +52,8 @@ Configuration Reference
 
   1. The env-var `EASYRSA_SSL_CONF`
   2. The 'vars' file (see `vars Autodetection` above)
-  3. The `EASYRSA_PKI` directory with a filename of `openssl-1.0.cnf`
-  4. The `EASYRSA` directory with a filename of `openssl-1.0.cnf`
+  3. The `EASYRSA_PKI` directory with a filename of `openssl-easyrsa.cnf`
+  4. The `EASYRSA` directory with a filename of `openssl-easyrsa.cnf`
 
 Advanced extension handling
 ---------------------------

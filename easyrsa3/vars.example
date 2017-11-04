@@ -179,12 +179,12 @@ fi
 
 # OpenSSL config file:
 # If you need to use a specific openssl config file, you can reference it here.
-# Normally this file is auto-detected from a file named openssl-1.0.cnf from the
+# Normally this file is auto-detected from a file named openssl-easyrsa.cnf from the
 # EASYRSA_PKI or EASYRSA dir (in that order.) NOTE that this file is Easy-RSA
 # specific and you cannot just use a standard config file, so this is an
 # advanced feature.
 
-#set_var EASYRSA_SSL_CONF	"$EASYRSA/openssl-1.0.cnf"
+#set_var EASYRSA_SSL_CONF	"$EASYRSA/openssl-easyrsa.cnf"
 
 # Default CN:
 # This is best left alone. Interactively you will set this manually, and BATCH
