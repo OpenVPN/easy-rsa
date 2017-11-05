@@ -93,7 +93,7 @@ cmd_help() {
   build-server-full <filename_base> [ cmd-opts ]
       Generate a keypair and sign locally for a client or server
 
-      This mode uses the <filename_base> as the X509 CN."
+      This mode uses the <filename_base> as the default X509 CN."
 			opts="
         nopass  - do not encrypt the private key (default is encrypted)" ;;
 		revoke) text="
@@ -531,7 +531,7 @@ Error: gen-req must have a file base as the first argument.
 Run easyrsa without commands for usage and commands."
 	key_out="$EASYRSA_PKI/private/$1.key"
 	req_out="$EASYRSA_PKI/reqs/$1.req"
-	[ ! "$EASYRSA_BATCH" ] && EASYRSA_REQ_CN="$1"
+	[ ! "$EASYRSA_BATCH" ] && set_var EASYRSA_REQ_CN "$1"
 	shift
 
 	# function opts support
@@ -743,7 +743,7 @@ Matching file found at: "
 	[ -f "$crt_out" ] && die "Certificate $err_exists $crt_out"
 
 	# create request
-	EASYRSA_REQ_CN="$name"
+	set_var EASYRSA_REQ_CN "$name"
 	#shellcheck disable=SC2086
 	gen_req "$name" batch $req_opts
 
