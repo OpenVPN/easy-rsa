@@ -10,4 +10,4 @@ addons:
     - shellcheck
 
 script:
- - bash -c 'shopt -s globstar; shellcheck **/*.sh easy-rsa/easyrsa3/easyrsa'
+ - bash -c 'shopt -s globstar; shellcheck **/*.sh easyrsa3/easyrsa'
