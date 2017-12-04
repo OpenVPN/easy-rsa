@@ -10,7 +10,4 @@ addons:
     - shellcheck
 
 script:
- - bash -c 'shopt -s globstar; shellcheck **/*.{sh,bash}'
-
-matrix:
-  fast_finish: true
+ - bash -c 'shopt -s globstar; shellcheck **/*.sh easy-rsa/easyrsa3/easyrsa'
