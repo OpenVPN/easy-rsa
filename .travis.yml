@@ -1,0 +1,13 @@
+language: bash
+
+sudo: false
+
+addons:
+  apt:
+    sources:
+    - debian-sid
+    packages:
+    - shellcheck
+
+script:
+ - bash -c 'shopt -s globstar; shellcheck **/*.sh easyrsa3/easyrsa'
