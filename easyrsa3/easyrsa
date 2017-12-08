@@ -942,7 +942,7 @@ default_server_san() {
 		"$EASYRSA_OPENSSL" req -in "$path" -noout -subject -nameopt sep_multiline |
 		awk -F'=' '/^  *CN=/{print $2}'
 		)
-	echo "$cn" | egrep -q '^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$'
+	echo "$cn" | grep -E -q '^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$'
 	if [ $? -eq 0 ]; then
 		print "subjectAltName = IP:$cn"
 	else

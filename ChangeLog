@@ -1,5 +1,9 @@
 Easy-RSA 3 ChangeLog
 
+3.0.4 (TBD)
+    * Remove use of egrep (#154)
+
+
 3.0.3 (2017-08-22)
     * Include mktemp windows binary
     * copy CSR extensions into signed certificate
