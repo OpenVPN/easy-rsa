@@ -88,7 +88,7 @@ stage_win() {
 	# make doc dir
 	mkdir -p "$DIST_ROOT/windows/$PV/doc"
 
-	for f in `ls $SRC_ROOT/doc/*.md`;
+	for f in $SRC_ROOT/doc/*.md;
 	do
 		fname=`basename $f .md`
 		python -m markdown "$f" > "$DIST_ROOT/windows/$PV/doc/$fname.html"

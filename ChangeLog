@@ -4,7 +4,7 @@ Easy-RSA 3 ChangeLog
     * Remove use of egrep (#154)
     * Integrate with Travis-CI (#165)
     * Remove "local" from variable assignment (#165)
-
+        * Other changes related to Travis-CI fixes
 
 3.0.3 (2017-08-22)
     * Include mktemp windows binary
