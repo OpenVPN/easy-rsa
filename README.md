@@ -30,7 +30,12 @@ You can also try IRC at Freenode/#openvpn
 # Branch structure
 
 The easy-rsa master branch is currently tracking development for the 3.x release
-cycle. The prior 2.x and 1.x versions are available as release branches for
+cycle. Please note that, at any given time, master may be broken.  Feel free to
+create issues against master, but have patience when using the master branch.  It
+is recommended to use a release, and priority will be given to bugs identified in
+the most recent release.
+
+The prior 2.x and 1.x versions are available as release branches for
 tracking and possible back-porting of relevant fixes. Branch layout is:
 
     master <- 3.x, at present

@@ -261,7 +261,10 @@ BEGIN {IGNORECASE=1; r=2}
 # returns without prompting in EASYRSA_BATCH
 confirm() {
 	[ $EASYRSA_BATCH ] && return
-	prompt="$1" value="$2" msg="$3" input
+	prompt="$1"
+	value="$2" 
+	msg="$3" 
+	input
 	print "
 $msg
 
