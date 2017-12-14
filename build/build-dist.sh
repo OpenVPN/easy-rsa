@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=
 
 # Easy-RSA 3 distribution packager:
 # creates ready-to-use tarball files for Unixes and a zip file for windows

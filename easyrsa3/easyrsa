@@ -59,7 +59,8 @@ DIRECTORY STATUS (commands would take effect on these locations)
 # Detailed command help
 # When called with no args, calls usage(), otherwise shows help for a command
 cmd_help() {
-	text= opts=
+	text="" 
+	opts=""
 	case "$1" in
 		init-pki|clean-all) text="
   init-pki [ cmd-opts ]
