@@ -412,7 +412,8 @@ Your newly created PKI dir is: $EASYRSA_PKI
 
 # build-ca backend:
 build_ca() {
-	opts= sub_ca=
+	opts="" 
+	sub_ca=""
 	while [ -n "$1" ]; do
 		case "$1" in
 			nopass) opts="$opts -nodes" ;;
@@ -570,12 +571,15 @@ key: $key_out
 
 # common signing backend
 sign_req() {
-	crt_type="$1" opts=
+	crt_type="$1" 
+	opts=""
 	req_in="$EASYRSA_PKI/reqs/$2.req"
 	crt_out="$EASYRSA_PKI/issued/$2.crt"
 
 	# Randomize Serial number
-	i= serial= check_serial=
+	i="" 
+	serial="" 
+	check_serial=""
 	for i in 1 2 3 4 5; do
 		"$EASYRSA_OPENSSL" rand -hex -out "$EASYRSA_PKI/serial" 16
 		serial="$(cat "$EASYRSA_PKI/serial")"
@@ -651,7 +655,7 @@ $(display_dn req "$req_in")
 		if [ "$crt_type" = 'server' ]; then
 			echo "$EASYRSA_EXTRA_EXTS" | 
 				grep -q subjectAltName || 
-				print $(default_server_san "$req_in")
+				print "default_server_san $req_in"
 		fi
 
 		# Add any advanced extensions supplied by env-var:
@@ -974,8 +978,12 @@ Run easyrsa without commands for usage help."
 	opts="-${type}opt no_pubkey,no_sigdump"
 	while [ -n "$1" ]; do
 		case "$1" in
-			full) opts= ;;
-			*) warn "Ignoring unknown command option: '$1'" ;;
+			full) 
+				opts=""
+				;;
+			*) 
+				warn "Ignoring unknown command option: '$1'" 
+				;;
 		esac
 		shift
 	done
