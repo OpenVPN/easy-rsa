@@ -114,6 +114,7 @@ stage_win() {
 	for f in $src_files
 	do
 		cp -a "$SRC_ROOT/distro/windows/$f" "$DIST_ROOT/windows/$PV" || die "failed to copy $f"
+		unix2dos "$DIST_ROOT/windows/$PV/$f" || die "unix2dos conversion failed for $f"
 	done
 	
 	# create bin dir with windows binaries
@@ -125,7 +126,7 @@ stage_win() {
 }
 
 make_tar() {
-	(cd "$DIST_ROOT/unix/"; tar cz "$PV") > "$BIN_DEST/${PV}.tgz" || die "tar failed"
+	(cd "$DIST_ROOT/unix/"; tar -czf "$BIN_DEST/${PV}.tgz" "$PV") || die "tar failed"
 	note "tarball created at: $BIN_DEST/${PV}.tgz" 
 }
 
