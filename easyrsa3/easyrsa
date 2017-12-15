@@ -265,7 +265,7 @@ confirm() {
 	prompt="$1"
 	value="$2" 
 	msg="$3" 
-	input
+	input=""
 	print "
 $msg
 
