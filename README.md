@@ -43,3 +43,9 @@ tracking and possible back-porting of relevant fixes. Branch layout is:
     release/1.x
 
 LICENSING info for 3.x is in the [COPYING.md](COPYING.md) file
+
+# Code style, standards
+
+We are attempting to adhere to the POSIX standard, which can be found here:
+
+http://pubs.opengroup.org/onlinepubs/9699919799/
