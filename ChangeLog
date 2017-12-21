@@ -5,6 +5,8 @@ Easy-RSA 3 ChangeLog
     * Integrate with Travis-CI (#165)
     * Remove "local" from variable assignment (#165)
         * Other changes related to Travis-CI fixes
+	* Assign values (even empty ones) to variables defined previously with
+	  "local"
 
 3.0.3 (2017-08-22)
     * Include mktemp windows binary

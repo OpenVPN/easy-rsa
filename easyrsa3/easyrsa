@@ -960,7 +960,8 @@ default_server_san() {
 
 # verify a file seems to be a valid req/X509
 verify_file() {
-	format="$1" path="$2"
+	format="$1" 
+	path="$2"
 	"$EASYRSA_OPENSSL" $format -in "$path" -noout 2>/dev/null || return 1
 	return 0
 } # => verify_file()
@@ -968,7 +969,10 @@ verify_file() {
 # show-* command backend
 # Prints req/cert details in a readable format
 show() {
-	type="$1" name="$2" in_file format
+	type="$1" 
+	name="$2" 
+	in_file=""
+	format=""
 	[ -n "$name" ] || die "\
 Missing expected filename_base argument.
 Run easyrsa without commands for usage help."
