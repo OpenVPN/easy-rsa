@@ -652,10 +652,12 @@ $(display_dn req "$req_in")
 
 		# If type is server and no subjectAltName was requested,
 		# add one to the extensions file
-		if [ "$crt_type" = 'server' ]; then
+		if [ "$crt_type" = 'server' ]; 
+		then
+			sname=$(basename $req_in | cut -d. -f1)
 			echo "$EASYRSA_EXTRA_EXTS" | 
 				grep -q subjectAltName || 
-				print "default_server_san $req_in"
+				print "subjectAltName = DNS:$sname"
 		fi
 
 		# Add any advanced extensions supplied by env-var:
