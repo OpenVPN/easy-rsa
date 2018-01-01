@@ -657,7 +657,7 @@ $(display_dn req "$req_in")
 			sname=$(basename $req_in | cut -d. -f1)
 			echo "$EASYRSA_EXTRA_EXTS" | 
 				grep -q subjectAltName || 
-				print "subjectAltName = DNS:$sname"
+				default_server_san $req_in
 		fi
 
 		# Add any advanced extensions supplied by env-var:
