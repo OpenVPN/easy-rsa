@@ -279,7 +279,7 @@ Type the word '$value' to continue, or any other input to abort."
 
 # remove temp files
 clean_temp() {
-	for f in "$EASYRSA_TEMP_FILE" "$EASYRSA_TEMP_FILE_2" "$EASYRSA_TEMP_FILE_3"
+	for f in "$EASYRSA_TEMP_CONF" "$EASYRSA_TEMP_EXT" "$EASYRSA_TEMP_FILE_2" "$EASYRSA_TEMP_FILE_3"
 	do	[ -f "$f" ] && rm "$f" 2>/dev/null
 	done
 } # => clean_temp()
@@ -546,10 +546,10 @@ $EASYRSA_EXTRA_EXTS"
 }'
 		print "$extra_exts" | \
 			awk "$awkscript" "$EASYRSA_SSL_CONF" \
-			> "$EASYRSA_TEMP_FILE" \
+			> "$EASYRSA_TEMP_CONF" \
 			|| die "Copying SSL config to temp file failed"
 		# Use this new SSL config for the rest of this function
-		EASYRSA_SSL_CONF="$EASYRSA_TEMP_FILE"
+		EASYRSA_SSL_CONF="$EASYRSA_TEMP_CONF"
 	fi
 
 	key_out_tmp="$(mktemp "$key_out.XXXXXXXXXX")"; EASYRSA_TEMP_FILE_2="$key_out_tmp"
@@ -664,14 +664,14 @@ $(display_dn req "$req_in")
 		[ -n "$EASYRSA_EXTRA_EXTS" ] && print "$EASYRSA_EXTRA_EXTS"
 		
 		: # needed to keep die from inherting the above test
-	} > "$EASYRSA_TEMP_FILE" || die "\
+	} > "$EASYRSA_TEMP_EXT" || die "\
 Failed to create temp extension file (bad permissions?) at:
-$EASYRSA_TEMP_FILE"
+$EASYRSA_TEMP_EXT"
 
 	# sign request
 	crt_out_tmp="$(mktemp "$crt_out.XXXXXXXXXX")"; EASYRSA_TEMP_FILE_2="$crt_out_tmp"
 	"$EASYRSA_OPENSSL" ca -utf8 -in "$req_in" -out "$crt_out_tmp" -config "$EASYRSA_SSL_CONF" \
-		-extfile "$EASYRSA_TEMP_FILE" -days $EASYRSA_CERT_EXPIRE -batch $opts \
+		-extfile "$EASYRSA_TEMP_EXT" -days $EASYRSA_CERT_EXPIRE -batch $opts \
 		|| die "signing failed (openssl output above may have more detail)"
 	mv "$crt_out_tmp" "$crt_out"; EASYRSA_TEMP_FILE_2=
 	notice "\
@@ -1079,7 +1079,8 @@ Note: using Easy-RSA configuration from: $vars"
 	set_var EASYRSA_CRL_DAYS	180
 	set_var EASYRSA_NS_SUPPORT	no
 	set_var EASYRSA_NS_COMMENT	"Easy-RSA Generated Certificate"
-	set_var EASYRSA_TEMP_FILE	"$EASYRSA_PKI/extensions.temp"
+	set_var EASYRSA_TEMP_CONF	"$EASYRSA_PKI/openssl-easyrsa.temp"
+	set_var EASYRSA_TEMP_EXT	"$EASYRSA_PKI/extensions.temp"
 	set_var EASYRSA_TEMP_FILE_2	""
 	set_var EASYRSA_TEMP_FILE_3	""
 	set_var EASYRSA_REQ_CN		ChangeMe
