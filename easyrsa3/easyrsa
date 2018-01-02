@@ -1188,6 +1188,7 @@ while :; do
 	--vars)
 		export EASYRSA_VARS_FILE="$val" ;;
 	--copy-ext)
+		empty_ok=1
 		export EASYRSA_CP_EXT=1 ;;
 	--subject-alt-name)
 		export EASYRSA_EXTRA_EXTS="\
