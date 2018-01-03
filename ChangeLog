@@ -1,12 +1,13 @@
 Easy-RSA 3 ChangeLog
 
-3.0.x (TBD)
+3.0.4 (TBD)
     * Remove use of egrep (#154)
     * Integrate with Travis-CI (#165)
     * Remove "local" from variable assignment (#165)
         * Other changes related to Travis-CI fixes
-	* Assign values (even empty ones) to variables defined previously with
-	  "local"
+	* Assign values to variables defined previously w/local
+    * Finally(?) fix the subjectAltName issues I presented earlier (really
+    fixes #168 
 
 3.0.3 (2017-08-22)
     * Include mktemp windows binary
