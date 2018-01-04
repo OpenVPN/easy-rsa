@@ -1,5 +1,5 @@
 #!/bin/sh
-# shellcheck disable=
+# shellcheck disable=SC2162
 
 # Easy-RSA 3 distribution packager:
 # creates ready-to-use tarball files for Unixes and a zip file for windows
@@ -91,7 +91,7 @@ stage_win() {
 
 	for f in $SRC_ROOT/doc/*.md;
 	do
-		fname=`basename $f .md`
+		fname=$(basename "$f" .md)
 		python -m markdown "$f" > "$DIST_ROOT/windows/$PV/doc/$fname.html"
 	done
 	
