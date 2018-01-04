@@ -1063,7 +1063,7 @@ vars_setup() {
 	if [ -z "$EASYRSA_NO_VARS" ] && [ -n "$vars" ]; then
 		#shellcheck disable=SC2034
 		EASYRSA_CALLER=1 
-		# shellcheck source=easyrsa3/vars.example
+		# shellcheck disable=SC1091
 		. "$vars"
 		notice "\
 Note: using Easy-RSA configuration from: $vars"
