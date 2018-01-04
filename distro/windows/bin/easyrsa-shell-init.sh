@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC2161,SC1091
 
 # This script is a frontend designed to create & launch a POSIX shell
 # environment suitable for use with Easy-RSA. mksh/Win32 is used with this
@@ -24,6 +25,7 @@ for f in $extern_list; do
 		echo "  files."
 		echo ""
 		echo "  Press enter to exit."
+		#shellcheck disable=SC2162
 		read
 		exit 1
 	fi
