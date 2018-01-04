@@ -8,10 +8,12 @@ addons:
     - debian-sid
     packages:
     - shellcheck
-
+env:
+ - PATH=/usr/bin:/bin:./
 script:
  - bash -c 'export SHELLCHECK_OPTS="-e SC2006"; shopt -s globstar; shellcheck **/*.sh easyrsa3/easyrsa'
  - bash -c 'pwd'
  - bash -c 'ls -la'
  - which openssl
+ - openssl version
  - sh -x op_test.sh
