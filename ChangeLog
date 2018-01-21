@@ -1,6 +1,9 @@
 Easy-RSA 3 ChangeLog
 
-3.0.4 (TBD)
+3.0.5
+    
+
+3.0.4
     * Remove use of egrep (#154)
     * Integrate with Travis-CI (#165)
     * Remove "local" from variable assignment (#165)
