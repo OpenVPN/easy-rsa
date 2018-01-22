@@ -419,7 +419,7 @@ build_ca() {
 	crypto="-aes256"
 	while [ -n "$1" ]; do
 		case "$1" in
-			nopass) opts="$opts -nodes "; crypt=  ;;
+			nopass) opts="$opts -nodes " ;;
 			subca) sub_ca=1 ;;
 			*) warn "Ignoring unknown command option: '$1'" ;;
 		esac
@@ -468,10 +468,14 @@ current CA keypair. If you intended to start a new CA, run init-pki first."
 	out_key_pass_tmp="$(mktemp "$out_key_pass.XXXXXXXXXX")"; EASYRSA_TEMP_FILE_3="$out_key_pass_tmp"
 	out_file_tmp="$(mktemp "$out_file.XXXXXXXXXX")"; EASYRSA_TEMP_FILE_3="$out_file_tmp"
 	printf "Enter New CA Key Passphrase: "
-	read -s kpass
+	stty -echo
+	read kpass
+	stty echo
 	echo
 	printf "Re-Enter New CA Key Passphrase: "
-	read -s kpass2
+	stty -echo
+	read kpass2
+	stty echo
 	echo
 	if [ "$kpass" = "$kpass2" ];
 	then
