@@ -1,7 +1,8 @@
 Easy-RSA 3 ChangeLog
 
 3.0.5
-    
+   * Fix #17 & #58: use AES256 for CA key
+   	* Also, don't use read -s, use stty -echo
 
 3.0.4
     * Remove use of egrep (#154)
