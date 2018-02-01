@@ -479,7 +479,7 @@ current CA keypair. If you intended to start a new CA, run init-pki first."
 	echo
 	if [ "$kpass" = "$kpass2" ];
 	then
-		printf "$kpass" > "$out_key_pass_tmp"
+		printf "%s" "$kpass" > "$out_key_pass_tmp"
 	else
 		die "Passphrases do not match."
 	fi
