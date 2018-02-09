@@ -469,12 +469,12 @@ current CA keypair. If you intended to start a new CA, run init-pki first."
 	out_file_tmp="$(mktemp "$out_file.XXXXXXXXXX")"; EASYRSA_TEMP_FILE_3="$out_file_tmp"
 	printf "Enter New CA Key Passphrase: "
 	stty -echo
-	read kpass
+	read -r kpass
 	stty echo
 	echo
 	printf "Re-Enter New CA Key Passphrase: "
 	stty -echo
-	read kpass2
+	read -r kpass2
 	stty echo
 	echo
 	if [ "$kpass" = "$kpass2" ];
