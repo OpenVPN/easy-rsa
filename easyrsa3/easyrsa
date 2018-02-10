@@ -414,7 +414,7 @@ Your newly created PKI dir is: $EASYRSA_PKI
 
 # build-ca backend:
 build_ca() {
-	opts="" 
+	opts=""
 	sub_ca=""
 	crypto="-aes256"
 	while [ -n "$1" ]; do
@@ -484,12 +484,17 @@ current CA keypair. If you intended to start a new CA, run init-pki first."
 		die "Passphrases do not match."
 	fi
 	# create the CA key using AES256
-	"$EASYRSA_OPENSSL" genrsa -aes256 -out "$out_key_tmp" -passout file:"$out_key_pass_tmp" 
+	if [ "$EASYRSA_ALGO" = "rsa" ]; then
+		"$EASYRSA_OPENSSL" genrsa "$crypto" -out "$out_key_tmp" -passout file:"$out_key_pass_tmp" "$EASYRSA_ALGO_PARAMS"
+	elif [ "$EASYRSA_ALGO" = "ec" ]; then
+		"$EASYRSA_OPENSSL" ecparam -in "$EASYRSA_ALGO_PARAMS" -genkey | "$EASYRSA_OPENSSL" ec "$crypto" -out "$out_key_tmp" -passout file:"$out_key_pass_tmp"
+	fi
 	# create the CA keypair:
 	#shellcheck disable=SC2086
 	"$EASYRSA_OPENSSL" req -utf8 -new -key "$out_key_tmp" \
 		-config "$EASYRSA_SSL_CONF" -keyout "$out_key_tmp" -out "$out_file_tmp" -passin file:"$out_key_pass_tmp" $opts || \
 		die "Failed to build the CA"
+
 	mv "$out_key_tmp" "$out_key"; EASYRSA_TEMP_FILE_2=
 	mv "$out_file_tmp" "$out_file"; EASYRSA_TEMP_FILE_3=
 	rm "$out_key_pass_tmp"
