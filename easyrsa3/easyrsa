@@ -782,7 +782,7 @@ Please confirm you wish to revoke the certificate with the following subject:
 
 $(display_dn x509 "$crt_in")
 "	# => confirm end
-    fi
+        fi
 
 	# referenced cert must exist:
 	[ -f "$crt_in" ] || die "\
