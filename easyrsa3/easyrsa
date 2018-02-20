@@ -761,7 +761,7 @@ revoke() {
         [[ "$1" == "-f" || "$1" == "--force" ]] || die "\
 Error: two parameters specified and no force option for first parameter.
 Run easyrsa without commands for usage and command help."
-        crt_int="$EASYRSA_PKI/issued/$1.crt"
+        crt_in="$EASYRSA_PKI/issued/$1.crt"
         FORCE=true
     elif [[ "$#" -eq 1  ]]; then
         crt_in="$EASYRSA_PKI/issued/$1.crt"
@@ -776,13 +776,13 @@ Unable to revoke as the input file is not a valid certificate. Unexpected
 input in file: $crt_in"
 
 	# confirm operation by displaying DN:
-	if !$FORCE; then
+	if [[ $FORCE == false ]] ; then
 	confirm "Continue with revocation: " "yes" "
 Please confirm you wish to revoke the certificate with the following subject:
 
 $(display_dn x509 "$crt_in")
 "	# => confirm end
-        fi
+    fi
 
 	# referenced cert must exist:
 	[ -f "$crt_in" ] || die "\
