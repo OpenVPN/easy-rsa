@@ -33,7 +33,7 @@ Here is the list of commands available with a short syntax reminder. Use the
   sign-req <type> <filename_base>
   build-client-full <filename_base> [ cmd-opts ]
   build-server-full <filename_base> [ cmd-opts ]
-  revoke <filename_base>
+  revoke <opt -f or --force> <filename_base>
   gen-crl
   update-db
   show-req <filename_base> [ cmd-opts ]
@@ -97,8 +97,8 @@ cmd_help() {
 			opts="
         nopass  - do not encrypt the private key (default is encrypted)" ;;
 		revoke) text="
-  revoke <filename_base>
-      Revoke a certificate specified by the filename_base" ;;
+  revoke <opt -f or --force> <filename_base>
+      Revoke a certificate specified by the filename_base with optional force flag" ;;
 		gen-crl) text="
   gen-crl
       Generate a CRL" ;;
@@ -756,22 +756,33 @@ Matching file found at: "
 revoke() {
 	verify_ca_init
 
-	# pull filename base:
-	[ -n "$1" ] || die "\
+	FORCE=false
+    if [[ $# -eq 2 ]]; then
+        [[ "$1" == "-f" || "$1" == "--force" ]] || die "\
+Error: two parameters specified and no force option for first parameter.
+Run easyrsa without commands for usage and command help."
+        crt_int="$EASYRSA_PKI/issued/$1.crt"
+        FORCE=true
+    elif [[ "$#" -eq 1  ]]; then
+        crt_in="$EASYRSA_PKI/issued/$1.crt"
+    else
+        die "\
 Error: didn't find a file base name as the first argument.
 Run easyrsa without commands for usage and command help."
-	crt_in="$EASYRSA_PKI/issued/$1.crt"
+    fi
 
 	verify_file x509 "$crt_in" || die "\
 Unable to revoke as the input file is not a valid certificate. Unexpected
 input in file: $crt_in"
 
 	# confirm operation by displaying DN:
+	if !$FORCE; then
 	confirm "Continue with revocation: " "yes" "
 Please confirm you wish to revoke the certificate with the following subject:
 
 $(display_dn x509 "$crt_in")
 "	# => confirm end
+    fi
 
 	# referenced cert must exist:
 	[ -f "$crt_in" ] || die "\
