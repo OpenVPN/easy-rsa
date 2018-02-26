@@ -59,7 +59,7 @@ DIRECTORY STATUS (commands would take effect on these locations)
 # Detailed command help
 # When called with no args, calls usage(), otherwise shows help for a command
 cmd_help() {
-	text="" 
+	text=""
 	opts=""
 	case "$1" in
 		init-pki|clean-all) text="
@@ -220,6 +220,7 @@ Deprecated features:
 } # => opt_usage()
 
 # Wrapper around printf - clobber print since it's not POSIX anyway
+# shellcheck disable=SC1117
 print() { printf "%s\n" "$*"; }
 
 # Exit fatally with a message to stderr
@@ -264,8 +265,8 @@ BEGIN {IGNORECASE=1; r=2}
 confirm() {
 	[ "$EASYRSA_BATCH" ] && return
 	prompt="$1"
-	value="$2" 
-	msg="$3" 
+	value="$2"
+	msg="$3"
 	input=""
 	print "
 $msg
@@ -465,16 +466,17 @@ current CA keypair. If you intended to start a new CA, run init-pki first."
 	[ "$EASYRSA_BATCH" ] && opts="$opts -batch" || export EASYRSA_REQ_CN="Easy-RSA CA"
 
 	out_key_tmp="$(mktemp "$out_key.XXXXXXXXXX")"; EASYRSA_TEMP_FILE_2="$out_key_tmp"
+	# shellcheck disable=SC2154
 	out_key_pass_tmp="$(mktemp "$out_key_pass.XXXXXXXXXX")"; EASYRSA_TEMP_FILE_3="$out_key_pass_tmp"
 	out_file_tmp="$(mktemp "$out_file.XXXXXXXXXX")"; EASYRSA_TEMP_FILE_3="$out_file_tmp"
 	printf "Enter New CA Key Passphrase: "
 	stty -echo
-	read kpass
+	read -r kpass
 	stty echo
 	echo
 	printf "Re-Enter New CA Key Passphrase: "
 	stty -echo
-	read kpass2
+	read -r kpass2
 	stty echo
 	echo
 	if [ "$kpass" = "$kpass2" ];
@@ -603,14 +605,14 @@ key: $key_out
 
 # common signing backend
 sign_req() {
-	crt_type="$1" 
+	crt_type="$1"
 	opts=""
 	req_in="$EASYRSA_PKI/reqs/$2.req"
 	crt_out="$EASYRSA_PKI/issued/$2.crt"
 
 	# Randomize Serial number
-	i="" 
-	serial="" 
+	i=""
+	serial=""
 	check_serial=""
 	for i in 1 2 3 4 5; do
 		"$EASYRSA_OPENSSL" rand -hex -out "$EASYRSA_PKI/serial" 16
@@ -684,17 +686,16 @@ $(display_dn req "$req_in")
 
 		# If type is server and no subjectAltName was requested,
 		# add one to the extensions file
-		if [ "$crt_type" = 'server' ]; 
+		if [ "$crt_type" = 'server' ];
 		then
-			sname=$(basename $req_in | cut -d. -f1)
-			echo "$EASYRSA_EXTRA_EXTS" | 
-				grep -q subjectAltName || 
+			echo "$EASYRSA_EXTRA_EXTS" |
+				grep -q subjectAltName ||
 				default_server_san "$req_in"
 		fi
 
 		# Add any advanced extensions supplied by env-var:
 		[ -n "$EASYRSA_EXTRA_EXTS" ] && print "$EASYRSA_EXTRA_EXTS"
-		
+
 		: # needed to keep die from inherting the above test
 	} > "$EASYRSA_TEMP_EXT" || die "\
 Failed to create temp extension file (bad permissions?) at:
