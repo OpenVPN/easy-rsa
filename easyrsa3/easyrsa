@@ -417,11 +417,13 @@ Your newly created PKI dir is: $EASYRSA_PKI
 build_ca() {
 	opts=""
 	sub_ca=""
+	nopass=""
 	crypto="-aes256"
+	crypto_opts=""
 	while [ -n "$1" ]; do
 		case "$1" in
-			nopass) opts="$opts -nodes " ;;
 			subca) sub_ca=1 ;;
+			nopass) nopass=1 ;;
 			*) warn "Ignoring unknown command option: '$1'" ;;
 		esac
 		shift
@@ -466,40 +468,48 @@ current CA keypair. If you intended to start a new CA, run init-pki first."
 	[ "$EASYRSA_BATCH" ] && opts="$opts -batch" || export EASYRSA_REQ_CN="Easy-RSA CA"
 
 	out_key_tmp="$(mktemp "$out_key.XXXXXXXXXX")"; EASYRSA_TEMP_FILE_2="$out_key_tmp"
-	# shellcheck disable=SC2154
-	out_key_pass_tmp="$(mktemp "$out_key_pass.XXXXXXXXXX")"; EASYRSA_TEMP_FILE_3="$out_key_pass_tmp"
 	out_file_tmp="$(mktemp "$out_file.XXXXXXXXXX")"; EASYRSA_TEMP_FILE_3="$out_file_tmp"
-	printf "Enter New CA Key Passphrase: "
-	stty -echo
-	read -r kpass
-	stty echo
-	echo
-	printf "Re-Enter New CA Key Passphrase: "
-	stty -echo
-	read -r kpass2
-	stty echo
-	echo
-	if [ "$kpass" = "$kpass2" ];
-	then
-		printf "%s" "$kpass" > "$out_key_pass_tmp"
-	else
-		die "Passphrases do not match."
+	# Get password from user if necessary
+	if [ ! $nopass ]; then
+		out_key_pass_tmp="$(mktemp)"; EASYRSA_TEMP_FILE_3="$out_key_pass_tmp"
+		printf "Enter New CA Key Passphrase: "
+		stty -echo
+		read -r kpass
+		stty echo
+		echo
+		printf "Re-Enter New CA Key Passphrase: "
+		stty -echo
+		read -r kpass2
+		stty echo
+		echo
+		if [ "$kpass" = "$kpass2" ];
+		then
+			printf "%s" "$kpass" > "$out_key_pass_tmp"
+		else
+			die "Passphrases do not match."
+		fi
 	fi
+
 	# create the CA key using AES256
+	[ ! $nopass ] && crypto_opts="$crypto -passout file:$out_key_pass_tmp"
 	if [ "$EASYRSA_ALGO" = "rsa" ]; then
-		"$EASYRSA_OPENSSL" genrsa "$crypto" -out "$out_key_tmp" -passout file:"$out_key_pass_tmp" "$EASYRSA_ALGO_PARAMS"
+		#shellcheck disable=SC2086
+		"$EASYRSA_OPENSSL" genrsa -out "$out_key_tmp" $crypto_opts "$EASYRSA_ALGO_PARAMS"
 	elif [ "$EASYRSA_ALGO" = "ec" ]; then
-		"$EASYRSA_OPENSSL" ecparam -in "$EASYRSA_ALGO_PARAMS" -genkey | "$EASYRSA_OPENSSL" ec "$crypto" -out "$out_key_tmp" -passout file:"$out_key_pass_tmp"
+		#shellcheck disable=SC2086
+		"$EASYRSA_OPENSSL" ecparam -in "$EASYRSA_ALGO_PARAMS" -genkey | \
+			"$EASYRSA_OPENSSL" ec -out "$out_key_tmp" $crypto_opts
 	fi
 	# create the CA keypair:
+	[ ! $nopass ] && crypto_opts="-passin file:$out_key_pass_tmp"
 	#shellcheck disable=SC2086
 	"$EASYRSA_OPENSSL" req -utf8 -new -key "$out_key_tmp" \
-		-config "$EASYRSA_SSL_CONF" -keyout "$out_key_tmp" -out "$out_file_tmp" -passin file:"$out_key_pass_tmp" $opts || \
+		-config "$EASYRSA_SSL_CONF" -keyout "$out_key_tmp" -out "$out_file_tmp" $crypto_opts $opts || \
 		die "Failed to build the CA"
 
 	mv "$out_key_tmp" "$out_key"; EASYRSA_TEMP_FILE_2=
 	mv "$out_file_tmp" "$out_file"; EASYRSA_TEMP_FILE_3=
-	rm "$out_key_pass_tmp"
+	[ -f "$out_key_pass_tmp" ] && rm "$out_key_pass_tmp"
 
 	# Success messages
 	if [ $sub_ca ]; then
