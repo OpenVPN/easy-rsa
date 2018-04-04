@@ -5,4 +5,5 @@ subjectKeyIdentifier = hash
 authorityKeyIdentifier = keyid,issuer:always
 extendedKeyUsage = clientAuth
 keyUsage = digitalSignature
+nsCertType = client
 
