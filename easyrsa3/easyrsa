@@ -945,6 +945,7 @@ set_pass() {
 	# values supplied by the user:
 	raw_file="$2"
 	file="$EASYRSA_PKI/private/$raw_file.key"
+	file_tmp="$(mktemp "$file.XXXXXXXXXX")"
 	[ -n "$raw_file" ] || die "\
 Missing argument to 'set-$key_type-pass' command: no name/file supplied.
 See help output for usage details."
@@ -969,9 +970,11 @@ $file"
 If the key is currently encrypted you must supply the decryption passphrase.
 ${crypto:+You will then enter a new PEM passphrase for this key.$NL}"
 
-	"$EASYRSA_OPENSSL" "$key_type" -in "$file" -out "$file" "$crypto" || die "\
+	"$EASYRSA_OPENSSL" "$key_type" -in "$file" -out "$file_tmp" "$crypto" || die "\
 Failed to change the private key passphrase. See above for possible openssl
 error messages."
+
+	mv "$file_tmp" "$file"
 
 	notice "Key passphrase successfully changed"
 	
