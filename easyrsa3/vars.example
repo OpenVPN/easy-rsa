@@ -117,11 +117,11 @@ fi
 
 # In how many days should the root CA key expire?
 
-#set_var EASYRSA_CA_EXPIRE	3650
+#set_var EASYRSA_CA_EXPIRE	3652
 
 # In how many days should certificates expire?
 
-#set_var EASYRSA_CERT_EXPIRE	3650
+#set_var EASYRSA_CERT_EXPIRE	3652
 
 # How many days until the next CRL publish date?  Note that the CRL can still be
 # parsed after this timeframe passes. It is only used for an expected next
