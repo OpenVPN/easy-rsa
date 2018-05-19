@@ -1125,8 +1125,8 @@ Note: using Easy-RSA configuration from: $vars"
 	set_var EASYRSA_KEY_SIZE	2048
 	set_var EASYRSA_CURVE		secp384r1
 	set_var EASYRSA_EC_DIR		"$EASYRSA_PKI/ecparams"
-	set_var EASYRSA_CA_EXPIRE	3650
-	set_var EASYRSA_CERT_EXPIRE	3650
+	set_var EASYRSA_CA_EXPIRE	3652
+	set_var EASYRSA_CERT_EXPIRE	3652
 	set_var EASYRSA_CRL_DAYS	180
 	set_var EASYRSA_NS_SUPPORT	no
 	set_var EASYRSA_NS_COMMENT	"Easy-RSA Generated Certificate"
