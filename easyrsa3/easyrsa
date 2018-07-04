@@ -600,11 +600,19 @@ current CA keypair. If you intended to start a new CA, run init-pki first."
 		hide_read_pass kpass2
 		echo
 		# shellcheck disable=2154
-		if [ "$kpass" = "$kpass2" ];
-		then
+		if [ "$kpass" != "$kpass2" ]; then
+			die "Passphrases do not match."
+		fi
+
+		# Try to use named pipe but falls back if it fails (windows)
+		if ! (umask 177; mkfifo "$out_key_pass_tmp.pipe"); then
+			use_namedpipes=false
+			warn "mkfifo failed. Using temporary file in disk instead"
 			printf "%s" "$kpass" > "$out_key_pass_tmp"
 		else
-			die "Passphrases do not match."
+			use_namedpipes=true
+			rm -f "$out_key_pass_tmp"
+			mv -f "$out_key_pass_tmp.pipe" "$out_key_pass_tmp"
 		fi
 	fi
 
@@ -612,7 +620,10 @@ current CA keypair. If you intended to start a new CA, run init-pki first."
 	crypto_opts=""
 	if [ ! $nopass ]; then
 		crypto_opts="$crypto"
-		[ -z "$EASYRSA_PASSOUT" ] && crypto_opts="$crypto_opts -passout file:$out_key_pass_tmp"
+		[ -z "$EASYRSA_PASSOUT" ] && {
+			crypto_opts="$crypto_opts -passout file:$out_key_pass_tmp";
+			$use_namedpipes && { printf "%s" "$kpass" > "$out_key_pass_tmp" & }
+		}
 	fi
 	if [ "$EASYRSA_ALGO" = "rsa" ]; then
 		#shellcheck disable=SC2086
@@ -627,7 +638,12 @@ current CA keypair. If you intended to start a new CA, run init-pki first."
 
 	# create the CA keypair:
 	crypto_opts=""
-	[ ! $nopass ] && [ -z "$EASYRSA_PASSIN" ] && crypto_opts="-passin file:$out_key_pass_tmp"
+	if [ ! $nopass ]; then
+		[ -z "$EASYRSA_PASSIN" ] && {
+			crypto_opts="-passin file:$out_key_pass_tmp"
+			$use_namedpipes && { printf "%s" "$kpass" > "$out_key_pass_tmp" & }
+		}
+	fi
 
 	#shellcheck disable=SC2086
 	easyrsa_openssl req -utf8 -new -key "$out_key_tmp" \
