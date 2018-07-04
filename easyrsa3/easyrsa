@@ -467,8 +467,8 @@ current CA keypair. If you intended to start a new CA, run init-pki first."
 	# shellcheck disable=SC2015
 	[ "$EASYRSA_BATCH" ] && opts="$opts -batch" || export EASYRSA_REQ_CN="Easy-RSA CA"
 
-	out_key_tmp="$(mktemp "$out_key.XXXXXXXXXX")"; EASYRSA_TEMP_FILE_2="$out_key_tmp"
-	out_file_tmp="$(mktemp "$out_file.XXXXXXXXXX")"; EASYRSA_TEMP_FILE_3="$out_file_tmp"
+	out_key_tmp="$(mktemp "$out_key.XXXXXX")"; EASYRSA_TEMP_FILE_2="$out_key_tmp"
+	out_file_tmp="$(mktemp "$out_file.XXXXXX")"; EASYRSA_TEMP_FILE_3="$out_file_tmp"
 	# Get password from user if necessary
 	if [ ! $nopass ]; then
 		out_key_pass_tmp="$(mktemp)"; EASYRSA_TEMP_FILE_3="$out_key_pass_tmp"
@@ -605,8 +605,8 @@ $EASYRSA_EXTRA_EXTS"
 		EASYRSA_SSL_CONF="$EASYRSA_TEMP_CONF"
 	fi
 
-	key_out_tmp="$(mktemp "$key_out.XXXXXXXXXX")"; EASYRSA_TEMP_FILE_2="$key_out_tmp"
-	req_out_tmp="$(mktemp "$req_out.XXXXXXXXXX")"; EASYRSA_TEMP_FILE_3="$req_out_tmp"
+	key_out_tmp="$(mktemp "$key_out.XXXXXX")"; EASYRSA_TEMP_FILE_2="$key_out_tmp"
+	req_out_tmp="$(mktemp "$req_out.XXXXXX")"; EASYRSA_TEMP_FILE_3="$req_out_tmp"
 	# generate request
 	[ $EASYRSA_BATCH ] && opts="$opts -batch"
 	# shellcheck disable=SC2086
@@ -723,7 +723,7 @@ $EASYRSA_TEMP_EXT"
 
 	# sign request
 	# shellcheck disable=SC2086
-	crt_out_tmp="$(mktemp "$crt_out.XXXXXXXXXX")"; EASYRSA_TEMP_FILE_2="$crt_out_tmp"
+	crt_out_tmp="$(mktemp "$crt_out.XXXXXX")"; EASYRSA_TEMP_FILE_2="$crt_out_tmp"
 	"$EASYRSA_OPENSSL" ca -utf8 -in "$req_in" -out "$crt_out_tmp" -config "$EASYRSA_SSL_CONF" \
 		-extfile "$EASYRSA_TEMP_EXT" -days "$EASYRSA_CERT_EXPIRE" -batch $opts \
 		|| die "signing failed (openssl output above may have more detail)"
@@ -821,7 +821,7 @@ gen_crl() {
 	verify_ca_init
 
 	out_file="$EASYRSA_PKI/crl.pem"
-	out_file_tmp="$(mktemp "$out_file.XXXXXXXXXX")"; EASYRSA_TEMP_FILE_2="$out_file_tmp"
+	out_file_tmp="$(mktemp "$out_file.XXXXXX")"; EASYRSA_TEMP_FILE_2="$out_file_tmp"
 	"$EASYRSA_OPENSSL" ca -utf8 -gencrl -out "$out_file_tmp" -config "$EASYRSA_SSL_CONF" || die "\
 CRL Generation failed.
 "
