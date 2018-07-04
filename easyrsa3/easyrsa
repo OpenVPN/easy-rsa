@@ -472,6 +472,13 @@ current CA keypair. If you intended to start a new CA, run init-pki first."
 	# Get password from user if necessary
 	if [ ! $nopass ]; then
 		out_key_pass_tmp="$(mktemp)"; EASYRSA_TEMP_FILE_3="$out_key_pass_tmp"
+		rm "$out_key_pass_tmp"
+		(
+			umask 177
+			# Try to use named pipe but falls back if it fails (windows)
+			mkfifo "$out_key_pass_tmp" ||
+				{ echo "mkfifo failed. Using file instead"; >"$out_key_pass_tmp"; }
+		)
 		printf "Enter New CA Key Passphrase: "
 		stty -echo
 		read -r kpass
@@ -482,16 +489,16 @@ current CA keypair. If you intended to start a new CA, run init-pki first."
 		read -r kpass2
 		stty echo
 		echo
-		if [ "$kpass" = "$kpass2" ];
-		then
-			printf "%s" "$kpass" > "$out_key_pass_tmp"
-		else
+		if [ "$kpass" != "$kpass2" ]; then
 			die "Passphrases do not match."
 		fi
 	fi
 
 	# create the CA key using AES256
-	[ ! $nopass ] && crypto_opts="$crypto -passout file:$out_key_pass_tmp"
+	if [ ! $nopass ]; then
+		crypto_opts="$crypto -passout file:$out_key_pass_tmp"
+		printf "%s" "$kpass" > "$out_key_pass_tmp" &
+	fi
 	if [ "$EASYRSA_ALGO" = "rsa" ]; then
 		#shellcheck disable=SC2086
 		"$EASYRSA_OPENSSL" genrsa -out "$out_key_tmp" $crypto_opts "$EASYRSA_ALGO_PARAMS"
@@ -501,7 +508,10 @@ current CA keypair. If you intended to start a new CA, run init-pki first."
 			"$EASYRSA_OPENSSL" ec -out "$out_key_tmp" $crypto_opts
 	fi
 	# create the CA keypair:
-	[ ! $nopass ] && crypto_opts="-passin file:$out_key_pass_tmp"
+	if [ ! $nopass ]; then
+		crypto_opts="-passin file:$out_key_pass_tmp"
+		printf "%s" "$kpass" > "$out_key_pass_tmp" &
+	fi
 	#shellcheck disable=SC2086
 	"$EASYRSA_OPENSSL" req -utf8 -new -key "$out_key_tmp" \
 		-config "$EASYRSA_SSL_CONF" -keyout "$out_key_tmp" -out "$out_file_tmp" $crypto_opts $opts || \
@@ -1132,6 +1142,7 @@ Note: using Easy-RSA configuration from: $vars"
 	set_var EASYRSA_NS_COMMENT	"Easy-RSA Generated Certificate"
 	set_var EASYRSA_TEMP_CONF	"$EASYRSA_PKI/openssl-easyrsa.temp"
 	set_var EASYRSA_TEMP_EXT	"$EASYRSA_PKI/extensions.temp"
+	set_var EASYRSA_TEMP_PASSWORD	"$EASYRSA_PKI/password.temp"
 	set_var EASYRSA_TEMP_FILE_2	""
 	set_var EASYRSA_TEMP_FILE_3	""
 	set_var EASYRSA_REQ_CN		ChangeMe
