@@ -790,9 +790,11 @@ Matching file found at: "
 	EASYRSA_REQ_CN="$name"
 	#shellcheck disable=SC2086
 	gen_req "$name" batch $req_opts
+	add_temp "$req_out" "$key_out"
 
 	# Sign it
 	sign_req "$crt_type" "$name" batch
+	remove_temp "$req_out" "$key_out"
 
 } # => build_full()
 
