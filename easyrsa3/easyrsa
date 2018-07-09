@@ -515,7 +515,7 @@ current CA keypair. If you intended to start a new CA, run init-pki first."
 	if [ $sub_ca ]; then
 		notice "\
 NOTE: Your sub-CA request is at $out_file
-and now must be sent to you parent CA for signing. Place your resulting cert
+and now must be sent to your parent CA for signing. Place your resulting cert
 at $EASYRSA_PKI/ca.crt prior to signing operations.
 "
 	else	notice "\
