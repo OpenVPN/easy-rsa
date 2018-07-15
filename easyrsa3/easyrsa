@@ -1087,6 +1087,20 @@ Note: using Easy-RSA configuration from: $vars"
 		die "Alg '$EASYRSA_ALGO' is invalid: must be 'rsa' or 'ec'"
 	fi
 
+	# LibreSSL doesn't support environment variable substitution
+	if "$EASYRSA_OPENSSL" version | grep -q LibreSSL; then
+		LIBRESSL_CONF="${EASYRSA_SSL_CONF%/*}/libressl-easyrsa.cnf"
+		if command -v envsubst >/dev/null; then
+			sed -e 's/\$ENV::/$/' "$EASYRSA_SSL_CONF" |
+			dir="$EASYRSA_PKI" envsubst > "$LIBRESSL_CONF"
+		elif command -v perl >/dev/null; then
+			dir="$EASYRSA_PKI" perl -pe 's/(\$ENV::(\S+))/$ENV{$2}/ge' "$EASYRSA_SSL_CONF" > "$LIBRESSL_CONF"
+		else
+			die "Support for LibreSSL requires that either GNU gettext or Perl be installed"
+		fi
+		EASYRSA_SSL_CONF="$LIBRESSL_CONF"
+	fi
+
 	# Setting OPENSSL_CONF prevents bogus warnings (especially useful on win32)
 	export OPENSSL_CONF="$EASYRSA_SSL_CONF"
 } # vars_setup()
