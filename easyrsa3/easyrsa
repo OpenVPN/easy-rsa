@@ -33,6 +33,7 @@ Here is the list of commands available with a short syntax reminder. Use the
   sign-req <type> <filename_base>
   build-client-full <filename_base> [ cmd-opts ]
   build-server-full <filename_base> [ cmd-opts ]
+  build-server-client-full <filename_base> [ cmd-opts ]
   revoke <filename_base>
   gen-crl
   update-db
@@ -88,10 +89,12 @@ cmd_help() {
 
       This request file must exist in the reqs/ dir and have a .req file
       extension. See import-req below for importing reqs from other sources." ;;
-		build|build-client-full|build-server-full) text="
+		build|build-client-full|build-server-full|build-server-client-full) text="
   build-client-full <filename_base> [ cmd-opts ]
   build-server-full <filename_base> [ cmd-opts ]
-      Generate a keypair and sign locally for a client or server
+  build-server-client-full <filename_base> [ cmd-opts ]
+      Generate a keypair and sign locally for a client,
+      for a server, and for both server and client certificate extensions
 
       This mode uses the <filename_base> as the X509 CN."
 			opts="
@@ -723,6 +726,7 @@ $(display_dn req "$req_in")
 				print "nsComment = \"$EASYRSA_NS_COMMENT\""
 			case "$crt_type" in
 				server)	print "nsCertType = server" ;;
+				server-client)	print "nsCertType = server" ;;
 				client)	print "nsCertType = client" ;;
 				ca)	print "nsCertType = sslCA" ;;
 			esac
@@ -730,7 +734,7 @@ $(display_dn req "$req_in")
 
 		# If type is server and no subjectAltName was requested,
 		# add one to the extensions file
-		if [ "$crt_type" = 'server' ];
+		if [ "$crt_type" = 'server' -o "$crt_type" = 'server-client' ];
 		then
 			echo "$EASYRSA_EXTRA_EXTS" |
 				grep -q subjectAltName ||
@@ -873,7 +877,7 @@ import_req() {
 
 	# pull passed paths
 	in_req="$1" short_name="$2"
-	out_req="$EASYRSA_PKI/reqs/$2.req" 
+	out_req="$EASYRSA_PKI/reqs/$2.req"
 
 	[ -n "$short_name" ] || die "\
 Unable to import: incorrect command syntax.
@@ -888,7 +892,7 @@ Offending file: $in_req"
 Unable to import the request as the destination file already exists.
 Please choose a different name for your imported request file.
 Existing file at: $out_req"
-	
+
 	# now import it
 	cp "$in_req" "$out_req"
 
@@ -1017,7 +1021,7 @@ Failed to change the private key passphrase. See above for possible openssl
 error messages."
 
 	notice "Key passphrase successfully changed"
-	
+
 } # => set_pass()
 
 # update-db backend
@@ -1053,7 +1057,7 @@ default_server_san() {
 
 # verify a file seems to be a valid req/X509
 verify_file() {
-	format="$1" 
+	format="$1"
 	path="$2"
 	"$EASYRSA_OPENSSL" "$format" -in "$path" -noout 2>/dev/null || return 1
 	return 0
@@ -1062,8 +1066,8 @@ verify_file() {
 # show-* command backend
 # Prints req/cert details in a readable format
 show() {
-	type="$1" 
-	name="$2" 
+	type="$1"
+	name="$2"
 	in_file=""
 	format=""
 	[ -n "$name" ] || die "\
@@ -1075,11 +1079,11 @@ Run easyrsa without commands for usage help."
 	opts="-${type}opt no_pubkey,no_sigdump"
 	while [ -n "$1" ]; do
 		case "$1" in
-			full) 
+			full)
 				opts=""
 				;;
-			*) 
-				warn "Ignoring unknown command option: '$1'" 
+			*)
+				warn "Ignoring unknown command option: '$1'"
 				;;
 		esac
 		shift
@@ -1141,18 +1145,18 @@ vars_setup() {
 	elif [ -f "$prog_vars" ]; then
 		vars="$prog_vars"
 	fi
-	
+
 	# If a vars file was located, source it
 	# If $EASYRSA_NO_VARS is defined (not blank) this is skipped
 	if [ -z "$EASYRSA_NO_VARS" ] && [ -n "$vars" ]; then
 		#shellcheck disable=SC2034
-		EASYRSA_CALLER=1 
+		EASYRSA_CALLER=1
 		# shellcheck disable=SC1090
 		. "$vars"
 		notice "\
 Note: using Easy-RSA configuration from: $vars"
 	fi
-	
+
 	# Set defaults, preferring existing env-vars if present
 	set_var EASYRSA		"${0%/*}"
 	set_var EASYRSA_OPENSSL	openssl
@@ -1332,6 +1336,9 @@ case "$cmd" in
 		;;
 	build-server-full)
 		build_full server "$@"
+		;;
+	build-server-client-full)
+		build_full server-client "$@"
 		;;
 	gen-crl)
 		gen_crl
