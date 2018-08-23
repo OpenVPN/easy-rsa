@@ -318,7 +318,9 @@ EASYRSA_PKI env-var undefined"
 	if [ -z "$EASYRSA_SSL_OK" ]; then
 		val="$("$EASYRSA_OPENSSL" version)"
 		case "${val%% *}" in
-			OpenSSL|LibreSSL) ;;
+			OpenSSL|LibreSSL) 
+				notice "\
+Using SSL: $EASYRSA_OPENSSL $("$EASYRSA_OPENSSL" version)" ;;
 			*) die "\
 Missing or invalid OpenSSL
 Expected to find openssl command at: $EASYRSA_OPENSSL"
