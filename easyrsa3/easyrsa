@@ -1162,7 +1162,9 @@ Note: using Easy-RSA configuration from: $vars"
 	# Detect openssl config, preferring EASYRSA_PKI over EASYRSA
 	if [ -f "$EASYRSA_PKI/openssl-easyrsa.cnf" ]; then
 		set_var EASYRSA_SSL_CONF	"$EASYRSA_PKI/openssl-easyrsa.cnf"
+		set_var EASYRSA_SAFE_CONF	"$EASYRSA_PKI/safessl-easyrsa.cnf"
 	else	set_var EASYRSA_SSL_CONF	"$EASYRSA/openssl-easyrsa.cnf"
+		set_var EASYRSA_SAFE_CONF	"$EASYRSA/safessl-easyrsa.cnf"
 	fi
 
 	# Same as above for the x509-types extensions dir
@@ -1181,7 +1183,7 @@ Note: using Easy-RSA configuration from: $vars"
 	fi
 
 	# Setting OPENSSL_CONF prevents bogus warnings (especially useful on win32)
-	export OPENSSL_CONF="$EASYRSA_SSL_CONF"
+	export OPENSSL_CONF="$EASYRSA_SAFE_CONF"
 } # vars_setup()
 
 # variable assignment by indirection when undefined; merely exports
