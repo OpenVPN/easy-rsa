@@ -287,6 +287,28 @@ clean_temp() {
 	done
 } # => clean_temp()
 
+# Make LibreSSL safe config file from OpenSSL config file
+make_ssl_config() {
+sed	-e "s,ENV::,,g" \
+	-e "s,\$dir,$EASYRSA_PKI,g" \
+	-e "s,\$EASYRSA_PKI,$EASYRSA_PKI,g" \
+	-e "s,\$EASYRSA_CERT_EXPIRE,$EASYRSA_CERT_EXPIRE,g" \
+	-e "s,\$EASYRSA_CRL_DAYS,$EASYRSA_CRL_DAYS,g" \
+	-e "s,\$EASYRSA_DIGEST,$EASYRSA_DIGEST,g" \
+	-e "s,\$EASYRSA_KEY_SIZE,$EASYRSA_KEY_SIZE,g" \
+	-e "s,\$EASYRSA_DIGEST,$EASYRSA_DIGEST,g" \
+	-e "s,\$EASYRSA_DN,$EASYRSA_DN,g" \
+	-e "s,\$EASYRSA_REQ_COUNTRY,$EASYRSA_REQ_COUNTRY,g" \
+	-e "s,\$EASYRSA_REQ_PROVINCE,$EASYRSA_REQ_PROVINCE,g" \
+	-e "s,\$EASYRSA_REQ_CITY,$EASYRSA_REQ_CITY,g" \
+	-e "s,\$EASYRSA_REQ_ORG,$EASYRSA_REQ_ORG,g" \
+	-e "s,\$EASYRSA_REQ_OU,$EASYRSA_REQ_OU,g" \
+	-e "s,\$EASYRSA_REQ_CN,$EASYRSA_REQ_CN,g" \
+	-e "s,\$EASYRSA_REQ_EMAIL,$EASYRSA_REQ_EMAIL,g" \
+	"$EASYRSA_SSL_CONF" > "$EASYRSA_SAFE_CONF" || die "\
+Failed to update $EASYRSA_SAFE_CONF"
+} # => make_ssl_config()
+
 vars_source_check() {
 	# Check for defined EASYRSA_PKI
 	[ -n "$EASYRSA_PKI" ] || die "\
