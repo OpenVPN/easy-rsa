@@ -527,11 +527,15 @@ current CA keypair. If you intended to start a new CA, run init-pki first."
 		"$EASYRSA_OPENSSL" ecparam -in "$EASYRSA_ALGO_PARAMS" -genkey | \
 			"$EASYRSA_OPENSSL" ec -out "$out_key_tmp" $crypto_opts
 	fi
+
+	# make safessl-easyrsa.cnf
+	make_ssl_config
+
 	# create the CA keypair:
 	[ ! $nopass ] && crypto_opts="-passin file:$out_key_pass_tmp"
 	#shellcheck disable=SC2086
 	"$EASYRSA_OPENSSL" req -utf8 -new -key "$out_key_tmp" \
-		-config "$EASYRSA_SSL_CONF" -keyout "$out_key_tmp" -out "$out_file_tmp" $crypto_opts $opts || \
+		-config "$EASYRSA_SAFE_CONF" -keyout "$out_key_tmp" -out "$out_file_tmp" $crypto_opts $opts || \
 		die "Failed to build the CA"
 
 	mv "$out_key_tmp" "$out_key"; EASYRSA_TEMP_FILE_2=
