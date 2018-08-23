@@ -745,10 +745,13 @@ $(display_dn req "$req_in")
 Failed to create temp extension file (bad permissions?) at:
 $EASYRSA_TEMP_EXT"
 
+	# make safessl-easyrsa.cnf
+	make_ssl_config
+
 	# sign request
 	# shellcheck disable=SC2086
 	crt_out_tmp="$(mktemp "$crt_out.XXXXXXXXXX")"; EASYRSA_TEMP_FILE_2="$crt_out_tmp"
-	"$EASYRSA_OPENSSL" ca -utf8 -in "$req_in" -out "$crt_out_tmp" -config "$EASYRSA_SSL_CONF" \
+	"$EASYRSA_OPENSSL" ca -utf8 -in "$req_in" -out "$crt_out_tmp" -config "$EASYRSA_SAFE_CONF" \
 		-extfile "$EASYRSA_TEMP_EXT" -days "$EASYRSA_CERT_EXPIRE" -batch $opts \
 		|| die "signing failed (openssl output above may have more detail)"
 	mv "$crt_out_tmp" "$crt_out"; EASYRSA_TEMP_FILE_2=
