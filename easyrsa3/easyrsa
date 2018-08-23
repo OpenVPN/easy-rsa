@@ -626,13 +626,16 @@ $EASYRSA_EXTRA_EXTS"
 		EASYRSA_SSL_CONF="$EASYRSA_TEMP_CONF"
 	fi
 
+	# make safessl-easyrsa.cnf
+	make_ssl_config
+
 	key_out_tmp="$(mktemp "$key_out.XXXXXXXXXX")"; EASYRSA_TEMP_FILE_2="$key_out_tmp"
 	req_out_tmp="$(mktemp "$req_out.XXXXXXXXXX")"; EASYRSA_TEMP_FILE_3="$req_out_tmp"
 	# generate request
 	[ $EASYRSA_BATCH ] && opts="$opts -batch"
 	# shellcheck disable=SC2086
 	"$EASYRSA_OPENSSL" req -utf8 -new -newkey "$EASYRSA_ALGO":"$EASYRSA_ALGO_PARAMS" \
-		-config "$EASYRSA_SSL_CONF" -keyout "$key_out_tmp" -out "$req_out_tmp" $opts \
+		-config "$EASYRSA_SAFE_CONF" -keyout "$key_out_tmp" -out "$req_out_tmp" $opts \
 		|| die "Failed to generate request"
 	mv "$key_out_tmp" "$key_out"; EASYRSA_TEMP_FILE_2=
 	mv "$req_out_tmp" "$req_out"; EASYRSA_TEMP_FILE_3=
