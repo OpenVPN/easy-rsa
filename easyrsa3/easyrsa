@@ -314,6 +314,9 @@ vars_source_check() {
 	[ -n "$EASYRSA_PKI" ] || die "\
 EASYRSA_PKI env-var undefined"
 
+	# make safessl-easyrsa.cnf
+	make_ssl_config
+
 	# Verify EASYRSA_OPENSSL command gives expected output
 	if [ -z "$EASYRSA_SSL_OK" ]; then
 		val="$("$EASYRSA_OPENSSL" version)"
