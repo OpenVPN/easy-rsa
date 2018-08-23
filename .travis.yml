@@ -6,8 +6,6 @@ addons:
   apt:
     sources:
     - debian-sid
-    packages:
-    - shellcheck
 env:
  - PATH=/usr/bin:/bin:./
 script:
