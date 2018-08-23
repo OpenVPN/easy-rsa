@@ -73,12 +73,12 @@ stage_unix() {
 	src_files="easyrsa3/ Licensing/ COPYING.md ChangeLog README.md README.quickstart.md"
 	for f in $src_files
 	do
-		sed -i -e "s/~~~/$VERSION/" "$SRC_ROOT/$f"
 		cp -a "$SRC_ROOT/$f" "$DIST_ROOT/unix/$PV" || die "failed to copy $f"
 	done
 	
-	sed -i -e "s/~~~/$VERSION/" "$SRC_ROOT/$f"
 	cp -R "$SRC_ROOT/doc" "$DIST_ROOT/unix/$PV/" || die "failed to copy unix doc"
+
+	sed -i -e "s/~~~/$VERSION/" "$DIST_ROOT/unix/$PV/easyrsa"
 
 	# files not included
 	rm -rf "$DIST_ROOT/unix/$PV/doc/TODO" || die "failed rm TODO"
@@ -106,7 +106,6 @@ stage_win() {
 	src_files="easyrsa3/ ChangeLog COPYING.md"
 	for f in $src_files
 	do
-		sed -i -e "s/~~~/$VERSION/" "$SRC_ROOT/$f"
 		cp -a "$SRC_ROOT/$f" "$DIST_ROOT/windows/$PV" || die "failed to copy $f"
 	done
 	
