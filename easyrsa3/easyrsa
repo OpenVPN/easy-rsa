@@ -287,19 +287,46 @@ clean_temp() {
 	done
 } # => clean_temp()
 
+# Make LibreSSL safe config file from OpenSSL config file
+make_ssl_config() {
+sed	-e "s,ENV::,,g" \
+	-e "s,\$dir,$EASYRSA_PKI,g" \
+	-e "s,\$EASYRSA_PKI,$EASYRSA_PKI,g" \
+	-e "s,\$EASYRSA_CERT_EXPIRE,$EASYRSA_CERT_EXPIRE,g" \
+	-e "s,\$EASYRSA_CRL_DAYS,$EASYRSA_CRL_DAYS,g" \
+	-e "s,\$EASYRSA_DIGEST,$EASYRSA_DIGEST,g" \
+	-e "s,\$EASYRSA_KEY_SIZE,$EASYRSA_KEY_SIZE,g" \
+	-e "s,\$EASYRSA_DIGEST,$EASYRSA_DIGEST,g" \
+	-e "s,\$EASYRSA_DN,$EASYRSA_DN,g" \
+	-e "s,\$EASYRSA_REQ_COUNTRY,$EASYRSA_REQ_COUNTRY,g" \
+	-e "s,\$EASYRSA_REQ_PROVINCE,$EASYRSA_REQ_PROVINCE,g" \
+	-e "s,\$EASYRSA_REQ_CITY,$EASYRSA_REQ_CITY,g" \
+	-e "s,\$EASYRSA_REQ_ORG,$EASYRSA_REQ_ORG,g" \
+	-e "s,\$EASYRSA_REQ_OU,$EASYRSA_REQ_OU,g" \
+	-e "s,\$EASYRSA_REQ_CN,$EASYRSA_REQ_CN,g" \
+	-e "s,\$EASYRSA_REQ_EMAIL,$EASYRSA_REQ_EMAIL,g" \
+	"$EASYRSA_SSL_CONF" > "$EASYRSA_SAFE_CONF" || die "\
+Failed to update $EASYRSA_SAFE_CONF"
+} # => make_ssl_config()
+
 vars_source_check() {
 	# Check for defined EASYRSA_PKI
 	[ -n "$EASYRSA_PKI" ] || die "\
 EASYRSA_PKI env-var undefined"
 
+	# make safessl-easyrsa.cnf
+	make_ssl_config
+
 	# Verify EASYRSA_OPENSSL command gives expected output
 	if [ -z "$EASYRSA_SSL_OK" ]; then
 		val="$("$EASYRSA_OPENSSL" version)"
 		case "${val%% *}" in
-			OpenSSL|LibreSSL) ;;
+			OpenSSL|LibreSSL)
+				notice "\
+Using SSL: $EASYRSA_OPENSSL $("$EASYRSA_OPENSSL" version)" ;;
 			*) die "\
 Missing or invalid OpenSSL
-Expected to find openssl command at: $EASYRSA_OPENSSL"
+Expected to find openssl command at: $EASYRSA_OPENSSL" ;;
 		esac
 	fi
 	EASYRSA_SSL_OK=1
@@ -500,11 +527,15 @@ current CA keypair. If you intended to start a new CA, run init-pki first."
 		"$EASYRSA_OPENSSL" ecparam -in "$EASYRSA_ALGO_PARAMS" -genkey | \
 			"$EASYRSA_OPENSSL" ec -out "$out_key_tmp" $crypto_opts
 	fi
+
+	# make safessl-easyrsa.cnf
+	make_ssl_config
+
 	# create the CA keypair:
 	[ ! $nopass ] && crypto_opts="-passin file:$out_key_pass_tmp"
 	#shellcheck disable=SC2086
 	"$EASYRSA_OPENSSL" req -utf8 -new -key "$out_key_tmp" \
-		-config "$EASYRSA_SSL_CONF" -keyout "$out_key_tmp" -out "$out_file_tmp" $crypto_opts $opts || \
+		-config "$EASYRSA_SAFE_CONF" -keyout "$out_key_tmp" -out "$out_file_tmp" $crypto_opts $opts || \
 		die "Failed to build the CA"
 
 	mv "$out_key_tmp" "$out_key"; EASYRSA_TEMP_FILE_2=
@@ -595,13 +626,16 @@ $EASYRSA_EXTRA_EXTS"
 		EASYRSA_SSL_CONF="$EASYRSA_TEMP_CONF"
 	fi
 
+	# make safessl-easyrsa.cnf
+	make_ssl_config
+
 	key_out_tmp="$(mktemp "$key_out.XXXXXXXXXX")"; EASYRSA_TEMP_FILE_2="$key_out_tmp"
 	req_out_tmp="$(mktemp "$req_out.XXXXXXXXXX")"; EASYRSA_TEMP_FILE_3="$req_out_tmp"
 	# generate request
 	[ $EASYRSA_BATCH ] && opts="$opts -batch"
 	# shellcheck disable=SC2086
 	"$EASYRSA_OPENSSL" req -utf8 -new -newkey "$EASYRSA_ALGO":"$EASYRSA_ALGO_PARAMS" \
-		-config "$EASYRSA_SSL_CONF" -keyout "$key_out_tmp" -out "$req_out_tmp" $opts \
+		-config "$EASYRSA_SAFE_CONF" -keyout "$key_out_tmp" -out "$req_out_tmp" $opts \
 		|| die "Failed to generate request"
 	mv "$key_out_tmp" "$key_out"; EASYRSA_TEMP_FILE_2=
 	mv "$req_out_tmp" "$req_out"; EASYRSA_TEMP_FILE_3=
@@ -711,10 +745,13 @@ $(display_dn req "$req_in")
 Failed to create temp extension file (bad permissions?) at:
 $EASYRSA_TEMP_EXT"
 
+	# make safessl-easyrsa.cnf
+	make_ssl_config
+
 	# sign request
 	# shellcheck disable=SC2086
 	crt_out_tmp="$(mktemp "$crt_out.XXXXXXXXXX")"; EASYRSA_TEMP_FILE_2="$crt_out_tmp"
-	"$EASYRSA_OPENSSL" ca -utf8 -in "$req_in" -out "$crt_out_tmp" -config "$EASYRSA_SSL_CONF" \
+	"$EASYRSA_OPENSSL" ca -utf8 -in "$req_in" -out "$crt_out_tmp" -config "$EASYRSA_SAFE_CONF" \
 		-extfile "$EASYRSA_TEMP_EXT" -days "$EASYRSA_CERT_EXPIRE" -batch $opts \
 		|| die "signing failed (openssl output above may have more detail)"
 	mv "$crt_out_tmp" "$crt_out"; EASYRSA_TEMP_FILE_2=
@@ -794,7 +831,10 @@ $(display_dn x509 "$crt_in")
 Unable to revoke as no certificate was found. Certificate was expected
 at: $crt_in"
 
-	"$EASYRSA_OPENSSL" ca -utf8 -revoke "$crt_in" -config "$EASYRSA_SSL_CONF" || die "\
+	# make safessl-easyrsa.cnf
+	make_ssl_config
+
+	"$EASYRSA_OPENSSL" ca -utf8 -revoke "$crt_in" -config "$EASYRSA_SAFE_CONF" || die "\
 Failed to revoke certificate: revocation command failed."
 
 	notice "\
@@ -810,9 +850,12 @@ infrastructure in order to prevent the revoked cert from being accepted.
 gen_crl() {
 	verify_ca_init
 
+	# make safessl-easyrsa.cnf
+	make_ssl_config
+
 	out_file="$EASYRSA_PKI/crl.pem"
 	out_file_tmp="$(mktemp "$out_file.XXXXXXXXXX")"; EASYRSA_TEMP_FILE_2="$out_file_tmp"
-	"$EASYRSA_OPENSSL" ca -utf8 -gencrl -out "$out_file_tmp" -config "$EASYRSA_SSL_CONF" || die "\
+	"$EASYRSA_OPENSSL" ca -utf8 -gencrl -out "$out_file_tmp" -config "$EASYRSA_SAFE_CONF" || die "\
 CRL Generation failed.
 "
 	mv "$out_file_tmp" "$out_file"; EASYRSA_TEMP_FILE_2=
@@ -1140,7 +1183,9 @@ Note: using Easy-RSA configuration from: $vars"
 	# Detect openssl config, preferring EASYRSA_PKI over EASYRSA
 	if [ -f "$EASYRSA_PKI/openssl-easyrsa.cnf" ]; then
 		set_var EASYRSA_SSL_CONF	"$EASYRSA_PKI/openssl-easyrsa.cnf"
+		set_var EASYRSA_SAFE_CONF	"$EASYRSA_PKI/safessl-easyrsa.cnf"
 	else	set_var EASYRSA_SSL_CONF	"$EASYRSA/openssl-easyrsa.cnf"
+		set_var EASYRSA_SAFE_CONF	"$EASYRSA/safessl-easyrsa.cnf"
 	fi
 
 	# Same as above for the x509-types extensions dir
@@ -1159,7 +1204,7 @@ Note: using Easy-RSA configuration from: $vars"
 	fi
 
 	# Setting OPENSSL_CONF prevents bogus warnings (especially useful on win32)
-	export OPENSSL_CONF="$EASYRSA_SSL_CONF"
+	export OPENSSL_CONF="$EASYRSA_SAFE_CONF"
 } # vars_setup()
 
 # variable assignment by indirection when undefined; merely exports
