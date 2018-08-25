@@ -219,6 +219,9 @@ Deprecated features:
 "
 } # => opt_usage()
 
+# EasyRSA Release check
+easyrsa_release() { export EASYRSA_RELEASE=${EASYRSA_RELEASE:=0}; }
+
 # Wrapper around printf - clobber print since it's not POSIX anyway
 # shellcheck disable=SC1117
 print() { printf "%s\n" "$*"; }
@@ -1203,6 +1206,9 @@ Note: using Easy-RSA configuration from: $vars"
 		die "Alg '$EASYRSA_ALGO' is invalid: must be 'rsa' or 'ec'"
 	fi
 
+	# Wild Thing
+	[ $EASYRSA_RELEASE -eq 1 ] || die "This version is unsupported, please use option --wild-thing"
+
 	# Setting OPENSSL_CONF prevents bogus warnings (especially useful on win32)
 	export OPENSSL_CONF="$EASYRSA_SAFE_CONF"
 } # vars_setup()
@@ -1290,6 +1296,11 @@ while :; do
 		export EASYRSA_EXTRA_EXTS="\
 $EASYRSA_EXTRA_EXTS
 subjectAltName = $val" ;;
+	--wild-thing)
+		empty_ok=1
+		export EASYRSA_RELEASE=1
+		warn "\
+Wild mode enabled .. expect the unexpected ;-)" ;;
 	*)
 		break ;;
 	esac
@@ -1301,6 +1312,9 @@ subjectAltName = $val" ;;
 
 	shift
 done
+
+# EasyRSA Release
+easyrsa_release
 
 # Intelligent env-var detection and auto-loading:
 vars_setup
