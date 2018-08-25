@@ -325,8 +325,8 @@ EASYRSA_PKI env-var undefined"
 		val="$("$EASYRSA_OPENSSL" version)"
 		case "${val%% *}" in
 			OpenSSL|LibreSSL)
-				notice "\
-Using SSL: $EASYRSA_OPENSSL $("$EASYRSA_OPENSSL" version)" ;;
+				[ -z $EASYRSA_DEVMODE ] || notice "\
+Using: $val" ;;
 			*) die "\
 Missing or invalid OpenSSL
 Expected to find openssl command at: $EASYRSA_OPENSSL" ;;
@@ -1298,6 +1298,7 @@ $EASYRSA_EXTRA_EXTS
 subjectAltName = $val" ;;
 	--wild-thing)
 		empty_ok=1
+		export EASYRSA_DEVMODE=1
 		export EASYRSA_RELEASE=1
 		warn "\
 Wild mode enabled .. expect the unexpected ;-)" ;;
