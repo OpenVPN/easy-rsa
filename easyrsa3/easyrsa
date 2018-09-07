@@ -2,7 +2,7 @@
 
 # Easy-RSA 3 -- A Shell-based CA Utility
 #
-# Copyright (C) 2013 by the Open-Source OpenVPN development community.
+# Copyright (C) 2018 by the Open-Source OpenVPN development community.
 # A full list of contributors can be found in the ChangeLog.
 #
 # This code released under version 2 of the GNU GPL; see COPYING and the
@@ -969,7 +969,7 @@ $file"
 If the key is currently encrypted you must supply the decryption passphrase.
 ${crypto:+You will then enter a new PEM passphrase for this key.$NL}"
 
-	"$EASYRSA_OPENSSL" "$key_type" -in "$file" -out "$file" "$crypto" || die "\
+	"$EASYRSA_OPENSSL" "$key_type" -in "$file" -out "$file" $crypto || die "\
 Failed to change the private key passphrase. See above for possible openssl
 error messages."
 
@@ -1126,10 +1126,10 @@ Note: using Easy-RSA configuration from: $vars"
 	set_var EASYRSA_CURVE		secp384r1
 	set_var EASYRSA_EC_DIR		"$EASYRSA_PKI/ecparams"
 	set_var EASYRSA_CA_EXPIRE	3650
-	set_var EASYRSA_CERT_EXPIRE	3650
+	set_var EASYRSA_CERT_EXPIRE	1080 # new default of 36 months	
 	set_var EASYRSA_CRL_DAYS	180
 	set_var EASYRSA_NS_SUPPORT	no
-	set_var EASYRSA_NS_COMMENT	"Easy-RSA Generated Certificate"
+	set_var EASYRSA_NS_COMMENT	"Easy-RSA (~~~) Generated Certificate"
 	set_var EASYRSA_TEMP_CONF	"$EASYRSA_PKI/openssl-easyrsa.temp"
 	set_var EASYRSA_TEMP_EXT	"$EASYRSA_PKI/extensions.temp"
 	set_var EASYRSA_TEMP_FILE_2	""
