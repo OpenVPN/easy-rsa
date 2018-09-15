@@ -1,4 +1,4 @@
-# For use with Easy-RSA 3.0 and OpenSSL 1.0.*
+# For use with Easy-RSA 3.1 and OpenSSL or LibreSSL
 
 RANDFILE		= $ENV::EASYRSA_PKI/.rnd
 
