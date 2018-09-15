@@ -11,6 +11,7 @@ addons:
 env:
  - PATH=/usr/bin:/bin:./
 script:
+ - which shellcheck
  - bash -c 'export SHELLCHECK_OPTS="-e SC2006"; shopt -s globstar; shellcheck **/*.sh easyrsa3/easyrsa'
  - bash -c 'pwd'
  - bash -c 'ls -la'
