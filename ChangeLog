@@ -1,13 +1,16 @@
 Easy-RSA 3 ChangeLog
 
-3.0.5
+3.0.5 (2018-09-15)
    * Fix #17 & #58: use AES256 for CA key
    * Also, don't use read -s, use stty -echo
    * Fix broken "nopass" option
    * Add -r to read to stop errors reported by shellcheck (and to behave)
    * remove overzealous quotes around $pkcs_opts (more SC errors)
+   * Support for LibreSSL
+   * EasyRSA version will be reported in certificate comments
+   * Client certificates now expire in 3 year (1080 days) by default
 
-3.0.4
+3.0.4 (2018-01-21)
     * Remove use of egrep (#154)
     * Integrate with Travis-CI (#165)
     * Remove "local" from variable assignment (#165)
