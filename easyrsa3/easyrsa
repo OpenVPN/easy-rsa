@@ -800,7 +800,8 @@ Matching file found at: "
 	[ -f "$crt_out" ] && die "Certificate $err_exists $crt_out"
 
 	# create request
-	EASYRSA_REQ_CN="$name"
+	# if a global CN is set, keep it
+	[ -n "$EASYRSA_REQ_CN" ] || EASYRSA_REQ_CN="$name"
 	#shellcheck disable=SC2086
 	gen_req "$name" batch $req_opts
 
