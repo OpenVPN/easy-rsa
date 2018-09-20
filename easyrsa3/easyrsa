@@ -1012,7 +1012,7 @@ $file"
 If the key is currently encrypted you must supply the decryption passphrase.
 ${crypto:+You will then enter a new PEM passphrase for this key.$NL}"
 
-	"$EASYRSA_OPENSSL" "$key_type" -in "$file" -out "$file.temp" $crypto
+	"$EASYRSA_OPENSSL" "$key_type" -in "$file" -out "$file.temp" ${crypto}
 	if [ $? -eq 0 ]
 	then
 		cp -f "$file.temp" "$file"
