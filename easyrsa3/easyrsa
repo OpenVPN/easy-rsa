@@ -415,7 +415,6 @@ $help_note"
 
 # init-pki backend:
 init_pki() {
-	vars_source_check
 
 	# If EASYRSA_PKI exists, confirm before we rm -rf (skiped with EASYRSA_BATCH)
 	if [ -e "$EASYRSA_PKI" ]; then
@@ -432,6 +431,11 @@ and initialize a fresh PKI here."
 	for i in private reqs; do
 		mkdir -p "$EASYRSA_PKI/$i" || die "Failed to create PKI file structure (permissions?)"
 	done
+	
+	if [ ! -f "$EASYRSA_PKI/openssl-easyrsa.cnf" -a -f "$EASYRSA/openssl-easyrsa.cnf" ];
+	then
+		cp "$EASYRSA/openssl-easyrsa.cnf" "$EASYRSA_PKI/openssl-easyrsa.cnf"
+	fi
 
 	notice "\
 init-pki complete; you may now create a CA or requests.
@@ -1176,7 +1180,7 @@ Note: using Easy-RSA configuration from: $vars"
 	set_var EASYRSA_CURVE		secp384r1
 	set_var EASYRSA_EC_DIR		"$EASYRSA_PKI/ecparams"
 	set_var EASYRSA_CA_EXPIRE	3650
-	set_var EASYRSA_CERT_EXPIRE	1080 # new default of 36 months
+	set_var EASYRSA_CERT_EXPIRE	1080 # new default of 36 months	
 	set_var EASYRSA_CRL_DAYS	180
 	set_var EASYRSA_NS_SUPPORT	no
 	set_var EASYRSA_NS_COMMENT	"Easy-RSA (~~~) Generated Certificate"
@@ -1187,18 +1191,15 @@ Note: using Easy-RSA configuration from: $vars"
 	set_var EASYRSA_REQ_CN		ChangeMe
 	set_var EASYRSA_DIGEST		sha256
 
-	# Detect openssl config, preferring EASYRSA_PKI over EASYRSA
-	if [ -f "$EASYRSA_PKI/openssl-easyrsa.cnf" ]; then
-		set_var EASYRSA_SSL_CONF	"$EASYRSA_PKI/openssl-easyrsa.cnf"
-		set_var EASYRSA_SAFE_CONF	"$EASYRSA_PKI/safessl-easyrsa.cnf"
-	else	set_var EASYRSA_SSL_CONF	"$EASYRSA/openssl-easyrsa.cnf"
-		set_var EASYRSA_SAFE_CONF	"$EASYRSA/safessl-easyrsa.cnf"
-	fi
+	set_var EASYRSA_SSL_CONF	"$EASYRSA_PKI/openssl-easyrsa.cnf"
+	set_var EASYRSA_SAFE_CONF	"$EASYRSA_PKI/safessl-easyrsa.cnf"
 
 	# Same as above for the x509-types extensions dir
 	if [ -d "$EASYRSA_PKI/x509-types" ]; then
 		set_var EASYRSA_EXT_DIR		"$EASYRSA_PKI/x509-types"
-	else	set_var EASYRSA_EXT_DIR		"$EASYRSA/x509-types"
+	else	
+		#TODO: This should be removed.  Not really suitable for packaging.
+		set_var EASYRSA_EXT_DIR		"$EASYRSA/x509-types"
 	fi
 
 	# EASYRSA_ALGO_PARAMS must be set depending on selected algo
