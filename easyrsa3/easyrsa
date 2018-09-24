@@ -1307,6 +1307,8 @@ vars_setup
 
 # Register clean_temp on EXIT
 trap "clean_temp" EXIT
+trap "exit 130" INT
+trap 'exit 143' TERM
 
 # determine how we were called, then hand off to the function responsible
 cmd="$1"
