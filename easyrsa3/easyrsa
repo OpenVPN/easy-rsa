@@ -428,7 +428,7 @@ verify_ca_init() {
 	verify_pki_init
 
 	# verify expected files present:
-	for i in serial index.txt ca.crt private/ca.key; do
+	for i in serial index.txt index.txt.attr ca.crt private/ca.key; do
 		if [ ! -f "$EASYRSA_PKI/$i" ]; then
 			[ "$1" = "test" ] && return 1
 			die "\
@@ -543,6 +543,7 @@ current CA keypair. If you intended to start a new CA, run init-pki first."
 		mkdir -p "$EASYRSA_PKI/$i" || die "$err_file"
 	done
 	printf "" > "$EASYRSA_PKI/index.txt" || die "$err_file"
+	printf "" > "$EASYRSA_PKI/index.txt.attr" || die "$err_file"
 	print "01" > "$EASYRSA_PKI/serial" || die "$err_file"
 
 	# Default CN only when not in global EASYRSA_BATCH mode:
