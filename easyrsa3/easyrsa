@@ -444,6 +444,21 @@ Your newly created PKI dir is: $EASYRSA_PKI
 	return 0
 } # => init_pki()
 
+hide_read_pass()
+{
+	test_file="$EASYRSA/bin/sh.exe"
+	if [ -f "$test_file" ]
+	then
+		set +o echo
+		read -r "$@"
+		set -o echo
+	else
+		stty -echo
+		read -r "$@"
+		stty echo
+	fi
+} # => hide_read_pass()
+
 # build-ca backend:
 build_ca() {
 	opts=""
@@ -503,15 +518,12 @@ current CA keypair. If you intended to start a new CA, run init-pki first."
 	# Get password from user if necessary
 	if [ ! $nopass ]; then
 		out_key_pass_tmp="$(mktemp)"; EASYRSA_TEMP_FILE_3="$out_key_pass_tmp"
+		echo
 		printf "Enter New CA Key Passphrase: "
-		stty -echo
-		read -r kpass
-		stty echo
+		hide_read_pass kpass
 		echo
 		printf "Re-Enter New CA Key Passphrase: "
-		stty -echo
-		read -r kpass2
-		stty echo
+		hide_read_pass kpass2
 		echo
 		if [ "$kpass" = "$kpass2" ];
 		then
