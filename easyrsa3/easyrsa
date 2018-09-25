@@ -446,7 +446,7 @@ Your newly created PKI dir is: $EASYRSA_PKI
 
 hide_read_pass()
 {
-	test_file="bin/sh.exe"
+	test_file="$EASYRSA/bin/sh.exe"
 	if [ -f "$test_file" ]
 	then
 		set +o echo
