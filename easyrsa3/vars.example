@@ -71,6 +71,10 @@ fi
 
 #set_var EASYRSA_PKI		"$PWD/pki"
 
+# Define directory for temporary subdirectories.
+
+#set_var EASYRSA_TEMP_DIR	"$EASYRSA_PKI"
+
 # Define X509 DN mode.
 # This is used to adjust what elements are included in the Subject field as the DN
 # (this is the "Distinguished Name.")

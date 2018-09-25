@@ -304,12 +304,17 @@ Type the word '$value' to continue, or any other input to abort."
 	exit 9
 } # => confirm()
 
+# mktemp wrapper
+easyrsa_mktemp() {
+	[ -n "$EASYRSA_TEMP_DIR_session" ] || die "EASYRSA_TEMP_DIR_session not initialized!"
+	[ -d "$EASYRSA_TEMP_DIR_session" ] || mkdir -p "$EASYRSA_TEMP_DIR_session" ||
+	       die "Could not create temporary directory '$EASYRSA_TEMP_DIR_session'. Permission or concurrency problem?"
+	mktemp "$EASYRSA_TEMP_DIR_session/tmp.XXXXXX"
+} # => easyrsa_mktemp
+
 # remove temp files and do terminal cleanups
 cleanup() {
-	for f in "$EASYRSA_TEMP_CONF" "$EASYRSA_TEMP_EXT" \
-		"$EASYRSA_TEMP_FILE_2" "$EASYRSA_TEMP_FILE_3" "$EASYRSA_TEMP_FILE_4"
-	do	[ -f "$f" ] && rm "$f" 2>/dev/null
-	done
+	[ -z "$EASYRSA_TEMP_DIR_session" ] || rm -rf "$EASYRSA_TEMP_DIR_session"
 	(stty echo 2>/dev/null) || set -o echo
 	echo "" # just to get a clean line
 } # => cleanup()
@@ -542,11 +547,11 @@ current CA keypair. If you intended to start a new CA, run init-pki first."
 	# shellcheck disable=SC2015
 	[ "$EASYRSA_BATCH" ] && opts="$opts -batch" || export EASYRSA_REQ_CN="Easy-RSA CA"
 
-	out_key_tmp="$(mktemp "$out_key.XXXXXXXXXX")"; EASYRSA_TEMP_FILE_2="$out_key_tmp"
-	out_file_tmp="$(mktemp "$out_file.XXXXXXXXXX")"; EASYRSA_TEMP_FILE_3="$out_file_tmp"
+	out_key_tmp="$(easyrsa_mktemp)"
+	out_file_tmp="$(easyrsa_mktemp)"
 	# Get password from user if necessary
 	if [ ! $nopass ]; then
-		out_key_pass_tmp="$(mktemp)"; EASYRSA_TEMP_FILE_4="$out_key_pass_tmp"
+		out_key_pass_tmp="$(easyrsa_mktemp)"
 		echo
 		printf "Enter New CA Key Passphrase: "
 		hide_read_pass kpass
@@ -581,9 +586,9 @@ current CA keypair. If you intended to start a new CA, run init-pki first."
 		-config "$EASYRSA_SAFE_CONF" -keyout "$out_key_tmp" -out "$out_file_tmp" $crypto_opts $opts || \
 		die "Failed to build the CA"
 
-	mv "$out_key_tmp" "$out_key"; EASYRSA_TEMP_FILE_2=
-	mv "$out_file_tmp" "$out_file"; EASYRSA_TEMP_FILE_3=
-	[ -f "$out_key_pass_tmp" ] && rm "$out_key_pass_tmp" && EASYRSA_TEMP_FILE_4=
+	mv "$out_key_tmp" "$out_key"
+	mv "$out_file_tmp" "$out_file"
+	[ -f "$out_key_pass_tmp" ] && rm "$out_key_pass_tmp"
 
 	# Success messages
 	if [ $sub_ca ]; then
@@ -661,24 +666,26 @@ $EASYRSA_EXTRA_EXTS"
 	{ while ( getline<"/dev/stdin" ) {print} next }
  {print}
 }'
+		conf_tmp="$(easyrsa_mktemp)"
 		print "$extra_exts" | \
 			awk "$awkscript" "$EASYRSA_SSL_CONF" \
-			> "$EASYRSA_TEMP_CONF" \
+			> "$conf_tmp" \
 			|| die "Copying SSL config to temp file failed"
 		# Use this new SSL config for the rest of this function
-		EASYRSA_SSL_CONF="$EASYRSA_TEMP_CONF"
+		EASYRSA_SSL_CONF="$conf_tmp"
 	fi
 
-	key_out_tmp="$(mktemp "$key_out.XXXXXXXXXX")"; EASYRSA_TEMP_FILE_2="$key_out_tmp"
-	req_out_tmp="$(mktemp "$req_out.XXXXXXXXXX")"; EASYRSA_TEMP_FILE_3="$req_out_tmp"
+	key_out_tmp="$(easyrsa_mktemp)"
+	req_out_tmp="$(easyrsa_mktemp)"
 	# generate request
 	[ $EASYRSA_BATCH ] && opts="$opts -batch"
 	# shellcheck disable=2086,2148
 	"$EASYRSA_OPENSSL" req -utf8 -new -newkey "$EASYRSA_ALGO":"$EASYRSA_ALGO_PARAMS" \
 		-config "$EASYRSA_SAFE_CONF" -keyout "$key_out_tmp" -out "$req_out_tmp" $opts \
 		|| die "Failed to generate request"
-	mv "$key_out_tmp" "$key_out"; EASYRSA_TEMP_FILE_2=
-	mv "$req_out_tmp" "$req_out"; EASYRSA_TEMP_FILE_3=
+	mv "$key_out_tmp" "$key_out"
+	mv "$req_out_tmp" "$req_out"
+	[ -z "$conf_tmp" ] || rm -f "$conf_tmp"
 	notice "\
 Keypair and certificate request completed. Your files are:
 req: $req_out
@@ -746,6 +753,7 @@ $(display_dn req "$req_in")
 "	# => confirm end
 
 	# Generate the extensions file for this cert:
+	ext_tmp="$(easyrsa_mktemp)"
 	{
 		# Append first any COMMON file (if present) then the cert-type extensions
 		cat "$EASYRSA_EXT_DIR/COMMON"
@@ -782,17 +790,17 @@ $(display_dn req "$req_in")
 		[ -n "$EASYRSA_EXTRA_EXTS" ] && print "$EASYRSA_EXTRA_EXTS"
 
 		: # needed to keep die from inherting the above test
-	} > "$EASYRSA_TEMP_EXT" || die "\
+	} > "$ext_tmp" || die "\
 Failed to create temp extension file (bad permissions?) at:
-$EASYRSA_TEMP_EXT"
+$ext_tmp"
 
 	# sign request
-	# shellcheck disable=SC2086
-	crt_out_tmp="$(mktemp "$crt_out.XXXXXXXXXX")"; EASYRSA_TEMP_FILE_2="$crt_out_tmp"
+	crt_out_tmp="$(easyrsa_mktemp)"
 	"$EASYRSA_OPENSSL" ca -utf8 -in "$req_in" -out "$crt_out_tmp" -config "$EASYRSA_SAFE_CONF" \
-		-extfile "$EASYRSA_TEMP_EXT" -days "$EASYRSA_CERT_EXPIRE" -batch $opts \
+		-extfile "$ext_tmp" -days "$EASYRSA_CERT_EXPIRE" -batch $opts \
 		|| die "signing failed (openssl output above may have more detail)"
-	mv "$crt_out_tmp" "$crt_out"; EASYRSA_TEMP_FILE_2=
+	mv "$crt_out_tmp" "$crt_out"
+	rm -f "$ext_tmp"
 	notice "\
 Certificate created at: $crt_out
 "
@@ -1128,11 +1136,11 @@ gen_crl() {
 	verify_ca_init
 
 	out_file="$EASYRSA_PKI/crl.pem"
-	out_file_tmp="$(mktemp "$out_file.XXXXXXXXXX")"; EASYRSA_TEMP_FILE_2="$out_file_tmp"
+	out_file_tmp="$(easyrsa_mktemp)"
 	"$EASYRSA_OPENSSL" ca -utf8 -gencrl -out "$out_file_tmp" -config "$EASYRSA_SAFE_CONF" || die "\
 CRL Generation failed.
 "
-	mv "$out_file_tmp" "$out_file"; EASYRSA_TEMP_FILE_2=
+	mv "$out_file_tmp" "$out_file"
 
 	notice "\
 An updated CRL has been created.
@@ -1286,13 +1294,12 @@ $file"
 If the key is currently encrypted you must supply the decryption passphrase.
 ${crypto:+You will then enter a new PEM passphrase for this key.$NL}"
 
-	EASYRSA_TEMP_FILE_2="$file.temp"
-
-	"$EASYRSA_OPENSSL" "$key_type" -in "$file" -out "$EASYRSA_TEMP_FILE_2" $crypto || die "\
+	out_key_tmp="$(easyrsa_mktemp)"
+	"$EASYRSA_OPENSSL" "$key_type" -in "$file" -out "$out_key_tmp" $crypto || die "\
 Failed to change the private key passphrase. See above for possible openssl
 error messages."
 
-	mv "$EASYRSA_TEMP_FILE_2" "$file" || die "\
+	mv "$out_key_tmp" "$file" || die "\
 Failed to change the private key passphrase. See above for error messages."
 
 	notice "Key passphrase successfully changed"
@@ -1489,10 +1496,7 @@ Note: using Easy-RSA configuration from: $vars"
 	set_var EASYRSA_CRL_DAYS	180
 	set_var EASYRSA_NS_SUPPORT	no
 	set_var EASYRSA_NS_COMMENT	"Easy-RSA (~VER~) Generated Certificate"
-	set_var EASYRSA_TEMP_CONF	"$EASYRSA_PKI/openssl-easyrsa.temp"
-	set_var EASYRSA_TEMP_EXT	"$EASYRSA_PKI/extensions.temp"
-	set_var EASYRSA_TEMP_FILE_2	""
-	set_var EASYRSA_TEMP_FILE_3	""
+	set_var EASYRSA_TEMP_DIR	"$EASYRSA_PKI"
 	set_var EASYRSA_REQ_CN		ChangeMe
 	set_var EASYRSA_DIGEST		sha256
 
@@ -1515,6 +1519,8 @@ Note: using Easy-RSA configuration from: $vars"
 	else
 		die "Alg '$EASYRSA_ALGO' is invalid: must be 'rsa' or 'ec'"
 	fi
+
+	[ -n "$EASYRSA_TEMP_DIR_session" ] || EASYRSA_TEMP_DIR_session="$(mktemp -ud "$EASYRSA_TEMP_DIR/easy-rsa-$$.XXXXXX")"
 
 	# Setting OPENSSL_CONF prevents bogus warnings (especially useful on win32)
 	export OPENSSL_CONF="$EASYRSA_SAFE_CONF"
