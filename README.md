@@ -25,7 +25,7 @@ seek help using Easy-RSA:
 The [openvpn-users mailing list](https://lists.sourceforge.net/lists/listinfo/openvpn-users)
 is a good place to post usage or help questions.
 
-You can also try IRC at Freenode/#openvpn
+You can also try IRC at Freenode/#openvpn for general support or Freenode/#easyrsa for development discussion.
 
 # Branch structure
 
