@@ -78,7 +78,7 @@ stage_unix() {
 	
 	cp -R "$SRC_ROOT/doc" "$DIST_ROOT/unix/$PV/" || die "failed to copy unix doc"
 
-	sed -i -e "s/~~~/$VERSION/" "$DIST_ROOT/unix/$PV/easyrsa"
+	sed -i -e "s/~~~/$VERSION/" "$DIST_ROOT/unix/$PV/easyrsa3/easyrsa"
 
 	# files not included
 	rm -rf "$DIST_ROOT/unix/$PV/doc/TODO" || die "failed rm TODO"
