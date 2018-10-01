@@ -122,7 +122,7 @@ basicConstraints = CA:true
 
 # Limit key usage to CA tasks. If you really want to use the generated pair as
 # a self-signed cert, comment this out.
-keyUsage = cRLSign, keyCertSign
+keyUsage = digitalSignature, cRLSign, keyCertSign
 
 # nsCertType omitted by default. Let's try to let the deprecated stuff die.
 # nsCertType = sslCA
