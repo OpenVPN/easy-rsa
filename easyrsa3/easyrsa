@@ -774,6 +774,7 @@ $EASYRSA_TEMP_EXT"
 	notice "\
 Certificate created at: $crt_out
 "
+	rm -f "$req_in"
 	return 0
 } # => sign_req()
 
@@ -830,6 +831,7 @@ revoke() {
 Error: didn't find a file base name as the first argument.
 Run easyrsa without commands for usage and command help."
 	crt_in="$EASYRSA_PKI/issued/$1.crt"
+	key_in="$EASYRSA_PKI/private/$1.key"
 
 	verify_file x509 "$crt_in" || die "\
 Unable to revoke as the input file is not a valid certificate. Unexpected
@@ -852,6 +854,8 @@ at: $crt_in"
 
 	"$EASYRSA_OPENSSL" ca -utf8 -revoke "$crt_in" -config "$EASYRSA_SAFE_CONF" || die "\
 Failed to revoke certificate: revocation command failed."
+	rm -f "$crt_in"
+	! [ -e "$key_in" ] || rm -f "$key_in"
 
 	notice "\
 IMPORTANT!!!
