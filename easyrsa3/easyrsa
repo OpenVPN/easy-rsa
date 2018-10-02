@@ -287,6 +287,14 @@ clean_temp() {
 	done
 } # => clean_temp()
 
+prog_exit() {
+	ESTAT=0
+	[ ! -z "$1" ] && ESTAT=$1
+	(set -o echo 2>/dev/null) || stty echo
+	echo "" # just to get a clean line
+	exit $ESTAT
+} # => prog_exit()
+
 # Make LibreSSL safe config file from OpenSSL config file
 make_ssl_config() {
 sed	-e "s,ENV::,,g" \
@@ -1318,8 +1326,8 @@ done
 # Intelligent env-var detection and auto-loading:
 vars_setup
 
-# Register clean_temp on EXIT
-trap "clean_temp" EXIT
+# Register clean_temp and prog_exit on SIGHUP, SIGINT, SIGQUIT, and SIGABRT
+trap "clean_temp; prog_exit" 1 2 3 6
 
 # determine how we were called, then hand off to the function responsible
 cmd="$1"
