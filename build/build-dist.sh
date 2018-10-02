@@ -78,7 +78,7 @@ stage_unix() {
 	
 	cp -R "$SRC_ROOT/doc" "$DIST_ROOT/unix/$PV/" || die "failed to copy unix doc"
 
-	sed -I -e "s/~~~/$VERSION/" "$DIST_ROOT/unix/$PV/easyrsa"
+	sed -i "" -e "s/~VER~/$VERSION/" "$DIST_ROOT/unix/$PV/easyrsa"
 
 	# files not included
 	rm -rf "$DIST_ROOT/unix/$PV/doc/TODO" || die "failed rm TODO"
@@ -94,7 +94,7 @@ stage_win() {
 	for f in $SRC_ROOT/doc/*.md;
 	do
 		fname=$(basename "$f" .md)
-		sed -I -e "s/~~~/$VERSION/" "$SRC_ROOT/$f"
+		sed -i "" -e "s/~~~/$VERSION/" "$SRC_ROOT/$f"
 		python -m markdown "$f" > "$DIST_ROOT/windows/$PV/doc/$fname.html"
 	done
 	
