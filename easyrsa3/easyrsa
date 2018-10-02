@@ -454,17 +454,9 @@ Your newly created PKI dir is: $EASYRSA_PKI
 
 hide_read_pass()
 {
-	test_file="$EASYRSA/bin/sh.exe"
-	if [ -f "$test_file" ]
-	then
-		set +o echo
-		read -r "$@"
-		set -o echo
-	else
-		stty -echo
-		read -r "$@"
-		stty echo
-	fi
+	(set +o echo 2>/dev/null) || stty -echo
+	read -r "$@"
+	(set -o echo 2>/dev/null) || stty echo
 } # => hide_read_pass()
 
 # build-ca backend:
