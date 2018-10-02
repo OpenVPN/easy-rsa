@@ -1196,7 +1196,7 @@ Note: using Easy-RSA configuration from: $vars"
 	set_var EASYRSA_CERT_EXPIRE	1080 # new default of 36 months	
 	set_var EASYRSA_CRL_DAYS	180
 	set_var EASYRSA_NS_SUPPORT	no
-	set_var EASYRSA_NS_COMMENT	"Easy-RSA (~~~) Generated Certificate"
+	set_var EASYRSA_NS_COMMENT	"Easy-RSA (~VER~) Generated Certificate"
 	set_var EASYRSA_TEMP_CONF	"$EASYRSA_PKI/openssl-easyrsa.temp"
 	set_var EASYRSA_TEMP_EXT	"$EASYRSA_PKI/extensions.temp"
 	set_var EASYRSA_TEMP_FILE_2	""
