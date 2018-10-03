@@ -230,7 +230,7 @@ die() {
 Easy-RSA error:
 
 $1" 1>&2
-	prog_exit "${2:-1}"
+	exit "${2:-1}"
 } # => die()
 
 # non-fatal warning output
@@ -280,20 +280,14 @@ Type the word '$value' to continue, or any other input to abort."
 	exit 9
 } # => confirm()
 
-# remove temp files
-clean_temp() {
+# remove temp files and do terminal cleanups
+cleanup() {
 	for f in "$EASYRSA_TEMP_CONF" "$EASYRSA_TEMP_EXT" "$EASYRSA_TEMP_FILE_2" "$EASYRSA_TEMP_FILE_3"
 	do	[ -f "$f" ] && rm "$f" 2>/dev/null
 	done
-} # => clean_temp()
-
-prog_exit() {
-	ESTAT=0
-	[ ! -z "$1" ] && ESTAT=$1
 	(set -o echo 2>/dev/null) || stty echo
 	echo "" # just to get a clean line
-	exit $ESTAT
-} # => prog_exit()
+} # => cleanup()
 
 # Make LibreSSL safe config file from OpenSSL config file
 make_ssl_config() {
@@ -1318,8 +1312,12 @@ done
 # Intelligent env-var detection and auto-loading:
 vars_setup
 
-# Register clean_temp and prog_exit on SIGHUP, SIGINT, SIGQUIT, and SIGABRT
-trap "clean_temp; prog_exit" 0 1 2 3 6
+# Register cleanup on EXIT
+trap "cleanup" EXIT
+# When SIGHUP, SIGINT, SIGQUIT, and SIGABRT, explicitly exit to signal EXIT (non-bash shells)
+for signal in 1 2 3 6; do
+	trap "exit $((128+signal))" $signal
+done
 
 # determine how we were called, then hand off to the function responsible
 cmd="$1"
