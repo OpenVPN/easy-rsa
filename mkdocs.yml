@@ -1,6 +1,6 @@
 site_name: Easy RSA
 theme: readthedocs
-nav:
+pages:
   - Home: index.md
   - Intro to PKI: intro-to-PKI.md
   - Upgrade Notes: upgrade-notes.md
