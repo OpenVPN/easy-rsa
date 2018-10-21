@@ -1,4 +1,4 @@
-Upgrading to Easy-RSA 3 from earlier versions
+Upgrading from earlier versions
 =========
 
 People upgrading to Easy-RSA 3 from a 2.x version should note some important

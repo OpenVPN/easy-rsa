@@ -1,5 +1,5 @@
-Easy-RSA 3 Documentation Readme
-===============================
+Easy-RSA 3
+==========
 
 This document explains how Easy-RSA 3 and each of its assorted features work.
 
@@ -232,4 +232,3 @@ In order to obtain a signed certificate, the request file must be sent to the
 CA for signing; this step is obviously not required if a single PKI is used as
 both the CA and keypair/request generation as the generated request is already
 "imported."
-

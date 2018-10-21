@@ -1,4 +1,4 @@
-Easy-RSA 3 Hacking Guide
+Hacking Guide
 ===
 
 This document is aimed at programmers looking to improve on the existing

@@ -1,5 +1,5 @@
-Easy-RSA Advanced Reference
-=============================
+Advanced Reference
+==================
 
 This is a technical reference for advanced users familiar with PKI processes. If
 you need a more detailed description, see the `EasyRSA-Readme` or `Intro-To-PKI`

@@ -1,0 +1,8 @@
+site_name: Easy RSA
+theme: readthedocs
+nav:
+  - Home: index.md
+  - Intro to PKI: intro-to-PKI.md
+  - Upgrade Notes: upgrade-notes.md
+  - Advanced Reference: advanced.md
+  - Hacking Guide: hacking.md
