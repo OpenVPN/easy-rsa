@@ -191,6 +191,7 @@ General options:
 Certificate & Request options: (these impact cert/req field values)
 
 --days=#        : sets the signing validity to the specified number of days
+--enddate=#     : sets the signing validity (Not After) to the specified date
 --digest=ALG    : digest to use in the requests & certificates
 --dn-mode=MODE  : DN mode to use (cn_only or org)
 --keysize=#     : size in bits of keypair to generate
@@ -767,9 +768,18 @@ $EASYRSA_TEMP_EXT"
 	# sign request
 	# shellcheck disable=SC2086
 	crt_out_tmp="$(mktemp "$crt_out.XXXXXXXXXX")"; EASYRSA_TEMP_FILE_2="$crt_out_tmp"
-	"$EASYRSA_OPENSSL" ca -utf8 -in "$req_in" -out "$crt_out_tmp" -config "$EASYRSA_SAFE_CONF" \
-		-extfile "$EASYRSA_TEMP_EXT" -days "$EASYRSA_CERT_EXPIRE" -batch $opts \
-		|| die "signing failed (openssl output above may have more detail)"
+	if [ -n "${EASYRSA_CERT_END_DATE}" ]
+	then
+		# use explicit end date for "Not After"
+		"$EASYRSA_OPENSSL" ca -utf8 -in "$req_in" -out "$crt_out_tmp" -config "$EASYRSA_SAFE_CONF" \
+			-extfile "$EASYRSA_TEMP_EXT" -enddate "$EASYRSA_CERT_END_DATE" -batch $opts \
+			|| die "signing failed (openssl output above may have more detail)"
+	else
+		# use "days" until expiry
+		"$EASYRSA_OPENSSL" ca -utf8 -in "$req_in" -out "$crt_out_tmp" -config "$EASYRSA_SAFE_CONF" \
+			-extfile "$EASYRSA_TEMP_EXT" -days "$EASYRSA_CERT_EXPIRE" -batch $opts \
+			|| die "signing failed (openssl output above may have more detail)"
+	fi
 	mv "$crt_out_tmp" "$crt_out"; EASYRSA_TEMP_FILE_2=
 	notice "\
 Certificate created at: $crt_out
@@ -1251,6 +1261,9 @@ while :; do
 		export EASYRSA_CERT_EXPIRE="$val"
 		export EASYRSA_CA_EXPIRE="$val"
 		export EASYRSA_CRL_DAYS="$val"
+		;;
+	--enddate)
+		export EASYRSA_CERT_END_DATE="$val"
 		;;
 	--pki-dir)
 		export EASYRSA_PKI="$val" ;;
