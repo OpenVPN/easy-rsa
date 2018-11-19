@@ -1,6 +1,6 @@
 # For use with Easy-RSA 3.1 and OpenSSL or LibreSSL
 
-RANDFILE		= $ENV::EASYRSA_PKI/.rnd
+#RANDFILE		= $ENV::EASYRSA_PKI/.rnd
 
 ####################################################################
 [ ca ]
@@ -19,7 +19,7 @@ certificate	= $dir/ca.crt	 	# The CA certificate
 serial		= $dir/serial 		# The current serial number
 crl		= $dir/crl.pem 		# The current CRL
 private_key	= $dir/private/ca.key	# The private key
-RANDFILE	= $dir/.rand		# private random number file
+#RANDFILE	= $dir/.rand		# private random number file
 
 x509_extensions	= basic_exts		# The extentions to add to the cert
 
