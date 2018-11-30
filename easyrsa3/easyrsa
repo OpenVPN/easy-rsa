@@ -386,6 +386,8 @@ $help_note"
 Missing expected directory: $i (perhaps you need to run init-pki?)
 $help_note"
 	done
+
+	[ -f "$EASYRSA_PKI/.rnd" ] || printf "%s" "" > "$EASYRSA_PKI/.rnd"
 } # => verify_pki_init()
 
 # Verify core CA files present
@@ -404,6 +406,8 @@ Missing expected CA file: $i (perhaps you need to run build-ca?)
 $help_note"
 		fi
 	done
+
+	[ -f "$EASYRSA_PKI/index.txt.attr" ] || printf "%s" "" > "$EASYRSA_PKI/index.txt.attr"
 
 	# When operating in 'test' mode, return success.
 	# test callers don't care about CA-specific dir structure
