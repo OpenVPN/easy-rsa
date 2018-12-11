@@ -4,5 +4,3 @@
 
 cd easyrsa3 || exit 1
 sh -x easyrsa init-pki
-sh -x easyrsa --batch build-ca nopass
-
