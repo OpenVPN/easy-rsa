@@ -1144,7 +1144,7 @@ OpenSSL failure to process the input"
 # Prints CA cert details in a readable format
 show_ca() {
 	# opts support
-	local opts="-certopt no_pubkey,no_sigdump"
+	opts="-certopt no_pubkey,no_sigdump"
 	while [ -n "$1" ]; do
 		case "$1" in
 			full) opts= ;;
