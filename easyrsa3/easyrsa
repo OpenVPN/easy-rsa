@@ -38,6 +38,7 @@ Here is the list of commands available with a short syntax reminder. Use the
   update-db
   show-req <filename_base> [ cmd-opts ]
   show-cert <filename_base> [ cmd-opts ]
+  show-ca [ cmd-opts ]
   import-req <request_file_path> <short_basename>
   export-p7 <filename_base> [ cmd-opts ]
   export-p12 <filename_base> [ cmd-opts ]
@@ -117,6 +118,13 @@ cmd_help() {
       showing a request."
       			opts="
           full   - show full req/cert info, including pubkey/sig data" ;;
+		show-ca) text="
+  show-ca [ cmd-opts ]
+      Shows details of the CA cert
+
+      Human-readable output is shown."
+			opts="
+          full   - show full cert info, including pubkey/sig data" ;;
 		import-req) text="
   import-req <request_file_path> <short_basename>
       Import a certificate request from a file
@@ -1132,6 +1140,42 @@ $in_file
 OpenSSL failure to process the input"
 } # => show()
 
+# show-ca command backend
+# Prints CA cert details in a readable format
+show_ca() {
+	# opts support
+	local opts="-certopt no_pubkey,no_sigdump"
+	while [ -n "$1" ]; do
+		case "$1" in
+			full) opts= ;;
+			*) warn "Ignoring unknown command option: '$1'" ;;
+		esac
+		shift
+	done
+
+	verify_ca_init
+	in_file="$EASYRSA_PKI/ca.crt"
+	format="x509"
+
+	# Verify file exists and is of the correct type
+	[ -f "$in_file" ] || die "\
+No such $type file with a basename of '$name' is present.
+Expected to find this file at:
+$in_file"
+	verify_file $format "$in_file" || die "\
+This file is not a valid $type file:
+$in_file"
+
+	notice "\
+Showing $type details for 'ca'.
+This file is stored at:
+$in_file
+"
+	"$EASYRSA_OPENSSL" $format -in "$in_file" -noout -text\
+		-nameopt multiline $opts || die "\
+OpenSSL failure to process the input"
+} # => show_ca()
+
 # vars setup
 # Here sourcing of 'vars' if present occurs. If not present, defaults are used
 # to support running without a sourced config format
@@ -1376,6 +1420,9 @@ case "$cmd" in
 		;;
 	show-cert)
 		show cert "$@"
+		;;
+	show-ca)
+		show_ca "$@"
 		;;
 	""|help|-h|--help|--usage)
 		cmd_help "$1"
