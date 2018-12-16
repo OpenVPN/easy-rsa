@@ -33,7 +33,7 @@ Here is the list of commands available with a short syntax reminder. Use the
   sign-req <type> <filename_base>
   build-client-full <filename_base> [ cmd-opts ]
   build-server-full <filename_base> [ cmd-opts ]
-  revoke <filename_base>
+  revoke <filename_base> [cmd-opts]
   gen-crl
   update-db
   show-req <filename_base> [ cmd-opts ]
@@ -98,8 +98,16 @@ cmd_help() {
 			opts="
         nopass  - do not encrypt the private key (default is encrypted)" ;;
 		revoke) text="
-  revoke <filename_base>
-      Revoke a certificate specified by the filename_base" ;;
+  revoke <filename_base> [reason]
+      Revoke a certificate specified by the filename_base, with an optional 
+      revocation reason that is one of: 
+        unspecified
+        keyCompromise
+        CACompromise
+        affiliationChanged
+        superseded
+        cessationOfOperation
+        certificateHold";;
 		gen-crl) text="
   gen-crl
       Generate a CRL" ;;
@@ -841,6 +849,11 @@ Error: didn't find a file base name as the first argument.
 Run easyrsa without commands for usage and command help."
 	crt_in="$EASYRSA_PKI/issued/$1.crt"
 
+	opts=""
+	if [ "$2" ]; then
+		opts="$opts -crl_reason $2"
+	fi
+	
 	verify_file x509 "$crt_in" || die "\
 Unable to revoke as the input file is not a valid certificate. Unexpected
 input in file: $crt_in"
@@ -860,7 +873,7 @@ at: $crt_in"
 	# make safessl-easyrsa.cnf
 	make_ssl_config
 
-	"$EASYRSA_OPENSSL" ca -utf8 -revoke "$crt_in" -config "$EASYRSA_SAFE_CONF" || die "\
+	"$EASYRSA_OPENSSL" ca -utf8 -revoke "$crt_in" -config "$EASYRSA_SAFE_CONF" $opts || die "\
 Failed to revoke certificate: revocation command failed."
 
 	notice "\
