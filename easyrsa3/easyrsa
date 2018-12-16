@@ -306,7 +306,7 @@ prog_exit() {
 # Make LibreSSL safe config file from OpenSSL config file
 make_ssl_config() {
 sed \
-       -e "s\`ENV::\`\`g" \
+       -e "s\`ENV::EASYRSA\`EASYRSA\`g" \
        -e "s\`\$dir\`$EASYRSA_PKI\`g" \
        -e "s\`\$EASYRSA_PKI\`$EASYRSA_PKI\`g" \
        -e "s\`\$EASYRSA_CERT_EXPIRE\`$EASYRSA_CERT_EXPIRE\`g" \
