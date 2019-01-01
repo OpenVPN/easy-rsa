@@ -1038,9 +1038,14 @@ $file"
 If the key is currently encrypted you must supply the decryption passphrase.
 ${crypto:+You will then enter a new PEM passphrase for this key.$NL}"
 
-	"$EASYRSA_OPENSSL" "$key_type" -in "$file" -out "$file" $crypto || die "\
+	EASYRSA_TEMP_FILE_2="$file.temp"
+
+	"$EASYRSA_OPENSSL" "$key_type" -in "$file" -out "$EASYRSA_TEMP_FILE_2" $crypto || die "\
 Failed to change the private key passphrase. See above for possible openssl
 error messages."
+
+	mv "$EASYRSA_TEMP_FILE_2" "$file" || die "\
+Failed to change the private key passphrase. See above for error messages."
 
 	notice "Key passphrase successfully changed"
 	
