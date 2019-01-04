@@ -330,28 +330,6 @@ vars_source_check() {
 	# Check for defined EASYRSA_PKI
 	[ -n "$EASYRSA_PKI" ] || die "\
 EASYRSA_PKI env-var undefined"
-
-	# make safessl-easyrsa.cnf
-	make_ssl_config
-
-	# Verify EASYRSA_OPENSSL command gives expected output
-	if [ -z "$EASYRSA_SSL_OK" ]; then
-		val="$("$EASYRSA_OPENSSL" version)"
-		case "${val%% *}" in
-			OpenSSL|LibreSSL)
-				notice "\
-Using SSL: $EASYRSA_OPENSSL $("$EASYRSA_OPENSSL" version)" ;;
-			*) die "\
-Missing or invalid OpenSSL
-Expected to find openssl command at: $EASYRSA_OPENSSL" ;;
-		esac
-	fi
-	EASYRSA_SSL_OK=1
-
-	# Verify EASYRSA_SSL_CONF file exists
-	[ -f "$EASYRSA_SSL_CONF" ] || die "\
-The OpenSSL config file cannot be found.
-Expected location: $EASYRSA_SSL_CONF"
 } # => vars_source_check()
 
 # Verify supplied curve exists and generate curve file if needed
@@ -378,6 +356,30 @@ $out"
 	return 0
 }
 
+verify_ssl_lib () {
+	# make safessl-easyrsa.cnf
+	make_ssl_config
+
+	# Verify EASYRSA_OPENSSL command gives expected output
+	if [ -z "$EASYRSA_SSL_OK" ]; then
+		val="$("$EASYRSA_OPENSSL" version)"
+		case "${val%% *}" in
+			OpenSSL|LibreSSL)
+				notice "\
+Using SSL: $EASYRSA_OPENSSL $("$EASYRSA_OPENSSL" version)" ;;
+			*) die "\
+Missing or invalid OpenSSL
+Expected to find openssl command at: $EASYRSA_OPENSSL" ;;
+		esac
+	fi
+	EASYRSA_SSL_OK=1
+
+	# Verify EASYRSA_SSL_CONF file exists
+	[ -f "$EASYRSA_SSL_CONF" ] || die "\
+The OpenSSL config file cannot be found.
+Expected location: $EASYRSA_SSL_CONF"
+} # => verify_ssl_lib ()
+
 # Basic sanity-check of PKI init and complain if missing
 verify_pki_init() {
 	help_note="Run easyrsa without commands for usage and command help."
@@ -395,6 +397,9 @@ $help_note"
 Missing expected directory: $i (perhaps you need to run init-pki?)
 $help_note"
 	done
+
+	# verify ssl lib
+	verify_ssl_lib
 } # => verify_pki_init()
 
 # Verify core CA files present
