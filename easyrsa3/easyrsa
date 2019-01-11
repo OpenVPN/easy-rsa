@@ -33,12 +33,8 @@ Here is the list of commands available with a short syntax reminder. Use the
   sign-req <type> <filename_base>
   build-client-full <filename_base> [ cmd-opts ]
   build-server-full <filename_base> [ cmd-opts ]
-<<<<<<< HEAD
   revoke <filename_base> [cmd-opts]
-=======
   build-serverClient-full <filename_base> [ cmd-opts ]
-  revoke <filename_base>
->>>>>>> 3ec93810e45d1e684f902a9847a1afe3ffc87a04
   gen-crl
   update-db
   show-req <filename_base> [ cmd-opts ]
