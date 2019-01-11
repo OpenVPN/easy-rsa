@@ -298,7 +298,7 @@ clean_temp() {
 prog_exit() {
 	ESTAT=0
 	[ ! -z "$1" ] && ESTAT=$1
-	(set -o echo 2>/dev/null) || stty echo
+	(stty echo 2>/dev/null) || set -o echo
 	echo "" # just to get a clean line
 	exit "$ESTAT"
 } # => prog_exit()
@@ -330,28 +330,6 @@ vars_source_check() {
 	# Check for defined EASYRSA_PKI
 	[ -n "$EASYRSA_PKI" ] || die "\
 EASYRSA_PKI env-var undefined"
-
-	# make safessl-easyrsa.cnf
-	make_ssl_config
-
-	# Verify EASYRSA_OPENSSL command gives expected output
-	if [ -z "$EASYRSA_SSL_OK" ]; then
-		val="$("$EASYRSA_OPENSSL" version)"
-		case "${val%% *}" in
-			OpenSSL|LibreSSL)
-				notice "\
-Using SSL: $EASYRSA_OPENSSL $("$EASYRSA_OPENSSL" version)" ;;
-			*) die "\
-Missing or invalid OpenSSL
-Expected to find openssl command at: $EASYRSA_OPENSSL" ;;
-		esac
-	fi
-	EASYRSA_SSL_OK=1
-
-	# Verify EASYRSA_SSL_CONF file exists
-	[ -f "$EASYRSA_SSL_CONF" ] || die "\
-The OpenSSL config file cannot be found.
-Expected location: $EASYRSA_SSL_CONF"
 } # => vars_source_check()
 
 # Verify supplied curve exists and generate curve file if needed
@@ -378,6 +356,30 @@ $out"
 	return 0
 }
 
+verify_ssl_lib () {
+	# make safessl-easyrsa.cnf
+	make_ssl_config
+
+	# Verify EASYRSA_OPENSSL command gives expected output
+	if [ -z "$EASYRSA_SSL_OK" ]; then
+		val="$("$EASYRSA_OPENSSL" version)"
+		case "${val%% *}" in
+			OpenSSL|LibreSSL)
+				notice "\
+Using SSL: $EASYRSA_OPENSSL $("$EASYRSA_OPENSSL" version)" ;;
+			*) die "\
+Missing or invalid OpenSSL
+Expected to find openssl command at: $EASYRSA_OPENSSL" ;;
+		esac
+	fi
+	EASYRSA_SSL_OK=1
+
+	# Verify EASYRSA_SSL_CONF file exists
+	[ -f "$EASYRSA_SSL_CONF" ] || die "\
+The OpenSSL config file cannot be found.
+Expected location: $EASYRSA_SSL_CONF"
+} # => verify_ssl_lib ()
+
 # Basic sanity-check of PKI init and complain if missing
 verify_pki_init() {
 	help_note="Run easyrsa without commands for usage and command help."
@@ -395,6 +397,9 @@ $help_note"
 Missing expected directory: $i (perhaps you need to run init-pki?)
 $help_note"
 	done
+
+	# verify ssl lib
+	verify_ssl_lib
 } # => verify_pki_init()
 
 # Verify core CA files present
@@ -463,9 +468,9 @@ Your newly created PKI dir is: $EASYRSA_PKI
 
 hide_read_pass()
 {
-	(set +o echo 2>/dev/null) || stty -echo
+	(stty -echo 2>/dev/null) || set +o echo
 	read -r "$@"
-	(set -o echo 2>/dev/null) || stty echo
+	(stty echo 2>/dev/null) || set -o echo
 } # => hide_read_pass()
 
 # build-ca backend:
@@ -1038,9 +1043,14 @@ $file"
 If the key is currently encrypted you must supply the decryption passphrase.
 ${crypto:+You will then enter a new PEM passphrase for this key.$NL}"
 
-	"$EASYRSA_OPENSSL" "$key_type" -in "$file" -out "$file" $crypto || die "\
+	EASYRSA_TEMP_FILE_2="$file.temp"
+
+	"$EASYRSA_OPENSSL" "$key_type" -in "$file" -out "$EASYRSA_TEMP_FILE_2" $crypto || die "\
 Failed to change the private key passphrase. See above for possible openssl
 error messages."
+
+	mv "$EASYRSA_TEMP_FILE_2" "$file" || die "\
+Failed to change the private key passphrase. See above for error messages."
 
 	notice "Key passphrase successfully changed"
 	
