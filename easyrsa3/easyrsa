@@ -33,7 +33,12 @@ Here is the list of commands available with a short syntax reminder. Use the
   sign-req <type> <filename_base>
   build-client-full <filename_base> [ cmd-opts ]
   build-server-full <filename_base> [ cmd-opts ]
+<<<<<<< HEAD
   revoke <filename_base> [cmd-opts]
+=======
+  build-serverClient-full <filename_base> [ cmd-opts ]
+  revoke <filename_base>
+>>>>>>> 3ec93810e45d1e684f902a9847a1afe3ffc87a04
   gen-crl
   update-db
   show-req <filename_base> [ cmd-opts ]
@@ -85,14 +90,15 @@ cmd_help() {
 		sign|sign-req) text="
   sign-req <type> <filename_base>
       Sign a certificate request of the defined type. <type> must be a known
-      type such as 'client', 'server', or 'ca' (or a user-added type.)
+      type such as 'client', 'server', 'serverClient', or 'ca' (or a user-added type.)
 
       This request file must exist in the reqs/ dir and have a .req file
       extension. See import-req below for importing reqs from other sources." ;;
-		build|build-client-full|build-server-full) text="
+		build|build-client-full|build-server-full|build-serverClient-full) text="
   build-client-full <filename_base> [ cmd-opts ]
   build-server-full <filename_base> [ cmd-opts ]
-      Generate a keypair and sign locally for a client or server
+  build-serverClient-full <filename_base> [ cmd-opts ]
+      Generate a keypair and sign locally for a client and/or server
 
       This mode uses the <filename_base> as the X509 CN."
 			opts="
@@ -761,9 +767,10 @@ $(display_dn req "$req_in")
 			[ -n "$EASYRSA_NS_COMMENT" ] && \
 				print "nsComment = \"$EASYRSA_NS_COMMENT\""
 			case "$crt_type" in
-				server)	print "nsCertType = server" ;;
-				client)	print "nsCertType = client" ;;
-				ca)	print "nsCertType = sslCA" ;;
+				serverClient)	print "nsCertType = serverClient" ;;
+				server)		print "nsCertType = server" ;;
+				client)		print "nsCertType = client" ;;
+				ca)		print "nsCertType = sslCA" ;;
 			esac
 		fi
 
@@ -1414,6 +1421,9 @@ case "$cmd" in
 		;;
 	build-server-full)
 		build_full server "$@"
+		;;
+	build-serverClient-full)
+		build_full serverClient "$@"
 		;;
 	gen-crl)
 		gen_crl
