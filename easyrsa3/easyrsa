@@ -307,7 +307,7 @@ clean_temp() {
 
 prog_exit() {
 	ESTAT=0
-	[ ! -z "$1" ] && ESTAT=$1
+	[ -n "$1" ] && ESTAT=$1
 	(stty echo 2>/dev/null) || set -o echo
 	echo "" # just to get a clean line
 	exit "$ESTAT"
