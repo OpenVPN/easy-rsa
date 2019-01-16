@@ -307,7 +307,7 @@ clean_temp() {
 
 prog_exit() {
 	ESTAT=0
-	[ ! -z "$1" ] && ESTAT=$1
+	[ -n "$1" ] && ESTAT=$1
 	(stty echo 2>/dev/null) || set -o echo
 	echo "" # just to get a clean line
 	exit "$ESTAT"
@@ -434,7 +434,7 @@ $help_note"
 	[ "$1" = "test" ] && return 0
 
 	# verify expected CA-specific dirs:
-	for i in issued certs_by_serial; do
+	for i in issued certs_by_serial revoked/certs_by_serial revoked/private_by_serial revoked/reqs_by_serial; do
 		[ -d "$EASYRSA_PKI/$i" ] || die "\
 Missing expected CA dir: $i (perhaps you need to run build-ca?)
 $help_note"
@@ -527,7 +527,7 @@ current CA keypair. If you intended to start a new CA, run init-pki first."
 
 	# create necessary files and dirs:
 	err_file="Unable to create necessary PKI files (permissions?)"
-	for i in issued certs_by_serial; do
+	for i in issued certs_by_serial revoked/certs_by_serial revoked/private_by_serial revoked/reqs_by_serial; do
 		mkdir -p "$EASYRSA_PKI/$i" || die "$err_file"
 	done
 	printf "" > "$EASYRSA_PKI/index.txt" || die "$err_file"
@@ -881,8 +881,11 @@ at: $crt_in"
 	# make safessl-easyrsa.cnf
 	make_ssl_config
 
-	"$EASYRSA_OPENSSL" ca -utf8 -revoke "$crt_in" -config "$EASYRSA_SAFE_CONF" "$opts" || die "\
+	"$EASYRSA_OPENSSL" ca -utf8 -revoke "$crt_in" -config "$EASYRSA_SAFE_CONF" $opts || die "\
 Failed to revoke certificate: revocation command failed."
+
+	# move revoked files so we can reissue certificates with the same name
+	move_revoked "$1"
 
 	notice "\
 IMPORTANT!!!
@@ -892,6 +895,65 @@ infrastructure in order to prevent the revoked cert from being accepted.
 "	# => notice end
 	return 0
 } #= revoke()
+
+# move-revoked
+# moves revoked certificates to an alternative folder
+# allows reissuing certificates with the same name
+move_revoked() {
+	verify_ca_init
+
+	[ -n "$1" ] || die "\
+Error: didn't find a file base name as the first argument.
+Run easyrsa without commands for usage and command help."
+
+	crt_in="$EASYRSA_PKI/issued/$1.crt"
+	key_in="$EASYRSA_PKI/private/$1.key"
+	req_in="$EASYRSA_PKI/reqs/$1.req"
+
+	verify_file x509 "$crt_in" || die "\
+Unable to move revoked input file. The file is not a valid certificate. Unexpected
+input in file: $crt_in"
+
+	verify_file req "$req_in" || die "\
+Unable to move request. The file is not a valid request. Unexpected
+input in file: $req_in"
+
+	# get the serial number of the certificate -> serial=XXXX
+	cert_serial="$("$EASYRSA_OPENSSL" x509 -in "$crt_in" -noout -serial)"
+	# remove the serial= part -> we only need the XXXX part
+	cert_serial=${cert_serial##*=}
+
+	crt_by_serial="$EASYRSA_PKI/certs_by_serial/$cert_serial.pem"
+	crt_by_serial_revoked="$EASYRSA_PKI/revoked/certs_by_serial/$cert_serial.crt"
+	key_by_serial_revoked="$EASYRSA_PKI/revoked/private_by_serial/$cert_serial.key"
+	req_by_serial_revoked="$EASYRSA_PKI/revoked/reqs_by_serial/$cert_serial.req"
+
+
+	# move crt, key and req file to revoked folders
+	mv "$crt_in" "$crt_by_serial_revoked"
+	mv "$req_in" "$req_by_serial_revoked"
+
+	# only move the key if we have it
+	if [ -e "$key_in" ]
+	then
+		mv "$key_in" "$key_by_serial_revoked"
+	fi
+
+	# move the rest of the files (p12, p7, ...)
+	for file in $EASYRSA_PKI/private/$1\.???
+	do
+		# get file extension
+		file_ext="${file##*.}"
+
+		mv "$file" "$EASYRSA_PKI/revoked/private_by_serial/$cert_serial.$file_ext"
+	done
+
+	# remove the dublicate certificate in the certs_by_serial folder
+	rm "$crt_by_serial"
+
+	return 0
+
+} #= move_revoked()
 
 # gen-crl backend
 gen_crl() {
