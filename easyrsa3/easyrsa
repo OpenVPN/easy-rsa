@@ -881,7 +881,7 @@ at: $crt_in"
 	# make safessl-easyrsa.cnf
 	make_ssl_config
 
-	"$EASYRSA_OPENSSL" ca -utf8 -revoke "$crt_in" -config "$EASYRSA_SAFE_CONF" "$opts" || die "\
+	"$EASYRSA_OPENSSL" ca -utf8 -revoke "$crt_in" -config "$EASYRSA_SAFE_CONF" $opts || die "\
 Failed to revoke certificate: revocation command failed."
 
 	# move revoked files so we can reissue certificates with the same name
@@ -940,7 +940,7 @@ input in file: $req_in"
 	fi
 
 	# move the rest of the files (p12, p7, ...)
-	for file in "$EASYRSA_PKI/private/$1\.???"
+	for file in $EASYRSA_PKI/private/$1\.???
 	do
 		# get file extension
 		file_ext="${file##*.}"
