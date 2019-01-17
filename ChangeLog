@@ -1,5 +1,13 @@
 Easy-RSA 3 ChangeLog
 
+3.0.6 (TBD)
+   * Certifcates that are revoked now move to a revoked subdirectory (#63)
+   * EasyRSA no longer clobbers non-EASYRSA environment variables (#277)
+   * More sane string checking, allowingn for commas in CN (#267)
+   * Support for reasonCode in CRL (#280)
+   * Better handling for capturing passphrases (#230, others)
+   * Improved LibreSSL/MacOS support.
+
 3.0.5 (2018-09-15)
    * Fix #17 & #58: use AES256 for CA key
    * Also, don't use read -s, use stty -echo
