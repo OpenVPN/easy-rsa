@@ -319,7 +319,6 @@ action ()
 		$STEP_NAME || die "$STEP_NAME"
 	else
 		$STEP_NAME >/dev/null 2>&1 || die "$STEP_NAME"
-		#$STEP_NAME || die "$STEP_NAME"
 	fi
 	verbose "OK"
 }
@@ -535,14 +534,9 @@ step ()
 {
 	export STEP_NO=$((STEP_NO + 1))
 	[ $((VERBOSE)) -ne 1 ] && return 0
-	#echo "||"
 	echo "||--------------------------------------------------------------------------------"
 	echo "||-- STAGE ($STAGE_NO): $STAGE_NAME"
 	echo "|| -- STEP ($STEP_NO): $STEP_NAME"
-	#echo "||"
-	#echo
-	# Don't use this:
-	#unset STEP_NAME
 }
 
 verbose ()
