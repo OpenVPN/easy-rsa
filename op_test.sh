@@ -210,7 +210,7 @@ destroy_data ()
 	then
 		for i in vars pki-req pki-bkp pki-dssl pki-ossl pki-lssl pki-empty pki-error
 		do
-			rm -rf "$i" # && verbose "Destroyed: $i"
+			rm -rf "$i"
 		done
 		[ -f ./openssl-easyrsa.cnf.orig ] && mv -f ./openssl-easyrsa.cnf.orig ./openssl-easyrsa.cnf
 		verbose "$STEP_NAME"
