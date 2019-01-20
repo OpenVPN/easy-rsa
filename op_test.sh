@@ -578,12 +578,12 @@ die ()
 		case $i in
 			-u)		usage ;;
 			-v)		VERBOSE=1 ;;
-			-vv)	ERSA_OUT=1; VERBOSE=1 ;;
+			-vv)		ERSA_OUT=1; VERBOSE=1 ;;
 			-b)		BROKEN_PKI=1; SYS_SSL_ENABLE=0; VERBOSE=1 ;;
 			-l)		ERSA_OUT=1; LIBRESSL_ENABLE=1; SYS_SSL_ENABLE=0; VERBOSE=1 ;;
 			-o)		ERSA_OUT=1; OPENSSL_ENABLE=1; SYS_SSL_ENABLE=0; VERBOSE=1 ;;
 			-s)		SC_OUT=1; SC_ENABLE=1; VERBOSE=1 ;;
-			-f) 	ERSA_OUT=1; OPENSSL_ENABLE=1; LIBRESSL_ENABLE=1; SC_OUT=1; SC_ENABLE=1; VERBOSE=1 ;;
+			-f) 		ERSA_OUT=1; OPENSSL_ENABLE=1; LIBRESSL_ENABLE=1; SC_OUT=1; SC_ENABLE=1; VERBOSE=1 ;;
 			*)		DIE=1 die "Unknown option: $i" ;;
 		esac
 	done
