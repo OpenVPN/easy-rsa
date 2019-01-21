@@ -434,7 +434,10 @@ $help_note"
 	[ "$1" = "test" ] && return 0
 
 	# verify expected CA-specific dirs:
-	for i in issued certs_by_serial revoked/certs_by_serial revoked/private_by_serial revoked/reqs_by_serial; do
+	for i in issued certs_by_serial \
+		 revoked/certs_by_serial revoked/private_by_serial revoked/reqs_by_serial \
+		 renewed/certs_by_serial renewed/private_by_serial renewed/reqs_by_serial ;
+	do
 		[ -d "$EASYRSA_PKI/$i" ] || die "\
 Missing expected CA dir: $i (perhaps you need to run build-ca?)
 $help_note"
@@ -527,7 +530,10 @@ current CA keypair. If you intended to start a new CA, run init-pki first."
 
 	# create necessary files and dirs:
 	err_file="Unable to create necessary PKI files (permissions?)"
-	for i in issued certs_by_serial revoked/certs_by_serial revoked/private_by_serial revoked/reqs_by_serial; do
+	for i in issued certs_by_serial \
+		 revoked/certs_by_serial revoked/private_by_serial revoked/reqs_by_serial \
+		 renewed/certs_by_serial renewed/private_by_serial renewed/reqs_by_serial;
+	do
 		mkdir -p "$EASYRSA_PKI/$i" || die "$err_file"
 	done
 	printf "" > "$EASYRSA_PKI/index.txt" || die "$err_file"
