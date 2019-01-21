@@ -107,6 +107,7 @@ init ()
 {
 	ROOT_DIR="$(pwd)"
 	export ROOT_DIR
+	export TEMP_DIR="$ROOT_DIR/temp"
 	Errors=0
 	export DIE=0
 	export VERBOSE="${VERBOSE:-0}"
@@ -129,11 +130,11 @@ init ()
 	export OPENSSL_ENABLE="${OPENSSL_ENABLE:-0}"
 	export OPENSSL_BUILD="${LIBRESSL_BUILD:-0}"
 	export OPENSSL_VERSION="${LIBRESSL_VERSION:-2.8.3}"
-	export OSSL_LIBB="${OSSL_LIBB:-"$ROOT_DIR/openssl/openssl-dev/bin/openssl"}"
+	export OSSL_LIBB="${OSSL_LIBB:-"$TEMP_DIR/openssl/openssl-dev/bin/openssl"}"
 	export LIBRESSL_ENABLE="${LIBRESSL_ENABLE:-0}"
 	export LIBRESSL_BUILD="${LIBRESSL_BUILD:-0}"
 	export LIBRESSL_VERSION="${LIBRESSL_VERSION:-2.8.3}"
-	export LSSL_LIBB="${LSSL_LIBB:-"$ROOT_DIR/libressl/usr/local/bin/openssl"}"
+	export LSSL_LIBB="${LSSL_LIBB:-"$TEMP_DIR/libressl/usr/local/bin/openssl"}"
 	export SC_ENABLE="${SC_ENABLE:-0}"
 	export SC_VERSION="${SC_VERSION:-latest}"
 	export SC_DOWNLOAD="${SC_DOWNLOAD:-0}"
@@ -210,7 +211,7 @@ destroy_data ()
 	then
 		for i in vars pki-req pki-bkp pki-dssl pki-ossl pki-lssl pki-empty pki-error
 		do
-			rm -rf "$i"
+			rm -rf "$TEMP_DIR/$i"
 		done
 		[ -f ./openssl-easyrsa.cnf.orig ] && mv -f ./openssl-easyrsa.cnf.orig ./openssl-easyrsa.cnf
 		verbose "$STEP_NAME"
@@ -250,7 +251,7 @@ create_vars ()
 
 create_req ()
 {
-	export EASYRSA_PKI="$PWD/$NEW_PKI"
+	export EASYRSA_PKI="$TEMP_DIR/$NEW_PKI"
 	SAVE_STEP="$STEP_NAME"
 
 	STEP_NAME="./easyrsa init-pki"
@@ -301,13 +302,13 @@ import_sign_subca ()
 
 move_show_subca ()
 {
-	STEP_NAME="mv -vf "$EASYRSA_PKI/issued/$REQ_name.crt" "$PWD/pki-req/ca.crt" "
+	STEP_NAME="mv -vf "$EASYRSA_PKI/issued/$REQ_name.crt" "$TEMP_DIR/pki-req/ca.crt" "
 	step
 	action
 
 	STEP_NAME="./easyrsa show-ca"
 	step
-	export EASYRSA_PKI="$PWD/pki-req"
+	export EASYRSA_PKI="$TEMP_DIR/pki-req"
 	action
 }
 
@@ -424,9 +425,9 @@ create_pki ()
 	stage
 	restore_req
 
-	export EASYRSA_PKI="$PWD/$NEW_PKI"
+	export EASYRSA_PKI="$TEMP_DIR/$NEW_PKI"
 
-	if [ "$NEW_PKI" = "pki-empty" ] || [ "$NEW_PKI" = "pki-error" ]
+	if [ "$NEW_PKI" = "$TEMP_DIR/pki-empty" ] || [ "$NEW_PKI" = "$TEMP_DIR/pki-error" ]
 	then
 		verbose "OMITTING init-pki"
 	else
@@ -590,14 +591,14 @@ die ()
 
 	init
 
-	[ -f openssl/openssl.sh ] || export OPENSSL_ENABLE=0
-	[ $((OPENSSL_ENABLE)) -eq 1 ] && DIE=1 openssl/openssl.sh
+	[ -f "$TEMP_DIR/openssl/openssl.sh" ] || export OPENSSL_ENABLE=0
+	[ $((OPENSSL_ENABLE)) -eq 1 ] && DIE=1 "$TEMP_DIR/openssl/openssl.sh"
 
-	[ -f libressl/libressl.sh ] || export LIBRESSL_ENABLE=0
-	[ $((LIBRESSL_ENABLE)) -eq 1 ] && DIE=1 libressl/libressl.sh
+	[ -f "$TEMP_DIR/libressl/libressl.sh" ] || export LIBRESSL_ENABLE=0
+	[ $((LIBRESSL_ENABLE)) -eq 1 ] && DIE=1 "$TEMP_DIR/libressl/libressl.sh"
 
-	[ -f shellcheck/shellcheck.sh ] || export SC_ENABLE=0
-	[ $((SC_ENABLE)) -eq 1 ] && DIE=1 shellcheck/shellcheck.sh
+	[ -f "$TEMP_DIR/shellcheck/shellcheck.sh" ] || export SC_ENABLE=0
+	[ $((SC_ENABLE)) -eq 1 ] && DIE=1 "$TEMP_DIR/shellcheck/shellcheck.sh"
 
 	setup
 
