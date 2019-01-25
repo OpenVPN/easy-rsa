@@ -561,12 +561,6 @@ create_pki ()
 
 	init
 
-	[ -f "$TEMP_DIR/openssl.sh" ] || export OPENSSL_ENABLE=0
-	[ $((OPENSSL_ENABLE)) -eq 1 ] && "$TEMP_DIR/openssl.sh"
-
-	[ -f "$TEMP_DIR/libressl.sh" ] || export LIBRESSL_ENABLE=0
-	[ $((LIBRESSL_ENABLE)) -eq 1 ] && "$TEMP_DIR/libressl.sh"
-
 	setup
 
 	STAGE_NAME="Default ssl"
