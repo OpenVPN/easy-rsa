@@ -212,7 +212,7 @@ destroy_data ()
 			TARGET="$TEMP_DIR/$i"
 			rm -rf "$TARGET"
 		done
-		[ -d "$TEMP_DIR" ] && rmdir --ignore-fail-on-non-empty "$TEMP_DIR"
+		[ -d "$TEMP_DIR" ] && rm -rf "$TEMP_DIR"
 		[ -f ./openssl-easyrsa.cnf.orig ] && mv -f ./openssl-easyrsa.cnf.orig ./openssl-easyrsa.cnf
 	fi
 	FIRST_RUN=0
