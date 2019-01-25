@@ -32,6 +32,9 @@ default_crl_days= $ENV::EASYRSA_CRL_DAYS	# how long before next CRL
 default_md	= $ENV::EASYRSA_DIGEST		# use public key default MD
 preserve	= no			# keep passed DN ordering
 
+# This allows to renew certificates which have not been revoked
+unique_subject	= no
+
 # A few difference way of specifying how similar the request should look
 # For type CA, the listed attributes must be the same, and the optional
 # and supplied fields are just that :-)
