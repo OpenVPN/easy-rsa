@@ -34,6 +34,7 @@ Here is the list of commands available with a short syntax reminder. Use the
   build-client-full <filename_base> [ cmd-opts ]
   build-server-full <filename_base> [ cmd-opts ]
   revoke <filename_base> [cmd-opts]
+  renew <filename_base> [cmd-opts]
   build-serverClient-full <filename_base> [ cmd-opts ]
   gen-crl
   update-db
@@ -110,6 +111,11 @@ cmd_help() {
         superseded
         cessationOfOperation
         certificateHold";;
+		renew) text="
+  renew <filename_base> [ cmd-opts ]
+      Renew a certificate specified by the filename_base"
+				opts="
+        nopass  - do not encrypt the private key (default is encrypted)" ;;
 		gen-crl) text="
   gen-crl
       Generate a CRL" ;;
@@ -434,7 +440,10 @@ $help_note"
 	[ "$1" = "test" ] && return 0
 
 	# verify expected CA-specific dirs:
-	for i in issued certs_by_serial revoked/certs_by_serial revoked/private_by_serial revoked/reqs_by_serial; do
+	for i in issued certs_by_serial \
+		 revoked/certs_by_serial revoked/private_by_serial revoked/reqs_by_serial \
+		 renewed/certs_by_serial renewed/private_by_serial renewed/reqs_by_serial ;
+	do
 		[ -d "$EASYRSA_PKI/$i" ] || die "\
 Missing expected CA dir: $i (perhaps you need to run build-ca?)
 $help_note"
@@ -527,7 +536,10 @@ current CA keypair. If you intended to start a new CA, run init-pki first."
 
 	# create necessary files and dirs:
 	err_file="Unable to create necessary PKI files (permissions?)"
-	for i in issued certs_by_serial revoked/certs_by_serial revoked/private_by_serial revoked/reqs_by_serial; do
+	for i in issued certs_by_serial \
+		 revoked/certs_by_serial revoked/private_by_serial revoked/reqs_by_serial \
+		 renewed/certs_by_serial renewed/private_by_serial renewed/reqs_by_serial;
+	do
 		mkdir -p "$EASYRSA_PKI/$i" || die "$err_file"
 	done
 	printf "" > "$EASYRSA_PKI/index.txt" || die "$err_file"
@@ -956,6 +968,160 @@ input in file: $req_in"
 	return 0
 
 } #= move_revoked()
+
+# renew backend
+renew() {
+	verify_ca_init
+
+	# pull filename base:
+	[ -n "$1" ] || die "\
+Error: didn't find a file base name as the first argument.
+Run easyrsa without commands for usage and command help."
+	crt_in="$EASYRSA_PKI/issued/$1.crt"
+
+	opts=""
+	if [ "$2" ]; then
+		opts="$2"
+	fi
+
+	verify_file x509 "$crt_in" || die "\
+Unable to renew as the input file is not a valid certificate. Unexpected
+input in file: $crt_in"
+
+	# confirm operation by displaying DN:
+	confirm "Continue with renew: " "yes" "
+Please confirm you wish to renew the certificate with the following subject:
+
+$(display_dn x509 "$crt_in")
+"	# => confirm end
+
+	# referenced cert must exist:
+	[ -f "$crt_in" ] || die "\
+Unable to renew as no certificate was found. Certificate was expected
+at: $crt_in"
+
+	# make safessl-easyrsa.cnf
+	make_ssl_config
+
+	# Check if old cert is expired or expires within 30 days
+	expire_date=$(
+		"$EASYRSA_OPENSSL" x509 -in "$crt_in" -noout -enddate |
+		sed -n 's/^notAfter=//'
+		)
+	expire_date=$(date -d "$expire_date" +%s)
+
+	allow_renew_date=$(date -d '+30day' +%s)
+
+	[ "$expire_date" -gt "$allow_renew_date" ] || die "\
+Certificate expires in more than 30 days.
+Renewal not allowed."
+
+	# Extract certificate usage from old cert
+	cert_ext_key_usage=$(
+		"$EASYRSA_OPENSSL" x509 -in "$crt_in" -noout -ext extendedKeyUsage |
+		sed -n "2p;n;s/^ *//;p;"
+		)
+	case $cert_ext_key_usage in
+		"TLS Web Client Authentication")
+			cert_type=client
+			;;
+		"TLS Web Server Authentication")
+			cert_type=server
+			;;
+		"TLS Web Server Authentication, TLS Web Client Authentication")
+			cert_type=serverClient
+			;;
+	esac
+
+	# Use SAN from --subject-alt-name if set else use SAN from old cert
+	echo "$EASYRSA_EXTRA_EXTS" | grep -q subjectAltName || \
+	{
+		san=$(
+			"$EASYRSA_OPENSSL" x509 -in "$crt_in" -noout -ext subjectAltName |
+			sed -n "2p;{n;s/ //g;p;}"
+			)
+		export EASYRSA_EXTRA_EXTS="\
+$EASYRSA_EXTRA_EXTS
+subjectAltName = $san"
+	}
+
+	# move renewed files so we can reissue certificate with the same name
+	# FIXME: Modify revoke() to also work on the renewed certs subdir
+	move_renewed "$1"
+
+	# renew certificate
+	# shellcheck disable=SC2086
+	build_full $cert_type $1 $opts || die "\
+Failed to renew certificate: renew command failed."
+
+	notice "\
+IMPORTANT!!!
+
+Renew was successful.
+You may want to revoke the old certificate once the new one has been deployed.
+"	# => notice end
+	return 0
+} #= renew()
+
+# move-renewed
+# moves renewed certificates to an alternative folder
+# allows reissuing certificates with the same name
+move_renewed() {
+	verify_ca_init
+
+	[ -n "$1" ] || die "\
+Error: didn't find a file base name as the first argument.
+Run easyrsa without commands for usage and command help."
+
+	crt_in="$EASYRSA_PKI/issued/$1.crt"
+	key_in="$EASYRSA_PKI/private/$1.key"
+	req_in="$EASYRSA_PKI/reqs/$1.req"
+
+	verify_file x509 "$crt_in" || die "\
+Unable to move renewed input file. The file is not a valid certificate. Unexpected
+input in file: $crt_in"
+
+	verify_file req "$req_in" || die "\
+Unable to move request. The file is not a valid request. Unexpected
+input in file: $req_in"
+
+	# get the serial number of the certificate -> serial=XXXX
+	cert_serial="$("$EASYRSA_OPENSSL" x509 -in "$crt_in" -noout -serial)"
+	# remove the serial= part -> we only need the XXXX part
+	cert_serial=${cert_serial##*=}
+
+	crt_by_serial="$EASYRSA_PKI/certs_by_serial/$cert_serial.pem"
+	crt_by_serial_renewed="$EASYRSA_PKI/renewed/certs_by_serial/$cert_serial.crt"
+	key_by_serial_renewed="$EASYRSA_PKI/renewed/private_by_serial/$cert_serial.key"
+	req_by_serial_renewed="$EASYRSA_PKI/renewed/reqs_by_serial/$cert_serial.req"
+
+
+	# move crt, key and req file to renewed folders
+	mv "$crt_in" "$crt_by_serial_renewed"
+	mv "$req_in" "$req_by_serial_renewed"
+
+	# only move the key if we have it
+	if [ -e "$key_in" ]
+	then
+		mv "$key_in" "$key_by_serial_renewed"
+	fi
+
+	# move the rest of the files (p12, p7, ...)
+	# shellcheck disable=SC2231
+	for file in $EASYRSA_PKI/private/$1\.???
+	do
+		# get file extension
+		file_ext="${file##*.}"
+
+		mv "$file" "$EASYRSA_PKI/renewed/private_by_serial/$cert_serial.$file_ext"
+	done
+
+	# remove the duplicate certificate in the certs_by_serial folder
+	rm "$crt_by_serial"
+
+	return 0
+
+} #= move_renewed()
 
 # gen-crl backend
 gen_crl() {
@@ -1490,6 +1656,9 @@ case "$cmd" in
 		;;
 	revoke)
 		revoke "$@"
+		;;
+	renew)
+		renew "$@"
 		;;
 	import-req)
 		import_req "$@"
