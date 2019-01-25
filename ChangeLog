@@ -6,7 +6,10 @@ Easy-RSA 3 ChangeLog
    * More sane string checking, allowingn for commas in CN (#267)
    * Support for reasonCode in CRL (#280)
    * Better handling for capturing passphrases (#230, others)
-   * Improved LibreSSL/MacOS support.
+   * Improved LibreSSL/MacOS support
+   * Adds support to renew certificates up to 30 days before expiration (#286)
+     - This changes previous behavior allowing for certificate creation using
+       duplicate CNs.
 
 3.0.5 (2018-09-15)
    * Fix #17 & #58: use AES256 for CA key
