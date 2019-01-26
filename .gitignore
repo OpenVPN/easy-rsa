@@ -2,4 +2,4 @@ easyrsa3/pki
 easyrsa3/vars
 dist-staging
 easyrsa3/safessl-easyrsa.cnf
-temp/*
+testdeps/*

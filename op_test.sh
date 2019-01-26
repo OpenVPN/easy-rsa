@@ -52,29 +52,37 @@ exit 0
 init ()
 {
 	ROOT_DIR="$(pwd)"
-	export TEMP_DIR="$ROOT_DIR/temp"
+	WORK_DIR="$ROOT_DIR/easyrsa3"
+	TEMP_DIR="$WORK_DIR/temp"
+
+	if [ -d "$TEMP_DIR" ]
+	then
+		print "Aborted! Temporary directory exists: $TEMP_DIR"
+		exit 1
+	fi
+
 	DIE=1
 	VERBOSE="${VERBOSE:-0}"
 	VVERBOSE="${VVERBOSE:-0}"
-	FIRST_RUN=1
+	SAVE_PKI="${SAVE_PKI:-0}"
 	ERSA_OUT="${ERSA_OUT:-0}"
 	ERSA_BIN="./easyrsa"
 	CUSTOM_VARS="${CUSTOM_VARS:-1}"
 	UNSIGNED_PKI="${UNSIGNED_PKI:-1}"
 	SYS_SSL_ENABLE="${SYS_SSL_ENABLE:-1}"
 	BROKEN_PKI="${BROKEN_PKI:-0}"
-	SAVE_PKI="${SAVE_PKI:-0}"
 	CUSTOM_OPTS="${CUSTOM_OPTS:-0}"
+	export DEPS_DIR="$ROOT_DIR/testdeps"
 	export EASYRSA_CA_EXPIRE="${EASYRSA_CA_EXPIRE:-1}"
 	export EASYRSA_CERT_EXPIRE="${EASYRSA_CERT_EXPIRE:-1}"
 	export OPENSSL_ENABLE="${OPENSSL_ENABLE:-0}"
 	export OPENSSL_BUILD="${OPENSSL_BUILD:-0}"
 	export OPENSSL_VERSION="${OPENSSL_VERSION:-git}"
-	export OSSL_LIBB="${OSSL_LIBB:-"$TEMP_DIR/openssl-dev/bin/openssl"}"
+	export OSSL_LIBB="${OSSL_LIBB:-"$DEPS_DIR/openssl-dev/bin/openssl"}"
 	export LIBRESSL_ENABLE="${LIBRESSL_ENABLE:-0}"
 	export LIBRESSL_BUILD="${LIBRESSL_BUILD:-0}"
 	export LIBRESSL_VERSION="${LIBRESSL_VERSION:-2.8.3}"
-	export LSSL_LIBB="${LSSL_LIBB:-"$TEMP_DIR/libressl/usr/local/bin/openssl"}"
+	export LSSL_LIBB="${LSSL_LIBB:-"$DEPS_DIR/libressl/usr/local/bin/openssl"}"
 }
 
 # Wrapper around printf - clobber print since it's not POSIX anyway
@@ -87,7 +95,7 @@ newline ()
 	then
 		print "|| ============================================================================"
 	else
-		print
+		[ $((ERSA_OUT)) -ne 1 ] || print
 	fi
 }
 
@@ -160,17 +168,18 @@ setup ()
 	newline 1
 	vverbose "Setup"
 
-	[ -d easyrsa3 ] && cd easyrsa3
-	vverbose "Working dir: $(pwd)"
+	cd "$WORK_DIR" || die "cd $WORK_DIR"
+	[ $((VVERBOSE)) -eq 1 ] && print "|| :: Working dir: $WORK_DIR"
 
 	destroy_data
 
 	STEP_NAME="vars"
 	if [ $((CUSTOM_VARS)) -eq 1 ]
 	then
-		vverbose "$STEP_NAME"
-		cp vars.example vars || die "cp vars.example vars"
-		create_vars >> vars || die "create_vars"
+		[ -f "$WORK_DIR/vars.example" ] || dir "File missing: $WORK_DIR/vars.example"
+		cp "$WORK_DIR/vars.example" "$WORK_DIR/vars" || die "cp vars.example vars"
+		create_vars >> "$WORK_DIR/vars" || die "create_vars"
+		vcompleted "$STEP_NAME"
 	else
 		vdisabled "$STEP_NAME"
 	fi
@@ -181,41 +190,36 @@ setup ()
 		# https://github.com/OpenVPN/easy-rsa/pull/278
 		export CUSTOM_EASYRSA_REQ_ORG2="Custom Option"
 		export LIBRESSL_ENABLE=0
-		[ -f ./openssl-easyrsa.cnf ] || die "Cannot find ./openssl-easyrsa.cnf"
-		cp ./openssl-easyrsa.cnf ./openssl-easyrsa.cnf.orig || die "Cannot copy ./openssl-easyrsa.cnf"
-		create_custom_opts > ./openssl-easyrsa.cnf_custom || die "Cannot create ./openssl-easyrsa.cnf_custom"
-		mv -f ./openssl-easyrsa.cnf_custom ./openssl-easyrsa.cnf || die "Cannot move ./openssl-easyrsa.cnf_custom"
-		vcompeleted "$STEP_NAME"
+		YACF="$WORK_DIR/openssl-easyrsa.cnf"
+		[ -f "$YACF" ] || die "File missing: $YACF"
+		[ -f "$YACF.orig" ] && die "Aborted! Temporary file exists: $YACF.orig"
+		mv "$YACF" "$YACF.orig"
+		create_custom_opts > "$YACF"
+		vcompleted "$STEP_NAME"
 	fi
 
-	STEP_NAME="Sample requests"
+	STAGE_NAME="Sample requests"
 	if [ $((UNSIGNED_PKI)) -eq 1 ] && [ $((SYS_SSL_ENABLE + OPENSSL_ENABLE + LIBRESSL_ENABLE)) -ne 0 ]
 	then
-		vverbose "$STEP_NAME"
 		verb_off
 		NEW_PKI="pki-req"
-		create_req || die "$STEP_NAME"
-		mv "$TEMP_DIR/$NEW_PKI" "$TEMP_DIR/pki-bkp" || die "$STEP_NAME"
+		create_req || die "$STAGE_NAME create_req"
+		mv "$TEMP_DIR/$NEW_PKI" "$TEMP_DIR/pki-bkp" || die "$STAGE_NAME mv"
 		verb_on
+		vcompleted "$STAGE_NAME"
 	else
-		vdisabled "$STEP_NAME"
+		vdisabled "$STAGE_NAME"
 	fi
 }
 
 destroy_data ()
 {
-	if [ $((SAVE_PKI)) -ne 1 ] || [ $((FIRST_RUN)) -eq 1 ]
+	[ $((SAVE_PKI)) -ne 1 ] && rm -rf "$TEMP_DIR"
+	rm -f "$WORK_DIR/vars"
+	if [ -f "$YACF.orig" ]
 	then
-		rm -f vars
-		for i in pki-req pki-bkp pki-dssl pki-ossl pki-lssl pki-empty pki-error
-		do
-			TARGET="$TEMP_DIR/$i"
-			rm -rf "$TARGET"
-		done
-		[ -d "$TEMP_DIR" ] && rm -rf "$TEMP_DIR"
-		[ -f ./openssl-easyrsa.cnf.orig ] && mv -f ./openssl-easyrsa.cnf.orig ./openssl-easyrsa.cnf
+		mv -f "$YACF.orig" "$YACF"
 	fi
-	FIRST_RUN=0
 }
 
 secure_key ()
@@ -249,10 +253,10 @@ create_vars ()
 
 create_custom_opts ()
 {
-	head -n 91 ./openssl-easyrsa.cnf
+	head -n 91 "$YACF.orig"
 	print "1.organizationName		= Second Organization Name"
 	print "1.organizationName_default 	= \$ENV::CUSTOM_EASYRSA_REQ_ORG2"
-	tail -n +91 ./openssl-easyrsa.cnf
+	tail -n +91 "$YACF.orig"
 }
 
 create_req ()
@@ -316,8 +320,11 @@ action ()
 {
 	if [ $((ERSA_OUT)) -eq 1 ]
 	then
+		newline
+		# shellcheck disable=SC2086
 		"$ERSA_BIN" $STEP_NAME || die "$STEP_NAME"
 	else
+		# shellcheck disable=SC2086
 		"$ERSA_BIN" $STEP_NAME >/dev/null 2>&1 || die "$STEP_NAME"
 	fi
 	completed "$STEP_NAME"
@@ -378,10 +385,13 @@ import_req ()
 		*) 		DIE=1 die "Unknown certificate type $REQ_type" ;;
 	esac
 
+	# Note: easyrsa still appears to work in batch mode for this action ?
+	export EASYRSA_BATCH=0
 	newline 1
 	STEP_NAME="import-req $REQ_file $REQ_name"
 	vverbose "$STEP_NAME"
 	action
+	export EASYRSA_BATCH=1
 }
 
 sign_req ()
@@ -541,6 +551,8 @@ create_pki ()
 
 	unset EASYRSA_BATCH
 	unset EASYRSA_PKI
+
+	newline 1
 	vcompleted "$STAGE_NAME"
 	newline 1
 }
@@ -560,6 +572,12 @@ create_pki ()
 	done
 
 	init
+
+	[ -f "$DEPS_DIR/openssl.sh" ] || export OPENSSL_ENABLE=0
+	[ $((OPENSSL_ENABLE)) -eq 1 ] && "$DEPS_DIR/openssl.sh"
+
+	[ -f "$DEPS_DIR/libressl.sh" ] || export LIBRESSL_ENABLE=0
+	[ $((LIBRESSL_ENABLE)) -eq 1 ] && "$DEPS_DIR/libressl.sh"
 
 	setup
 
