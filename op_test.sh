@@ -64,6 +64,7 @@ init ()
 	DIE=1
 	VERBOSE="${VERBOSE:-0}"
 	VVERBOSE="${VVERBOSE:-0}"
+	SHOW_CERT="${SHOW_CERT:-0}"
 	SAVE_PKI="${SAVE_PKI:-0}"
 	ERSA_OUT="${ERSA_OUT:-0}"
 	ERSA_BIN="./easyrsa"
@@ -90,7 +91,7 @@ print() { printf "%s\n" "$1"; }
 
 newline ()
 {
-	[ $((VVERBOSE)) -eq 1 ] || return 0
+	[ $((VVERBOSE + SHOW_CERT_ONLY)) -eq 0 ] && return 0
 	if [ "$1" = "1" ]
 	then
 		print "|| ============================================================================"
@@ -169,7 +170,7 @@ setup ()
 	vverbose "Setup"
 
 	cd "$WORK_DIR" || die "cd $WORK_DIR"
-	[ $((VVERBOSE)) -eq 1 ] && print "|| :: Working dir: $WORK_DIR"
+	[ $((VVERBOSE)) -eq 1 ] && print "|| ++ Working dir: $WORK_DIR"
 
 	destroy_data
 
@@ -210,6 +211,8 @@ setup ()
 	else
 		vdisabled "$STAGE_NAME"
 	fi
+
+	completed "Setup"
 }
 
 destroy_data ()
@@ -297,9 +300,9 @@ create_req ()
 restore_req ()
 {
 	STEP_NAME="Restore sample requests"
-	vverbose "$STEP_NAME"
 	rm -rf "$TEMP_DIR/pki-req"
 	cp -Rf "$TEMP_DIR/pki-bkp" "$TEMP_DIR/pki-req" >/dev/null 2>&1 || die "$STEP_NAME"
+	vcompleted "$STEP_NAME"
 }
 
 move_ca ()
@@ -318,7 +321,8 @@ move_ca ()
 
 action ()
 {
-	if [ $((ERSA_OUT)) -eq 1 ]
+	vverbose "$STEP_NAME"
+	if [ $((ERSA_OUT)) -eq 1 ] || [ $((SHOW_CERT_ONLY)) -eq 1 ]
 	then
 		newline
 		# shellcheck disable=SC2086
@@ -333,7 +337,6 @@ action ()
 init_pki ()
 {
 	STEP_NAME="init-pki"
-	vverbose "$STEP_NAME"
 	action
 }
 
@@ -341,7 +344,6 @@ build_ca ()
 {
 	STEP_NAME="build-ca nopass"
 	export EASYRSA_REQ_CN="penelope"
-	vverbose "$STEP_NAME"
 	action
 	unset EASYRSA_REQ_CN
 }
@@ -349,19 +351,16 @@ build_ca ()
 show_ca ()
 {
 	STEP_NAME="show-ca"
-	vverbose "$STEP_NAME"
-	SAVE_VERB="$VERBOSE"
-	VERBOSE=0
+	[ $((SHOW_CERT)) -eq 1 ] && SHOW_CERT_ONLY=1
 	action
 	newline
-	VERBOSE="$SAVE_VERB"
+	unset SHOW_CERT_ONLY
 }
 
 build_full ()
 {
 	newline 1
 	STEP_NAME="build-$REQ_type-full $REQ_name nopass"
-	vverbose "$STEP_NAME"
 	action
 	secure_key
 }
@@ -370,7 +369,6 @@ build_san_full ()
 {
 	newline 1
 	STEP_NAME="--subject-alt-name=IP:0.0.0.0 build-server-full $REQ_name nopass"
-	vverbose "$STEP_NAME"
 	action
 	secure_key
 }
@@ -389,7 +387,6 @@ import_req ()
 	export EASYRSA_BATCH=0
 	newline 1
 	STEP_NAME="import-req $REQ_file $REQ_name"
-	vverbose "$STEP_NAME"
 	action
 	export EASYRSA_BATCH=1
 }
@@ -398,19 +395,16 @@ sign_req ()
 {
 	newline 1
 	STEP_NAME="sign-req $REQ_type $REQ_name nopass"
-	vverbose "$STEP_NAME"
 	action
 }
 
 show_cert ()
 {
 	STEP_NAME="show-cert $REQ_name"
-	vverbose "$STEP_NAME"
-	SAVE_VERB="$VERBOSE"
-	VERBOSE=0
+	[ $((SHOW_CERT)) -eq 1 ] && SHOW_CERT_ONLY=1
 	action
-	VERBOSE="$SAVE_VERB"
 	newline
+	unset SHOW_CERT_ONLY
 }
 
 renew_cert ()
@@ -420,7 +414,6 @@ renew_cert ()
 	return 0
 
 	STEP_NAME="renew $REQ_name nopass"
-	vverbose "$STEP_NAME"
 	action
 }
 
@@ -437,7 +430,6 @@ gen_crl ()
 {
 	newline 1
 	STEP_NAME="gen-crl"
-	vverbose "$STEP_NAME"
 	action
 	CAT_THIS="$EASYRSA_PKI/crl.pem"
 	cat_file
