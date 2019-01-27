@@ -409,10 +409,7 @@ show_cert ()
 
 renew_cert ()
 {
-	# https://github.com/OpenVPN/easy-rsa/pull/286
-	vverbose "Todo: renew_cert"
-	return 0
-
+	newline 1
 	STEP_NAME="renew $REQ_name nopass"
 	action
 }
@@ -487,6 +484,7 @@ create_pki ()
 	REQ_name="c01"
 	build_full
 	show_cert
+	renew_cert
 	revoke_cert
 
 	REQ_type="server"
