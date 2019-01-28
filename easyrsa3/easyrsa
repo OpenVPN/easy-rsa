@@ -959,7 +959,7 @@ input in file: $req_in"
 		# get file extension
 		file_ext="${file##*.}"
 
-		mv "$file" "$EASYRSA_PKI/revoked/private_by_serial/$cert_serial.$file_ext"
+		[ -f "$file" ] && mv "$file" "$EASYRSA_PKI/revoked/private_by_serial/$cert_serial.$file_ext"
 	done
 
 	# remove the dublicate certificate in the certs_by_serial folder
@@ -1113,7 +1113,7 @@ input in file: $req_in"
 		# get file extension
 		file_ext="${file##*.}"
 
-		mv "$file" "$EASYRSA_PKI/renewed/private_by_serial/$cert_serial.$file_ext"
+		[ -f "$file" ] && mv "$file" "$EASYRSA_PKI/renewed/private_by_serial/$cert_serial.$file_ext"
 	done
 
 	# remove the duplicate certificate in the certs_by_serial folder
