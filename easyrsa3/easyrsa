@@ -1018,8 +1018,8 @@ Renewal not allowed."
 
 	# Extract certificate usage from old cert
 	cert_ext_key_usage=$(
-		"$EASYRSA_OPENSSL" x509 -in "$crt_in" -noout -ext extendedKeyUsage |
-		sed -n "2p;n;s/^ *//;p;"
+		"$EASYRSA_OPENSSL" x509 -in "$crt_in" -noout -text |
+		sed -n "/X509v3 Extended Key Usage:/{n;s/^ *//g;p;}"
 		)
 	case $cert_ext_key_usage in
 		"TLS Web Client Authentication")
@@ -1037,8 +1037,8 @@ Renewal not allowed."
 	echo "$EASYRSA_EXTRA_EXTS" | grep -q subjectAltName || \
 	{
 		san=$(
-			"$EASYRSA_OPENSSL" x509 -in "$crt_in" -noout -ext subjectAltName |
-			sed -n "2p;{n;s/ //g;p;}"
+			"$EASYRSA_OPENSSL" x509 -in "$crt_in" -noout -text |
+			sed -n "/X509v3 Subject Alternative Name:/{n;s/ //g;p;}"
 			)
 		export EASYRSA_EXTRA_EXTS="\
 $EASYRSA_EXTRA_EXTS
