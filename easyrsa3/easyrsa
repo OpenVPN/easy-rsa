@@ -1006,13 +1006,13 @@ at: $crt_in"
 	# Check if old cert is expired or expires within 30 days
 	expire_date=$(
 		"$EASYRSA_OPENSSL" x509 -in "$crt_in" -noout -enddate |
-		sed -n 's/^notAfter=//'
+		sed 's/^notAfter=//'
 		)
 	expire_date=$(date -d "$expire_date" +%s)
 
 	allow_renew_date=$(date -d '+30day' +%s)
 
-	[ "$expire_date" -gt "$allow_renew_date" ] || die "\
+	[ "$expire_date" -lt "$allow_renew_date" ] || die "\
 Certificate expires in more than 30 days.
 Renewal not allowed."
 
