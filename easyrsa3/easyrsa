@@ -1010,10 +1010,10 @@ at: $crt_in"
 		)
 	expire_date=$(date -d "$expire_date" +%s)
 
-	allow_renew_date=$(date -d '+30day' +%s)
+	allow_renew_date=$(date -d "+${EASYRSA_CERT_RENEW}day" +%s)
 
 	[ "$expire_date" -lt "$allow_renew_date" ] || die "\
-Certificate expires in more than 30 days.
+Certificate expires in more than $EASYRSA_CERT_RENEW days.
 Renewal not allowed."
 
 	# Extract certificate usage from old cert
@@ -1488,6 +1488,7 @@ Note: using Easy-RSA configuration from: $vars"
 	set_var EASYRSA_EC_DIR		"$EASYRSA_PKI/ecparams"
 	set_var EASYRSA_CA_EXPIRE	3650
 	set_var EASYRSA_CERT_EXPIRE	1080 # new default of 36 months	
+	set_var EASYRSA_CERT_RENEW	30
 	set_var EASYRSA_CRL_DAYS	180
 	set_var EASYRSA_NS_SUPPORT	no
 	set_var EASYRSA_NS_COMMENT	"Easy-RSA (~VER~) Generated Certificate"

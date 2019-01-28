@@ -127,6 +127,10 @@ fi
 # parsed after this timeframe passes. It is only used for an expected next
 # publication date.
 
+# How many days before its expiration date a certificate is allowed to be
+# renewed?
+#set_var EASYRSA_CERT_RENEW	30
+
 #set_var EASYRSA_CRL_DAYS	180
 
 # Support deprecated "Netscape" extensions? (choices "yes" or "no".) The default
