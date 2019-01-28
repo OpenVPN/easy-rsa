@@ -1040,7 +1040,7 @@ Renewal not allowed."
 			"$EASYRSA_OPENSSL" x509 -in "$crt_in" -noout -text |
 			sed -n "/X509v3 Subject Alternative Name:/{n;s/ //g;p;}"
 			)
-		export EASYRSA_EXTRA_EXTS="\
+		[ -n "$san" ] && export EASYRSA_EXTRA_EXTS="\
 $EASYRSA_EXTRA_EXTS
 subjectAltName = $san"
 	}
