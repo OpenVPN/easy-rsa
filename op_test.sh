@@ -466,6 +466,9 @@ create_pki ()
 	REQ_name="s01"
 	build_full
 	show_cert
+	sleep 3
+	renew_cert
+	show_cert
 	revoke_cert
 
 	REQ_type="server"
@@ -484,7 +487,9 @@ create_pki ()
 	REQ_name="c01"
 	build_full
 	show_cert
+	sleep 3
 	renew_cert
+	show_cert
 	revoke_cert
 
 	REQ_type="server"
