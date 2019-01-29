@@ -959,7 +959,7 @@ input in file: $req_in"
 		# get file extension
 		file_ext="${file##*.}"
 
-		mv "$file" "$EASYRSA_PKI/revoked/private_by_serial/$cert_serial.$file_ext"
+		[ -f "$file" ] && mv "$file" "$EASYRSA_PKI/revoked/private_by_serial/$cert_serial.$file_ext"
 	done
 
 	# remove the dublicate certificate in the certs_by_serial folder
@@ -1006,20 +1006,20 @@ at: $crt_in"
 	# Check if old cert is expired or expires within 30 days
 	expire_date=$(
 		"$EASYRSA_OPENSSL" x509 -in "$crt_in" -noout -enddate |
-		sed -n 's/^notAfter=//'
+		sed 's/^notAfter=//'
 		)
 	expire_date=$(date -d "$expire_date" +%s)
 
-	allow_renew_date=$(date -d '+30day' +%s)
+	allow_renew_date=$(date -d "+${EASYRSA_CERT_RENEW}day" +%s)
 
-	[ "$expire_date" -gt "$allow_renew_date" ] || die "\
-Certificate expires in more than 30 days.
+	[ "$expire_date" -lt "$allow_renew_date" ] || die "\
+Certificate expires in more than $EASYRSA_CERT_RENEW days.
 Renewal not allowed."
 
 	# Extract certificate usage from old cert
 	cert_ext_key_usage=$(
-		"$EASYRSA_OPENSSL" x509 -in "$crt_in" -noout -ext extendedKeyUsage |
-		sed -n "2p;n;s/^ *//;p;"
+		"$EASYRSA_OPENSSL" x509 -in "$crt_in" -noout -text |
+		sed -n "/X509v3 Extended Key Usage:/{n;s/^ *//g;p;}"
 		)
 	case $cert_ext_key_usage in
 		"TLS Web Client Authentication")
@@ -1037,10 +1037,10 @@ Renewal not allowed."
 	echo "$EASYRSA_EXTRA_EXTS" | grep -q subjectAltName || \
 	{
 		san=$(
-			"$EASYRSA_OPENSSL" x509 -in "$crt_in" -noout -ext subjectAltName |
-			sed -n "2p;{n;s/ //g;p;}"
+			"$EASYRSA_OPENSSL" x509 -in "$crt_in" -noout -text |
+			sed -n "/X509v3 Subject Alternative Name:/{n;s/ //g;p;}"
 			)
-		export EASYRSA_EXTRA_EXTS="\
+		[ -n "$san" ] && export EASYRSA_EXTRA_EXTS="\
 $EASYRSA_EXTRA_EXTS
 subjectAltName = $san"
 	}
@@ -1113,7 +1113,7 @@ input in file: $req_in"
 		# get file extension
 		file_ext="${file##*.}"
 
-		mv "$file" "$EASYRSA_PKI/renewed/private_by_serial/$cert_serial.$file_ext"
+		[ -f "$file" ] && mv "$file" "$EASYRSA_PKI/renewed/private_by_serial/$cert_serial.$file_ext"
 	done
 
 	# remove the duplicate certificate in the certs_by_serial folder
@@ -1488,6 +1488,7 @@ Note: using Easy-RSA configuration from: $vars"
 	set_var EASYRSA_EC_DIR		"$EASYRSA_PKI/ecparams"
 	set_var EASYRSA_CA_EXPIRE	3650
 	set_var EASYRSA_CERT_EXPIRE	1080 # new default of 36 months	
+	set_var EASYRSA_CERT_RENEW	30
 	set_var EASYRSA_CRL_DAYS	180
 	set_var EASYRSA_NS_SUPPORT	no
 	set_var EASYRSA_NS_COMMENT	"Easy-RSA (~VER~) Generated Certificate"
