@@ -10,10 +10,10 @@ cat << __EOF__
 
 	Actions taken:
 	* standard ca
-	* standard server
+	* standard server + renew
 	* standard server with SAN
 	* standard serverClient
-	* standard client
+	* standard client + renew
 	* standard sign imported server
 	* standard sign imported serverClient
 	* standard sign imported client
@@ -24,22 +24,6 @@ cat << __EOF__
 	* subca sign client
 	* revoke
 	* CRLs
-
-	EASYRSA_*
-	* All standard EASYRSA vars are avaiable.
-
-	Todo:
-	* test renew ()
-
-	Will not do:
-	* libressl
-	* openssl-dev
-	Do not burden Travis with these unnecessary stages.
-	Relevant hooks left for local implementations.
-
-	Note:
-	* Currently always completes, until easyrsa-prog_exit is fixed.
-	  https://github.com/OpenVPN/easy-rsa/issues/282
 
 	Suggested options:
 	* "./op_test.sh -v" (verbose)
@@ -61,7 +45,9 @@ init ()
 		exit 1
 	fi
 
-	DIE=1
+	DIE="${DIE:-1}"
+	S_ERRORS=0
+	T_ERRORS=0
 	VERBOSE="${VERBOSE:-0}"
 	VVERBOSE="${VVERBOSE:-0}"
 	SHOW_CERT="${SHOW_CERT:-0}"
@@ -80,6 +66,8 @@ init ()
 	export OPENSSL_BUILD="${OPENSSL_BUILD:-0}"
 	export OPENSSL_VERSION="${OPENSSL_VERSION:-git}"
 	export OSSL_LIBB="${OSSL_LIBB:-"$DEPS_DIR/openssl-dev/bin/openssl"}"
+	export CUST_SSL_ENABLE="${CUST_SSL_ENABLE:-0}"
+	export CUST_SSL_LIBB="${CUST_SSL_LIBB:-"$DEPS_DIR/cust-ssl-inst/bin/openssl"}"
 	export LIBRESSL_ENABLE="${LIBRESSL_ENABLE:-0}"
 	export LIBRESSL_BUILD="${LIBRESSL_BUILD:-0}"
 	export LIBRESSL_VERSION="${LIBRESSL_VERSION:-2.8.3}"
@@ -124,6 +112,9 @@ die ()
 	warn "$0 FATAL ERROR! exit 1: $1"
 	[ $((DIE)) -eq 1 ] && tear_down && exit 1
 	warn "Ignored"
+	S_ERRORS=$((S_ERRORS + 1))
+	T_ERRORS=$((T_ERRORS + 1))
+	warn "$STAGE_NAME Errors: $S_ERRORS"
 	return 0
 }
 
@@ -132,6 +123,12 @@ vverbose ()
 	[ $((VVERBOSE)) -eq 1 ] || return 0
 	MSG="$(print "$1" | sed -e s/^--.*0\ //g -e s\`/.*/\`\`g -e s/nopass//g)"
 	print "|| :: $MSG"
+}
+
+vvverbose ()
+{
+	[ $((VVERBOSE)) -eq 1 ] || return 0
+	print "|| :: $1"
 }
 
 vdisabled ()
@@ -170,7 +167,7 @@ setup ()
 	vverbose "Setup"
 
 	cd "$WORK_DIR" || die "cd $WORK_DIR"
-	[ $((VVERBOSE)) -eq 1 ] && print "|| ++ Working dir: $WORK_DIR"
+	vvverbose "Working dir: $WORK_DIR"
 
 	destroy_data
 
@@ -200,7 +197,7 @@ setup ()
 	fi
 
 	STAGE_NAME="Sample requests"
-	if [ $((UNSIGNED_PKI)) -eq 1 ] && [ $((SYS_SSL_ENABLE + OPENSSL_ENABLE + LIBRESSL_ENABLE)) -ne 0 ]
+	if [ $((UNSIGNED_PKI)) -eq 1 ] && [ $((SYS_SSL_ENABLE + CUST_SSL_ENABLE + OPENSSL_ENABLE + LIBRESSL_ENABLE)) -ne 0 ]
 	then
 		verb_off
 		NEW_PKI="pki-req"
@@ -322,14 +319,14 @@ move_ca ()
 action ()
 {
 	vverbose "$STEP_NAME"
-	if [ $((ERSA_OUT)) -eq 1 ] || [ $((SHOW_CERT_ONLY)) -eq 1 ]
+	if [ $((ERSA_OUT + SHOW_CERT_ONLY)) -eq 0 ]
 	then
 		newline
 		# shellcheck disable=SC2086
-		"$ERSA_BIN" $STEP_NAME || die "$STEP_NAME"
+		"$ERSA_BIN" $STEP_NAME >/dev/null 2>&1 || die "$STEP_NAME"
 	else
 		# shellcheck disable=SC2086
-		"$ERSA_BIN" $STEP_NAME >/dev/null 2>&1 || die "$STEP_NAME"
+		"$ERSA_BIN" $STEP_NAME || die "$STEP_NAME"
 	fi
 	completed "$STEP_NAME"
 }
@@ -447,6 +444,9 @@ create_pki ()
 {
 	newline 1
 	vverbose "$STAGE_NAME"
+	vvverbose "EASYRSA_OPENSSL: $EASYRSA_OPENSSL"
+	verbose "$($EASYRSA_OPENSSL version 2> /dev/null)"
+	vverbose "$($EASYRSA_OPENSSL version 2> /dev/null)"
 
 	restore_req
 
@@ -548,7 +548,8 @@ create_pki ()
 	unset EASYRSA_PKI
 
 	newline 1
-	vcompleted "$STAGE_NAME"
+	vcompleted "$STAGE_NAME (Errors: $S_ERRORS)"
+	S_ERRORS=0
 	newline 1
 }
 
@@ -561,12 +562,18 @@ create_pki ()
 		-u|-h|--help)	usage ;;
 		-v)		VERBOSE=1 ;;
 		-vv)		VVERBOSE=1; ERSA_OUT="${ERSA_OUT:-1}" ;;
-		-b)		BROKEN_PKI=1; SYS_SSL_ENABLE="${SYS_SSL_ENABLE:-0}"; VVERBOSE=1; ERSA_OUT="${ERSA_OUT:-1}" ;;
+		-b)		DIE=0; BROKEN_PKI=1; SYS_SSL_ENABLE="${SYS_SSL_ENABLE:-0}";
+				VVERBOSE="${VVERBOSE:-1}"; ERSA_OUT="${ERSA_OUT:-1}" ;;
+		-f)		DIE=0; CUST_SSL_ENABLE=1; OPENSSL_ENABLE=1; LIBRESSL_ENABLE=1;
+				VVERBOSE="${VVERBOSE:-1}"; ERSA_OUT="${ERSA_OUT:-1}" ;;
 		*)		print "Unknown option: $i"; exit 1 ;;
 		esac
 	done
 
 	init
+
+	[ -f "$DEPS_DIR/custom-ssl.sh" ] || export CUST_SSL_ENABLE=0
+	[ $((CUST_SSL_ENABLE)) -eq 1 ] && "$DEPS_DIR/custom-ssl.sh"
 
 	[ -f "$DEPS_DIR/openssl.sh" ] || export OPENSSL_ENABLE=0
 	[ $((OPENSSL_ENABLE)) -eq 1 ] && "$DEPS_DIR/openssl.sh"
@@ -576,33 +583,45 @@ create_pki ()
 
 	setup
 
-	STAGE_NAME="Default ssl"
+	STAGE_NAME="System ssl"
 	if [ $((SYS_SSL_ENABLE)) -eq 1 ]
 	then
-		NEW_PKI="pki-dssl"
+		NEW_PKI="pki-sys-ssl"
 		create_pki
 	else
 		vdisabled "$STAGE_NAME"
 	fi
 
-	STAGE_NAME="openssl"
-	if [ $((OPENSSL_ENABLE)) -eq 1 ]
+	STAGE_NAME="Custom ssl"
+	if [ $((CUST_SSL_ENABLE)) -eq 1 ]
 	then
-		[ -f "$OSSL_LIBB" ] || DIE=1 die "$0: missing openssl: $OSSL_LIBB"
-		export EASYRSA_OPENSSL="$OSSL_LIBB"
-		NEW_PKI="pki-ossl"
+		[ -f "$CUST_SSL_LIBB" ] || die "$0: missing custom ssl: $CUST_SSL_LIBB"
+		export EASYRSA_OPENSSL="$CUST_SSL_LIBB"
+		NEW_PKI="pki-custom-ssl"
 		create_pki
 		unset EASYRSA_OPENSSL
 	else
 		vdisabled "$STAGE_NAME"
 	fi
 
-	STAGE_NAME="libressl"
+	STAGE_NAME="Openssl"
+	if [ $((OPENSSL_ENABLE)) -eq 1 ]
+	then
+		[ -f "$OSSL_LIBB" ] || die "$0: missing openssl: $OSSL_LIBB"
+		export EASYRSA_OPENSSL="$OSSL_LIBB"
+		NEW_PKI="pki-openssl"
+		create_pki
+		unset EASYRSA_OPENSSL
+	else
+		vdisabled "$STAGE_NAME"
+	fi
+
+	STAGE_NAME="Libressl"
 	if [ $((LIBRESSL_ENABLE)) -eq 1 ]
 	then
-		[ -f "$LSSL_LIBB" ] || DIE=1 die "$0: missing libressl: $LSSL_LIBB"
+		[ -f "$LSSL_LIBB" ] || die "$0: missing libressl: $LSSL_LIBB"
 		export EASYRSA_OPENSSL="$LSSL_LIBB"
-		NEW_PKI="pki-lssl"
+		NEW_PKI="pki-libressl"
 		create_pki
 		unset EASYRSA_OPENSSL
 	else
@@ -621,6 +640,6 @@ create_pki ()
 
 	tear_down
 
-completed "Completed"
-vcompleted "Completed"
+completed "Completed (Total errors: $T_ERRORS)"
+vcompleted "Completed (Total errors: $T_ERRORS)"
 exit 0
