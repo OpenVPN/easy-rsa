@@ -1623,7 +1623,7 @@ done
 vars_setup
 
 # Register clean_temp and prog_exit on SIGHUP, SIGINT, SIGQUIT, and SIGABRT
-trap "clean_temp; prog_exit 1" 1 ERR
+trap "clean_temp; prog_exit 1" 1 
 trap "clean_temp; prog_exit 2" 2
 trap "clean_temp; prog_exit 3" 3
 trap "clean_temp; prog_exit 6" 6
