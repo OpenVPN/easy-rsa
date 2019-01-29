@@ -307,7 +307,8 @@ Type the word '$value' to continue, or any other input to abort."
 
 # remove temp files
 clean_temp() {
-	for f in "$EASYRSA_TEMP_CONF" "$EASYRSA_TEMP_EXT" "$EASYRSA_TEMP_FILE_2" "$EASYRSA_TEMP_FILE_3"
+	for f in "$EASYRSA_TEMP_CONF" "$EASYRSA_TEMP_EXT" \
+		"$EASYRSA_TEMP_FILE_2" "$EASYRSA_TEMP_FILE_3" "$EASYRSA_TEMP_FILE_4"
 	do	[ -f "$f" ] && rm "$f" 2>/dev/null
 	done
 } # => clean_temp()
@@ -554,7 +555,7 @@ current CA keypair. If you intended to start a new CA, run init-pki first."
 	out_file_tmp="$(mktemp "$out_file.XXXXXXXXXX")"; EASYRSA_TEMP_FILE_3="$out_file_tmp"
 	# Get password from user if necessary
 	if [ ! $nopass ]; then
-		out_key_pass_tmp="$(mktemp)"; EASYRSA_TEMP_FILE_3="$out_key_pass_tmp"
+		out_key_pass_tmp="$(mktemp)"; EASYRSA_TEMP_FILE_4="$out_key_pass_tmp"
 		echo
 		printf "Enter New CA Key Passphrase: "
 		hide_read_pass kpass
@@ -594,7 +595,7 @@ current CA keypair. If you intended to start a new CA, run init-pki first."
 
 	mv "$out_key_tmp" "$out_key"; EASYRSA_TEMP_FILE_2=
 	mv "$out_file_tmp" "$out_file"; EASYRSA_TEMP_FILE_3=
-	[ -f "$out_key_pass_tmp" ] && rm "$out_key_pass_tmp"
+	[ -f "$out_key_pass_tmp" ] && rm "$out_key_pass_tmp" && EASYRSA_TEMP_FILE_4=
 
 	# Success messages
 	if [ $sub_ca ]; then
