@@ -319,28 +319,58 @@ cleanup() {
 	echo "" # just to get a clean line
 } # => cleanup()
 
-# Make LibreSSL safe config file from OpenSSL config file
-make_ssl_config() {
-sed \
-       -e "s\`ENV::EASYRSA\`EASYRSA\`g" \
-       -e "s\`\$dir\`$EASYRSA_PKI\`g" \
-       -e "s\`\$EASYRSA_PKI\`$EASYRSA_PKI\`g" \
-       -e "s\`\$EASYRSA_CERT_EXPIRE\`$EASYRSA_CERT_EXPIRE\`g" \
-       -e "s\`\$EASYRSA_CRL_DAYS\`$EASYRSA_CRL_DAYS\`g" \
-       -e "s\`\$EASYRSA_DIGEST\`$EASYRSA_DIGEST\`g" \
-       -e "s\`\$EASYRSA_KEY_SIZE\`$EASYRSA_KEY_SIZE\`g" \
-       -e "s\`\$EASYRSA_DIGEST\`$EASYRSA_DIGEST\`g" \
-       -e "s\`\$EASYRSA_DN\`$EASYRSA_DN\`g" \
-       -e "s\`\$EASYRSA_REQ_COUNTRY\`$EASYRSA_REQ_COUNTRY\`g" \
-       -e "s\`\$EASYRSA_REQ_PROVINCE\`$EASYRSA_REQ_PROVINCE\`g" \
-       -e "s\`\$EASYRSA_REQ_CITY\`$EASYRSA_REQ_CITY\`g" \
-       -e "s\`\$EASYRSA_REQ_ORG\`$EASYRSA_REQ_ORG\`g" \
-       -e "s\`\$EASYRSA_REQ_OU\`$EASYRSA_REQ_OU\`g" \
-       -e "s\`\$EASYRSA_REQ_CN\`$EASYRSA_REQ_CN\`g" \
-       -e "s\`\$EASYRSA_REQ_EMAIL\`$EASYRSA_REQ_EMAIL\`g" \
-	"$EASYRSA_SSL_CONF" > "$EASYRSA_SAFE_CONF" || die "\
-Failed to update $EASYRSA_SAFE_CONF"
-} # => make_ssl_config()
+easyrsa_openssl() {
+	openssl_command=$1; shift
+
+	case $openssl_command in
+		ca|req|srp|ts) has_config=true;;
+		*) has_config=false;;
+	esac
+
+	if ! $has_config; then
+		"$EASYRSA_OPENSSL" "$openssl_command" "$@"
+		return
+	fi
+
+	easyrsa_openssl_conf=$(easyrsa_mktemp)
+	easyrsa_extra_exts=
+	if [ -n "$EASYRSA_EXTRA_EXTS" ]; then
+		easyrsa_extra_exts=$(easyrsa_mktemp)
+		cat >"$easyrsa_extra_exts" <<-EOF
+			req_extensions = req_extra
+			[ req_extra ]
+			$EASYRSA_EXTRA_EXTS
+		EOF
+	fi
+
+	# Make LibreSSL safe config file from OpenSSL config file
+	sed \
+		-e "s\`ENV::EASYRSA\`EASYRSA\`g" \
+		-e "s\`\$dir\`$EASYRSA_PKI\`g" \
+		-e "s\`\$EASYRSA_PKI\`$EASYRSA_PKI\`g" \
+		-e "s\`\$EASYRSA_CERT_EXPIRE\`$EASYRSA_CERT_EXPIRE\`g" \
+		-e "s\`\$EASYRSA_CRL_DAYS\`$EASYRSA_CRL_DAYS\`g" \
+		-e "s\`\$EASYRSA_DIGEST\`$EASYRSA_DIGEST\`g" \
+		-e "s\`\$EASYRSA_KEY_SIZE\`$EASYRSA_KEY_SIZE\`g" \
+		-e "s\`\$EASYRSA_DIGEST\`$EASYRSA_DIGEST\`g" \
+		-e "s\`\$EASYRSA_DN\`$EASYRSA_DN\`g" \
+		-e "s\`\$EASYRSA_REQ_COUNTRY\`$EASYRSA_REQ_COUNTRY\`g" \
+		-e "s\`\$EASYRSA_REQ_PROVINCE\`$EASYRSA_REQ_PROVINCE\`g" \
+		-e "s\`\$EASYRSA_REQ_CITY\`$EASYRSA_REQ_CITY\`g" \
+		-e "s\`\$EASYRSA_REQ_ORG\`$EASYRSA_REQ_ORG\`g" \
+		-e "s\`\$EASYRSA_REQ_OU\`$EASYRSA_REQ_OU\`g" \
+		-e "s\`\$EASYRSA_REQ_CN\`$EASYRSA_REQ_CN\`g" \
+		-e "s\`\$EASYRSA_REQ_EMAIL\`$EASYRSA_REQ_EMAIL\`g" \
+		${EASYRSA_EXTRA_EXTS:+-e "/^#%EXTRA_EXTS%/r $easyrsa_extra_exts"} \
+		"$EASYRSA_SSL_CONF" > "$easyrsa_openssl_conf" ||
+		die "Failed to update $easyrsa_openssl_conf"
+
+	"$EASYRSA_OPENSSL" "$openssl_command" -config "$easyrsa_openssl_conf" "$@"
+	err=$?
+	rm -f "$easyrsa_openssl_conf"
+	rm -f "$easyrsa_extra_exts"
+	return $err
+} # => easyrsa_openssl
 
 vars_source_check() {
 	# Check for defined EASYRSA_PKI
@@ -373,9 +403,6 @@ $out"
 }
 
 verify_ssl_lib () {
-	# make safessl-easyrsa.cnf
-	make_ssl_config
-
 	# Verify EASYRSA_OPENSSL command gives expected output
 	if [ -z "$EASYRSA_SSL_OK" ]; then
 		val="$("$EASYRSA_OPENSSL" version)"
@@ -582,8 +609,8 @@ current CA keypair. If you intended to start a new CA, run init-pki first."
 	# create the CA keypair:
 	[ ! $nopass ] && crypto_opts="-passin file:$out_key_pass_tmp"
 	#shellcheck disable=SC2086
-	"$EASYRSA_OPENSSL" req -utf8 -new -key "$out_key_tmp" \
-		-config "$EASYRSA_SAFE_CONF" -keyout "$out_key_tmp" -out "$out_file_tmp" $crypto_opts $opts || \
+	easyrsa_openssl req -utf8 -new -key "$out_key_tmp" \
+		-keyout "$out_key_tmp" -out "$out_file_tmp" $crypto_opts $opts || \
 		die "Failed to build the CA"
 
 	mv "$out_key_tmp" "$out_key"
@@ -680,12 +707,11 @@ $EASYRSA_EXTRA_EXTS"
 	# generate request
 	[ $EASYRSA_BATCH ] && opts="$opts -batch"
 	# shellcheck disable=2086,2148
-	"$EASYRSA_OPENSSL" req -utf8 -new -newkey "$EASYRSA_ALGO":"$EASYRSA_ALGO_PARAMS" \
-		-config "$EASYRSA_SAFE_CONF" -keyout "$key_out_tmp" -out "$req_out_tmp" $opts \
+	easyrsa_openssl req -utf8 -new -newkey "$EASYRSA_ALGO":"$EASYRSA_ALGO_PARAMS" \
+		-keyout "$key_out_tmp" -out "$req_out_tmp" $opts \
 		|| die "Failed to generate request"
 	mv "$key_out_tmp" "$key_out"
 	mv "$req_out_tmp" "$req_out"
-	[ -z "$conf_tmp" ] || rm -f "$conf_tmp"
 	notice "\
 Keypair and certificate request completed. Your files are:
 req: $req_out
@@ -796,7 +822,7 @@ $ext_tmp"
 
 	# sign request
 	crt_out_tmp="$(easyrsa_mktemp)"
-	"$EASYRSA_OPENSSL" ca -utf8 -in "$req_in" -out "$crt_out_tmp" -config "$EASYRSA_SAFE_CONF" \
+	easyrsa_openssl ca -utf8 -in "$req_in" -out "$crt_out_tmp" \
 		-extfile "$ext_tmp" -days "$EASYRSA_CERT_EXPIRE" -batch $opts \
 		|| die "signing failed (openssl output above may have more detail)"
 	mv "$crt_out_tmp" "$crt_out"
@@ -883,7 +909,7 @@ Unable to revoke as no certificate was found. Certificate was expected
 at: $crt_in"
 
 	# shellcheck disable=SC2086
-	"$EASYRSA_OPENSSL" ca -utf8 -revoke "$crt_in" -config "$EASYRSA_SAFE_CONF" $opts || die "\
+	easyrsa_openssl ca -utf8 -revoke "$crt_in" $opts || die "\
 Failed to revoke certificate: revocation command failed."
 
 	# move revoked files so we can reissue certificates with the same name
@@ -924,7 +950,7 @@ input in file: $req_in"
 	fi
 
 	# get the serial number of the certificate -> serial=XXXX
-	cert_serial="$("$EASYRSA_OPENSSL" x509 -in "$crt_in" -noout -serial)"
+	cert_serial="$(easyrsa_openssl x509 -in "$crt_in" -noout -serial)"
 	# remove the serial= part -> we only need the XXXX part
 	cert_serial=${cert_serial##*=}
 
@@ -998,7 +1024,7 @@ at: $crt_in"
 
 	# Check if old cert is expired or expires within 30 days
 	expire_date=$(
-		"$EASYRSA_OPENSSL" x509 -in "$crt_in" -noout -enddate |
+		easyrsa_openssl x509 -in "$crt_in" -noout -enddate |
 		sed 's/^notAfter=//'
 		)
         case $(uname 2>/dev/null) in
@@ -1019,7 +1045,7 @@ Renewal not allowed."
 
 	# Extract certificate usage from old cert
 	cert_ext_key_usage=$(
-		"$EASYRSA_OPENSSL" x509 -in "$crt_in" -noout -text |
+		easyrsa_openssl x509 -in "$crt_in" -noout -text |
 		sed -n "/X509v3 Extended Key Usage:/{n;s/^ *//g;p;}"
 		)
 	case $cert_ext_key_usage in
@@ -1038,7 +1064,7 @@ Renewal not allowed."
 	echo "$EASYRSA_EXTRA_EXTS" | grep -q subjectAltName || \
 	{
 		san=$(
-			"$EASYRSA_OPENSSL" x509 -in "$crt_in" -noout -text |
+			easyrsa_openssl x509 -in "$crt_in" -noout -text |
 			sed -n "/X509v3 Subject Alternative Name:/{n;s/ //g;p;}"
 			)
 		[ -n "$san" ] && export EASYRSA_EXTRA_EXTS="\
@@ -1090,7 +1116,7 @@ input in file: $req_in"
 	fi
 
 	# get the serial number of the certificate -> serial=XXXX
-	cert_serial="$("$EASYRSA_OPENSSL" x509 -in "$crt_in" -noout -serial)"
+	cert_serial="$(easyrsa_openssl x509 -in "$crt_in" -noout -serial)"
 	# remove the serial= part -> we only need the XXXX part
 	cert_serial=${cert_serial##*=}
 
@@ -1137,7 +1163,7 @@ gen_crl() {
 
 	out_file="$EASYRSA_PKI/crl.pem"
 	out_file_tmp="$(easyrsa_mktemp)"
-	"$EASYRSA_OPENSSL" ca -utf8 -gencrl -out "$out_file_tmp" -config "$EASYRSA_SAFE_CONF" || die "\
+	easyrsa_openssl ca -utf8 -gencrl -out "$out_file_tmp" || die "\
 CRL Generation failed.
 "
 	mv "$out_file_tmp" "$out_file"
@@ -1238,7 +1264,7 @@ Missing key expected at: $key_in"
 
 		# export the p12:
 		# shellcheck disable=SC2086
-		"$EASYRSA_OPENSSL" pkcs12 -in "$crt_in" -inkey "$key_in" -export \
+		easyrsa_openssl pkcs12 -in "$crt_in" -inkey "$key_in" -export \
 			-out "$pkcs_out" $pkcs_opts || die "\
 Export of p12 failed: see above for related openssl errors."
 	;;
@@ -1247,7 +1273,7 @@ Export of p12 failed: see above for related openssl errors."
 
 		# export the p7:
 		# shellcheck disable=SC2086
-		"$EASYRSA_OPENSSL" crl2pkcs7 -nocrl -certfile "$crt_in" \
+		easyrsa_openssl crl2pkcs7 -nocrl -certfile "$crt_in" \
 			-out "$pkcs_out" $pkcs_opts || die "\
 Export of p7 failed: see above for related openssl errors."
 	;;
@@ -1295,7 +1321,7 @@ If the key is currently encrypted you must supply the decryption passphrase.
 ${crypto:+You will then enter a new PEM passphrase for this key.$NL}"
 
 	out_key_tmp="$(easyrsa_mktemp)"
-	"$EASYRSA_OPENSSL" "$key_type" -in "$file" -out "$out_key_tmp" $crypto || die "\
+	easyrsa_openssl "$key_type" -in "$file" -out "$out_key_tmp" $crypto || die "\
 Failed to change the private key passphrase. See above for possible openssl
 error messages."
 
@@ -1310,7 +1336,7 @@ Failed to change the private key passphrase. See above for error messages."
 update_db() {
 	verify_ca_init
 
-	"$EASYRSA_OPENSSL" ca -utf8 -updatedb -config "$EASYRSA_SSL_CONF" || die "\
+	easyrsa_openssl ca -utf8 -updatedb || die "\
 Failed to perform update-db: see above for related openssl errors."
 	return 0
 } # => update_db()
@@ -1325,7 +1351,7 @@ display_dn() {
 default_server_san() {
 	path="$1"
 	cn=$(
-		"$EASYRSA_OPENSSL" req -in "$path" -noout -subject -nameopt sep_multiline |
+		easyrsa_openssl req -in "$path" -noout -subject -nameopt sep_multiline |
 		awk -F'=' '/^  *CN=/{print $2}'
 		)
 	echo "$cn" | grep -E -q '^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$'
@@ -1341,7 +1367,7 @@ default_server_san() {
 verify_file() {
 	format="$1" 
 	path="$2"
-	"$EASYRSA_OPENSSL" "$format" -in "$path" -noout 2>/dev/null || return 1
+	easyrsa_openssl "$format" -in "$path" -noout 2>/dev/null || return 1
 	return 0
 } # => verify_file()
 
@@ -1396,7 +1422,7 @@ Showing $type details for '$name'.
 This file is stored at:
 $in_file
 "
-	"$EASYRSA_OPENSSL" $format -in "$in_file" -noout -text\
+	easyrsa_openssl $format -in "$in_file" -noout -text\
 		-nameopt multiline $opts || die "\
 OpenSSL failure to process the input"
 } # => show()
@@ -1432,7 +1458,7 @@ Showing $type details for 'ca'.
 This file is stored at:
 $in_file
 "
-	"$EASYRSA_OPENSSL" $format -in "$in_file" -noout -text\
+	easyrsa_openssl $format -in "$in_file" -noout -text\
 		-nameopt multiline $opts || die "\
 OpenSSL failure to process the input"
 } # => show_ca()
@@ -1499,9 +1525,7 @@ Note: using Easy-RSA configuration from: $vars"
 	set_var EASYRSA_TEMP_DIR	"$EASYRSA_PKI"
 	set_var EASYRSA_REQ_CN		ChangeMe
 	set_var EASYRSA_DIGEST		sha256
-
 	set_var EASYRSA_SSL_CONF	"$EASYRSA_PKI/openssl-easyrsa.cnf"
-	set_var EASYRSA_SAFE_CONF	"$EASYRSA_PKI/safessl-easyrsa.cnf"
 
 	# Same as above for the x509-types extensions dir
 	if [ -d "$EASYRSA_PKI/x509-types" ]; then
@@ -1521,9 +1545,6 @@ Note: using Easy-RSA configuration from: $vars"
 	fi
 
 	[ -n "$EASYRSA_TEMP_DIR_session" ] || EASYRSA_TEMP_DIR_session="$(mktemp -ud "$EASYRSA_TEMP_DIR/easy-rsa-$$.XXXXXX")"
-
-	# Setting OPENSSL_CONF prevents bogus warnings (especially useful on win32)
-	export OPENSSL_CONF="$EASYRSA_SAFE_CONF"
 } # vars_setup()
 
 # variable assignment by indirection when undefined; merely exports
