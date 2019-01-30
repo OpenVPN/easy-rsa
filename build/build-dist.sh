@@ -19,6 +19,9 @@ build-dist options:
  --dist-root=X	set DIST_ROOT, default=dist-staging
  --src-root=X	set SRC_ROOT for git src dir, default=.
  --bin-dest=X	set BIN_DEST where to put tar/zip, default=.
+ --no-windows	do not build for win32
+ --no-unix	do not build for UNIX
+ --no-compress  do not create zip/tar
 
  --dist-clean	rm -rf the DIST_ROOT w/out prompts
 __EOF__
@@ -37,8 +40,7 @@ note() { echo "build-dist NOTE: $1"; }
 # ask before dangerous things
 confirm() {
 	[ "$2" ] && return
-	echo "$1"
-	printf " y/n: "
+	printf "%s y/n: " "$1"
 	read r
 	[ "$r" = "y" ] || die "user abort"
 }
@@ -48,10 +50,10 @@ main() {
 	PV="$PRODUCT-$VERSION"
 
 	dist_clean
-	stage_unix
-	stage_win
-	make_tar
-	make_zip
+	$SKIP_UNIX || stage_unix
+	$SKIP_WIN || stage_win
+	$SKIP_TAR || make_tar
+	$SKIP_ZIP || make_zip
 }
 
 # prep DIST_ROOT
@@ -70,15 +72,15 @@ stage_unix() {
 	mkdir -p "$DIST_ROOT/unix/$PV"
 	
 	# Copy files into $PV, starting with easyrsa3 as the initial root dir
-	src_files="easyrsa3/ Licensing/ COPYING.md ChangeLog README.md README.quickstart.md"
+	src_files="easyrsa3/. Licensing/. COPYING.md ChangeLog README.md README.quickstart.md doc"
 	for f in $src_files
 	do
-		cp -a "$SRC_ROOT/$f" "$DIST_ROOT/unix/$PV" || die "failed to copy $f"
+		cp -R "$SRC_ROOT/$f" "$DIST_ROOT/unix/$PV/" || die "failed to copy $f"
 	done
 	
-	cp -R "$SRC_ROOT/doc" "$DIST_ROOT/unix/$PV/" || die "failed to copy unix doc"
-
-	sed -i "" -e "s/~VER~/$VERSION/" "$DIST_ROOT/unix/$PV/easyrsa"
+	# FreeBSD does not accept -i without argument in a way also acceptable by GNU sed
+	sed -i.tmp -e "s/~VER~/$VERSION/" "$DIST_ROOT/unix/$PV/easyrsa" || die "Cannot update easyrsa version"
+	rm -f "$DIST_ROOT/unix/$PV/easyrsa.tmp"
 
 	# files not included
 	rm -rf "$DIST_ROOT/unix/$PV/doc/TODO" || die "failed rm TODO"
@@ -91,39 +93,28 @@ stage_win() {
 	# make doc dir
 	mkdir -p "$DIST_ROOT/windows/$PV/doc"
 
-	for f in $SRC_ROOT/doc/*.md;
+	for f in doc/*.md README.md README.quickstart.md COPYING.md;
 	do
-		fname=$(basename "$f" .md)
-		sed -i "" -e "s/~~~/$VERSION/" "$SRC_ROOT/$f"
-		python -m markdown "$f" > "$DIST_ROOT/windows/$PV/doc/$fname.html"
+		# FreeBSD does not accept -i without argument in a way also acceptable by GNU sed
+		sed -i.tmp -e "s/~~~/$VERSION/" "$SRC_ROOT/$f" || die "Cannot update easyrsa version"
+		rm -f "$SRC_ROOT/$f.tmp"
+		python -m markdown "$SRC_ROOT/$f" > "$DIST_ROOT/windows/$PV/${f%.md}.html" || die "Failed to convert markdown to HTML"
 	done
 	
-	for f in "README" "README.quickstart" "COPYING"
-	do
-		python -m markdown $SRC_ROOT/$f.md > $DIST_ROOT/windows/$PV/$f.html
-	done
 	# Copy files into $PV, starting with easyrsa3 as the initial root dir
-	src_files="easyrsa3/ ChangeLog COPYING.md"
+	src_files="easyrsa3/. ChangeLog COPYING.md Licensing distro/windows/Licensing distro/windows/bin"
 	for f in $src_files
 	do
-		cp -a "$SRC_ROOT/$f" "$DIST_ROOT/windows/$PV" || die "failed to copy $f"
+		cp -R "$SRC_ROOT/$f" "$DIST_ROOT/windows/$PV/" || die "failed to copy $f"
 	done
 	
-	src_files="Licensing distro/windows/Licensing"
-	for f in $src_files
-	do
-		cp -R "$SRC_ROOT/$f" "$DIST_ROOT/windows/$PV" || die "failed to copy $f"
-	done
 	src_files="README-Windows.txt EasyRSA-Start.bat"
 	for f in $src_files
 	do
-		cp -a "$SRC_ROOT/distro/windows/$f" "$DIST_ROOT/windows/$PV" || die "failed to copy $f"
+		cp -R "$SRC_ROOT/distro/windows/$f" "$DIST_ROOT/windows/$PV/" || die "failed to copy $f"
 		unix2dos "$DIST_ROOT/windows/$PV/$f" || die "unix2dos conversion failed for $f"
 	done
 	
-	# create bin dir with windows binaries
-	cp -v -R "$SRC_ROOT/distro/windows/bin" "$DIST_ROOT/windows/$PV/" || die "failed to copy bin"
-
 	# files not included
 	rm -rf "$DIST_ROOT/windows/$PV/doc/TODO" || die "failed rm TODO"
 
@@ -135,10 +126,14 @@ make_tar() {
 }
 
 make_zip() {
-	(cd "$DIST_ROOT/windows/"; zip -qr "../../$BIN_DEST/${PV}.zip" "$PV") || die "zip failed"
+	(cd "$DIST_ROOT/windows/"; zip -qr "$BIN_DEST/${PV}.zip" "$PV") || die "zip failed"
 	note "zip file created at: $BIN_DEST/${PV}.zip" 
 }
 
+SKIP_WIN=false
+SKIP_UNIX=false
+SKIP_ZIP=false
+SKIP_TAR=false
 # parse CLI options:
 while [ -n "$1" ]
 do
@@ -164,6 +159,18 @@ do
 			;;
 		--dist-clean)
 			DISTCLEAN=1
+			;;
+		--no-windows)
+			SKIP_WIN=true
+			SKIP_ZIP=true
+			;;
+		--no-unix)
+			SKIP_UNIX=true
+			SKIP_TAR=true
+			;;
+		--no-compress)
+			SKIP_ZIP=true
+			SKIP_TAR=true
 			;;
 		help|-h|--help|-help)
 			usage
