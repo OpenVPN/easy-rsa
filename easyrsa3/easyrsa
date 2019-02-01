@@ -1010,9 +1010,17 @@ at: $crt_in"
 		"$EASYRSA_OPENSSL" x509 -in "$crt_in" -noout -enddate |
 		sed 's/^notAfter=//'
 		)
-	expire_date=$(date -d "$expire_date" +%s)
-
-	allow_renew_date=$(date -d "+${EASYRSA_CERT_RENEW}day" +%s)
+        case $(uname) in
+        	"Darwin"|*"BSD")
+                	expire_date=$(date -j -f '%b %d %T %Y %Z' "$expire_date" +%s)
+                	allow_renew_date=$(date -j -v"+${EASYRSA_CERT_RENEW}d" +%s)
+                	;;
+          	*)
+                	# This works on Windows, too, since uname doesn't exist and this is catch-all
+                	expire_date=$(date -d "$expire_date" +%s)
+                	allow_renew_date=$(date -d "+${EASYRSA_CERT_RENEW}day" +%s)
+                	;;
+        esac
 
 	[ "$expire_date" -lt "$allow_renew_date" ] || die "\
 Certificate expires in more than $EASYRSA_CERT_RENEW days.
