@@ -7,6 +7,7 @@ matrix:
     - os: linux
       dist: bionic
       script:
+      env: PATH=/usr/bin:/bin:./:/usr/local/bin
         - openssl version
         - shellcheck --version
         - bash -c 'export SHELLCHECK_OPTS="-S warning -e SC2006"; shopt -s globstar; shellcheck **/*.sh easyrsa3/easyrsa'
