@@ -1,7 +1,8 @@
+language: bash
+sudo: false
+
 matrix:
   allow_failures:
-  language: bash
-  sudo: false
   include:
 
     - os: linux
