@@ -16,5 +16,6 @@ matrix:
     - os: osx
       osx_image: xcode10.1
       script:
+        - openssl version
         - sh op_test.sh -vv
 
