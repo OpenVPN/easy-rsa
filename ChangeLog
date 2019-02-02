@@ -1,6 +1,6 @@
 Easy-RSA 3 ChangeLog
 
-3.0.6 (TBD)
+3.0.6 (2019-02-01)
    * Certifcates that are revoked now move to a revoked subdirectory (#63)
    * EasyRSA no longer clobbers non-EASYRSA environment variables (#277)
    * More sane string checking, allowingn for commas in CN (#267)
