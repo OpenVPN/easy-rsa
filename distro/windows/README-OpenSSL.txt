@@ -1,6 +1,9 @@
 -----------------------------------------------------------------------
-OpenSSL v1.1.1a Win64 for ICS, http://www.overbyte.be
+OpenSSL v1.1.0j Win64 for ICS, http://www.overbyte.be
 -----------------------------------------------------------------------
+
+Compiled libraries and binary downloaded from: 
+	http://wiki.overbyte.eu/arch/openssl-1.1.1a-win64.zip
 
 Built with:
                   Visual Studio Build Tools 2017
