@@ -1010,7 +1010,7 @@ at: $crt_in"
 		"$EASYRSA_OPENSSL" x509 -in "$crt_in" -noout -enddate |
 		sed 's/^notAfter=//'
 		)
-        case $(uname) in
+        case $(uname 2>/dev/null) in
         	"Darwin"|*"BSD")
                 	expire_date=$(date -j -f '%b %d %T %Y %Z' "$expire_date" +%s)
                 	allow_renew_date=$(date -j -v"+${EASYRSA_CERT_RENEW}d" +%s)
