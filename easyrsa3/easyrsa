@@ -383,7 +383,7 @@ verify_ssl_lib () {
 		val="$("$EASYRSA_OPENSSL" version)"
 		case "${val%% *}" in
 			OpenSSL|LibreSSL)
-				notice "\
+				print "\
 Using SSL: $EASYRSA_OPENSSL $("$EASYRSA_OPENSSL" version)" ;;
 			*) die "\
 Missing or invalid OpenSSL
@@ -584,7 +584,7 @@ current CA keypair. If you intended to start a new CA, run init-pki first."
 	fi
 
 	# make safessl-easyrsa.cnf
-	make_ssl_config
+	#make_ssl_config
 
 	# create the CA keypair:
 	[ ! $nopass ] && crypto_opts="-passin file:$out_key_pass_tmp"
@@ -682,7 +682,7 @@ $EASYRSA_EXTRA_EXTS"
 	fi
 
 	# make safessl-easyrsa.cnf
-	make_ssl_config
+	#make_ssl_config
 
 	key_out_tmp="$(mktemp "$key_out.XXXXXXXXXX")"; EASYRSA_TEMP_FILE_2="$key_out_tmp"
 	req_out_tmp="$(mktemp "$req_out.XXXXXXXXXX")"; EASYRSA_TEMP_FILE_3="$req_out_tmp"
@@ -802,7 +802,7 @@ Failed to create temp extension file (bad permissions?) at:
 $EASYRSA_TEMP_EXT"
 
 	# make safessl-easyrsa.cnf
-	make_ssl_config
+	#make_ssl_config
 
 	# sign request
 	# shellcheck disable=SC2086
@@ -893,7 +893,7 @@ Unable to revoke as no certificate was found. Certificate was expected
 at: $crt_in"
 
 	# make safessl-easyrsa.cnf
-	make_ssl_config
+	#make_ssl_config
 
 	# shellcheck disable=SC2086
 	"$EASYRSA_OPENSSL" ca -utf8 -revoke "$crt_in" -config "$EASYRSA_SAFE_CONF" $opts || die "\
@@ -1003,7 +1003,7 @@ Unable to renew as no certificate was found. Certificate was expected
 at: $crt_in"
 
 	# make safessl-easyrsa.cnf
-	make_ssl_config
+	#make_ssl_config
 
 	# Check if old cert is expired or expires within 30 days
 	expire_date=$(
@@ -1138,7 +1138,7 @@ gen_crl() {
 	verify_ca_init
 
 	# make safessl-easyrsa.cnf
-	make_ssl_config
+	#make_ssl_config
 
 	out_file="$EASYRSA_PKI/crl.pem"
 	out_file_tmp="$(mktemp "$out_file.XXXXXXXXXX")"; EASYRSA_TEMP_FILE_2="$out_file_tmp"
