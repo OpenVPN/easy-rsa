@@ -3,8 +3,12 @@ Easy-RSA 3 Windows README
 Easy-RSA 3 runs POSIX shell code, so use on Windows has some additional
 requirements: an OpenSSL installation, and a usable shell environment.
 
-If you don't have OpenSSL, you'll need to install an OpenSSL package (see
-section 1.) The Easy-RSA Windows release includes a ready-to-use shell
+The Windows packages of EasyRSA 3.0.7+ include an OpenSSL binary and 
+libraries that will be used by default.  If you want to use a system binary
+instead, remove the openssl.exe and the lib*.dll files from the bin
+directory.
+
+The Easy-RSA Windows release includes a ready-to-use shell
 environment with special thanks to the mksh/Win32 project.
 
 Contents of this file:
@@ -17,29 +21,7 @@ Contents of this file:
   5. Special Thanks
    5.1: mksh/Win32
 
-1. Obtaining OpenSSL for use with Easy-RSA
-
-   There are a couple of ways to do this:
-   
-  (A) If you are using OpenVPN, the easiest solution is to install the OpenSSL
-  program components and add openvpn to the system PATH; this is offered as an
-  installation option as part of OpenVPN.
-
-  (B) Optionally, install an OpenSSL package, such as from the openssl.org
-  website (see appendix.) In this case it will be required to do one of the
-  following:
-
-    (1) Add the location of openssl.exe to the system PATH
-
-    (2) Define the EASYRSA_OPENSSL env-var to reference the full path to
-    openssl.exe
-
-    (3) Edit the vars file (copy vars.example as a starting point) as instructed
-    in the comments
-
-    NOTE: for options 2 & 3 above, see section 3 below called "Windows Paths"
-
-2. Getting a POSIX shell
+1. Getting a POSIX shell
 
    The binary release of Easy-RSA 3 comes bundled with the mksh/Win32 shell
    environment and a handful of shell utility programs from the unxutils
@@ -66,7 +48,7 @@ Contents of this file:
        Provided this requirement is met, Cygwin can directly run the easyrsa
        script without any special interpreter or startup wrapper.
 
-3. Windows Paths
+2. Windows Paths
 
    The provided mksh/Win32 shell understands Windows paths. However, you MUST
    either:
@@ -83,9 +65,9 @@ Contents of this file:
    section 1 above) but applies to any other paths used in env-vars, the `vars`
    file, or in shell commands such as ls, cd, and so on.
 
-4. Appendix
+3. Appendix
 
- 4.1: Reference Links
+ 3.1: Reference Links
 
    * OpenSSL website:
      https://www.openssl.org
@@ -102,7 +84,7 @@ Contents of this file:
    * UnxUtils project:
      http://sourceforge.net/projects/unxutils
 
- 4.2: License of included components
+ 3.2: License of included components
 
       Text-format copies of these licenses are available in the Licensing/
       directory.
@@ -120,9 +102,9 @@ Contents of this file:
        The full source for this win32 port can be found here:
        http://sourceforge.net/projects/unxutils/
 
-5. Special Thanks
+4. Special Thanks
 
- 5.1: mksh/Win32
+ 4.1: mksh/Win32
 
     A special thanks is in order to the mksh/Win32 project and its primary
     maintainer, Michael Langguth <mksh-w32@gmx.net>. This shell offers featurs
