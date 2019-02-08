@@ -19,7 +19,7 @@ build-dist options:
  --dist-root=X	set DIST_ROOT, default=dist-staging
  --src-root=X	set SRC_ROOT for git src dir, default=.
  --bin-dest=X	set BIN_DEST where to put tar/zip, default=.
- --no-windows	do not build for win32
+ --no-windows	do not build for Windows
  --no-unix	do not build for UNIX
  --no-compress  do not create zip/tar
 
@@ -87,47 +87,52 @@ stage_unix() {
 }
 
 stage_win() {
-	# make our windows stage if it doesn't exist
-	mkdir -p "$DIST_ROOT/windows/$PV"
+	for win in win32 win64;
+	do
+		# make our windows stage if it doesn't exist
+		mkdir -p "$DIST_ROOT/$win/$PV"
 	
-	# make doc dir
-	mkdir -p "$DIST_ROOT/windows/$PV/doc"
+		# make doc dir
+		mkdir -p "$DIST_ROOT/$win/$PV/doc"
 
-	for f in doc/*.md README.md README.quickstart.md COPYING.md;
-	do
-		# FreeBSD does not accept -i without argument in a way also acceptable by GNU sed
-		sed -i.tmp -e "s/~~~/$VERSION/" "$SRC_ROOT/$f" || die "Cannot update easyrsa version"
-		rm -f "$SRC_ROOT/$f.tmp"
-		python -m markdown "$SRC_ROOT/$f" > "$DIST_ROOT/windows/$PV/${f%.md}.html" || die "Failed to convert markdown to HTML"
-	done
+		for f in doc/*.md README.md README.quickstart.md COPYING.md;
+		do
+			# FreeBSD does not accept -i without argument in a way also acceptable by GNU sed
+			sed -i.tmp -e "s/~~~/$VERSION/" "$SRC_ROOT/$f" || die "Cannot update easyrsa version"
+			rm -f "$SRC_ROOT/$f.tmp"
+			python -m markdown "$SRC_ROOT/$f" > "$DIST_ROOT/$win/$PV/${f%.md}.html" || die "Failed to convert markdown to HTML"
+		done
 	
-	# Copy files into $PV, starting with easyrsa3 as the initial root dir
-	src_files="easyrsa3/. ChangeLog COPYING.md Licensing distro/windows/Licensing distro/windows/bin"
-	for f in $src_files
-	do
-		cp -R "$SRC_ROOT/$f" "$DIST_ROOT/windows/$PV/" || die "failed to copy $f"
+		# Copy files into $PV, starting with easyrsa3 as the initial root dir
+		src_files="easyrsa3/. ChangeLog COPYING.md Licensing distro/windows/Licensing distro/windows/bin distro/windows/$win/lib* distro/windows/$win/openssl.exe"
+		for f in $src_files
+		do
+			cp -R "$SRC_ROOT/$f" "$DIST_ROOT/$win/$PV/" || die "failed to copy $f"
+		done
+		
+		src_files="README-Windows.txt EasyRSA-Start.bat"
+		for f in $src_files
+		do
+			cp -R "$SRC_ROOT/distro/windows/$f" "$DIST_ROOT/$win/$PV/" || die "failed to copy $f"
+			unix2dos "$DIST_ROOT/$win/$PV/$f" || die "unix2dos conversion failed for $f"
+		done
+		
+		# files not included
+		rm -rf "$DIST_ROOT/$win/$PV/doc/TODO" || die "failed rm TODO"
 	done
-	
-	src_files="README-Windows.txt EasyRSA-Start.bat"
-	for f in $src_files
-	do
-		cp -R "$SRC_ROOT/distro/windows/$f" "$DIST_ROOT/windows/$PV/" || die "failed to copy $f"
-		unix2dos "$DIST_ROOT/windows/$PV/$f" || die "unix2dos conversion failed for $f"
-	done
-	
-	# files not included
-	rm -rf "$DIST_ROOT/windows/$PV/doc/TODO" || die "failed rm TODO"
-
 }
 
 make_tar() {
-	(cd "$DIST_ROOT/unix/"; tar -czf "$BIN_DEST/${PV}.tgz" "$PV") || die "tar failed"
-	note "tarball created at: $BIN_DEST/${PV}.tgz" 
+	(cd "$DIST_ROOT/unix/"; tar -czf "../${PV}.tgz" "$PV") || die "tar failed"
+	note "tarball created at: $DIST_ROOT/${PV}.tgz" 
 }
 
 make_zip() {
-	(cd "$DIST_ROOT/windows/"; zip -qr "$BIN_DEST/${PV}.zip" "$PV") || die "zip failed"
-	note "zip file created at: $BIN_DEST/${PV}.zip" 
+	for win in win32 win64;
+	do
+		(cd "$DIST_ROOT/$win/"; zip -qr "../${PV}-$win.zip" "$PV") || die "zip failed"
+		note "zip file created at: $DIST_ROOT/${PV}-$win.zip" 
+	done
 }
 
 SKIP_WIN=false
