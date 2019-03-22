@@ -927,9 +927,12 @@ Run easyrsa without commands for usage and command help."
 Unable to move revoked input file. The file is not a valid certificate. Unexpected
 input in file: $crt_in"
 
-	verify_file req "$req_in" || die "\
+	if [ -e "$req_in" ]
+	then
+		verify_file req "$req_in" || die "\
 Unable to move request. The file is not a valid request. Unexpected
 input in file: $req_in"
+	fi
 
 	# get the serial number of the certificate -> serial=XXXX
 	cert_serial="$("$EASYRSA_OPENSSL" x509 -in "$crt_in" -noout -serial)"
@@ -949,7 +952,9 @@ input in file: $req_in"
 
 	# move crt, key and req file to revoked folders
 	mv "$crt_in" "$crt_by_serial_revoked"
-	mv "$req_in" "$req_by_serial_revoked"
+
+	# only move the req if we have it
+	[ -e "$req_in" ] && mv "$req_in" "$req_by_serial_revoked"
 
 	# only move the key if we have it
 	if [ -e "$key_in" ]
@@ -1094,9 +1099,12 @@ Run easyrsa without commands for usage and command help."
 Unable to move renewed input file. The file is not a valid certificate. Unexpected
 input in file: $crt_in"
 
-	verify_file req "$req_in" || die "\
+	if [ -e "$req_in" ]
+	then
+		verify_file req "$req_in" || die "\
 Unable to move request. The file is not a valid request. Unexpected
 input in file: $req_in"
+	fi
 
 	# get the serial number of the certificate -> serial=XXXX
 	cert_serial="$("$EASYRSA_OPENSSL" x509 -in "$crt_in" -noout -serial)"
@@ -1116,7 +1124,9 @@ input in file: $req_in"
 
 	# move crt, key and req file to renewed folders
 	mv "$crt_in" "$crt_by_serial_renewed"
-	mv "$req_in" "$req_by_serial_renewed"
+
+	# only move the req if we have it
+	[ -e "$req_in" ] && mv "$req_in" "$req_by_serial_renewed"
 
 	# only move the key if we have it
 	if [ -e "$key_in" ]
