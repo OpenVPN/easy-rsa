@@ -941,6 +941,11 @@ input in file: $req_in"
 	key_by_serial_revoked="$EASYRSA_PKI/revoked/private_by_serial/$cert_serial.key"
 	req_by_serial_revoked="$EASYRSA_PKI/revoked/reqs_by_serial/$cert_serial.req"
 
+	# make sure revoked dirs exist
+	[ -d "$EASYRSA_PKI/revoked" ] || mkdir "$EASYRSA_PKI/revoked"
+	[ -d "$EASYRSA_PKI/revoked/certs_by_serial" ] || mkdir "$EASYRSA_PKI/revoked/certs_by_serial"
+	[ -d "$EASYRSA_PKI/revoked/private_by_serial" ] || mkdir "$EASYRSA_PKI/revoked/private_by_serial"
+	[ -d "$EASYRSA_PKI/revoked/reqs_by_serial" ] || mkdir "$EASYRSA_PKI/revoked/reqs_by_serial"
 
 	# move crt, key and req file to revoked folders
 	mv "$crt_in" "$crt_by_serial_revoked"
