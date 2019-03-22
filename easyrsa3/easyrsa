@@ -957,10 +957,7 @@ input in file: $req_in"
 	[ -e "$req_in" ] && mv "$req_in" "$req_by_serial_revoked"
 
 	# only move the key if we have it
-	if [ -e "$key_in" ]
-	then
-		mv "$key_in" "$key_by_serial_revoked"
-	fi
+	[ -e "$key_in" ] && mv "$key_in" "$key_by_serial_revoked"
 
 	# move the rest of the files (p12, p7, ...)
 	# shellcheck disable=SC2231
@@ -1129,10 +1126,7 @@ input in file: $req_in"
 	[ -e "$req_in" ] && mv "$req_in" "$req_by_serial_renewed"
 
 	# only move the key if we have it
-	if [ -e "$key_in" ]
-	then
-		mv "$key_in" "$key_by_serial_renewed"
-	fi
+	[ -e "$key_in" ] && mv "$key_in" "$key_by_serial_renewed"
 
 	# move the rest of the files (p12, p7, ...)
 	# shellcheck disable=SC2231
