@@ -1108,6 +1108,11 @@ input in file: $req_in"
 	key_by_serial_renewed="$EASYRSA_PKI/renewed/private_by_serial/$cert_serial.key"
 	req_by_serial_renewed="$EASYRSA_PKI/renewed/reqs_by_serial/$cert_serial.req"
 
+	# make sure renewed dirs exist
+	[ -d "$EASYRSA_PKI/renewed" ] || mkdir "$EASYRSA_PKI/renewed"
+	[ -d "$EASYRSA_PKI/renewed/certs_by_serial" ] || mkdir "$EASYRSA_PKI/renewed/certs_by_serial"
+	[ -d "$EASYRSA_PKI/renewed/private_by_serial" ] || mkdir "$EASYRSA_PKI/renewed/private_by_serial"
+	[ -d "$EASYRSA_PKI/renewed/reqs_by_serial" ] || mkdir "$EASYRSA_PKI/renewed/reqs_by_serial"
 
 	# move crt, key and req file to renewed folders
 	mv "$crt_in" "$crt_by_serial_renewed"
