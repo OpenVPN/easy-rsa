@@ -442,9 +442,7 @@ $help_note"
 	[ "$1" = "test" ] && return 0
 
 	# verify expected CA-specific dirs:
-	for i in issued certs_by_serial \
-		 revoked/certs_by_serial revoked/private_by_serial revoked/reqs_by_serial \
-		 renewed/certs_by_serial renewed/private_by_serial renewed/reqs_by_serial ;
+	for i in issued certs_by_serial
 	do
 		[ -d "$EASYRSA_PKI/$i" ] || die "\
 Missing expected CA dir: $i (perhaps you need to run build-ca?)
