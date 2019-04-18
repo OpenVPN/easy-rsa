@@ -160,6 +160,7 @@ do
 			;;
 		--bin-dest)
 			[ -z "$val" ] && die "empty $cmd not allowed"
+			# shellcheck disable=SC2034
 			BIN_DEST="$val"
 			;;
 		--dist-clean)
