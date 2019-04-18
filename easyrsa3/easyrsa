@@ -442,9 +442,7 @@ $help_note"
 	[ "$1" = "test" ] && return 0
 
 	# verify expected CA-specific dirs:
-	for i in issued certs_by_serial \
-		 revoked/certs_by_serial revoked/private_by_serial revoked/reqs_by_serial \
-		 renewed/certs_by_serial renewed/private_by_serial renewed/reqs_by_serial ;
+	for i in issued certs_by_serial
 	do
 		[ -d "$EASYRSA_PKI/$i" ] || die "\
 Missing expected CA dir: $i (perhaps you need to run build-ca?)
@@ -929,9 +927,12 @@ Run easyrsa without commands for usage and command help."
 Unable to move revoked input file. The file is not a valid certificate. Unexpected
 input in file: $crt_in"
 
-	verify_file req "$req_in" || die "\
+	if [ -e "$req_in" ]
+	then
+		verify_file req "$req_in" || die "\
 Unable to move request. The file is not a valid request. Unexpected
 input in file: $req_in"
+	fi
 
 	# get the serial number of the certificate -> serial=XXXX
 	cert_serial="$("$EASYRSA_OPENSSL" x509 -in "$crt_in" -noout -serial)"
@@ -943,16 +944,20 @@ input in file: $req_in"
 	key_by_serial_revoked="$EASYRSA_PKI/revoked/private_by_serial/$cert_serial.key"
 	req_by_serial_revoked="$EASYRSA_PKI/revoked/reqs_by_serial/$cert_serial.req"
 
+	# make sure revoked dirs exist
+	[ -d "$EASYRSA_PKI/revoked" ] || mkdir "$EASYRSA_PKI/revoked"
+	[ -d "$EASYRSA_PKI/revoked/certs_by_serial" ] || mkdir "$EASYRSA_PKI/revoked/certs_by_serial"
+	[ -d "$EASYRSA_PKI/revoked/private_by_serial" ] || mkdir "$EASYRSA_PKI/revoked/private_by_serial"
+	[ -d "$EASYRSA_PKI/revoked/reqs_by_serial" ] || mkdir "$EASYRSA_PKI/revoked/reqs_by_serial"
 
 	# move crt, key and req file to revoked folders
 	mv "$crt_in" "$crt_by_serial_revoked"
-	mv "$req_in" "$req_by_serial_revoked"
+
+	# only move the req if we have it
+	[ -e "$req_in" ] && mv "$req_in" "$req_by_serial_revoked"
 
 	# only move the key if we have it
-	if [ -e "$key_in" ]
-	then
-		mv "$key_in" "$key_by_serial_revoked"
-	fi
+	[ -e "$key_in" ] && mv "$key_in" "$key_by_serial_revoked"
 
 	# move the rest of the files (p12, p7, ...)
 	# shellcheck disable=SC2231
@@ -1091,9 +1096,12 @@ Run easyrsa without commands for usage and command help."
 Unable to move renewed input file. The file is not a valid certificate. Unexpected
 input in file: $crt_in"
 
-	verify_file req "$req_in" || die "\
+	if [ -e "$req_in" ]
+	then
+		verify_file req "$req_in" || die "\
 Unable to move request. The file is not a valid request. Unexpected
 input in file: $req_in"
+	fi
 
 	# get the serial number of the certificate -> serial=XXXX
 	cert_serial="$("$EASYRSA_OPENSSL" x509 -in "$crt_in" -noout -serial)"
@@ -1105,16 +1113,20 @@ input in file: $req_in"
 	key_by_serial_renewed="$EASYRSA_PKI/renewed/private_by_serial/$cert_serial.key"
 	req_by_serial_renewed="$EASYRSA_PKI/renewed/reqs_by_serial/$cert_serial.req"
 
+	# make sure renewed dirs exist
+	[ -d "$EASYRSA_PKI/renewed" ] || mkdir "$EASYRSA_PKI/renewed"
+	[ -d "$EASYRSA_PKI/renewed/certs_by_serial" ] || mkdir "$EASYRSA_PKI/renewed/certs_by_serial"
+	[ -d "$EASYRSA_PKI/renewed/private_by_serial" ] || mkdir "$EASYRSA_PKI/renewed/private_by_serial"
+	[ -d "$EASYRSA_PKI/renewed/reqs_by_serial" ] || mkdir "$EASYRSA_PKI/renewed/reqs_by_serial"
 
 	# move crt, key and req file to renewed folders
 	mv "$crt_in" "$crt_by_serial_renewed"
-	mv "$req_in" "$req_by_serial_renewed"
+
+	# only move the req if we have it
+	[ -e "$req_in" ] && mv "$req_in" "$req_by_serial_renewed"
 
 	# only move the key if we have it
-	if [ -e "$key_in" ]
-	then
-		mv "$key_in" "$key_by_serial_renewed"
-	fi
+	[ -e "$key_in" ] && mv "$key_in" "$key_by_serial_renewed"
 
 	# move the rest of the files (p12, p7, ...)
 	# shellcheck disable=SC2231
