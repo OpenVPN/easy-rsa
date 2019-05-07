@@ -839,7 +839,10 @@ Matching file found at: "
 	gen_req "$name" batch $req_opts
 
 	# Sign it
-	sign_req "$crt_type" "$name" batch
+	( sign_req "$crt_type" "$name" batch ) || {
+		rm -f "$req_out" "$key_out"
+		die "Failed to sign '$name'"
+	}
 
 } # => build_full()
 
