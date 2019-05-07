@@ -209,6 +209,8 @@ non-empty values to options are mandatory.
 General options:
 
 --batch         : set automatic (no-prompts when possible) mode
+--passin=ARG    : set -passin ARG for openssl
+--passout=ARG   : set -passout ARG for openssl
 --pki-dir=DIR   : declares the PKI directory
 --vars=FILE     : define a specific 'vars' file to use for Easy-RSA config
 
@@ -523,7 +525,6 @@ build_ca() {
 	sub_ca=""
 	nopass=""
 	crypto="-aes256"
-	crypto_opts=""
 	while [ -n "$1" ]; do
 		case "$1" in
 			subca) sub_ca=1 ;;
@@ -578,7 +579,7 @@ current CA keypair. If you intended to start a new CA, run init-pki first."
 	out_key_tmp="$(easyrsa_mktemp)"
 	out_file_tmp="$(easyrsa_mktemp)"
 	# Get password from user if necessary
-	if [ ! $nopass ]; then
+	if [ ! $nopass ] && ( [ -z "$EASYRSA_PASSOUT" ] || [ -z "$EASYRSA_PASSIN" ] ); then
 		out_key_pass_tmp="$(easyrsa_mktemp)"
 		echo
 		printf "Enter New CA Key Passphrase: "
@@ -597,21 +598,29 @@ current CA keypair. If you intended to start a new CA, run init-pki first."
 	fi
 
 	# create the CA key using AES256
-	[ ! $nopass ] && crypto_opts="$crypto -passout file:$out_key_pass_tmp"
+	crypto_opts=""
+	if [ ! $nopass ]; then
+		crypto_opts="$crypto"
+		[ -z "$EASYRSA_PASSOUT" ] && crypto_opts="$crypto_opts -passout file:$out_key_pass_tmp"
+	fi
 	if [ "$EASYRSA_ALGO" = "rsa" ]; then
 		#shellcheck disable=SC2086
-		"$EASYRSA_OPENSSL" genrsa -out "$out_key_tmp" $crypto_opts "$EASYRSA_ALGO_PARAMS"
+		"$EASYRSA_OPENSSL" genrsa -out "$out_key_tmp" $crypto_opts ${EASYRSA_PASSOUT:+-passout "$EASYRSA_PASSOUT"} "$EASYRSA_ALGO_PARAMS" || \
+			die "Failed create CA private key"
 	elif [ "$EASYRSA_ALGO" = "ec" ]; then
 		#shellcheck disable=SC2086
 		"$EASYRSA_OPENSSL" ecparam -in "$EASYRSA_ALGO_PARAMS" -genkey | \
-			"$EASYRSA_OPENSSL" ec -out "$out_key_tmp" $crypto_opts
+			"$EASYRSA_OPENSSL" ec -out "$out_key_tmp" $crypto_opts ${EASYRSA_PASSOUT:+-passout "$EASYRSA_PASSOUT"} || \
+			die "Failed create CA private key"
 	fi
 
 	# create the CA keypair:
-	[ ! $nopass ] && crypto_opts="-passin file:$out_key_pass_tmp"
+	crypto_opts=""
+	[ ! $nopass ] && [ -z "$EASYRSA_PASSIN" ] && crypto_opts="-passin file:$out_key_pass_tmp"
+
 	#shellcheck disable=SC2086
 	easyrsa_openssl req -utf8 -new -key "$out_key_tmp" \
-		-keyout "$out_key_tmp" -out "$out_file_tmp" $crypto_opts $opts || \
+		-keyout "$out_key_tmp" -out "$out_file_tmp" $crypto_opts $opts ${EASYRSA_PASSIN:+-passin "$EASYRSA_PASSIN"} || \
 		die "Failed to build the CA"
 
 	mv "$out_key_tmp" "$out_key"
@@ -709,7 +718,7 @@ $EASYRSA_EXTRA_EXTS"
 	[ $EASYRSA_BATCH ] && opts="$opts -batch"
 	# shellcheck disable=2086,2148
 	easyrsa_openssl req -utf8 -new -newkey "$EASYRSA_ALGO":"$EASYRSA_ALGO_PARAMS" \
-		-keyout "$key_out_tmp" -out "$req_out_tmp" $opts \
+		-keyout "$key_out_tmp" -out "$req_out_tmp" $opts ${EASYRSA_PASSOUT:+-passout "$EASYRSA_PASSOUT"} \
 		|| die "Failed to generate request"
 	mv "$key_out_tmp" "$key_out"
 	mv "$req_out_tmp" "$req_out"
@@ -824,7 +833,7 @@ $ext_tmp"
 	# sign request
 	crt_out_tmp="$(easyrsa_mktemp)"
 	easyrsa_openssl ca -utf8 -in "$req_in" -out "$crt_out_tmp" \
-		-extfile "$ext_tmp" -days "$EASYRSA_CERT_EXPIRE" -batch $opts \
+		-extfile "$ext_tmp" -days "$EASYRSA_CERT_EXPIRE" -batch $opts ${EASYRSA_PASSIN:+-passin "$EASYRSA_PASSIN"} \
 		|| die "signing failed (openssl output above may have more detail)"
 	mv "$crt_out_tmp" "$crt_out"
 	rm -f "$ext_tmp"
@@ -913,7 +922,7 @@ Unable to revoke as no certificate was found. Certificate was expected
 at: $crt_in"
 
 	# shellcheck disable=SC2086
-	easyrsa_openssl ca -utf8 -revoke "$crt_in" $opts || die "\
+	easyrsa_openssl ca -utf8 -revoke "$crt_in" ${EASYRSA_PASSIN:+-passin "$EASYRSA_PASSIN"} $opts || die "\
 Failed to revoke certificate: revocation command failed."
 
 	# move revoked files so we can reissue certificates with the same name
@@ -1167,7 +1176,7 @@ gen_crl() {
 
 	out_file="$EASYRSA_PKI/crl.pem"
 	out_file_tmp="$(easyrsa_mktemp)"
-	easyrsa_openssl ca -utf8 -gencrl -out "$out_file_tmp" || die "\
+	easyrsa_openssl ca -utf8 -gencrl -out "$out_file_tmp" ${EASYRSA_PASSIN:+-passin "$EASYRSA_PASSIN"} || die "\
 CRL Generation failed.
 "
 	mv "$out_file_tmp" "$out_file"
@@ -1269,7 +1278,7 @@ Missing key expected at: $key_in"
 		# export the p12:
 		# shellcheck disable=SC2086
 		easyrsa_openssl pkcs12 -in "$crt_in" -inkey "$key_in" -export \
-			-out "$pkcs_out" $pkcs_opts || die "\
+			-out "$pkcs_out" $pkcs_opts ${EASYRSA_PASSIN:+-passin "$EASYRSA_PASSIN"} ${EASYRSA_PASSOUT:+-passout "$EASYRSA_PASSOUT"} || die "\
 Export of p12 failed: see above for related openssl errors."
 	;;
 	p7)
@@ -1278,7 +1287,7 @@ Export of p12 failed: see above for related openssl errors."
 		# export the p7:
 		# shellcheck disable=SC2086
 		easyrsa_openssl crl2pkcs7 -nocrl -certfile "$crt_in" \
-			-out "$pkcs_out" $pkcs_opts || die "\
+			-out "$pkcs_out" $pkcs_opts ${EASYRSA_PASSIN:+-passin "$EASYRSA_PASSIN"} ${EASYRSA_PASSOUT:+-passout "$EASYRSA_PASSOUT"} || die "\
 Export of p7 failed: see above for related openssl errors."
 	;;
 esac
@@ -1325,7 +1334,7 @@ If the key is currently encrypted you must supply the decryption passphrase.
 ${crypto:+You will then enter a new PEM passphrase for this key.$NL}"
 
 	out_key_tmp="$(easyrsa_mktemp)"
-	easyrsa_openssl "$key_type" -in "$file" -out "$out_key_tmp" $crypto || die "\
+	easyrsa_openssl "$key_type" -in "$file" -out "$out_key_tmp" $crypto ${EASYRSA_PASSIN:+-passin "$EASYRSA_PASSIN"} ${EASYRSA_PASSOUT:+-passout "$EASYRSA_PASSOUT"} || die "\
 Failed to change the private key passphrase. See above for possible openssl
 error messages."
 
@@ -1574,6 +1583,10 @@ NL='
 # Be secure with a restrictive umask
 [ -z "$EASYRSA_NO_UMASK" ] && umask 077
 
+# Ignore some env vars
+EASYRSA_PASSIN=
+EASYRSA_PASSOUT=
+
 # Parse options
 while :; do
 	# Separate option from value:
@@ -1627,6 +1640,10 @@ while :; do
 	--batch)
 		empty_ok=1
 		export EASYRSA_BATCH=1 ;;
+	--passin)
+		export EASYRSA_PASSIN="$val";;
+	--passout)
+		export EASYRSA_PASSOUT="$val";;
 	--subca-len)
 		export EASYRSA_SUBCA_LEN="$val" ;;
 	--vars)
