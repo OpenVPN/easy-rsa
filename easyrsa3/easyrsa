@@ -1439,7 +1439,11 @@ vars_setup() {
 	vars=
 
 	# set up program path
-	prog_vars="${0%/*}/vars"
+	prog_file="$0"
+	prog_file2="$(which -- "$prog_file" 2>/dev/null)" && prog_file="$prog_file2"
+	prog_file2="$(readlink -f "$prog_file" 2>/dev/null)" && prog_file="$prog_file2"
+	prog_dir="${prog_file%/*}"
+	prog_vars="${prog_dir}/vars"
 	# set up PKI path
 	pki_vars="${EASYRSA_PKI:-$PWD/pki}/vars"
 
@@ -1469,7 +1473,7 @@ Note: using Easy-RSA configuration from: $vars"
 	fi
 	
 	# Set defaults, preferring existing env-vars if present
-	set_var EASYRSA		"${0%/*}"
+	set_var EASYRSA		"$prog_dir"
 	set_var EASYRSA_OPENSSL	openssl
 	set_var EASYRSA_PKI	"$PWD/pki"
 	set_var EASYRSA_DN	cn_only
