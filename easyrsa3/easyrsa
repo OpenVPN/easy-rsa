@@ -1,4 +1,5 @@
 #!/bin/sh
+# -*- mode: sh; mode: follow -*-
 
 # Easy-RSA 3 -- A Shell-based CA Utility
 #
@@ -40,6 +41,7 @@ Here is the list of commands available with a short syntax reminder. Use the
   update-db
   show-req <filename_base> [ cmd-opts ]
   show-cert <filename_base> [ cmd-opts ]
+  show-cert-revokation <filename_base> [ cmd-opts ]
   show-ca [ cmd-opts ]
   import-req <request_file_path> <short_basename>
   export-p7 <filename_base> [ cmd-opts ]
@@ -125,10 +127,11 @@ cmd_help() {
 
       This command will use the system time to update the status of issued
       certificates." ;;
-      		show-req|show-cert) text="
+      		show-req|show-cert|show-cert-revokation) text="
   show-req  <filename_base> [ cmd-opts ]
   show-cert <filename_base> [ cmd-opts ]
-      Shows details of the req or cert referenced by filename_base
+  show-cert-revokation <filename_base> [ cmd-opts ]
+      Shows details of the req or cert or cert revokation referenced by filename_base
 
       Human-readable output is shown, including any requested cert options when
       showing a request."
@@ -1185,6 +1188,12 @@ CRL Generation failed.
 An updated CRL has been created.
 CRL file: $out_file
 "
+	cat $EASYRSA_PKI/ca.crt $EASYRSA_PKI/crl.pem > $EASYRSA_PKI/ca+crl.pem
+	notice "\
+An updated CA+CRL has been created.
+CA+CRL file: $EASYRSA_PKI/ca+crl.pem
+"
+
 	return 0
 } # => gen_crl()
 
@@ -1415,6 +1424,17 @@ Run easyrsa without commands for usage help."
 		verify_ca_init
 		in_file="$EASYRSA_PKI/issued/${name}.crt"
 		format="x509"
+ 	elif [ "$type" = "cert-revokation" ]; then
+	    local crl="$EASYRSA_PKI/ca+crl.pem"
+	    [ -e "$crl" ] || die "\
+Missing expected CRL file."
+	    
+ 		verify_ca_init
+ 		in_file="$EASYRSA_PKI/issued/${name}.crt"
+ 		cat $EASYRSA_PKI/ca.crt $EASYRSA_PKI/crl.pem > $EASYRSA_PKI/ca+crl.pem
+ 		format="verify -crl_check -CAfile $EASYRSA_PKI/ca+crl.pem"
+		"$EASYRSA_OPENSSL" $format $in_file
+		exit 0
 	else
 		verify_pki_init
 		in_file="$EASYRSA_PKI/reqs/${name}.req"
@@ -1739,7 +1759,10 @@ case "$cmd" in
 		show req "$@"
 		;;
 	show-cert)
-		show cert "$@"
+	    show cert "$@"
+	    ;;
+	show-cert-revokation)
+		show cert-revokation "$@"
 		;;
 	show-ca)
 		show_ca "$@"
