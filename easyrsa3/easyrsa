@@ -1425,14 +1425,13 @@ Run easyrsa without commands for usage help."
 		in_file="$EASYRSA_PKI/issued/${name}.crt"
 		format="x509"
  	elif [ "$type" = "cert-revokation" ]; then
-	    local crl="$EASYRSA_PKI/ca+crl.pem"
-	    [ -e "$crl" ] || die "\
-Missing expected CRL file."
+	        crl="$EASYRSA_PKI/ca+crl.pem"
+	        [ -e "$crl" ] || die "\
+Missing expected CRL file: $crl"
 	    
  		verify_ca_init
  		in_file="$EASYRSA_PKI/issued/${name}.crt"
- 		cat $EASYRSA_PKI/ca.crt $EASYRSA_PKI/crl.pem > $EASYRSA_PKI/ca+crl.pem
- 		format="verify -crl_check -CAfile $EASYRSA_PKI/ca+crl.pem"
+ 		format="verify -crl_check -CAfile $crl"
 		"$EASYRSA_OPENSSL" $format $in_file
 		exit 0
 	else
