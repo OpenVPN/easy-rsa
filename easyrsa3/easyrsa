@@ -1494,7 +1494,11 @@ vars_setup() {
 	pki_vars="${EASYRSA_PKI:-$PWD/pki}/vars"
 
 	# command-line path:
-	if [ -f "$EASYRSA_VARS_FILE" ]; then
+	if [ ! -z "$EASYRSA_VARS_FILE" ]; then
+	  if [ ! -f "$EASYRSA_VARS_FILE" ]; then
+		  # If the --vars option does not point to a file, show helpful error.
+			die "The file '$EASYRSA_VARS_FILE' was not found."
+		fi
 		vars="$EASYRSA_VARS_FILE"
 	# PKI location, if present:
 	elif [ -f "$pki_vars" ]; then
