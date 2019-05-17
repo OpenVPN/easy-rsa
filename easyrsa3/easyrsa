@@ -73,7 +73,8 @@ cmd_help() {
       Creates a new CA"
       			opts="
         nopass  - do not encrypt the CA key (default is encrypted)
-        subca   - create a sub-CA keypair and request (default is a root CA)" ;;
+        subca   - create an intermediate CA keypair and request (default is a root CA)
+        intca   - alias to the above" ;;
 		gen-dh) text="
   gen-dh
       Generates DH (Diffie-Hellman) parameters" ;;
@@ -221,7 +222,7 @@ Certificate & Request options: (these impact cert/req field values)
 --dn-mode=MODE  : DN mode to use (cn_only or org)
 --keysize=#     : size in bits of keypair to generate
 --req-cn=NAME   : default CN to use
---subca-len=#   : path length of signed sub-CA certs; must be >= 0 if used
+--subca-len=#   : path length of signed intermediate CA certs; must be >= 0 if used
 --subject-alt-name : Add a subjectAltName. For more info and syntax, see:
                      ./easyrsa help altname
 --use-algo=ALG  : crypto alg to use: choose rsa (default) or ec
@@ -527,6 +528,7 @@ build_ca() {
 	crypto="-aes256"
 	while [ -n "$1" ]; do
 		case "$1" in
+			intca) sub_ca=1 ;;
 			subca) sub_ca=1 ;;
 			nopass) nopass=1 ;;
 			*) warn "Ignoring unknown command option: '$1'" ;;
@@ -537,7 +539,7 @@ build_ca() {
 	verify_pki_init
 	[ "$EASYRSA_ALGO" = "ec" ] && verify_curve
 
-	# setup for the simpler sub-CA situation and overwrite with root-CA if needed:
+	# setup for the simpler intermediate CA situation and overwrite with root-CA if needed:
 	out_file="$EASYRSA_PKI/reqs/ca.req"
 	out_key="$EASYRSA_PKI/private/ca.key"
 	if [ ! $sub_ca ]; then
@@ -551,7 +553,7 @@ build_ca() {
 Unable to create a CA as you already seem to have one set up.
 If you intended to start a new CA, run init-pki first."
 	fi
-	# If a private key exists here, a sub-ca was created but not signed.
+	# If a private key exists here, a intermediate ca was created but not signed.
 	# Notify the user and require a signed ca.crt or a init-pki:
 	[ -f "$out_key" ] && \
 		die "\
@@ -630,7 +632,7 @@ current CA keypair. If you intended to start a new CA, run init-pki first."
 	# Success messages
 	if [ $sub_ca ]; then
 		notice "\
-NOTE: Your sub-CA request is at $out_file
+NOTE: Your intermediate CA request is at $out_file
 and now must be sent to your parent CA for signing. Place your resulting cert
 at $EASYRSA_PKI/ca.crt prior to signing operations.
 "
