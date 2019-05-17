@@ -137,6 +137,11 @@ fi
 
 #set_var EASYRSA_CRL_DAYS	180
 
+# Random serial numbers by default, set to no for the old incremental serial numbers
+#
+#set_var EASYRSA_RAND_SN	"yes"
+
+
 # Support deprecated "Netscape" extensions? (choices "yes" or "no".) The default
 # is "no" to discourage use of deprecated extensions. If you require this
 # feature to use with --ns-cert-type, set this to "yes" here. This support
