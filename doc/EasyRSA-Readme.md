@@ -193,6 +193,8 @@ Using Easy-RSA as a CA
   * server - A TLS server, suitable for a VPN or web server
   * ca - A subordinate CA, used when chaining multiple CAs together
 
+    ./easyrsa sign-req <type> nameOfRequest
+
   Additional types of certs may be defined by local sites as needed; see the
   advanced documentation for details.
 
