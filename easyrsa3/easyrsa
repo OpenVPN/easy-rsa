@@ -311,7 +311,18 @@ easyrsa_mktemp() {
 	[ -n "$EASYRSA_TEMP_DIR_session" ] || die "EASYRSA_TEMP_DIR_session not initialized!"
 	[ -d "$EASYRSA_TEMP_DIR_session" ] || mkdir -p "$EASYRSA_TEMP_DIR_session" ||
 	       die "Could not create temporary directory '$EASYRSA_TEMP_DIR_session'. Permission or concurrency problem?"
-	mktemp "$EASYRSA_TEMP_DIR_session/tmp.XXXXXX"
+	[ -d "$EASYRSA_TEMP_DIR_session" ] || die "Temporary directory '$EASYRSA_TEMP_DIR_session' does not exist"
+
+	template="$EASYRSA_TEMP_DIR_session/tmp.XXXXXX"
+	tempfile=$(mktemp "$template") || return
+
+	# win32 mktemp shipped by easyrsa returns template as file!
+	if [ "$template" = "$tempfile" ]; then
+		# but win32 mktemp -d does work
+		tempfile=$(mktemp -du "$tempfile") || return
+		printf "" > "$tempfile" || return
+	fi
+	echo "$tempfile"
 } # => easyrsa_mktemp
 
 # remove temp files and do terminal cleanups
