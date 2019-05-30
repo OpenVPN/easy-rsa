@@ -334,10 +334,10 @@ easyrsa_openssl() {
 		return
 	fi
 
-	easyrsa_openssl_conf=$(easyrsa_mktemp)
+	easyrsa_openssl_conf=$(easyrsa_mktemp) || die "Failed to create temporary file"
 	easyrsa_extra_exts=
 	if [ -n "$EASYRSA_EXTRA_EXTS" ]; then
-		easyrsa_extra_exts=$(easyrsa_mktemp)
+		easyrsa_extra_exts=$(easyrsa_mktemp) || die "Failed to create temporary file"
 		cat >"$easyrsa_extra_exts" <<-EOF
 			req_extensions = req_extra
 			[ req_extra ]
@@ -576,11 +576,11 @@ current CA keypair. If you intended to start a new CA, run init-pki first."
 	# shellcheck disable=SC2015
 	[ "$EASYRSA_BATCH" ] && opts="$opts -batch" || export EASYRSA_REQ_CN="Easy-RSA CA"
 
-	out_key_tmp="$(easyrsa_mktemp)"
-	out_file_tmp="$(easyrsa_mktemp)"
+	out_key_tmp="$(easyrsa_mktemp)" || die "Failed to create temporary file"
+	out_file_tmp="$(easyrsa_mktemp)" || die "Failed to create temporary file"
 	# Get password from user if necessary
 	if [ ! $nopass ] && ( [ -z "$EASYRSA_PASSOUT" ] || [ -z "$EASYRSA_PASSIN" ] ); then
-		out_key_pass_tmp="$(easyrsa_mktemp)"
+		out_key_pass_tmp="$(easyrsa_mktemp)" || die "Failed to create temporary file"
 		echo
 		printf "Enter New CA Key Passphrase: "
 		hide_read_pass kpass
@@ -703,7 +703,7 @@ $EASYRSA_EXTRA_EXTS"
 	{ while ( getline<"/dev/stdin" ) {print} next }
  {print}
 }'
-		conf_tmp="$(easyrsa_mktemp)"
+		conf_tmp="$(easyrsa_mktemp)" || die "Failed to create temporary file"
 		print "$extra_exts" | \
 			awk "$awkscript" "$EASYRSA_SSL_CONF" \
 			> "$conf_tmp" \
@@ -712,8 +712,8 @@ $EASYRSA_EXTRA_EXTS"
 		EASYRSA_SSL_CONF="$conf_tmp"
 	fi
 
-	key_out_tmp="$(easyrsa_mktemp)"
-	req_out_tmp="$(easyrsa_mktemp)"
+	key_out_tmp="$(easyrsa_mktemp)" || die "Failed to create temporary file"
+	req_out_tmp="$(easyrsa_mktemp)" || die "Failed to create temporary file"
 	# generate request
 	[ $EASYRSA_BATCH ] && opts="$opts -batch"
 	# shellcheck disable=2086,2148
@@ -792,7 +792,7 @@ $(display_dn req "$req_in")
 "	# => confirm end
 
 	# Generate the extensions file for this cert:
-	ext_tmp="$(easyrsa_mktemp)"
+	ext_tmp="$(easyrsa_mktemp)" || die "Failed to create temporary file"
 	{
 		# Append first any COMMON file (if present) then the cert-type extensions
 		cat "$EASYRSA_EXT_DIR/COMMON"
@@ -834,7 +834,7 @@ Failed to create temp extension file (bad permissions?) at:
 $ext_tmp"
 
 	# sign request
-	crt_out_tmp="$(easyrsa_mktemp)"
+	crt_out_tmp="$(easyrsa_mktemp)" || die "Failed to create temporary file"
 	easyrsa_openssl ca -utf8 -in "$req_in" -out "$crt_out_tmp" \
 		-extfile "$ext_tmp" -days "$EASYRSA_CERT_EXPIRE" -batch $opts ${EASYRSA_PASSIN:+-passin "$EASYRSA_PASSIN"} \
 		|| die "signing failed (openssl output above may have more detail)"
@@ -1178,7 +1178,7 @@ gen_crl() {
 	verify_ca_init
 
 	out_file="$EASYRSA_PKI/crl.pem"
-	out_file_tmp="$(easyrsa_mktemp)"
+	out_file_tmp="$(easyrsa_mktemp)" || die "Failed to create temporary file"
 	easyrsa_openssl ca -utf8 -gencrl -out "$out_file_tmp" ${EASYRSA_PASSIN:+-passin "$EASYRSA_PASSIN"} || die "\
 CRL Generation failed.
 "
@@ -1336,7 +1336,7 @@ $file"
 If the key is currently encrypted you must supply the decryption passphrase.
 ${crypto:+You will then enter a new PEM passphrase for this key.$NL}"
 
-	out_key_tmp="$(easyrsa_mktemp)"
+	out_key_tmp="$(easyrsa_mktemp)" || die "Failed to create temporary file"
 	easyrsa_openssl "$key_type" -in "$file" -out "$out_key_tmp" $crypto ${EASYRSA_PASSIN:+-passin "$EASYRSA_PASSIN"} ${EASYRSA_PASSOUT:+-passout "$EASYRSA_PASSOUT"} || die "\
 Failed to change the private key passphrase. See above for possible openssl
 error messages."
