@@ -579,7 +579,7 @@ current CA keypair. If you intended to start a new CA, run init-pki first."
 	out_key_tmp="$(easyrsa_mktemp)"
 	out_file_tmp="$(easyrsa_mktemp)"
 	# Get password from user if necessary
-	if [ ! $nopass ] && ( [ -z "$EASYRSA_PASSOUT" ] || [ -z "$EASYRSA_PASSIN" ] ); then
+	if [ ! $nopass ] && { [ -z "$EASYRSA_PASSOUT" ] || [ -z "$EASYRSA_PASSIN" ]; }; then
 		out_key_pass_tmp="$(easyrsa_mktemp)"
 		echo
 		printf "Enter New CA Key Passphrase: "
@@ -1489,7 +1489,7 @@ vars_setup() {
 
 	# set up program path
 	prog_file="$0"
-	prog_file2="$(which -- "$prog_file" 2>/dev/null)" && prog_file="$prog_file2"
+	prog_file2="$(command -v "$prog_file" 2>/dev/null)" && prog_file="$prog_file2"
 	prog_file2="$(readlink -f "$prog_file" 2>/dev/null)" && prog_file="$prog_file2"
 	prog_dir="${prog_file%/*}"
 	prog_vars="${prog_dir}/vars"
