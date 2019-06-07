@@ -24,7 +24,7 @@ Easy-RSA 3 ChangeLog
    * Also, don't use read -s, use stty -echo
    * Fix broken "nopass" option
    * Add -r to read to stop errors reported by shellcheck (and to behave)
-   * remove overzealous quotes around $pkcs_opts (more SC errors)
+   * Remove overzealous quotes around $pkcs_opts (more SC errors)
    * Support for LibreSSL
    * EasyRSA version will be reported in certificate comments
    * Client certificates now expire in 3 year (1080 days) by default
@@ -36,7 +36,7 @@ Easy-RSA 3 ChangeLog
         * Other changes related to Travis-CI fixes
 	* Assign values to variables defined previously w/local
     * Finally(?) fix the subjectAltName issues I presented earlier (really
-    fixes #168 
+      fixes #168)
 
 3.0.3 (2017-08-22)
     * Include mktemp windows binary
@@ -44,11 +44,11 @@ Easy-RSA 3 ChangeLog
 
 
 3.0.2 (2017-08-21)
-    * add missing windows binaries
+    * Add missing windows binaries
 
 
 3.0.1 (2015-10-25)
-    * correct some packaging errors
+    * Correct some packaging errors
 
 
 3.0.0 (2015-09-07)
