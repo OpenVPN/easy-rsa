@@ -161,6 +161,11 @@ verb_off ()
 	ERSA_OUT=0
 }
 
+wait_sec ()
+{
+	( sleep 4 2>/dev/null ) || { ( ping -n 1 127.0.0.1 2>/dev/null ) && ping -n 3 127.0.0.1; }
+}
+
 setup ()
 {
 	newline 1
@@ -466,7 +471,7 @@ create_pki ()
 	REQ_name="s01"
 	build_full
 	show_cert
-	sleep 3
+	wait_sec
 	renew_cert
 	show_cert
 	revoke_cert
@@ -487,7 +492,7 @@ create_pki ()
 	REQ_name="c01"
 	build_full
 	show_cert
-	sleep 3
+	wait_sec
 	renew_cert
 	show_cert
 	revoke_cert
