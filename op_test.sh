@@ -163,7 +163,8 @@ verb_off ()
 
 wait_sec ()
 {
-	( sleep 4 2>/dev/null ) || { ( ping -n 1 127.0.0.1 2>/dev/null ) && ping -n 3 127.0.0.1; }
+	delay=${1:-3}
+	( sleep $delay 2>/dev/null ) || { ( ping -n 1 127.0.0.1 2>/dev/null ) && ping -n $delay 127.0.0.1; }
 }
 
 setup ()
@@ -370,7 +371,7 @@ build_full ()
 build_san_full ()
 {
 	newline 1
-	STEP_NAME="--subject-alt-name=IP:0.0.0.0 build-server-full $REQ_name nopass"
+	STEP_NAME="--subject-alt-name=DNS:www.example.org,IP:0.0.0.0 build-server-full $REQ_name nopass"
 	action
 	secure_key
 }
@@ -479,6 +480,9 @@ create_pki ()
 	REQ_type="server"
 	REQ_name="s02"
 	build_san_full
+	show_cert
+	wait_sec
+	renew_cert
 	show_cert
 	revoke_cert
 
