@@ -472,7 +472,7 @@ create_pki ()
 	REQ_name="s01"
 	build_full
 	show_cert
-	wait_sec
+	wait_sec 3
 	renew_cert
 	show_cert
 	revoke_cert
@@ -481,7 +481,7 @@ create_pki ()
 	REQ_name="s02"
 	build_san_full
 	show_cert
-	wait_sec
+	wait_sec 3
 	renew_cert
 	show_cert
 	revoke_cert
@@ -496,7 +496,7 @@ create_pki ()
 	REQ_name="c01"
 	build_full
 	show_cert
-	wait_sec
+	wait_sec 3
 	renew_cert
 	show_cert
 	revoke_cert
