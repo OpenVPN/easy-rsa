@@ -317,7 +317,7 @@ easyrsa_mktemp() {
 # remove temp files and do terminal cleanups
 cleanup() {
 	[ -z "$EASYRSA_TEMP_DIR_session" ] || rm -rf "$EASYRSA_TEMP_DIR_session"
-	(stty echo 2>/dev/null) || set -o echo
+	(stty echo 2>/dev/null) || { (set -o echo 2>/dev/null) && set -o echo; }
 	echo "" # just to get a clean line
 } # => cleanup()
 
@@ -514,9 +514,20 @@ Your newly created PKI dir is: $EASYRSA_PKI
 
 hide_read_pass()
 {
-	(stty -echo 2>/dev/null) || set +o echo
-	read -r "$@"
-	(stty echo 2>/dev/null) || set -o echo
+	# shellcheck disable=SC2039
+	if stty -echo 2>/dev/null; then
+		read -r "$@"
+		stty echo
+	elif (set +o echo 2>/dev/null); then
+		set +o echo
+		read -r "$@"
+		set -o echo
+	elif (echo | read -r -s 2>/dev/null) ; then
+		read -r -s "$@"
+	else
+		warn "Could not disable echo. Password will be shown on screen!"
+		read -r "$@"
+	fi
 } # => hide_read_pass()
 
 # build-ca backend:
