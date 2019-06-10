@@ -57,6 +57,7 @@ init ()
 	CUSTOM_VARS="${CUSTOM_VARS:-1}"
 	UNSIGNED_PKI="${UNSIGNED_PKI:-1}"
 	SYS_SSL_ENABLE="${SYS_SSL_ENABLE:-1}"
+	SYS_SSL_LIBB="openssl"
 	BROKEN_PKI="${BROKEN_PKI:-0}"
 	CUSTOM_OPTS="${CUSTOM_OPTS:-0}"
 	export DEPS_DIR="$ROOT_DIR/testdeps"
@@ -581,20 +582,21 @@ create_pki ()
 
 	init
 
-	[ -f "$DEPS_DIR/custom-ssl.sh" ] || export CUST_SSL_ENABLE=0
-	[ $((CUST_SSL_ENABLE)) -eq 1 ] && "$DEPS_DIR/custom-ssl.sh"
+	#[ -f "$DEPS_DIR/custom-ssl.sh" ] || export CUST_SSL_ENABLE=0
+	#[ $((CUST_SSL_ENABLE)) -eq 1 ] && "$DEPS_DIR/custom-ssl.sh"
 
-	[ -f "$DEPS_DIR/openssl.sh" ] || export OPENSSL_ENABLE=0
-	[ $((OPENSSL_ENABLE)) -eq 1 ] && "$DEPS_DIR/openssl.sh"
+	#[ -f "$DEPS_DIR/openssl.sh" ] || export OPENSSL_ENABLE=0
+	#[ $((OPENSSL_ENABLE)) -eq 1 ] && "$DEPS_DIR/openssl.sh"
 
-	[ -f "$DEPS_DIR/libressl.sh" ] || export LIBRESSL_ENABLE=0
-	[ $((LIBRESSL_ENABLE)) -eq 1 ] && "$DEPS_DIR/libressl.sh"
+	#[ -f "$DEPS_DIR/libressl.sh" ] || export LIBRESSL_ENABLE=0
+	#[ $((LIBRESSL_ENABLE)) -eq 1 ] && "$DEPS_DIR/libressl.sh"
 
 	setup
 
 	STAGE_NAME="System ssl"
 	if [ $((SYS_SSL_ENABLE)) -eq 1 ]
 	then
+		export EASYRSA_OPENSSL="$SYS_SSL_LIBB"
 		NEW_PKI="pki-sys-ssl"
 		create_pki
 	else
