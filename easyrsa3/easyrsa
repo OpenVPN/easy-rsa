@@ -1596,7 +1596,17 @@ Note: using Easy-RSA configuration from: $vars"
 		die "Alg '$EASYRSA_ALGO' is invalid: must be 'rsa' or 'ec'"
 	fi
 
-	[ -n "$EASYRSA_TEMP_DIR_session" ] || EASYRSA_TEMP_DIR_session="$(mktemp -ud "$EASYRSA_TEMP_DIR/easy-rsa-$$.XXXXXX")"
+	# Assign value to $EASYRSA_TEMP_DIR_session and work around Windows mktemp bug when parent dir is missing
+	if [ -z "$EASYRSA_TEMP_DIR_session" ]; then
+		if [ -d "$EASYRSA_TEMP_DIR" ]; then
+			EASYRSA_TEMP_DIR_session="$(mktemp -du "$EASYRSA_TEMP_DIR/easy-rsa-$$.XXXXXX")"
+		else
+			# If the directory does not exist then we have not run init-pki
+			mkdir -p "$EASYRSA_TEMP_DIR"
+			EASYRSA_TEMP_DIR_session="$(mktemp -du "$EASYRSA_TEMP_DIR/easy-rsa-$$.XXXXXX")"
+			rm -rf "$EASYRSA_TEMP_DIR"
+		fi
+	fi
 
 	# Setting OPENSSL_CONF prevents bogus warnings (especially useful on win32)
 	export OPENSSL_CONF="$EASYRSA_SAFE_CONF"
