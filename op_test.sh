@@ -93,7 +93,7 @@ verbose ()
 {
 	# currently not used
 	[ $((VERBOSE)) -eq 1 ] || return 0
-	print "|| :: $1 .. OK"
+	print "$1 .. ok"
 }
 
 completed ()
