@@ -336,6 +336,7 @@ easyrsa_openssl() {
 	openssl_command=$1; shift
 
 	case $openssl_command in
+		makesafeconf) has_config=true;;
 		ca|req|srp|ts) has_config=true;;
 		*) has_config=false;;
 	esac
@@ -378,8 +379,14 @@ easyrsa_openssl() {
 		"$EASYRSA_SSL_CONF" > "$easyrsa_openssl_conf" ||
 		die "Failed to update $easyrsa_openssl_conf"
 
-	"$EASYRSA_OPENSSL" "$openssl_command" -config "$easyrsa_openssl_conf" "$@"
-	err=$?
+	if [ "$openssl_command" = "makesafeconf" ]; then
+		cp "$easyrsa_openssl_conf" "$EASYRSA_SAFE_CONF"
+		err=$?
+	else
+		"$EASYRSA_OPENSSL" "$openssl_command" -config "$easyrsa_openssl_conf" "$@"
+		err=$?
+	fi
+
 	rm -f "$easyrsa_openssl_conf"
 	rm -f "$easyrsa_extra_exts"
 	return $err
@@ -511,9 +518,11 @@ and initialize a fresh PKI here."
 		mkdir -p "$EASYRSA_PKI/$i" || die "Failed to create PKI file structure (permissions?)"
 	done
 	
+	# Create $EASYRSA_SAFE_CONF ($OPENSSL_CONF) prevents bogus warnings (especially useful on win32)
 	if [ ! -f "$EASYRSA_SSL_CONF" ] && [ -f "$EASYRSA/openssl-easyrsa.cnf" ];
 	then
 		cp "$EASYRSA/openssl-easyrsa.cnf" "$EASYRSA_SSL_CONF"
+		easyrsa_openssl makesafeconf
 	fi
 
 	notice "\
@@ -1568,6 +1577,7 @@ Note: using Easy-RSA configuration from: $vars"
 	set_var EASYRSA_REQ_CN		ChangeMe
 	set_var EASYRSA_DIGEST		sha256
 	set_var EASYRSA_SSL_CONF	"$EASYRSA_PKI/openssl-easyrsa.cnf"
+	set_var EASYRSA_SAFE_CONF	"$EASYRSA_PKI/safessl-easyrsa.cnf"
 
 	# Same as above for the x509-types extensions dir
 	if [ -d "$EASYRSA_PKI/x509-types" ]; then
@@ -1587,6 +1597,9 @@ Note: using Easy-RSA configuration from: $vars"
 	fi
 
 	[ -n "$EASYRSA_TEMP_DIR_session" ] || EASYRSA_TEMP_DIR_session="$(mktemp -ud "$EASYRSA_TEMP_DIR/easy-rsa-$$.XXXXXX")"
+
+	# Setting OPENSSL_CONF prevents bogus warnings (especially useful on win32)
+	export OPENSSL_CONF="$EASYRSA_SAFE_CONF"
 } # vars_setup()
 
 # variable assignment by indirection when undefined; merely exports
