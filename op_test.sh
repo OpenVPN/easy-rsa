@@ -372,7 +372,7 @@ build_full ()
 build_san_full ()
 {
 	newline 1
-	STEP_NAME="--subject-alt-name=DNS:www.example.org,IP:0.0.0.0 build-server-full $REQ_name nopass"
+	STEP_NAME="--subject-alt-name=DNS:www.example.org,IP:0.0.0.0 build-$REQ_type-full $REQ_name nopass"
 	action
 	secure_key
 }
@@ -490,6 +490,18 @@ create_pki ()
 	REQ_type="serverClient"
 	REQ_name="s03"
 	build_full
+	show_cert
+	wait_sec 3
+	renew_cert
+	show_cert
+	revoke_cert
+
+	REQ_type="serverClient"
+	REQ_name="s04"
+	build_san_full
+	show_cert
+	wait_sec 3
+	renew_cert
 	show_cert
 	revoke_cert
 
