@@ -25,7 +25,6 @@ IF ERRORLEVEL 0 (
 		rmdir /S /Q %WORK_DIR%\easyrsa3\bin
 		echo del /Q %WORK_DIR%\easyrsa3\EasyRSA-Start.bat
 		del /Q %WORK_DIR%\easyrsa3\EasyRSA-Start.bat
-		REM 'rm' because Windows really is that dumb, try it yourself (Microsoft are saboteurs)
 		echo rm %WORK_DIR%\easyrsa3\.rnd
 		rm %WORK_DIR%\easyrsa3\.rnd
 	) ELSE echo NOTICE; Saved Layout
@@ -33,4 +32,5 @@ IF ERRORLEVEL 0 (
 	
 set SAVE_LAYOUT=
 set SYS_ARCH=
+pause
 
