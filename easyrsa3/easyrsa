@@ -319,6 +319,7 @@ easyrsa_mktemp() {
 	# win32 mktemp shipped by easyrsa returns template as file!
 	if [ "$template" = "$tempfile" ]; then
 		# but win32 mktemp -d does work
+		# but win32 mktemp -u does not work
 		tempfile=$(mktemp -du "$tempfile") || return
 		printf "" > "$tempfile" || return
 	fi
