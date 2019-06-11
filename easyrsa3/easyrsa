@@ -1603,7 +1603,7 @@ Note: using Easy-RSA configuration from: $vars"
 			EASYRSA_TEMP_DIR_session="$(mktemp -du "$EASYRSA_TEMP_DIR/easy-rsa-$$.XXXXXX")"
 		else
 			# If the directory does not exist then we have not run init-pki
-			mkdir -p "$EASYRSA_TEMP_DIR"
+			mkdir -p "$EASYRSA_TEMP_DIR" || die "Cannot create $EASYRSA_TEMP_DIR (permission?)"
 			EASYRSA_TEMP_DIR_session="$(mktemp -du "$EASYRSA_TEMP_DIR/easy-rsa-$$.XXXXXX")"
 			rm -rf "$EASYRSA_TEMP_DIR"
 		fi
