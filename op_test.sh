@@ -8,26 +8,25 @@ usage ()
 {
 cat << __EOF__
 
-	Actions taken:
-	* standard ca
-	* standard server + renew
-	* standard server with SAN
-	* standard serverClient
-	* standard client + renew
-	* standard sign imported server
-	* standard sign imported serverClient
-	* standard sign imported client
-	* standard sign imported ca
+	Tests run:
+	* standard ca [penelope]
+	* standard server + renew [s01]
+	* standard server with SAN [s02]
+	* standard serverClient [s03]
+	* standard serverClient with SAN [s04]
+	* standard client + renew [c01]
+	* standard sign imported server [specter]
+	* standard sign imported serverClient [heartbleed]
+	* standard sign imported serverClient with SAN [VORACLE]
+	* standard sign imported client [meltdown]
+	* standard sign imported ca [maximilian]
 	* subca to origin
-	* subca sign server
-	* subca sign serverClient
-	* subca sign client
-	* revoke
-	* CRLs
-
-	Suggested options:
-	* "./op_test.sh -v" (verbose)
-	* "ERSA_OUT=0 ./op_test.sh -vv" (very verbose but no SSL output)
+	* subca sign server [specter]
+	* subca sign serverClient [heartbleed]
+	* subca sign serverClient with SAN [VORACLE]
+	* subca sign client [meltdown]
+	* delete all keys andrevoke all certs on the fly
+	* generate various CRLs
 
 __EOF__
 exit 0
