@@ -168,7 +168,7 @@ verb_off ()
 
 wait_sec ()
 {
-	( sleep $DELAY 2>/dev/null ) || { ( ping -n 1 127.0.0.1 2>/dev/null ) && ping -n $DELAY 127.0.0.1; }
+	( sleep "$DELAY" 2>/dev/null ) || { ( ping -n 1 127.0.0.1 2>/dev/null ) && ping -n "$DELAY" 127.0.0.1; }
 }
 
 setup ()
@@ -487,7 +487,7 @@ create_pki ()
 	REQ_name="s01"
 	build_full
 	show_cert
-	wait_sec $DELAY
+	wait_sec "$DELAY"
 	renew_cert
 	show_cert
 	revoke_cert
@@ -496,7 +496,7 @@ create_pki ()
 	REQ_name="s02"
 	build_san_full
 	show_cert
-	wait_sec $DELAY
+	wait_sec "$DELAY"
 	renew_cert
 	show_cert
 	revoke_cert
@@ -505,7 +505,7 @@ create_pki ()
 	REQ_name="s03"
 	build_full
 	show_cert
-	wait_sec $DELAY
+	wait_sec "$DELAY"
 	renew_cert
 	show_cert
 	revoke_cert
@@ -514,7 +514,7 @@ create_pki ()
 	REQ_name="s04"
 	build_san_full
 	show_cert
-	wait_sec $DELAY
+	wait_sec "$DELAY"
 	renew_cert
 	show_cert
 	revoke_cert
@@ -523,7 +523,7 @@ create_pki ()
 	REQ_name="c01"
 	build_full
 	show_cert
-	wait_sec $DELAY
+	wait_sec "$DELAY"
 	renew_cert
 	show_cert
 	revoke_cert
