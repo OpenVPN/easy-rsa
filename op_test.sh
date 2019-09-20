@@ -8,26 +8,25 @@ usage ()
 {
 cat << __EOF__
 
-	Actions taken:
-	* standard ca
-	* standard server + renew
-	* standard server with SAN
-	* standard serverClient
-	* standard client + renew
-	* standard sign imported server
-	* standard sign imported serverClient
-	* standard sign imported client
-	* standard sign imported ca
+	Tests run:
+	* standard ca [penelope]
+	* standard server + renew [s01]
+	* standard server with SAN [s02]
+	* standard serverClient [s03]
+	* standard serverClient with SAN [s04]
+	* standard client + renew [c01]
+	* standard sign imported server [specter]
+	* standard sign imported serverClient [heartbleed]
+	* standard sign imported serverClient with SAN [VORACLE]
+	* standard sign imported client [meltdown]
+	* standard sign imported ca [maximilian]
 	* subca to origin
-	* subca sign server
-	* subca sign serverClient
-	* subca sign client
-	* revoke
-	* CRLs
-
-	Suggested options:
-	* "./op_test.sh -v" (verbose)
-	* "ERSA_OUT=0 ./op_test.sh -vv" (very verbose but no SSL output)
+	* subca sign server [specter]
+	* subca sign serverClient [heartbleed]
+	* subca sign serverClient with SAN [VORACLE]
+	* subca sign client [meltdown]
+	* delete all keys andrevoke all certs on the fly
+	* generate various CRLs
 
 __EOF__
 exit 0
@@ -38,16 +37,20 @@ init ()
 	ROOT_DIR="$(pwd)"
 	WORK_DIR="$ROOT_DIR/easyrsa3"
 	TEMP_DIR="$WORK_DIR/temp"
+	IGNORE_TEMP=$((IGNORE_TEMP))
 
-	if [ -d "$TEMP_DIR" ]
+	if [ -d "$TEMP_DIR" ] && [ $IGNORE_TEMP -eq 0 ]
 	then
 		print "Aborted! Temporary directory exists: $TEMP_DIR"
 		exit 1
+	else
+		[ $IGNORE_TEMP -eq 1 ] && rm -rf "$TEMP_DIR" && print "NOTICE: Deleted $TEMP_DIR"
 	fi
 
 	DIE="${DIE:-1}"
 	S_ERRORS=0
 	T_ERRORS=0
+	DELAY=${DELAY:-1}
 	VERBOSE="${VERBOSE:-0}"
 	VVERBOSE="${VVERBOSE:-0}"
 	SHOW_CERT="${SHOW_CERT:-0}"
@@ -164,8 +167,7 @@ verb_off ()
 
 wait_sec ()
 {
-	delay=$(( ${1:-3} ))
-	( sleep $delay 2>/dev/null ) || { ( ping -n 1 127.0.0.1 2>/dev/null ) && ping -n $delay 127.0.0.1; }
+	( sleep "$DELAY" 2>/dev/null ) || { ( ping -n 1 127.0.0.1 2>/dev/null ) && ping -n "$DELAY" 127.0.0.1; }
 }
 
 setup ()
@@ -277,25 +279,33 @@ create_req ()
 	export EASYRSA_REQ_CN="maximilian"
 	STEP_NAME="build-ca nopass subca"
 	action
-	[ -f "$EASYRSA_PKI/reqs/ca.req" ] && REQ_ca="$EASYRSA_PKI/reqs/ca.req"
+	[ -f "$EASYRSA_PKI/reqs/ca.req" ] && mv "$EASYRSA_PKI/reqs/ca.req" "$EASYRSA_PKI/reqs/maximilian.req"
 
 	export EASYRSA_REQ_CN="specter"
 	STEP_NAME="gen-req $EASYRSA_REQ_CN nopass"
 	action
 	secure_key
-	[ -f "$EASYRSA_PKI/reqs/$EASYRSA_REQ_CN.req" ] && REQ_server="$EASYRSA_PKI/reqs/$EASYRSA_REQ_CN.req"
 
 	export EASYRSA_REQ_CN="meltdown"
 	STEP_NAME="gen-req $EASYRSA_REQ_CN nopass"
 	action
 	secure_key
-	[ -f "$EASYRSA_PKI/reqs/$EASYRSA_REQ_CN.req" ] && REQ_client="$EASYRSA_PKI/reqs/$EASYRSA_REQ_CN.req"
 
 	export EASYRSA_REQ_CN="heartbleed"
 	STEP_NAME="gen-req $EASYRSA_REQ_CN nopass"
 	action
 	secure_key
-	[ -f "$EASYRSA_PKI/reqs/$EASYRSA_REQ_CN.req" ] && REQ_serverClient="$EASYRSA_PKI/reqs/$EASYRSA_REQ_CN.req"
+
+	# SAN will be lost
+	#verb_on
+	export EASYRSA_REQ_CN="VORACLE"
+	STEP_NAME="--subject-alt-name='DNS:www.example.org,IP:0.0.0.0' gen-req $EASYRSA_REQ_CN nopass"
+	action
+	secure_key
+
+	STEP_NAME="show-req $EASYRSA_REQ_CN nopass"
+	action
+	#verb_off
 
 	unset EASYRSA_REQ_CN
 	unset EASYRSA_BATCH
@@ -379,13 +389,7 @@ build_san_full ()
 
 import_req ()
 {
-	case "$REQ_type" in
-		ca)		REQ_file="$REQ_ca" ;;
-		server)		REQ_file="$REQ_server" ;;
-		client)		REQ_file="$REQ_client" ;;
-		serverClient)	REQ_file="$REQ_serverClient";;
-		*) 		DIE=1 die "Unknown certificate type $REQ_type" ;;
-	esac
+	REQ_file="$TEMP_DIR/pki-req/reqs/$REQ_name.req"
 
 	# Note: easyrsa still appears to work in batch mode for this action ?
 	export EASYRSA_BATCH=0
@@ -393,6 +397,15 @@ import_req ()
 	STEP_NAME="import-req $REQ_file $REQ_name"
 	action
 	export EASYRSA_BATCH=1
+}
+
+show_req ()
+{
+	STEP_NAME="show-req $REQ_name"
+	[ $((SHOW_CERT)) -eq 1 ] && SHOW_CERT_ONLY=1
+	action
+	newline
+	unset SHOW_CERT_ONLY
 }
 
 sign_req ()
@@ -473,7 +486,7 @@ create_pki ()
 	REQ_name="s01"
 	build_full
 	show_cert
-	wait_sec 3
+	wait_sec "$DELAY"
 	renew_cert
 	show_cert
 	revoke_cert
@@ -482,7 +495,7 @@ create_pki ()
 	REQ_name="s02"
 	build_san_full
 	show_cert
-	wait_sec 3
+	wait_sec "$DELAY"
 	renew_cert
 	show_cert
 	revoke_cert
@@ -491,7 +504,7 @@ create_pki ()
 	REQ_name="s03"
 	build_full
 	show_cert
-	wait_sec 3
+	wait_sec "$DELAY"
 	renew_cert
 	show_cert
 	revoke_cert
@@ -500,7 +513,7 @@ create_pki ()
 	REQ_name="s04"
 	build_san_full
 	show_cert
-	wait_sec 3
+	wait_sec "$DELAY"
 	renew_cert
 	show_cert
 	revoke_cert
@@ -509,7 +522,7 @@ create_pki ()
 	REQ_name="c01"
 	build_full
 	show_cert
-	wait_sec 3
+	wait_sec "$DELAY"
 	renew_cert
 	show_cert
 	revoke_cert
@@ -523,6 +536,14 @@ create_pki ()
 
 	REQ_type="serverClient"
 	REQ_name="heartbleed"
+	import_req
+	sign_req
+	show_cert
+	revoke_cert
+
+	# SAN is lost.
+	REQ_type="serverClient"
+	REQ_name="VORACLE"
 	import_req
 	sign_req
 	show_cert
@@ -554,6 +575,12 @@ create_pki ()
 
 	REQ_type="serverClient"
 	REQ_name="heartbleed"
+	sign_req
+	show_cert
+	revoke_cert
+
+	REQ_type="serverClient"
+	REQ_name="VORACLE"
 	sign_req
 	show_cert
 	revoke_cert
