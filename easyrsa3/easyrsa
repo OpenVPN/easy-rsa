@@ -1612,6 +1612,14 @@ Note: using Easy-RSA configuration from: $vars"
 
 	# Setting OPENSSL_CONF prevents bogus warnings (especially useful on win32)
 	export OPENSSL_CONF="$EASYRSA_SAFE_CONF"
+
+	# Upgrade to 306: Create $EASYRSA_SSL_CONF if it does not exist but only if $EASYRSA_PKI exists.
+	if [ ! -f "$EASYRSA_SSL_CONF" ] && [ -f "$EASYRSA/openssl-easyrsa.cnf" ] && [ -d "$EASYRSA_PKI" ];
+	then
+		cp "$EASYRSA/openssl-easyrsa.cnf" "$EASYRSA_SSL_CONF"
+		easyrsa_openssl makesafeconfopenvpn
+	fi
+
 } # vars_setup()
 
 # variable assignment by indirection when undefined; merely exports
