@@ -217,3 +217,9 @@ fi
 
 #set_var EASYRSA_BATCH		""
 
+#set_var EASYRSA_PKCS11TOOL	"pkcs11-tool"
+
+#set_var PKCS11_MODULE_PATH "/usr/lib/libopensc.so"
+#set_var PKCS11_PIN		"1234"
+#set_var PKCS11_SLOT	"0x9e"
+#set_var PKCS11_LABEL	"EasyRSA-CA-Key"
