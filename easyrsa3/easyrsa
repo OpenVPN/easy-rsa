@@ -238,6 +238,10 @@ Organizational DN options: (only used with the 'org' DN mode)
 --req-email=NAME  : Email addresses
 --req-ou=NAME     : Organizational Unit
 
+OpenVPN client:
+
+--ovpn-conf       : Default config for openvpn
+
 Deprecated features:
 
 --ns-cert=YESNO       : yes or no to including deprecated NS extensions
@@ -885,6 +889,11 @@ $ext_tmp"
 	notice "\
 Certificate created at: $crt_out
 "
+
+  if [ "$crt_type" = 'client' ]; then
+    create_ovpnconf "$2"
+  fi
+
 	return 0
 } # => sign_req()
 
@@ -1545,6 +1554,64 @@ $in_file
 OpenSSL failure to process the input"
 } # => show_ca()
 
+set_var_srv() {
+  EASYRSA_BATCH="$EASYRSA_BATCH_SRV"
+  EASYRSA_CERT_EXPIRE="$EASYRSA_CERT_SRV_EXPIRE"
+
+  EASYRSA_REQ_COUNTRY="$EASYRSA_REQ_SRV_COUNTRY"
+  EASYRSA_REQ_PROVINCE="$EASYRSA_REQ_SRV_PROVINCE"
+  EASYRSA_REQ_CITY="$EASYRSA_REQ_SRV_CITY"
+  EASYRSA_REQ_ORG="$EASYRSA_REQ_SRV_ORG"
+  EASYRSA_REQ_EMAIL="$EASYRSA_REQ_SRV_EMAIL"
+  EASYRSA_REQ_OU="$EASYRSA_REQ_SRV_OU"
+} # => set_var_srv()
+
+set_var_cln() {
+  EASYRSA_BATCH="$EASYRSA_BATCH_CLN"
+  EASYRSA_CERT_EXPIRE="$EASYRSA_CERT_CLN_EXPIRE"
+
+  EASYRSA_REQ_COUNTRY="$EASYRSA_REQ_CLN_COUNTRY"
+  EASYRSA_REQ_PROVINCE="$EASYRSA_REQ_CLN_PROVINCE"
+  EASYRSA_REQ_CITY="$EASYRSA_REQ_CLN_CITY"
+  EASYRSA_REQ_ORG="$EASYRSA_REQ_CLN_ORG"
+  EASYRSA_REQ_EMAIL="$EASYRSA_REQ_CLN_EMAIL"
+  EASYRSA_REQ_OU="$EASYRSA_REQ_CLN_OU"
+} # => set_var_cln()
+
+
+create_ovpnconf() {
+	EASYRSA_OVPN_NAME="$1"
+
+	EASYRSA_OVPN_DIR="${EASYRSA}/ovpn"
+	EASYRSA_OVPN_CONF="${EASYRSA_OVPN_DIR}/${EASYRSA_OVPN_NAME}.conf"
+
+	[ -f "${EASYRSA_OVPN_DEFCONF}" ] || die " Default configuration file: ${EASYRSA_OVPN_DEFCONF} not present"
+
+	{
+	  cat "${EASYRSA_OVPN_DEFCONF}" > "${EASYRSA_OVPN_CONF}"
+
+	  # add key-file
+	  echo " ";
+	  echo "<key>";
+	  cat  "${EASYRSA_PKI}/private/${EASYRSA_OVPN_NAME}.key";
+	  echo "</key>";
+	  echo " ";
+
+    # add cert-file
+    echo "<cert>";
+    echo "-----BEGIN CERTIFICATE-----";
+    cat "${EASYRSA_PKI}/issued/${EASYRSA_OVPN_NAME}.crt" | sed "0,/-----BEGIN CERTIFICATE-----/d";
+    echo "</cert>";
+    echo " "
+  }>> "${EASYRSA_OVPN_CONF}"
+
+	notice "\
+OVPN-conf file created at: ${EASYRSA_OVPN_CONF}
+"
+
+	return 0
+} # => create_ovpnconf()
+
 # vars setup
 # Here sourcing of 'vars' if present occurs. If not present, defaults are used
 # to support running without a sourced config format
@@ -1613,6 +1680,7 @@ Note: using Easy-RSA configuration from: $vars"
 	set_var EASYRSA_DIGEST		sha256
 	set_var EASYRSA_SSL_CONF	"$EASYRSA_PKI/openssl-easyrsa.cnf"
 	set_var EASYRSA_SAFE_CONF	"$EASYRSA_PKI/safessl-easyrsa.cnf"
+	set_var EASYRSA_OVPN_DEFCONF "$EASYRSA_PKI/def.ovpn"
 
 	# Same as above for the x509-types extensions dir
 	if [ -d "$EASYRSA_PKI/x509-types" ]; then
@@ -1742,6 +1810,8 @@ while :; do
 	--copy-ext)
 		empty_ok=1
 		export EASYRSA_CP_EXT=1 ;;
+  --ovpn-conf)
+		export EASYRSA_OVPN_DEFCONF="$val" ;;
 	--subject-alt-name)
 		export EASYRSA_EXTRA_EXTS="\
 $EASYRSA_EXTRA_EXTS
@@ -1791,9 +1861,11 @@ case "$cmd" in
 		sign_req "$@"
 		;;
 	build-client-full)
+	  set_var_cln
 		build_full client "$@"
 		;;
 	build-server-full)
+	  set_var_srv
 		build_full server "$@"
 		;;
 	build-serverClient-full)
