@@ -33,7 +33,7 @@ preserve	= no			# keep passed DN ordering
 # This allows to renew certificates which have not been revoked
 unique_subject	= no
 
-# A few difference way of specifying how similar the request should look
+# A few different ways of specifying how similar the request should look
 # For type CA, the listed attributes must be the same, and the optional
 # and supplied fields are just that :-)
 policy		= policy_anything

@@ -21,7 +21,7 @@
 
 # NOTES FOR WINDOWS USERS
 #
-# Paths for Windows  *MUST* use forward slashes, or optionally double-esscaped
+# Paths for Windows  *MUST* use forward slashes, or optionally double-escaped
 # backslashes (single forward slashes are recommended.) This means your path to
 # the openssl binary might look like this:
 # "C:/Program Files/OpenSSL-Win32/bin/openssl.exe"
