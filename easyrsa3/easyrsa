@@ -853,9 +853,18 @@ $(display_dn req "$req_in")
 		# add one to the extensions file
 		if [ "$crt_type" = 'server' ] || [ "$crt_type" = 'serverClient' ];
 		then
-			echo "$EASYRSA_EXTRA_EXTS" |
-				grep -q subjectAltName ||
-				default_server_san "$req_in"
+			echo "$EASYRSA_EXTRA_EXTS" | grep -q subjectAltName
+			if [ $? -ne 0 ];
+			then
+				san=$(display_san req "$req_in")
+
+				if [ -n "$san" ];
+				then
+					print "subjectAltName = $san"
+				else
+					default_server_san "$req_in"
+				fi
+			fi
 		fi
 
 		# Add any advanced extensions supplied by env-var:
@@ -1390,10 +1399,34 @@ Failed to perform update-db: see above for related openssl errors."
 	return 0
 } # => update_db()
 
+display_san() {
+	format="$1" path="$2"
+
+	echo "$EASYRSA_EXTRA_EXTS" | grep -q subjectAltName
+
+	if [ $? -eq 0 ]; then
+		print "$(echo "$EASYRSA_EXTRA_EXTS" | grep subjectAltName | sed 's/^\s*subjectAltName\s*=\s*//')"
+	else
+		san=$(
+			"$EASYRSA_OPENSSL" "$format" -in "$path" -noout -text |
+			sed -n "/X509v3 Subject Alternative Name:/{n;s/ //g;s/IPAddress:/IP:/g;p;}"
+			)
+
+		[ -n "$san" ] && print "$san"
+	fi
+}
+
 # display cert DN info on a req/X509, passed by full pathname
 display_dn() {
 	format="$1" path="$2"
 	print "$("$EASYRSA_OPENSSL" "$format" -in "$path" -noout -subject -nameopt multiline)"
+	san=$(display_san "$1" "$2")
+	if [ -n "$san" ]; then
+		print ""
+		print "X509v3 Subject Alternative Name:"
+		print "    $san"
+	fi
+
 } # => display_dn()
 
 # generate default SAN from req/X509, passed by full pathname

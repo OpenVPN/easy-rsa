@@ -12,11 +12,11 @@ matrix:
         - openssl version
         - shellcheck --version
         - bash -c 'export SHELLCHECK_OPTS="-S warning -e SC2006"; shopt -s globstar; shellcheck **/*.sh easyrsa3/easyrsa'
-        - sh op_test.sh -vv
+        - sh op_test.sh
 
     - os: osx
       osx_image: xcode10.1
       script:
         - openssl version
-        - sh op_test.sh -vv
+        - sh op_test.sh
 
