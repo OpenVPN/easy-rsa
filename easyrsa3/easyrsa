@@ -1617,7 +1617,7 @@ Note: using Easy-RSA configuration from: $vars"
 	if [ ! -f "$EASYRSA_SSL_CONF" ] && [ -f "$EASYRSA/openssl-easyrsa.cnf" ] && [ -d "$EASYRSA_PKI" ];
 	then
 		cp "$EASYRSA/openssl-easyrsa.cnf" "$EASYRSA_SSL_CONF"
-		easyrsa_openssl makesafeconfopenvpn
+		easyrsa_openssl makesafeconf
 	fi
 
 } # vars_setup()
