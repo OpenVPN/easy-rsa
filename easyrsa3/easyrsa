@@ -907,6 +907,13 @@ build_full() {
 Error: didn't find a file base name as the first argument.
 Run easyrsa without commands for usage and commands."
 	crt_type="$1" name="$2"
+
+        if [ "$crt_type" = 'client' ]; then
+          set_var_cln   
+        elif [ "$crt_type" = 'server' ]; then
+          set_var_srv
+        fi
+
 	req_out="$EASYRSA_PKI/reqs/$2.req"
 	key_out="$EASYRSA_PKI/private/$2.key"
 	crt_out="$EASYRSA_PKI/issued/$2.crt"
@@ -1861,11 +1868,9 @@ case "$cmd" in
 		sign_req "$@"
 		;;
 	build-client-full)
-	  set_var_cln
 		build_full client "$@"
 		;;
 	build-server-full)
-	  set_var_srv
 		build_full server "$@"
 		;;
 	build-serverClient-full)
