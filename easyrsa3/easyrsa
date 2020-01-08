@@ -46,6 +46,7 @@ Here is the list of commands available with a short syntax reminder. Use the
   export-p12 <filename_base> [ cmd-opts ]
   set-rsa-pass <filename_base> [ cmd-opts ]
   set-ec-pass <filename_base> [ cmd-opts ]
+  upgrade <type>
 "
 
 	# collect/show dir status:
@@ -169,6 +170,11 @@ cmd_help() {
                         opts="
         nopass - use no password and leave the key unencrypted
         file   - (advanced) treat the file as a raw path, not a short-name" ;;
+		upgrade) text="
+  upgrade <type>
+      Upgrade EasyRSA PKI and/or CA. <type> must be one of:
+        pki - Upgrade EasyRSA v2.x PKI to EasyRSA v3.x PKI (includes CA below)
+        ca  - Upgrade EasyRSA v3.0.5 CA or older to EasyRSA v3.0.6 CA or later." ;;
 		altname|subjectaltname|san) text="
   --subject-alt-name=SAN_FORMAT_STRING
       This global option adds a subjectAltName to the request or issued
@@ -1665,6 +1671,589 @@ set_var() {
 	eval "export $var=\"\${$var-$value}\""
 } #=> set_var()
 
+
+############################################################################
+# Upgrade v2 PKI to v3 PKI
+
+# You can report problems on the normal openvpn support channels:
+# --------------------------------------------------------------------------
+#   1. The Openvpn Forum: https://forums.openvpn.net/viewforum.php?f=31
+#   2. The #easyrsa IRC channel at freenode
+#   3. Info: https://community.openvpn.net/openvpn/wiki/easyrsa-upgrade
+# --------------------------------------------------------------------------
+#
+
+up23_fail_upgrade ()
+{
+	# Replace die()
+	unset EASYRSA_BATCH
+	notice "
+============================================================================
+The update has failed but NOTHING has been lost.
+
+ERROR: $1
+----------------------------------------------------------------------------
+
+Further info:
+* https://community.openvpn.net/openvpn/wiki/easyrsa-upgrade#ersa-up23-fails
+
+Easyrsa3 upgrade FAILED
+============================================================================
+"
+	exit 9
+} #=> up23_fail_upgrade ()
+
+up23_verbose ()
+{
+	[ "$VERBOSE" ] || return 0
+	printf "%s\n" "$1"
+} #=> up23_verbose ()
+
+up23_verify_new_pki ()
+{
+	# Fail now, before any changes are made
+
+	up23_verbose "> Verify DEFAULT NEW PKI does not exist .."
+	EASYRSA_NEW_PKI="$EASYRSA/pki"
+	[ -d "$EASYRSA_NEW_PKI" ] \
+	&& up23_fail_upgrade "DEFAULT NEW PKI exists: $EASYRSA_NEW_PKI"
+
+	up23_verbose "> Verify VERY-SAFE-PKI does not exist .."
+	EASYRSA_SAFE_PKI="$EASYRSA/VERY-SAFE-PKI"
+	[ -d "$EASYRSA_SAFE_PKI" ] \
+	&& up23_fail_upgrade "VERY-SAFE-PKI exists: $EASYRSA_SAFE_PKI"
+
+	up23_verbose "> Verify openssl-easyrsa.cnf does exist .."
+	EASYRSA_SSL_CNFFILE="$EASYRSA/openssl-easyrsa.cnf"
+	[ -f "$EASYRSA_SSL_CNFFILE" ] \
+	|| up23_fail_upgrade "cannot find $EASYRSA_SSL_CNFFILE"
+
+	up23_verbose "> Verify vars.example does exist .."
+	EASYRSA_VARSV3_EXMP="$EASYRSA/vars.example"
+	[ -f "$EASYRSA_VARSV3_EXMP" ] \
+	|| up23_fail_upgrade "cannot find $EASYRSA_VARSV3_EXMP"
+
+	up23_verbose "> OK"
+	up23_verbose "  Initial dirs & files are in a workable state."
+} #=> up23_verify_new_pki ()
+
+up23_verify_current_pki ()
+{
+	up23_verbose "> Verify CURRENT PKI vars .."
+
+	# This can probably be improved
+	EASYRSA_NO_REM="$(grep '^set ' "$EASYRSA_VER2_VARSFILE")"
+
+	# This list may not be complete
+	# Not required: DH_KEY_SIZE PKCS11_MODULE_PATH PKCS11_PIN
+	for i in KEY_DIR KEY_SIZE KEY_COUNTRY KEY_PROVINCE \
+	KEY_CITY KEY_ORG KEY_EMAIL KEY_CN KEY_NAME KEY_OU
+	do
+		# Effectively, source the v2 vars file
+		UNIQUE="set $i"
+		KEY_grep="$(printf "%s\n" "$EASYRSA_NO_REM" | grep "$UNIQUE")"
+		KEY_value="${KEY_grep##*=}"
+		set_var $i "$KEY_value"
+	done
+
+	[ -d "$KEY_DIR" ] || up23_fail_upgrade "Cannot find CURRENT PKI KEY_DIR: $KEY_DIR"
+
+	up23_verbose "> OK"
+	up23_verbose "  Current CURRENT PKI vars uses PKI in: $KEY_DIR"
+} #=> up23_verify_current_pki ()
+
+up23_verify_current_ca ()
+{
+	up23_verbose "> Find CA .."
+	# $KEY_DIR is assigned in up23_verify_current_pki ()
+	[ -f "$KEY_DIR/ca.crt" ] \
+	|| up23_fail_upgrade "Cannot find current ca.crt: $KEY_DIR/ca.crt"
+	up23_verbose "> OK"
+
+	# If CA is already verified then return
+	in_file="$KEY_DIR/ca.crt"
+	[ "$CURRENT_CA_IS_VERIFIED" = "$in_file" ] && return 0
+	format="x509"
+
+	# Current CA is unverified
+	# Extract the current CA details
+	CA_SUBJECT="$(easyrsa_openssl $format -in "$in_file" -subject -noout -nameopt multiline)"
+
+	# Extract individual elements
+	CA_countryName="$(printf "%s\n" "$CA_SUBJECT" \
+	| grep countryName | sed "s\`^.*=\ \`\`g")"
+	CA_stateOrProvinceName="$(printf "%s\n" "$CA_SUBJECT" \
+	| grep stateOrProvinceName | sed "s\`^.*=\ \`\`g")"
+	CA_localityName="$(printf "%s\n" "$CA_SUBJECT" \
+	| grep localityName | sed "s\`^.*=\ \`\`g")"
+	CA_organizationName="$(printf "%s\n" "$CA_SUBJECT" \
+	| grep organizationName | sed "s\`^.*=\ \`\`g")"
+	CA_organizationalUnitName="$(printf "%s\n" "$CA_SUBJECT" \
+	| grep organizationalUnitName | sed "s\`^.*=\ \`\`g")"
+	CA_emailAddress="$(printf "%s\n" "$CA_SUBJECT" \
+	| grep emailAddress | sed "s\`^.*=\ \`\`g")"
+
+	# Match the current CA elements to the vars file settings
+	CA_vars_match=1
+	[ "$CA_countryName" = "$KEY_COUNTRY" ] || CA_vars_match=0
+	[ "$CA_stateOrProvinceName" = "$KEY_PROVINCE" ] || CA_vars_match=0
+	[ "$CA_localityName" = "$KEY_CITY" ] || CA_vars_match=0
+	[ "$CA_organizationName" = "$KEY_ORG" ] || CA_vars_match=0
+	[ "$CA_organizationalUnitName" = "$KEY_OU" ] || CA_vars_match=0
+	[ "$CA_emailAddress" = "$KEY_EMAIL" ] || CA_vars_match=0
+
+	if [ "$CA_vars_match" -eq 1 ]
+	then
+		CURRENT_CA_IS_VERIFIED="partially"
+	else
+		up23_fail_upgrade "CA certificate does not match vars file settings"
+	fi
+
+	opts="-certopt no_pubkey,no_sigdump"
+	if [ ! "$EASYRSA_BATCH" ]
+	then
+		up23_show_current_ca
+	elif [ "$VERBOSE" ]
+	then
+		up23_show_current_ca
+	fi
+	confirm "* Confirm CA shown above is correct: " "yes" \
+	"Found current CA at: $KEY_DIR/ca.crt"
+	CURRENT_CA_IS_VERIFIED="$in_file"
+} #=> up23_verify_current_ca ()
+
+up23_show_current_ca ()
+{
+	printf "%s\n" "-------------------------------------------------------------------------"
+	# $opts is always set here
+	# shellcheck disable=SC2086
+	easyrsa_openssl $format -in "$in_file" -noout -text\
+	-nameopt multiline $opts || die "\
+	OpenSSL failure to process the input CA certificate: $in_file"
+	printf "%s\n" "-------------------------------------------------------------------------"
+} #=> up23_show_current_ca ()
+
+up23_backup_current_pki ()
+{
+	up23_verbose "> Backup current PKI .."
+
+	mkdir -p "$EASYRSA_SAFE_PKI" \
+	|| up23_fail_upgrade "Failed to create safe PKI dir: $EASYRSA_SAFE_PKI"
+
+	cp -r "$KEY_DIR" "$EASYRSA_SAFE_PKI" \
+	|| up23_fail_upgrade "Failed to copy $KEY_DIR to $EASYRSA_SAFE_PKI"
+
+	# EASYRSA_VER2_VARSFILE is either version 2 *nix ./vars or Win vars.bat
+	cp "$EASYRSA_VER2_VARSFILE" "$EASYRSA_SAFE_PKI" \
+	|| up23_fail_upgrade "Failed to copy $EASYRSA_VER2_VARSFILE to EASYRSA_SAFE_PKI"
+
+	up23_verbose "> OK"
+	up23_verbose "  Current PKI backup created in: $EASYRSA_SAFE_PKI"
+} #=> up23_backup_current_pki ()
+
+up23_create_new_pki ()
+{
+	# Dirs: renewed and revoked are created when used.
+	up23_verbose "> Create NEW PKI .."
+	up23_verbose ">> Create NEW PKI dirs .."
+	for i in private reqs issued certs_by_serial
+	do
+		mkdir -p "$EASYRSA_PKI/$i" \
+		|| up23_fail_upgrade "Failed to Create NEW PKI dir: $EASYRSA_PKI/$i"
+	done
+	up23_verbose ">> OK"
+
+	up23_verbose ">> Copy database to NEW PKI .."
+	# Failure for these is not optional
+	# DO NOT DELETE - Files ignored: index.txt.old
+	for i in index.txt serial serial.old ca.crt index.txt.attr
+	do
+		cp "$KEY_DIR/$i" "$EASYRSA_PKI" \
+		|| up23_fail_upgrade "Failed to copy $KEY_DIR/$i to $EASYRSA_PKI"
+	done
+	up23_verbose ">> OK"
+
+	up23_verbose ">> Copy current PKI to NEW PKI .."
+	for i in "csr.reqs" "pem.certs_by_serial" "crt.issued" "key.private" \
+	"p12.private" "p8.private" "p7b.issued"
+	do
+		FILE_EXT="${i%%.*}"
+		DEST_DIR="${i##*.}"
+		if ls "$KEY_DIR/"*".$FILE_EXT" > /dev/null 2>&1; then
+			cp "$KEY_DIR/"*".$FILE_EXT" "$EASYRSA_PKI/$DEST_DIR" \
+			|| up23_fail_upgrade "Failed to copy .$FILE_EXT"
+		else
+			up23_verbose "   Note: No .$FILE_EXT files found"
+		fi
+	done
+	up23_verbose ">> OK"
+	up23_verbose "> OK"
+
+	# Todo: CRL - Or generate a new CRL on completion
+	up23_verbose "  New PKI created in: $EASYRSA_PKI"
+} #=> up23_create_new_pki ()
+
+up23_upgrade_ca ()
+{
+	[ -d "$EASYRSA_PKI" ] || return 0
+	up23_verbose "> Confirm that index.txt.attr exists and 'unique_subject = no'"
+	if [ -f "$EASYRSA_PKI/index.txt.attr" ]
+	then
+		if grep -q 'unique_subject = no' "$EASYRSA_PKI/index.txt.attr"
+		then
+			# If index.txt.attr exists and "unique_suject = no" then do nothing
+			return 0
+		fi
+	else
+		# If index.txt.attr does not exists then do nothing
+		return 0
+	fi
+
+	# Otherwise this is required for all easyrsa v3
+	#confirm "Set 'unique_subject = no' in index.txt.attr for your current CA: " \
+	#"yes" "This version of easyrsa requires that 'unique_subject = no' is set correctly"
+	
+	printf "%s\n" "unique_subject = no" > "$EASYRSA_PKI/index.txt.attr"
+	up23_verbose "> OK"
+	up23_verbose "  Upgraded index.txt.attr to v306+"
+} #=> up23_upgrade_index_txt_attr ()
+
+up23_create_openssl_cnf ()
+{
+	up23_verbose "> OpenSSL config .."
+	EASYRSA_PKI_SSL_CNFFILE="$EASYRSA_PKI/openssl-easyrsa.cnf"
+	EASYRSA_PKI_SAFE_CNFFILE="$EASYRSA_PKI/safessl-easyrsa.cnf"
+	cp "$EASYRSA_SSL_CNFFILE" "$EASYRSA_PKI_SSL_CNFFILE" \
+	|| up23_fail_upgrade "create $EASYRSA_PKI_SSL_CNFFILE"
+	up23_verbose "> OK"
+	up23_verbose "  New OpenSSL config file created in: $EASYRSA_PKI_SSL_CNFFILE"
+
+	# Create $EASYRSA_PKI/safessl-easyrsa.cnf
+	easyrsa_openssl makesafeconf
+	if [ -f "$EASYRSA_PKI_SAFE_CNFFILE" ]
+	then
+		up23_verbose "  New SafeSSL config file created in: $EASYRSA_PKI_SAFE_CNFFILE"
+	else
+		up23_verbose "  FAILED to create New SafeSSL config file in: $EASYRSA_PKI_SAFE_CNFFILE"
+	fi
+} #=> up23_create_openssl_cnf ()
+
+up23_move_easyrsa2_programs ()
+{
+	# These files may not exist here
+	up23_verbose "> Move easyrsa2 programs to SAFE PKI .."
+	for i in build-ca build-dh build-inter build-key build-key-pass \
+	build-key-pkcs12 build-key-server build-req build-req-pass \
+	clean-all inherit-inter list-crl pkitool revoke-full sign-req \
+	whichopensslcnf build-ca-pass build-key-server-pass init-config \
+	make-crl revoke-crt openssl-0.9.6.cnf openssl-0.9.8.cnf \
+	openssl-1.0.0.cnf openssl.cnf README.txt index.txt.start \
+	vars.bat.sample serial.start
+	do
+		# Although unlikely, both files could exist
+		# EG: ./build-ca and ./build-ca.bat
+		NIX_FILE="$EASYRSA/$i"
+		WIN_FILE="$EASYRSA/$i.bat"
+		if [ -f "$NIX_FILE" ]
+		then
+			cp "$NIX_FILE" "$EASYRSA_SAFE_PKI" \
+			|| up23_fail_upgrade "copy $NIX_FILE $EASYRSA_SAFE_PKI"
+		fi
+
+		if [ -f "$WIN_FILE" ]
+		then
+			cp "$WIN_FILE" "$EASYRSA_SAFE_PKI" \
+			|| up23_fail_upgrade "copy $WIN_FILE $EASYRSA_SAFE_PKI"
+		fi
+
+		if [ ! -f "$NIX_FILE" ] && [ ! -f "$WIN_FILE" ]
+		then
+			up23_verbose "File does not exist, ignoring: $i(.bat)"
+		fi
+
+	# These files are not removed on TEST run
+	[ "$NOSAVE" -eq 1  ] && rm -f "$NIX_FILE" "$WIN_FILE"
+	done
+
+	up23_verbose "> OK"
+	up23_verbose "  Easyrsa2 programs successfully moved to: $EASYRSA_SAFE_PKI"
+} #=> up23_move_easyrsa2_programs ()
+
+up23_build_v3_vars ()
+{
+	up23_verbose "> Build v3 vars file .."
+
+	EASYRSA_EXT="easyrsa-upgrade-23"
+	EASYRSA_VARSV2_TMP="$EASYRSA/vars-v2.tmp.$EASYRSA_EXT"
+	rm -f "$EASYRSA_VARSV2_TMP"
+	EASYRSA_VARSV3_TMP="$EASYRSA/vars-v3.tmp.$EASYRSA_EXT"
+	rm -f "$EASYRSA_VARSV3_TMP"
+	EASYRSA_VARSV3_NEW="$EASYRSA/vars-v3.new.$EASYRSA_EXT"
+	rm -f "$EASYRSA_VARSV3_NEW"
+	EASYRSA_VARSV3_WRN="$EASYRSA/vars-v3.wrn.$EASYRSA_EXT"
+	rm -f "$EASYRSA_VARSV3_WRN"
+
+	printf "%s\n" "\
+########################++++++++++#########################
+###                                                     ###
+###  WARNING: THIS FILE WAS AUTOMATICALLY GENERATED     ###
+###           ALL SETTINGS ARE AT THE END OF THE FILE   ###
+###                                                     ###
+########################++++++++++#########################
+
+" > "$EASYRSA_VARSV3_WRN" || up23_fail_upgrade "Failed to create $EASYRSA_VARSV3_WRN"
+
+	# Create vars v3 temp file from sourced vars v2 key variables
+	{
+		printf "%s\n" "set_var EASYRSA_KEY_SIZE $KEY_SIZE"
+		printf "%s\n" "set_var EASYRSA_REQ_COUNTRY \"$KEY_COUNTRY\""
+		printf "%s\n" "set_var EASYRSA_REQ_PROVINCE \"$KEY_PROVINCE\""
+		printf "%s\n" "set_var EASYRSA_REQ_CITY \"$KEY_CITY\""
+		printf "%s\n" "set_var EASYRSA_REQ_ORG \"$KEY_ORG\""
+		printf "%s\n" "set_var EASYRSA_REQ_EMAIL \"$KEY_EMAIL\""
+		printf "%s\n" "set_var EASYRSA_REQ_OU \"$KEY_OU\""
+		printf "%s\n" 'set_var EASYRSA_NS_SUPPORT "yes"'
+		printf "%s\n" 'set_var EASYRSA_DN "org"'
+		printf "%s\n" 'set_var EASYRSA_RAND_SN "no"'
+		printf "%s\n" ""
+	} > "$EASYRSA_VARSV3_TMP" \
+	|| up23_fail_upgrade "Failed to create $EASYRSA_VARSV3_TMP"
+
+	# cat temp files into new v3 vars
+	cat "$EASYRSA_VARSV3_WRN" "$EASYRSA_VARSV3_EXMP" "$EASYRSA_VARSV3_TMP" \
+	> "$EASYRSA_VARSV3_NEW" \
+	|| up23_fail_upgrade "Failed to create $EASYRSA_VARSV3_NEW"
+
+	# This file must be created and restored at the end of TEST
+	# for the REAL update to to succeed
+	EASYRSA_VARS_LIVEBKP="$EASYRSA_TARGET_VARSFILE.livebackup"
+	cp "$EASYRSA_VER2_VARSFILE" "$EASYRSA_VARS_LIVEBKP" \
+	|| up23_fail_upgrade "Failed to create $EASYRSA_VARS_LIVEBKP"
+	rm -f "$EASYRSA_VER2_VARSFILE"
+
+	# "$EASYRSA_TARGET_VARSFILE" is always $EASYRSA/vars
+	cp "$EASYRSA_VARSV3_NEW" "$EASYRSA_TARGET_VARSFILE" \
+	|| up23_fail_upgrade "copy $EASYRSA_VARSV3_NEW to $EASYRSA_TARGET_VARSFILE"
+
+	# Delete temp files
+	rm -f "$EASYRSA_VARSV2_TMP" "$EASYRSA_VARSV3_TMP" \
+	"$EASYRSA_VARSV3_NEW" "$EASYRSA_VARSV3_WRN"
+
+	up23_verbose "> OK"
+	up23_verbose "  New v3 vars file created in: $EASYRSA_TARGET_VARSFILE"
+} #=> up23_build_v3_vars ()
+
+up23_do_upgrade_23 ()
+{
+	up23_verbose "============================================================================"
+	up23_verbose "Begin ** $1 ** upgrade process .."
+	up23_verbose ""
+	up23_verbose "Easyrsa upgrade version: $EASYRSA_UPGRADE_23"
+	up23_verbose ""
+
+	up23_verify_new_pki
+	up23_verify_current_pki
+	up23_verify_current_ca
+	up23_backup_current_pki
+	up23_create_new_pki
+	up23_upgrade_ca
+	up23_move_easyrsa2_programs
+	up23_build_v3_vars
+	up23_create_openssl_cnf
+
+	if [ "$NOSAVE" -eq 0 ]
+	then
+		# Must stay in this order
+		# New created dirs: EASYRSA_NEW_PKI and EASYRSA_SAFE_PKI
+		rm -rf "$EASYRSA_NEW_PKI"
+		rm -rf "$EASYRSA_SAFE_PKI"
+		# EASYRSA_TARGET_VARSFILE is always the new created v3 vars
+		# Need to know if this fails
+		rm "$EASYRSA_TARGET_VARSFILE" \
+		|| up23_fail_upgrade "remove new vars file: $EASYRSA_TARGET_VARSFILE"
+		# EASYRSA_VER2_VARSFILE is either v2 *nix ./vars or Win vars.bat
+		# Need this dance because v2 vars is same name as v3 vars above
+		cp "$EASYRSA_VARS_LIVEBKP" "$EASYRSA_VER2_VARSFILE"
+	fi
+	rm -f "$EASYRSA_VARS_LIVEBKP"
+} #= up23_do_upgrade_23 ()
+
+up23_manage_upgrade_23 ()
+{
+	EASYRSA_UPGRADE_VERSION="v1.0a (2020/01/08)"
+	EASYRSA_UPGRADE_TYPE="$1"
+
+	# Verify all existing versions of vars/vars.bat
+	if [ -f "$vars" ]
+	then
+		if grep -q 'Complain if a user tries to do this:' "$vars"
+		then
+			EASYRSA_FOUND_VARS=1
+			EASYRSA_VARS_IS_VER3=1
+		fi
+
+		# Easyrsa v3 does not use NOR allow use of `export`.
+		if grep -q 'export' "$vars"
+		then
+			EASYRSA_FOUND_VARS=1
+			EASYRSA_VARS_IS_VER2=1
+			EASYRSA_VER2_VARSFILE="$vars"
+			EASYRSA_TARGET_VARSFILE="$vars"
+		fi
+	fi
+
+	if [ -f "$EASYRSA/vars.bat" ]
+	then
+		EASYRSA_FOUND_VARS=1
+		EASYRSA_VARS_IS_WIN2=1
+		EASYRSA_VER2_VARSFILE="$EASYRSA/vars.bat"
+		EASYRSA_TARGET_VARSFILE="$EASYRSA/vars"
+	fi
+
+	[ "$EASYRSA_FOUND_VARS" ] || return 0
+
+	# Only allow specific vars/vars.bat to exist
+	if [ "$EASYRSA_VARS_IS_VER3" ] && [ "$EASYRSA_VARS_IS_VER2" ]
+	then
+		die "Verify your current vars file, v3 cannot use 'export'."
+	fi
+
+	if [ "$EASYRSA_VARS_IS_VER3" ] && [ "$EASYRSA_VARS_IS_WIN2" ]
+	then
+		die "Verify your current vars/vars.bat file, cannot have both."
+	fi
+
+	if [ "$EASYRSA_VARS_IS_VER2" ] && [ "$EASYRSA_VARS_IS_WIN2" ]
+	then
+		die "Verify your current vars/vars.bat file, cannot have both."
+	fi
+
+	# Die on invalid upgrade type or environment
+	if [ "$EASYRSA_UPGRADE_TYPE" = "ca" ]
+	then
+		if [ "$EASYRSA_VARS_IS_VER3" ]
+		then
+			# v3 ensure index.txt.attr "unique_subject = no"
+			up23_upgrade_ca
+			unset EASYRSA_BATCH
+			notice "Your CA is fully up to date."
+			return 0
+		else
+			die "Only v3 PKI CA can be upgraded."
+		fi
+	fi
+
+	if [ "$EASYRSA_UPGRADE_TYPE" = "pki" ]
+	then
+		if [ "$EASYRSA_VARS_IS_VER3" ]
+		then
+			unset EASYRSA_BATCH
+			notice "Your PKI is fully up to date."
+			return 0
+		fi
+	else
+		die "upgrade type must be 'pki' or 'ca'."
+	fi
+
+	# PKI is potentially suitable for upgrade
+
+	warn "
+=========================================================================
+
+                           * WARNING *
+
+Found settings from EasyRSA-v2 which are not compatible with EasyRSA-v3.
+Before you can continue, EasyRSA must upgrade your settings and PKI.
+* Found EASYRSA and vars file:
+  $EASYRSA
+  $EASYRSA_VER2_VARSFILE :
+
+Further info:
+* https://community.openvpn.net/openvpn/wiki/easyrsa-upgrade
+
+Easyrsa upgrade version: $EASYRSA_UPGRADE_VERSION
+=========================================================================
+"
+
+# Test upgrade
+
+	NOSAVE=0
+
+	confirm "* EasyRSA **TEST** upgrade (Changes will NOT be written): " "yes" "
+This upgrade will TEST that the upgrade works BEFORE making any changes."
+
+	up23_do_upgrade_23 "TEST"
+
+	notice "
+=========================================================================
+
+                             * NOTICE *
+
+EasyRSA upgrade **TEST** has successfully completed.
+"
+# Upgrade for REAL
+
+	NOSAVE=1
+
+	confirm "* EasyRSA **REAL** upgrade (Changes WILL be written): " "yes" "
+=========================================================================
+
+                             * WARNING *
+
+Run REAL upgrade: Answer yes (Once completed you will have a version 3 PKI)
+Terminate upgrade: Answer no (No changes have been made to your current PKI)
+"
+
+	confirm "* Confirm **REAL** upgrade (Changes will be written): " "yes" "
+=========================================================================
+
+                          * SECOND WARNING *
+
+This upgrade will permanently write changes to your PKI !
+(With full backup backout)
+"
+	up23_do_upgrade_23 "REAL"
+
+	notice "
+=========================================================================
+
+                             * NOTICE *
+
+Your settings and PKI have been successfully upgraded to EasyRSA version3
+
+A backup of your current PKI is here:
+  $EASYRSA_SAFE_PKI
+
+                        * IMPORTANT NOTICE *
+
+1. YOU MUST VERIFY THAT YOUR NEW ./vars FILE IS SETUP CORRECTLY
+2. IF YOU ARE USING WINDOWS YOU MUST ENSURE THAT openssl IS CORRECTLY DEFINED
+   IN ./vars (example follows)
+
+ #
+ # This sample is in Windows syntax -- edit it for your path if not using PATH:
+ # set_var EASYRSA_OPENSSL   \"C:/Program Files/OpenSSL-Win32/bin/openssl.exe\"
+ #
+ # Alternate location (Note: Forward slash '/' is correct for Windpws):
+ # set_var EASYRSA_OPENSSL   \"C:/Program Files/Openvpn/bin/openssl.exe\"
+ #
+
+3. Finally, you can verify that easyrsa works by using these two commands:
+    ./easyrsa show-ca (Verify that your CA is intact and correct)
+    ./easyrsa gen-crl ((re)-generate a CRL file)
+
+Further info:
+* https://community.openvpn.net/openvpn/wiki/easyrsa-upgrade"
+          up23_verbose "
+                   * UPGRADE COMPLETED SUCCESSFULLY *
+"
+
+return 0
+
+} # => up23_manage_upgrade_23 ()
+
+
+
 ########################################
 # Invocation entry point:
 
@@ -1771,6 +2360,10 @@ trap "exit 3" 3
 trap "exit 6" 6
 trap "exit 14" 15
 
+# Upgrade: EasyRSA v2.x to EasyRSA v3.x
+# Upgrade: EasyRSA < v3.0.6 to v3.0.6+
+#up23_manage_upgrade_23
+
 # determine how we were called, then hand off to the function responsible
 cmd="$1"
 [ -n "$1" ] && shift # scrape off command
@@ -1834,6 +2427,9 @@ case "$cmd" in
 		;;
 	show-ca)
 		show_ca "$@"
+		;;
+	upgrade)
+		up23_manage_upgrade_23 "$@"
 		;;
 	""|help|-h|--help|--usage)
 		cmd_help "$1"
