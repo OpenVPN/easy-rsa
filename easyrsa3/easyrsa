@@ -100,7 +100,8 @@ cmd_help() {
 
       This mode uses the <filename_base> as the X509 CN."
 			opts="
-        nopass  - do not encrypt the private key (default is encrypted)" ;;
+        nopass  - do not encrypt the private key (default is encrypted)
+        inline  - create an inline credentials file for this node" ;;
 		revoke) text="
   revoke <filename_base> [reason]
       Revoke a certificate specified by the filename_base, with an optional 
@@ -914,6 +915,7 @@ Run easyrsa without commands for usage and commands."
 	while [ -n "$1" ]; do
 		case "$1" in
 			nopass) req_opts="$req_opts nopass" ;;
+			inline) EASYRSA_INLINE=1 ;;
 			*) warn "Ignoring unknown command option: '$1'" ;;
 		esac
 		shift
@@ -939,7 +941,33 @@ Matching file found at: "
 		die "Failed to sign '$name'"
 	}
 
+	# inline it
+	[ $EASYRSA_INLINE ] && inline_creds
+
 } # => build_full()
+
+#Create inline credentials file for this node
+inline_creds ()
+{
+	[ -f "$EASYRSA_PKI/$EASYRSA_REQ_CN.creds" ] \
+	&& die "Inline file exists: $EASYRSA_PKI/$EASYRSA_REQ_CN.creds"
+	{
+		printf "%s\n" "# $crt_type: $EASYRSA_REQ_CN"
+		printf "%s\n" ""
+		printf "%s\n" "<ca>"
+		cat "$EASYRSA_PKI/ca.crt"
+		printf "%s\n" "</ca>"
+		printf "%s\n" ""
+		printf "%s\n" "<cert>"
+		cat "$crt_out"
+		printf "%s\n" "</cert>"
+		printf "%s\n" ""
+		printf "%s\n" "<key>"
+		cat "$key_out"
+		printf "%s\n" "</key>"
+		printf "%s\n" ""
+	} > "$EASYRSA_PKI/$EASYRSA_REQ_CN.creds"
+} # => inline_creds ()
 
 # revoke backend
 revoke() {
