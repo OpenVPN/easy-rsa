@@ -942,8 +942,9 @@ Matching file found at: "
 	}
 
 	# inline it
-	[ $EASYRSA_INLINE ] && inline_creds
-
+	if [ $EASYRSA_INLINE ]; then
+		inline_creds
+	fi
 } # => build_full()
 
 #Create inline credentials file for this node
