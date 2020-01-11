@@ -8,6 +8,7 @@ Easy-RSA 3 ChangeLog
    * Workaround for ash and no set -o echo (#319)
    * Shore up windows testing framework (#314)
    * Provide upgrade mechanism for older versions of EasyRSA (#349)
+   * Add support for KDC certificates (#322)
 
 3.0.6 (2019-02-01)
    * Certificates that are revoked now move to a revoked subdirectory (#63)
