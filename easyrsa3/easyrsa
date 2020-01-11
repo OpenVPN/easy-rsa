@@ -947,7 +947,7 @@ Matching file found at: "
 	fi
 } # => build_full()
 
-#Create inline credentials file for this node
+# Create inline credentials file for this node
 inline_creds ()
 {
 	[ -f "$EASYRSA_PKI/$EASYRSA_REQ_CN.creds" ] \
