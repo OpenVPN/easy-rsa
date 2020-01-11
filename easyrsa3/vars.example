@@ -190,6 +190,9 @@ fi
 #
 #set_var EASYRSA_EXT_DIR	"$EASYRSA/x509-types"
 
+# If you want to generate KDC certificates, you need to set the realm here.
+#set_var EASYRSA_KDC_REALM      "CHANGEME.EXAMPLE.COM"
+
 # OpenSSL config file:
 # If you need to use a specific openssl config file, you can reference it here.
 # Normally this file is auto-detected from a file named openssl-easyrsa.cnf from the

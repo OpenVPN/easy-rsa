@@ -1650,6 +1650,7 @@ Note: using Easy-RSA configuration from: $vars"
 	set_var EASYRSA_DIGEST		sha256
 	set_var EASYRSA_SSL_CONF	"$EASYRSA_PKI/openssl-easyrsa.cnf"
 	set_var EASYRSA_SAFE_CONF	"$EASYRSA_PKI/safessl-easyrsa.cnf"
+	set_var EASYRSA_KDC_REALM	"CHANGEME.EXAMPLE.COM"
 
 	# Same as above for the x509-types extensions dir
 	if [ -d "$EASYRSA_PKI/x509-types" ]; then
