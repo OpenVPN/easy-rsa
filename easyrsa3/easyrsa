@@ -482,9 +482,10 @@ verify_ca_init() {
 	# First check the PKI has been initialized
 	verify_pki_init
 
-	# verify expected files present:
+	# Verify expected files are present. Allow files to be regular files
+	# (or symlinks), but also pipes, for flexibility with ca.key
 	for i in serial index.txt index.txt.attr ca.crt private/ca.key; do
-		if [ ! -f "$EASYRSA_PKI/$i" ]; then
+		if [ ! -f "$EASYRSA_PKI/$i" ] && [ ! -p "$EASYRSA_PKI/$i" ]; then
 			[ "$1" = "test" ] && return 1
 			die "\
 Missing expected CA file: $i (perhaps you need to run build-ca?)
