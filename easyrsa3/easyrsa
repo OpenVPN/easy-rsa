@@ -40,6 +40,7 @@ Here is the list of commands available with a short syntax reminder. Use the
   update-db
   show-req <filename_base> [ cmd-opts ]
   show-cert <filename_base> [ cmd-opts ]
+  show-cert-revokation <filename_base> [ cmd-opts ]
   show-ca [ cmd-opts ]
   import-req <request_file_path> <short_basename>
   export-p7 <filename_base> [ cmd-opts ]
@@ -138,6 +139,8 @@ cmd_help() {
       			opts="
           full   - show full req/cert info, including pubkey/sig data" ;;
 		show-ca) text="
+  show-cert-revokation <filename_base> [ cmd-opts ]
+      Shows details of the cert revokation referenced by filename_base
   show-ca [ cmd-opts ]
       Shows details of the CA cert
 
@@ -1519,9 +1522,19 @@ Run easyrsa without commands for usage help."
 
 	# Determine cert/req type
 	if [ "$type" = "cert" ]; then
-		verify_ca_init
+	        verify_ca_init
 		in_file="$EASYRSA_PKI/issued/${name}.crt"
 		format="x509"
+ 	elif [ "$type" = "cert-revokation" ]; then
+	        crl="$EASYRSA_PKI/ca+crl.pem"
+	        [ -e "$crl" ] || die "\
+Missing expected CRL file: $crl"
+	    
+ 		verify_ca_init
+ 		in_file="$EASYRSA_PKI/issued/${name}.crt"
+ 		format="verify -crl_check -CAfile $crl"
+		"$EASYRSA_OPENSSL" $format $in_file
+		exit 0
 	else
 		verify_pki_init
 		in_file="$EASYRSA_PKI/reqs/${name}.req"
@@ -2462,6 +2475,9 @@ case "$cmd" in
 	show-cert)
 		show cert "$@"
 		;;
+	show-cert-revokation)
+		show cert-revokation "$@"
+ 		;;
 	show-ca)
 		show_ca "$@"
 		;;
