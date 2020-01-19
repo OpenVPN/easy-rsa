@@ -112,10 +112,11 @@ fi
 # Choices for crypto alg are: (each in lower-case)
 #  * rsa
 #  * ec
+#  * ed
 
 #set_var EASYRSA_ALGO		rsa
 
-# Define the named curve, used in ec mode only:
+# Define the named curve, used in ec & ed modes:
 
 #set_var EASYRSA_CURVE		secp384r1
 

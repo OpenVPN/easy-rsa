@@ -393,6 +393,7 @@ easyrsa_openssl() {
 		cp "$easyrsa_openssl_conf" "$EASYRSA_SAFE_CONF"
 		err=$?
 	else
+		echo "$EASYRSA_OPENSSL" "$openssl_command" -config "$easyrsa_openssl_conf" "$@"
 		"$EASYRSA_OPENSSL" "$openssl_command" -config "$easyrsa_openssl_conf" "$@"
 		err=$?
 	fi
@@ -409,7 +410,8 @@ EASYRSA_PKI env-var undefined"
 } # => vars_source_check()
 
 # Verify supplied curve exists and generate curve file if needed
-verify_curve() {
+verify_curve_ec() {
+
 	if ! "$EASYRSA_OPENSSL" ecparam -name "$EASYRSA_CURVE" > /dev/null; then
 		die "\
 Curve $EASYRSA_CURVE not found. Run openssl ecparam -list_curves to show a
@@ -430,6 +432,13 @@ $out"
 
 	# Explicitly return success for caller
 	return 0
+}
+
+verify_curve_ed() {
+	if [ "ed25519" = "$EASYRSA_CURVE" ] || [ "ed448" = "$EASYRSA_CURVE" ] ; then
+		return 0
+	fi
+		return 1
 }
 
 verify_ssl_lib () {
@@ -578,7 +587,8 @@ build_ca() {
 	done
 
 	verify_pki_init
-	[ "$EASYRSA_ALGO" = "ec" ] && verify_curve
+	[ "$EASYRSA_ALGO" = "ec" ] && verify_curve_ec
+	[ "$EASYRSA_ALGO" = "ed" ] && verify_curve_ed
 
 	# setup for the simpler intermediate CA situation and overwrite with root-CA if needed:
 	out_file="$EASYRSA_PKI/reqs/ca.req"
@@ -655,6 +665,11 @@ current CA keypair. If you intended to start a new CA, run init-pki first."
 		"$EASYRSA_OPENSSL" ecparam -in "$EASYRSA_ALGO_PARAMS" -genkey | \
 			"$EASYRSA_OPENSSL" ec -out "$out_key_tmp" $crypto_opts ${EASYRSA_PASSOUT:+-passout "$EASYRSA_PASSOUT"} || \
 			die "Failed create CA private key"
+	elif [ "ed" = "$EASYRSA_ALGO" ]; then
+                CURVE_CAPS=$(echo $EASYRSA_CURVE | tr '[a-z]' '[A-Z]')
+                echo "$EASYRSA_OPENSSL genpkey -algorithm $CURVE_CAPS -out $out_key_tmp"
+		"$EASYRSA_OPENSSL" genpkey -algorithm $CURVE_CAPS -out $out_key_tmp || \
+                        die "Failed create CA private key"
 	fi
 
 	# create the CA keypair:
@@ -723,7 +738,8 @@ Run easyrsa without commands for usage and commands."
 	done
 
 	verify_pki_init
-	[ "$EASYRSA_ALGO" = "ec" ] && verify_curve
+	[ "$EASYRSA_ALGO" = "ec" ] && verify_curve_ec
+        [ "$EASYRSA_ALGO" = "ed" ] && verify_curve_ed
 
 	# don't wipe out an existing private key without confirmation
 	[ -f "$key_out" ] && confirm "Confirm key overwrite: " "yes" "\
@@ -760,7 +776,11 @@ $EASYRSA_EXTRA_EXTS"
 	# generate request
 	[ $EASYRSA_BATCH ] && opts="$opts -batch"
 	# shellcheck disable=2086,2148
-	easyrsa_openssl req -utf8 -new -newkey "$EASYRSA_ALGO":"$EASYRSA_ALGO_PARAMS" \
+	algo_opts=""
+	if [ "ed" != $EASYRSA_ALGO ];then
+		algo_opts=' -newkey "$EASYRSA_ALGO":"$EASYRSA_ALGO_PARAMS" '
+	fi
+	easyrsa_openssl req -utf8 -new $algo_opts \
 		-keyout "$key_out_tmp" -out "$req_out_tmp" $opts ${EASYRSA_PASSOUT:+-passout "$EASYRSA_PASSOUT"} \
 		|| die "Failed to generate request"
 	mv "$key_out_tmp" "$key_out"
@@ -1670,8 +1690,8 @@ Note: using Easy-RSA configuration from: $vars"
 		EASYRSA_ALGO_PARAMS="$EASYRSA_EC_DIR/${EASYRSA_CURVE}.pem"
 	elif [ "rsa" = "$EASYRSA_ALGO" ]; then
 		EASYRSA_ALGO_PARAMS="${EASYRSA_KEY_SIZE}"
-	else
-		die "Alg '$EASYRSA_ALGO' is invalid: must be 'rsa' or 'ec'"
+	elif [ "ed" != "$EASYRSA_ALGO" ]; then
+		die "Alg '$EASYRSA_ALGO' is invalid: must be 'rsa', 'ec' or 'ed' "
 	fi
 
 	# Assign value to $EASYRSA_TEMP_DIR_session and work around Windows mktemp bug when parent dir is missing
