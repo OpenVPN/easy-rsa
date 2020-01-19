@@ -393,7 +393,6 @@ easyrsa_openssl() {
 		cp "$easyrsa_openssl_conf" "$EASYRSA_SAFE_CONF"
 		err=$?
 	else
-		echo "$EASYRSA_OPENSSL" "$openssl_command" -config "$easyrsa_openssl_conf" "$@"
 		"$EASYRSA_OPENSSL" "$openssl_command" -config "$easyrsa_openssl_conf" "$@"
 		err=$?
 	fi
