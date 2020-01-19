@@ -777,7 +777,7 @@ $EASYRSA_EXTRA_EXTS"
 	# shellcheck disable=2086,2148
 	algo_opts=""
 	if [ "ed" != $EASYRSA_ALGO ];then
-		algo_opts=' -newkey "$EASYRSA_ALGO":"$EASYRSA_ALGO_PARAMS" '
+		algo_opts=' -newkey $EASYRSA_ALGO:$EASYRSA_ALGO_PARAMS '
 	fi
 	easyrsa_openssl req -utf8 -new $algo_opts \
 		-keyout "$key_out_tmp" -out "$req_out_tmp" $opts ${EASYRSA_PASSOUT:+-passout "$EASYRSA_PASSOUT"} \
