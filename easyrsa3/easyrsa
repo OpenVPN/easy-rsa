@@ -665,10 +665,13 @@ current CA keypair. If you intended to start a new CA, run init-pki first."
 			"$EASYRSA_OPENSSL" ec -out "$out_key_tmp" $crypto_opts ${EASYRSA_PASSOUT:+-passout "$EASYRSA_PASSOUT"} || \
 			die "Failed create CA private key"
 	elif [ "ed" = "$EASYRSA_ALGO" ]; then
-                CURVE_CAPS=$(echo $EASYRSA_CURVE | tr '[a-z]' '[A-Z]')
-                echo "$EASYRSA_OPENSSL genpkey -algorithm $CURVE_CAPS -out $out_key_tmp"
-		"$EASYRSA_OPENSSL" genpkey -algorithm $CURVE_CAPS -out $out_key_tmp || \
+                if [ "ed25519" = "$EASYRSA_CURVE" ]; then
+			"$EASYRSA_OPENSSL" genpkey -algorithm ED25519  -out $out_key_tmp || \
                         die "Failed create CA private key"
+		elif [ "ed448" = "$EASYRSA_CURVE" ]; then
+			"$EASYRSA_OPENSSL" genpkey -algorithm ED448 -out $out_key_tmp || \
+                        die "Failed create CA private key"
+		fi
 	fi
 
 	# create the CA keypair:
