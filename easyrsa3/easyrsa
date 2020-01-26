@@ -1869,7 +1869,7 @@ up23_backup_current_pki ()
 	mkdir -p "$EASYRSA_SAFE_PKI" \
 	|| up23_fail_upgrade "Failed to create safe PKI dir: $EASYRSA_SAFE_PKI"
 
-	cp -r "$KEY_DIR" "$EASYRSA_SAFE_PKI" \
+	cp -R "$KEY_DIR" "$EASYRSA_SAFE_PKI" \
 	|| up23_fail_upgrade "Failed to copy $KEY_DIR to $EASYRSA_SAFE_PKI"
 
 	# EASYRSA_VER2_VARSFILE is either version 2 *nix ./vars or Win vars.bat
