@@ -36,6 +36,7 @@ Here is the list of commands available with a short syntax reminder. Use the
   revoke <filename_base> [cmd-opts]
   renew <filename_base> [cmd-opts]
   build-serverClient-full <filename_base> [ cmd-opts ]
+  build-inline <filename_base>
   gen-crl
   update-db
   show-req <filename_base> [ cmd-opts ]
@@ -100,8 +101,16 @@ cmd_help() {
 
       This mode uses the <filename_base> as the X509 CN."
 			opts="
-        nopass  - do not encrypt the private key (default is encrypted)
-        inline  - create an inline credentials file for this node" ;;
+        nopass  - do not encrypt the private key (default is encrypted)" ;;
+		build-inline) text="
+  build-inline <filename_base>
+      Create an inline file for node <filename_base>
+
+      The inline file is:
+      * created in your PKI directory: ./inline/<filename_base>.conf
+      * comprised of: short node description, node cert, node key, CA cert
+
+      Note: Other inline files must be added manually. eg: ta.key" ;;
 		revoke) text="
   revoke <filename_base> [reason]
       Revoke a certificate specified by the filename_base, with an optional 
@@ -112,7 +121,7 @@ cmd_help() {
         affiliationChanged
         superseded
         cessationOfOperation
-        certificateHold";;
+        certificateHold" ;;
 		renew) text="
   renew <filename_base> [ cmd-opts ]
       Renew a certificate specified by the filename_base"
@@ -429,7 +438,7 @@ $out"
 
 	# Explicitly return success for caller
 	return 0
-}
+} # => verify_curve()
 
 verify_ssl_lib () {
 	# Verify EASYRSA_OPENSSL command gives expected output
@@ -915,7 +924,6 @@ Run easyrsa without commands for usage and commands."
 	while [ -n "$1" ]; do
 		case "$1" in
 			nopass) req_opts="$req_opts nopass" ;;
-			inline) EASYRSA_INLINE=1 ;;
 			*) warn "Ignoring unknown command option: '$1'" ;;
 		esac
 		shift
@@ -941,34 +949,61 @@ Matching file found at: "
 		die "Failed to sign '$name'"
 	}
 
-	# inline it
-	if [ $EASYRSA_INLINE ]; then
-		inline_creds
-	fi
 } # => build_full()
 
-# Create inline credentials file for this node
-inline_creds ()
+# Identify certificate purpose
+identify_cert_purpose ()
 {
-	[ -f "$EASYRSA_PKI/$EASYRSA_REQ_CN.creds" ] \
-	&& die "Inline file exists: $EASYRSA_PKI/$EASYRSA_REQ_CN.creds"
+	crt_EKU="$(grep \
+		-e '^\ \+TLS Web Server Authentication, TLS Web Client Authentication$' \
+		-e '^\ \+TLS Web Server Authentication$' \
+		-e '^\ \+TLS Web Client Authentication$' \
+		"$crt_file")"
+	crt_type="${crt_EKU##*  }"
+	[ -z "$crt_type" ] && crt_type="unknown"
+} #=> identify_cert_purpose ()
+
+# Create inline credentials file
+build_inline ()
+{
+	# TODO: Improve build_inline integration. eg: renew/revoke and ta.key
+	verify_ca_init
+	crt_type=""
+	name="$1"
+	ca_file="$EASYRSA_PKI/ca.crt"
+	crt_file="$EASYRSA_PKI/issued/$name.crt"
+	key_file="$EASYRSA_PKI/private/$name.key"
+	out_file="$EASYRSA_PKI/inline/$name.conf"
+
+	[ -f "$out_file" ] \
+	&& die "Inline file exists: $out_file"
+
+	[ -f "$crt_file" ] \
+	|| die "Certificate file does not exist: $crt_file"
+
+	[ -f "$key_file" ] \
+	|| die "Key file does not exist: $key_file"
+
+	identify_cert_purpose
+
+	mkdir -p "$EASYRSA_PKI/inline"
 	{
-		printf "%s\n" "# $crt_type: $EASYRSA_REQ_CN"
-		printf "%s\n" ""
-		printf "%s\n" "<ca>"
-		cat "$EASYRSA_PKI/ca.crt"
-		printf "%s\n" "</ca>"
+		printf "%s\n" "# $crt_type: $name"
 		printf "%s\n" ""
 		printf "%s\n" "<cert>"
-		cat "$crt_out"
+		cat "$crt_file"
 		printf "%s\n" "</cert>"
 		printf "%s\n" ""
 		printf "%s\n" "<key>"
-		cat "$key_out"
+		cat "$key_file"
 		printf "%s\n" "</key>"
 		printf "%s\n" ""
-	} > "$EASYRSA_PKI/$EASYRSA_REQ_CN.creds"
-} # => inline_creds ()
+		printf "%s\n" "<ca>"
+		cat "$ca_file"
+		printf "%s\n" "</ca>"
+		printf "%s\n" ""
+	} > "$out_file"
+} # => build_inline ()
 
 # revoke backend
 revoke() {
@@ -2420,6 +2455,9 @@ case "$cmd" in
 		;;
 	build-serverClient-full)
 		build_full serverClient "$@"
+		;;
+	build-inline)
+		build_inline "$@"
 		;;
 	gen-crl)
 		gen_crl
