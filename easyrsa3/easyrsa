@@ -1617,6 +1617,8 @@ vars_setup() {
 	prog_vars="${prog_dir}/vars"
 	# set up PKI path
 	pki_vars="${EASYRSA_PKI:-$PWD/pki}/vars"
+	# set up last resort path
+	last_resort_vars="${EASYRSA:-$PWD}/vars"
 
 	# command-line path:
 	if [ -f "$EASYRSA_VARS_FILE" ]; then
@@ -1630,6 +1632,11 @@ vars_setup() {
 	# program location:
 	elif [ -f "$prog_vars" ]; then
 		vars="$prog_vars"
+	# last resort path:
+	elif [ -f "$last_resort_vars" ]; then
+		# Using $PWD/vars is deprecated in favor of $EASYRSA_PKI/vars
+		#die/warn "Before you can continue, please move vars to your PKI."
+		vars="$last_resort_vars"
 	fi
 	
 	# If a vars file was located, source it
