@@ -951,32 +951,20 @@ Matching file found at: "
 
 } # => build_full()
 
-# Identify certificate purpose
-identify_cert_purpose ()
-{
-	crt_EKU="$(grep \
-		-e '^\ \+TLS Web Server Authentication, TLS Web Client Authentication$' \
-		-e '^\ \+TLS Web Server Authentication$' \
-		-e '^\ \+TLS Web Client Authentication$' \
-		"$crt_file")"
-	crt_type="${crt_EKU##*  }"
-	[ -z "$crt_type" ] && crt_type="unknown"
-} #=> identify_cert_purpose ()
-
 # Create inline credentials file
 build_inline ()
 {
 	# TODO: Improve build_inline integration. eg: renew/revoke and ta.key
 	verify_ca_init
-	crt_type=""
 	name="$1"
 	ca_file="$EASYRSA_PKI/ca.crt"
 	crt_file="$EASYRSA_PKI/issued/$name.crt"
 	key_file="$EASYRSA_PKI/private/$name.key"
 	out_file="$EASYRSA_PKI/inline/$name.conf"
 
-	[ -f "$out_file" ] \
+	[ -f "$out_file" ] && [ ! "$EASYRSA_BATCH" ] \
 	&& die "Inline file exists: $out_file"
+	rm -f "$out_file"
 
 	[ -f "$crt_file" ] \
 	|| die "Certificate file does not exist: $crt_file"
@@ -984,11 +972,9 @@ build_inline ()
 	[ -f "$key_file" ] \
 	|| die "Key file does not exist: $key_file"
 
-	identify_cert_purpose
-
 	mkdir -p "$EASYRSA_PKI/inline"
 	{
-		printf "%s\n" "# $crt_type: $name"
+		printf "%s\n" "# File name base: $name"
 		printf "%s\n" ""
 		printf "%s\n" "<cert>"
 		cat "$crt_file"
@@ -1002,7 +988,7 @@ build_inline ()
 		cat "$ca_file"
 		printf "%s\n" "</ca>"
 		printf "%s\n" ""
-	} > "$out_file"
+	} > "$out_file" || die "Failed to create inline file: $out_file"
 } # => build_inline ()
 
 # revoke backend
