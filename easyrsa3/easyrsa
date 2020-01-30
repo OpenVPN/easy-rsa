@@ -962,15 +962,15 @@ build_inline ()
 	key_file="$EASYRSA_PKI/private/$name.key"
 	out_file="$EASYRSA_PKI/inline/$name.conf"
 
-	[ -f "$out_file" ] && [ ! "$EASYRSA_BATCH" ] \
-	&& die "Inline file exists: $out_file"
-	rm -f "$out_file"
+	if [ -f "$out_file" ] && [ "$EASYRSA_BATCH" ]
+	then
+		rm -f "$out_file"
+	else
+		die "Inline file exists: $out_file"
+	fi
 
-	[ -f "$crt_file" ] \
-	|| die "Certificate file does not exist: $crt_file"
-
-	[ -f "$key_file" ] \
-	|| die "Key file does not exist: $key_file"
+	[ -f "$crt_file" ] || die "Certificate file does not exist: $crt_file"
+	[ -f "$key_file" ] || die "Key file does not exist: $key_file"
 
 	mkdir -p "$EASYRSA_PKI/inline"
 	{
