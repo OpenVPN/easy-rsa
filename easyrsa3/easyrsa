@@ -107,8 +107,8 @@ cmd_help() {
       Create an inline file for node <filename_base>
 
       The inline file is:
-      * created in your PKI directory: ./inline/<filename_base>.conf
-      * comprised of: short node description, node cert, node key, CA cert
+      * created in your PKI directory: ./inline/<filename_base>.inline
+      * comprised of: # filename_base, node cert, node key, CA cert.
 
       Note: Other inline files must be added manually. eg: ta.key" ;;
 		revoke) text="
@@ -960,13 +960,13 @@ build_inline ()
 	ca_file="$EASYRSA_PKI/ca.crt"
 	crt_file="$EASYRSA_PKI/issued/$name.crt"
 	key_file="$EASYRSA_PKI/private/$name.key"
-	out_file="$EASYRSA_PKI/inline/$name.conf"
+	out_file="$EASYRSA_PKI/inline/$name.inline"
 
-	if [ -f "$out_file" ] && [ "$EASYRSA_BATCH" ]
+	if [ "$EASYRSA_BATCH" ]
 	then
 		rm -f "$out_file"
 	else
-		die "Inline file exists: $out_file"
+		[ -f "$out_file" ] && die "Inline file exists: $out_file"
 	fi
 
 	[ -f "$crt_file" ] || die "Certificate file does not exist: $crt_file"
