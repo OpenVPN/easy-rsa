@@ -36,7 +36,6 @@ Here is the list of commands available with a short syntax reminder. Use the
   revoke <filename_base> [cmd-opts]
   renew <filename_base> [cmd-opts]
   build-serverClient-full <filename_base> [ cmd-opts ]
-  build-inline <filename_base>
   gen-crl
   update-db
   show-req <filename_base> [ cmd-opts ]
@@ -950,46 +949,6 @@ Matching file found at: "
 	}
 
 } # => build_full()
-
-# Create inline credentials file
-build_inline ()
-{
-	# TODO: Improve build_inline integration. eg: renew/revoke and ta.key
-	verify_ca_init
-	name="$1"
-	ca_file="$EASYRSA_PKI/ca.crt"
-	crt_file="$EASYRSA_PKI/issued/$name.crt"
-	key_file="$EASYRSA_PKI/private/$name.key"
-	out_file="$EASYRSA_PKI/inline/$name.inline"
-
-	if [ "$EASYRSA_BATCH" ]
-	then
-		rm -f "$out_file"
-	else
-		[ -f "$out_file" ] && die "Inline file exists: $out_file"
-	fi
-
-	[ -f "$crt_file" ] || die "Certificate file does not exist: $crt_file"
-	[ -f "$key_file" ] || die "Key file does not exist: $key_file"
-
-	mkdir -p "$EASYRSA_PKI/inline"
-	{
-		printf "%s\n" "# File name base: $name"
-		printf "%s\n" ""
-		printf "%s\n" "<cert>"
-		cat "$crt_file"
-		printf "%s\n" "</cert>"
-		printf "%s\n" ""
-		printf "%s\n" "<key>"
-		cat "$key_file"
-		printf "%s\n" "</key>"
-		printf "%s\n" ""
-		printf "%s\n" "<ca>"
-		cat "$ca_file"
-		printf "%s\n" "</ca>"
-		printf "%s\n" ""
-	} > "$out_file" || die "Failed to create inline file: $out_file"
-} # => build_inline ()
 
 # revoke backend
 revoke() {
@@ -2448,9 +2407,6 @@ case "$cmd" in
 		;;
 	build-serverClient-full)
 		build_full serverClient "$@"
-		;;
-	build-inline)
-		build_inline "$@"
 		;;
 	gen-crl)
 		gen_crl
