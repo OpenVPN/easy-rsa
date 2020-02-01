@@ -433,11 +433,15 @@ $out"
 	return 0
 }
 
+# Verify if Edward Curve exists
 verify_curve_ed() {
-	if [ "ed25519" = "$EASYRSA_CURVE" ] || [ "ed448" = "$EASYRSA_CURVE" ] ; then
+
+	if [ "ed25519" = "$EASYRSA_CURVE" ] && "$EASYRSA_OPENSSL" genpkey -algorithm ED25519 > /dev/null; then
+		return 0
+	elif [ "ed448" = "$EASYRSA_CURVE" ] && "$EASYRSA_OPENSSL" genpkey -algorithm ED448 > /dev/null; then
 		return 0
 	fi
-		return 1
+		die "Curve $EASYRSA_CURVE not found."
 }
 
 verify_ssl_lib () {
@@ -665,12 +669,12 @@ current CA keypair. If you intended to start a new CA, run init-pki first."
 			"$EASYRSA_OPENSSL" ec -out "$out_key_tmp" $crypto_opts ${EASYRSA_PASSOUT:+-passout "$EASYRSA_PASSOUT"} || \
 			die "Failed create CA private key"
 	elif [ "ed" = "$EASYRSA_ALGO" ]; then
-                if [ "ed25519" = "$EASYRSA_CURVE" ]; then
+		if [ "ed25519" = "$EASYRSA_CURVE" ]; then
 			"$EASYRSA_OPENSSL" genpkey -algorithm ED25519  -out $out_key_tmp || \
-                        die "Failed create CA private key"
+			die "Failed create CA private key"
 		elif [ "ed448" = "$EASYRSA_CURVE" ]; then
 			"$EASYRSA_OPENSSL" genpkey -algorithm ED448 -out $out_key_tmp || \
-                        die "Failed create CA private key"
+			die "Failed create CA private key"
 		fi
 	fi
 
@@ -741,7 +745,7 @@ Run easyrsa without commands for usage and commands."
 
 	verify_pki_init
 	[ "$EASYRSA_ALGO" = "ec" ] && verify_curve_ec
-        [ "$EASYRSA_ALGO" = "ed" ] && verify_curve_ed
+	[ "$EASYRSA_ALGO" = "ed" ] && verify_curve_ed
 
 	# don't wipe out an existing private key without confirmation
 	[ -f "$key_out" ] && confirm "Confirm key overwrite: " "yes" "\
@@ -780,7 +784,7 @@ $EASYRSA_EXTRA_EXTS"
 	# shellcheck disable=2086,2148
 	algo_opts=""
 	if [ "ed" != $EASYRSA_ALGO ];then
-		algo_opts=' -newkey $EASYRSA_ALGO:$EASYRSA_ALGO_PARAMS '
+		algo_opts=" -newkey $EASYRSA_ALGO:$EASYRSA_ALGO_PARAMS "
 	fi
 	easyrsa_openssl req -utf8 -new $algo_opts \
 		-keyout "$key_out_tmp" -out "$req_out_tmp" $opts ${EASYRSA_PASSOUT:+-passout "$EASYRSA_PASSOUT"} \
