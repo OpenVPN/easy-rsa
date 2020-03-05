@@ -158,8 +158,9 @@ cmd_help() {
   export-p12 <filename_base> [ cmd-opts ]
       Export a PKCS#12 file with the keypair specified by <filename_base>"
 			opts="
-        noca  - do not include the ca.crt file in the PKCS12 output
-        nokey - do not include the private key in the PKCS12 output" ;;
+        nopass - do not encrypt the PKCS12 output (default is encrypted)			
+        noca   - do not include the ca.crt file in the PKCS12 output
+        nokey  - do not include the private key in the PKCS12 output" ;;
 		export-p7) text="
   export-p7 <filename_base> [ cmd-opts ]
       Export a PKCS#7 file with the pubkey specified by <filename_base>"
@@ -1321,10 +1322,12 @@ Run easyrsa without commands for usage and command help."
 	verify_pki_init
 
 	# opts support
+	want_pass=1
 	want_ca=1
 	want_key=1
 	while [ -n "$1" ]; do
 		case "$1" in
+			nopass) want_pass="" ;;
 			noca) want_ca="" ;;
 			nokey) want_key="" ;;
 			*) warn "Ignoring unknown command option: '$1'" ;;
@@ -1333,6 +1336,10 @@ Run easyrsa without commands for usage and command help."
 	done
 
 	pkcs_opts=
+	if ! [ $want_pass ]; then
+		pkcs_opts="$pkcs_opts -keypbe NONE -certpbe NONE -passout pass:"
+	fi
+
 	if [ $want_ca ]; then
 		verify_file x509 "$crt_ca" || die "\
 Unable to include CA cert in the $pkcs_type output (missing file, or use noca option.)
