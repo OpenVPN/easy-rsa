@@ -1447,7 +1447,7 @@ display_san() {
 	else
 		san=$(
 			"$EASYRSA_OPENSSL" "$format" -in "$path" -noout -text |
-			sed -n "/X509v3 Subject Alternative Name:/{n;s/ //g;s/IPAddress:/IP:/g;p;}"
+			sed -n "/X509v3 Subject Alternative Name:/{n;s/ //g;s/IPAddress:/IP:/g;s/RegisteredID/RID/;p;}"
 			)
 
 		[ -n "$san" ] && print "$san"
