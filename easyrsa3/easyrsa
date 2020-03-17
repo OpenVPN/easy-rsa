@@ -410,7 +410,6 @@ EASYRSA_PKI env-var undefined"
 
 # Verify supplied curve exists and generate curve file if needed
 verify_curve_ec() {
-
 	if ! "$EASYRSA_OPENSSL" ecparam -name "$EASYRSA_CURVE" > /dev/null; then
 		die "\
 Curve $EASYRSA_CURVE not found. Run openssl ecparam -list_curves to show a
@@ -435,7 +434,6 @@ $out"
 
 # Verify if Edward Curve exists
 verify_curve_ed() {
-
 	if [ "ed25519" = "$EASYRSA_CURVE" ] && "$EASYRSA_OPENSSL" genpkey -algorithm ED25519 > /dev/null; then
 		return 0
 	elif [ "ed448" = "$EASYRSA_CURVE" ] && "$EASYRSA_OPENSSL" genpkey -algorithm ED448 > /dev/null; then
