@@ -113,3 +113,7 @@ possible terse description is shown below:
     signing
  *  `EASYRSA_BATCH` (CLI: `--batch`) - enable batch (no-prompt) mode; set
     env-var to non-zero string to enable (CLI takes no options)
+ *  `EASYRSA_PASSIN` (CLI: `--passin`) - allows to specify a source for password;
+    using any openssl password options like pass:1234 or env:var
+ *  `EASYRSA_PASSOUT` (CLI: `--passout`) - allows to specify a source for password;
+    using any openssl password options like pass:1234 or env:var

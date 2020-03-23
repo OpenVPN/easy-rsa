@@ -2324,10 +2324,6 @@ NL='
 # Be secure with a restrictive umask
 [ -z "$EASYRSA_NO_UMASK" ] && umask 077
 
-# Ignore some env vars
-EASYRSA_PASSIN=
-EASYRSA_PASSOUT=
-
 # Parse options
 while :; do
 	# Separate option from value:
