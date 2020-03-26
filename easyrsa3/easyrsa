@@ -1645,6 +1645,12 @@ vars_setup() {
 	# If a vars file was located, source it
 	# If $EASYRSA_NO_VARS is defined (not blank) this is skipped
 	if [ -z "$EASYRSA_NO_VARS" ] && [ -n "$vars" ]; then
+		if grep -Eq 'EASYRSA_PASSIN|EASYRSA_PASSOUT' "$vars"; then
+			die "\
+Variable EASYRSA_PASSIN or EASYRSA_PASSOUT has been found in the configuration \
+file. Storing sensitive information in the configuration file is not \
+recommended - please remove it from there before continuing."
+		fi
 		#shellcheck disable=SC2034
 		EASYRSA_CALLER=1 
 		# shellcheck disable=SC1090
