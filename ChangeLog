@@ -10,6 +10,7 @@ Easy-RSA 3 ChangeLog
    * Provide upgrade mechanism for older versions of EasyRSA (#349)
    * Add support for KDC certificates (#322)
    * Add support for Edward Curves (#354, #350)
+   * Add support for EASYRSA_PASSIN and EASYRSA_PASSOUT env vars (#368)
 
 3.0.6 (2019-02-01)
    * Certificates that are revoked now move to a revoked subdirectory (#63)
