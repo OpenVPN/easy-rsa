@@ -1,6 +1,6 @@
 Easy-RSA 3 ChangeLog
 
-3.0.7 (TBD)
+3.0.7 (2020-03-30)
    * Include OpenSSL libs and binary for Windows 1.1.0j
    * Remove RANDFILE environment variable (#261)
    * Workaround for bug in win32 mktemp (#247, #305, PR #312)
