@@ -131,17 +131,15 @@ fi
 # How many days until the next CRL publish date?  Note that the CRL can still be
 # parsed after this timeframe passes. It is only used for an expected next
 # publication date.
+#set_var EASYRSA_CRL_DAYS	180
 
 # How many days before its expiration date a certificate is allowed to be
 # renewed?
 #set_var EASYRSA_CERT_RENEW	30
 
-#set_var EASYRSA_CRL_DAYS	180
-
 # Random serial numbers by default, set to no for the old incremental serial numbers
 #
 #set_var EASYRSA_RAND_SN	"yes"
-
 
 # Support deprecated "Netscape" extensions? (choices "yes" or "no".) The default
 # is "no" to discourage use of deprecated extensions. If you require this
