@@ -655,7 +655,9 @@ current CA keypair. If you intended to start a new CA, run init-pki first."
 	crypto_opts=""
 	if [ ! $nopass ]; then
 		crypto_opts="$crypto"
-		[ -z "$EASYRSA_PASSOUT" ] && crypto_opts="$crypto_opts -passout file:$out_key_pass_tmp"
+		# openssl genpkey doesn't like -passout flag, but -pass is fine
+		[ "ed" = "$EASYRSA_ALGO" ] && passout_flag="-pass" || passout_flag="-passout";
+		[ -z "$EASYRSA_PASSOUT" ] && crypto_opts="$crypto_opts $passout_flag file:$out_key_pass_tmp"
 	fi
 	if [ "$EASYRSA_ALGO" = "rsa" ]; then
 		#shellcheck disable=SC2086
@@ -668,10 +670,10 @@ current CA keypair. If you intended to start a new CA, run init-pki first."
 			die "Failed create CA private key"
 	elif [ "ed" = "$EASYRSA_ALGO" ]; then
 		if [ "ed25519" = "$EASYRSA_CURVE" ]; then
-			"$EASYRSA_OPENSSL" genpkey -algorithm ED25519  -out $out_key_tmp || \
+			"$EASYRSA_OPENSSL" genpkey -algorithm ED25519 -out $out_key_tmp $crypto_opts ${EASYRSA_PASSOUT:+-pass "$EASYRSA_PASSOUT"} || \
 			die "Failed create CA private key"
 		elif [ "ed448" = "$EASYRSA_CURVE" ]; then
-			"$EASYRSA_OPENSSL" genpkey -algorithm ED448 -out $out_key_tmp || \
+			"$EASYRSA_OPENSSL" genpkey -algorithm ED448 -out $out_key_tmp $crypto_opts ${EASYRSA_PASSOUT:+-pass "$EASYRSA_PASSOUT"} || \
 			die "Failed create CA private key"
 		fi
 	fi
