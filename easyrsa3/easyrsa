@@ -42,6 +42,7 @@ Here is the list of commands available with a short syntax reminder. Use the
   show-cert <filename_base> [ cmd-opts ]
   show-ca [ cmd-opts ]
   import-req <request_file_path> <short_basename>
+  export-p1 <filename_base> [ cmd-opts ]
   export-p7 <filename_base> [ cmd-opts ]
   export-p12 <filename_base> [ cmd-opts ]
   set-rsa-pass <filename_base> [ cmd-opts ]
@@ -105,8 +106,8 @@ cmd_help() {
         inline  - create an inline credentials file for this node" ;;
 		revoke) text="
   revoke <filename_base> [reason]
-      Revoke a certificate specified by the filename_base, with an optional 
-      revocation reason that is one of: 
+      Revoke a certificate specified by the filename_base, with an optional
+      revocation reason that is one of:
         unspecified
         keyCompromise
         CACompromise
@@ -165,6 +166,11 @@ cmd_help() {
       Export a PKCS#7 file with the pubkey specified by <filename_base>"
 			opts="
         noca  - do not include the ca.crt file in the PKCS7 output" ;;
+		export-p1) text="
+  export-p1 <filename_base> [ cmd-opts ]
+	  Export a PKCS#1 (RSA format) file with the pubkey specified by <filename_base>"
+			opts="
+	nopass - use no password and leave the key unencrypted" ;;
 		set-rsa-pass|set-ec-pass) text="
   set-rsa-pass <filename_base> [ cmd-opts ]
   set-ec-pass <filename_base> [ cmd-opts ]
@@ -1351,6 +1357,7 @@ Run easyrsa without commands for usage and command help."
 		case "$1" in
 			noca) want_ca="" ;;
 			nokey) want_key="" ;;
+			nopass) nopass="" ;;
 			*) warn "Ignoring unknown command option: '$1'" ;;
 		esac
 		shift
@@ -1396,6 +1403,16 @@ Export of p12 failed: see above for related openssl errors."
 		easyrsa_openssl crl2pkcs7 -nocrl -certfile "$crt_in" \
 			-out "$pkcs_out" $pkcs_opts ${EASYRSA_PASSIN:+-passin "$EASYRSA_PASSIN"} ${EASYRSA_PASSOUT:+-passout "$EASYRSA_PASSOUT"} || die "\
 Export of p7 failed: see above for related openssl errors."
+	;;
+	p1)
+		pkcs_out="$EASYRSA_PKI/private/$short_name.p1"
+		crypto='-aes256'
+
+		# export the p1:
+		# shellcheck disable=SC2086
+		easyrsa_openssl rsa -in "$key_in" ${nopass:=$crypto} \
+			-out "$pkcs_out" ${EASYRSA_PASSIN:+-passin "$EASYRSA_PASSIN"} ${EASYRSA_PASSOUT:+-passout "$EASYRSA_PASSOUT"} || die "\
+Export of p1 failed: see above for related openssl errors."
 	;;
 esac
 
@@ -2472,6 +2489,9 @@ case "$cmd" in
 		;;
 	export-p7)
 		export_pkcs p7 "$@"
+		;;
+	export-p1)
+		export_pkcs p1 "$@"
 		;;
 	set-rsa-pass)
 		set_pass rsa "$@"
