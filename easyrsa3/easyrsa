@@ -221,6 +221,7 @@ General options:
 --passout=ARG   : set -passout ARG for openssl
 --pki-dir=DIR   : declares the PKI directory
 --vars=FILE     : define a specific 'vars' file to use for Easy-RSA config
+--version       : prints EasyRSA version and build information, then exits
 
 Certificate & Request options: (these impact cert/req field values)
 
@@ -2319,6 +2320,18 @@ return 0
 
 } # => up23_manage_upgrade_23 ()
 
+print_version()
+{
+		cat <<HERE
+EasyRSA Version Information
+Version:     ~VER~
+Generated:   ~DATE~
+SSL Lib:     $(openssl version)
+Git Commit:  ~GITHEAD~
+Source Repo: https://github.com/OpenVPN/easy-rsa
+HERE
+		exit 0
+} # => print_version ()
 
 
 ########################################
@@ -2398,6 +2411,9 @@ while :; do
 		export EASYRSA_EXTRA_EXTS="\
 $EASYRSA_EXTRA_EXTS
 subjectAltName = $val" ;;
+	--version)
+		print_version
+		;;
 	*)
 		break ;;
 	esac
@@ -2497,6 +2513,9 @@ case "$cmd" in
 	""|help|-h|--help|--usage)
 		cmd_help "$1"
 		exit 0
+		;;
+	version)
+		print_version
 		;;
 	*)
 		die "Unknown command '$cmd'. Run without commands for usage help."

@@ -79,7 +79,11 @@ stage_unix() {
 	done
 	
 	# FreeBSD does not accept -i without argument in a way also acceptable by GNU sed
-	sed -i.tmp -e "s/~VER~/$VERSION/" "$DIST_ROOT/unix/$PV/easyrsa" || die "Cannot update easyrsa version"
+	sed -i.tmp -e "s/~VER~/$VERSION/" \
+		   -e "s/~DATE~/$(date)/" \
+		   -e "s/~HOST~/$(hostname -s)/" \
+		   -e "s/~GITHEAD~/$(git rev-parse HEAD)/" \
+		   "$DIST_ROOT/unix/$PV/easyrsa" || die "Cannot update easyrsa version data"
 	rm -f "$DIST_ROOT/unix/$PV/easyrsa.tmp"
 
 	# files not included
@@ -116,6 +120,13 @@ stage_win() {
 			cp -R "$SRC_ROOT/distro/windows/$f" "$DIST_ROOT/$win/$PV/" || die "failed to copy $f"
 			unix2dos "$DIST_ROOT/$win/$PV/$f" || die "unix2dos conversion failed for $f"
 		done
+	
+		sed -i.tmp -e "s/~VER~/$VERSION/" \
+			   -e "s/~DATE~/$(date)/" \
+			   -e "s/~HOST~/$(hostname -s)/" \
+			   -e "s/~GITHEAD~/$(git rev-parse HEAD)/" \
+			   "$DIST_ROOT/$win/$PV/easyrsa" || die "Cannot update easyrsa version data"
+		rm -f "$DIST_ROOT/$win/$PV/easyrsa.tmp"
 		
 		# files not included
 		rm -rf "$DIST_ROOT/$win/$PV/doc/TODO" || die "failed rm TODO"
