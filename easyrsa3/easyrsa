@@ -711,6 +711,18 @@ gen_dh() {
 	verify_pki_init
 
 	out_file="$EASYRSA_PKI/dh.pem"
+
+	# check to see if we already have a dh parameters file
+	if [ -e "$EASYRSA_PKI/dh.pem" ]; then
+		if [ "$EASYRSA_BATCH" = "1" ]; then
+			# if batch is enabled, die
+			die "file $EASYRSA_PKI/dh.pem already exists!"
+		else
+			# warn the user, give them a chance to force overwrite
+			confirm "Overwrite?  " "yes" "*** File $EASYRSA_PKI/dh.pem already exists! ***"
+		fi
+	fi
+
 	"$EASYRSA_OPENSSL" dhparam -out "$out_file" "$EASYRSA_KEY_SIZE" || \
 		die "Failed to build DH params"
 	notice "\
