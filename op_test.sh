@@ -9,6 +9,9 @@ curl -O 'https://raw.githubusercontent.com/OpenVPN/easyrsa-unit-tests/master/eas
 if [ -e "easyrsa-unit-tests.sh" ];
 then
 	sh easyrsa-unit-tests.sh -v
+	estat=$?
 fi
 
-rm easyrsa-unit-tests.sh
+rm -f easyrsa-unit-tests.sh
+
+exit $estat
