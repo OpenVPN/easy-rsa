@@ -1493,7 +1493,7 @@ Failed to change the private key passphrase. See above for error messages."
 update_db() {
 	verify_ca_init
 
-	easyrsa_openssl ca -utf8 -updatedb || die "\
+	easyrsa_openssl ca -utf8 -updatedb ${EASYRSA_PASSIN:+-passin "$EASYRSA_PASSIN"} || die "\
 Failed to perform update-db: see above for related openssl errors."
 	return 0
 } # => update_db()
