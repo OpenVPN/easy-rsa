@@ -1486,7 +1486,8 @@ error messages."
 Failed to change the private key passphrase. See above for error messages."
 
 	notice "Key passphrase successfully changed"
-	
+
+	return 0
 } # => set_pass()
 
 # update-db backend
