@@ -34,6 +34,7 @@ Here is the list of commands available with a short syntax reminder. Use the
   build-client-full <filename_base> [ cmd-opts ]
   build-server-full <filename_base> [ cmd-opts ]
   revoke <filename_base> [cmd-opts]
+  revoke-renewed <certificate_serial> [cmd-opts]
   renew <filename_base> [cmd-opts]
   build-serverClient-full <filename_base> [ cmd-opts ]
   gen-crl
@@ -108,6 +109,17 @@ cmd_help() {
   revoke <filename_base> [reason]
       Revoke a certificate specified by the filename_base, with an optional 
       revocation reason that is one of: 
+        unspecified
+        keyCompromise
+        CACompromise
+        affiliationChanged
+        superseded
+        cessationOfOperation
+        certificateHold";;
+		revoke-renewed) text="
+  revoke-renewed <certificate_serial> [reason]
+      Revoke a renewed certificate specified by its old certificate_serial, with an optional
+      revocation reason that is one of:
         unspecified
         keyCompromise
         CACompromise
@@ -1129,12 +1141,116 @@ input in file: $req_in"
 		[ -f "$file" ] && mv "$file" "$EASYRSA_PKI/revoked/private_by_serial/$cert_serial.$file_ext"
 	done
 
-	# remove the dublicate certificate in the certs_by_serial folder
+	# remove the duplicate certificate in the certs_by_serial folder
 	rm "$crt_by_serial"
 
 	return 0
 
 } #= move_revoked()
+
+# revoke-renewed backend
+revoke_renewed() {
+	verify_ca_init
+
+	# pull certificate serial:
+	[ -n "$1" ] || die "\
+Error: didn't find a certificate serial as the first argument.
+Run easyrsa without commands for usage and command help."
+	crt_in="$EASYRSA_PKI/renewed/certs_by_serial/$1.crt"
+
+	opts=""
+	if [ "$2" ]; then
+		opts="$opts -crl_reason $2"
+	fi
+
+	verify_file x509 "$crt_in" || die "\
+Unable to revoke as the certificate serial does not match an old one of a valid renewed certificate. Unexpected
+certificate in file: $crt_in"
+
+	# confirm operation by displaying DN:
+	confirm "Continue with revocation: " "yes" "
+Please confirm you wish to revoke the renewed certificate with serial $1 and the following subject:
+
+$(display_dn x509 "$crt_in")
+"       # => confirm end
+
+	# referenced cert must exist:
+	[ -f "$crt_in" ] || die "\
+Unable to revoke as no renewed certificate was found. Certificate was expected
+at: $crt_in"
+
+	# shellcheck disable=SC2086
+	easyrsa_openssl ca -utf8 -revoke "$crt_in" ${EASYRSA_PASSIN:+-passin "$EASYRSA_PASSIN"} $opts || die "\
+Failed to revoke renewed certificate: revocation command failed."
+
+	# move revoked files
+	move_renewed_revoked "$1"
+
+	notice "\
+IMPORTANT!!!
+
+Revocation was successful. You must run gen-crl and upload a CRL to your
+infrastructure in order to prevent the revoked renewed cert from being accepted.
+"       # => notice end
+	return 0
+} #= revoke_renewed()
+
+# move-renewed-revoked
+# moves renewed then revoked certificates to an alternative folder
+move_renewed_revoked() {
+	verify_ca_init
+
+	[ -n "$1" ] || die "\
+Error: didn't find a certificate serial as the first argument.
+Run easyrsa without commands for usage and command help."
+
+	crt_in="$EASYRSA_PKI/renewed/certs_by_serial/$1.crt"
+	key_in="$EASYRSA_PKI/renewed/private_by_serial/$1.key"
+	req_in="$EASYRSA_PKI/renewed/reqs_by_serial/$1.req"
+
+	verify_file x509 "$crt_in" || die "\
+Unable to move renewed then revoked certificate serial file. The file is not a valid certificate. Unexpected
+input in file: $crt_in"
+
+	if [ -e "$req_in" ]
+	then
+		verify_file req "$req_in" || die "\
+Unable to move renewed then revoked request. The file is not a valid request. Unexpected
+input in file: $req_in"
+	fi
+
+	crt_renewed_then_revoked="$EASYRSA_PKI/renewed_then_revoked/certs_by_serial/$1.crt"
+	key_renewed_then_revoked="$EASYRSA_PKI/renewed_then_revoked/private_by_serial/$1.key"
+	req_renewed_then_revoked="$EASYRSA_PKI/renewed_then_revoked/reqs_by_serial/$1.req"
+
+	# make sure renewed_then_revoked dirs exist
+	[ -d "$EASYRSA_PKI/renewed_then_revoked" ] || mkdir "$EASYRSA_PKI/renewed_then_revoked"
+	[ -d "$EASYRSA_PKI/renewed_then_revoked/certs_by_serial" ] || mkdir "$EASYRSA_PKI/renewed_then_revoked/certs_by_serial"
+	[ -d "$EASYRSA_PKI/renewed_then_revoked/private_by_serial" ] || mkdir "$EASYRSA_PKI/renewed_then_revoked/private_by_serial"
+	[ -d "$EASYRSA_PKI/renewed_then_revoked/reqs_by_serial" ] || mkdir "$EASYRSA_PKI/renewed_then_revoked/reqs_by_serial"
+
+	# move crt, key and req file to renewed_then_revoked folders
+	mv "$crt_in" "$crt_renewed_then_revoked"
+
+	# only move the req if we have it
+	[ -e "$req_in" ] && mv "$req_in" "$req_renewed_then_revoked"
+
+	# only move the key if we have it
+	[ -e "$key_in" ] && mv "$key_in" "$key_renewed_then_revoked"
+
+	# move the rest of the files (p12, p7, ...)
+	# shellcheck disable=SC2231
+	for file in $EASYRSA_PKI/renewed/private_by_serial/$1\.???
+	do
+		# get file extension
+		file_ext="${file##*.}"
+
+		[ -f "$file" ] && mv "$file" "$EASYRSA_PKI/renewed_then_revoked/private_by_serial/$1.$file_ext"
+	done
+
+	return 0
+
+} #= move_renewed_revoked()
 
 # renew backend
 renew() {
@@ -2517,6 +2633,9 @@ case "$cmd" in
 		;;
 	revoke)
 		revoke "$@"
+		;;
+	revoke-renewed)
+		revoke_renewed "$@"
 		;;
 	renew)
 		renew "$@"
