@@ -13,7 +13,7 @@ Configuration Reference
   There are 3 possible ways to perform external configuration of Easy-RSA,
   selected in the following order where the first defined result wins:
 
-  1. Commmand-line option
+  1. Command-line option
   2. Environmental variable
   3. 'vars' file, if one is present (see `vars Autodetection` below)
   4. Built-in default
@@ -31,10 +31,10 @@ Configuration Reference
   The following locations are checked, in this order, for a vars file. Only the
   first one found is used:
 
-  1. The file referenced by the --vars CLI option
+  1. The file referenced by the `--vars` CLI option
   2. The file referenced by the env-var named `EASYRSA_VARS_FILE`
   3. The directory referenced by the `EASYRSA_PKI` env-var
-  4. The default PKI directory at $PWD/pki
+  4. The default PKI directory at `$PWD/pki`
   4. The directory referenced by the `EASYRSA` env-var
   5. The directory containing the easyrsa program
 
@@ -78,10 +78,12 @@ Environmental Variables Reference
 A list of env-vars, any matching global option (CLI) to set/override it, and a
 possible terse description is shown below:
 
- *  `EASYRSA` - should point to the Easy-RSA top-level dir, where the easyrsa script is located.
+ *  `EASYRSA` - should point to the Easy-RSA top-level dir, where the easyrsa
+    script is located.
  *  `EASYRSA_OPENSSL` - command to invoke openssl
  *  `EASYRSA_SSL_CONF` - the openssl config file to use
- *  `EASYRSA_PKI` (CLI: `--pki-dir`) - dir to use to hold all PKI-specific files, defaults to $PWD/pki.
+ *  `EASYRSA_PKI` (CLI: `--pki-dir`) - dir to use to hold all PKI-specific
+    files, defaults to `$PWD/pki`.
  *  `EASYRSA_DN` (CLI: `--dn-mode`) - set to the string `cn_only` or `org` to
     alter the fields to include in the req DN
  *  `EASYRSA_REQ_COUNTRY` (CLI: `--req-c`) - set the DN country with org mode
@@ -93,7 +95,8 @@ possible terse description is shown below:
  *  `EASYRSA_REQ_EMAIL` (CLI: `--req-email`) - set the DN email with org mode
  *  `EASYRSA_REQ_OU` (CLI: `--req-ou`) - set the DN organizational unit with org
     mode
- *  `EASYRSA_KEY_SIZE` (CLI: `--key-size`) - set the keysize in bits to generate
+ *  `EASYRSA_KEY_SIZE` (CLI: `--key-size`) - set the key size in bits to
+    generate
  *  `EASYRSA_ALGO` (CLI: `--use-algo`) - set the crypto alg to use: rsa or ec
  *  `EASYRSA_CURVE` (CLI: `--curve`) - define the named EC curve to use
  *  `EASYRSA_EC_DIR` - dir to store generated ecparams
@@ -113,7 +116,7 @@ possible terse description is shown below:
     signing
  *  `EASYRSA_BATCH` (CLI: `--batch`) - enable batch (no-prompt) mode; set
     env-var to non-zero string to enable (CLI takes no options)
- *  `EASYRSA_PASSIN` (CLI: `--passin`) - allows to specify a source for password;
-    using any openssl password options like pass:1234 or env:var
- *  `EASYRSA_PASSOUT` (CLI: `--passout`) - allows to specify a source for password;
-    using any openssl password options like pass:1234 or env:var
+ *  `EASYRSA_PASSIN` (CLI: `--passin`) - allows to specify a source for
+    password using any openssl password options like pass:1234 or env:var
+ *  `EASYRSA_PASSOUT` (CLI: `--passout`) - allows to specify a source for
+    password using any openssl password options like pass:1234 or env:var
