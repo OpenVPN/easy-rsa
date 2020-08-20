@@ -97,7 +97,8 @@ possible terse description is shown below:
     mode
  *  `EASYRSA_KEY_SIZE` (CLI: `--keysize`) - set the key size in bits to
     generate
- *  `EASYRSA_ALGO` (CLI: `--use-algo`) - set the crypto alg to use: rsa or ec
+ *  `EASYRSA_ALGO` (CLI: `--use-algo`) - set the crypto alg to use: rsa, ec or
+    ed
  *  `EASYRSA_CURVE` (CLI: `--curve`) - define the named EC curve to use
  *  `EASYRSA_EC_DIR` - dir to store generated ecparams
  *  `EASYRSA_CA_EXPIRE` (CLI: `--days`) - set the CA expiration time in days
