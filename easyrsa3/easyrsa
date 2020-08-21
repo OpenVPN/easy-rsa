@@ -171,6 +171,11 @@ cmd_help() {
       Export a PKCS#8 file with the private key specified by <filename_base>"
 			opts="
         noca  - do not include the ca.crt file in the PKCS7 output" ;;
+		export-zip) text="
+  export-zip <filename_base> [ cmd-opts ]
+      Export a zip bundle file with the private key, public key and ca.crt specified by <filename_base>"
+			opts="
+        noca  - do not include the ca.crt file in zip bundle" ;;
 		set-rsa-pass|set-ec-pass) text="
   set-rsa-pass <filename_base> [ cmd-opts ]
   set-ec-pass <filename_base> [ cmd-opts ]
@@ -1447,6 +1452,62 @@ location: $pkcs_out
 	return 0
 } # => export_pkcs()
 
+# export zip
+export_zip() {
+
+
+	if ! command -v zip > /dev/null 2>&1; then
+		die "\
+Unable to export-zip: zip not available.
+"
+	fi
+
+	[ -n "$1" ] || die "\
+Unable to export-zip: incorrect command syntax.
+Run easyrsa without commands for usage and command help."
+
+	short_name="$1"
+	crt_in="$EASYRSA_PKI/issued/$1.crt"
+	key_in="$EASYRSA_PKI/private/$1.key"
+	crt_ca="$EASYRSA_PKI/ca.crt"
+	zip_out="$EASYRSA/$short_name.zip"
+	shift
+
+	verify_pki_init
+
+	# opts support
+	want_ca=1
+	while [ -n "$1" ]; do
+		case "$1" in
+			noca) want_ca="" ;;
+			*) warn "Ignoring unknown command option: '$1'" ;;
+		esac
+		shift
+	done
+
+	zip_opts=
+	if [ $want_ca ]; then
+		verify_file x509 "$crt_ca" || die "\
+Unable to include CA cert in the output (missing file, or use noca option.)
+Missing file expected at: $crt_ca"
+		zip_opts="$zip_opts $crt_ca"
+	fi
+
+	# input files must exist
+	verify_file x509 "$crt_in" || die "\
+Unable to export for short name '$short_name' without the certificate.
+Missing cert expected at: $crt_in"
+
+	zip_opts="$zip_out $zip_opts $crt_in $key_in"
+	zip $zip_opts
+
+	notice "\
+Successful export. Your exported file is at the following
+location: $zip_out
+"
+	return 0
+} # => export_zip()
+
 # set-pass backend
 set_pass() {
 	verify_pki_init
@@ -2532,6 +2593,9 @@ case "$cmd" in
 		;;
 	export-p8)
 		export_pkcs p8 "$@"
+		;;
+	export-zip)
+		export_zip "$@"
 		;;
 	set-rsa-pass)
 		set_pass rsa "$@"
