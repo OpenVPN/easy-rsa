@@ -2197,6 +2197,7 @@ up23_manage_upgrade_23 ()
 {
 	EASYRSA_UPGRADE_VERSION="v1.0a (2020/01/08)"
 	EASYRSA_UPGRADE_TYPE="$1"
+	EASYRSA_FOUND_VARS=0
 
 	# Verify all existing versions of vars/vars.bat
 	if [ -f "$vars" ]
@@ -2225,7 +2226,10 @@ up23_manage_upgrade_23 ()
 		EASYRSA_TARGET_VARSFILE="$EASYRSA/vars"
 	fi
 
-	[ "$EASYRSA_FOUND_VARS" ] || return 0
+	if [ $EASYRSA_FOUND_VARS -ne 1 ];
+	then
+		die echo "vars file not found"
+	fi
 
 	# Only allow specific vars/vars.bat to exist
 	if [ "$EASYRSA_VARS_IS_VER3" ] && [ "$EASYRSA_VARS_IS_VER2" ]
