@@ -874,7 +874,7 @@ Expected to find the request at: $req_in"
 	# Confirm input is a cert req
 	verify_file req "$req_in" || die "\
 The certificate request file is not in a valid X509 request format.
-Offending file: $req_in"
+File Path: $req_in"
 
 	# Display the request subject in an easy-to-read format
 	# Confirm the user wishes to sign this request
@@ -1340,7 +1340,7 @@ Run easyrsa without commands for usage and command help."
 
 	verify_file req "$in_req" || die "\
 The input file does not appear to be a certificate request. Aborting import.
-Offending file: $in_req"
+File Path: $in_req"
 
 	# destination must not exist
 	[ -f "$out_req" ] && die "\
