@@ -670,7 +670,7 @@ current CA keypair. If you intended to start a new CA, run init-pki first."
 		    if [ "ed" = "$EASYRSA_ALGO" ]; then
                 crypto_opts="$crypto_opts -pass file:$out_key_pass_tmp"
             else
-                crypto_opts="$crypto_opts -passin file:$out_key_pass_tmp"
+                crypto_opts="$crypto_opts -passout file:$out_key_pass_tmp"
             fi
         fi
 	fi
