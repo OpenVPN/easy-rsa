@@ -4,7 +4,7 @@ Easy-RSA 3 Documentation Readme
 This document explains how Easy-RSA 3 and each of its assorted features work.
 
 If you are looking for a quickstart with less background or detail, an
-implementation-specific Howto or Readme may be available in this (the `doc/`)
+implementation-specific How-to or Readme may be available in this (the `doc/`)
 directory.
 
 Easy-RSA Overview
@@ -97,9 +97,8 @@ Any of these options can appear before the command as required as shown below:
 
     ./easyrsa [options] command [ cmd-opts ]
 
-For experts, additional configuration flexibility is available by way of
-env-vars and custom X.509 extensions. Consult the `EasyRSA-Advanced`
-documentation for details
+For experts, additional configuration with env-vars and custom X.509 extensions
+is possible. Consult the `EasyRSA-Advanced` documentation for details.
 
 Getting Started: The Basics
 ---------------------------
@@ -130,8 +129,8 @@ you need a more basic description of how a PKI works.
   * reqs/ - dir with locally generated certificate requests (for a CA imported
     requests are stored here)
 
-  In a clean PKI no files will exist until, just the bare directories. Commands
-  called later will create the necessary files depending on the operation.
+  In a clean PKI no files exist yet, just the bare directories. Commands called
+  later will create the necessary files depending on the operation.
 
   When building a CA, a number of new files are created by a combination of
   Easy-RSA and (indirectly) openssl. The important CA files are:
@@ -209,7 +208,7 @@ Using Easy-RSA as a CA
     ./easyrsa gen-crl
 
   Note that this will need to be published or sent to systems that rely on an
-  up-to-date CRL as the certificate is still otherwise valid.
+  up-to-date CRL as the certificate is still valid otherwise.
 
 Using Easy-RSA to generate keypairs & requests
 ----------------------------------------------
