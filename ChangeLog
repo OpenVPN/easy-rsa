@@ -1,6 +1,6 @@
 Easy-RSA 3 ChangeLog
 
-3.0.8 (TBD)
+3.0.8 (2020-09-09)
    * Provide --version option (#372)
    * Version information now within generated certificates like on *nix
    * Fixed issue where gen-dh overwrote existing files without warning (#373)
