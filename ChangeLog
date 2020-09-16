@@ -8,7 +8,6 @@ Easy-RSA 3 ChangeLog
    * Added support for export-p8 (#339)
    * Clarified error message (#384)
    * 2->3 upgrade now errors and prints message when vars isn't found (#377)
-   * Update OpenSSL Windows binaries to 1.1.1g
 
 3.0.7 (2020-03-30)
    * Include OpenSSL libs and binary for Windows 1.1.0j
