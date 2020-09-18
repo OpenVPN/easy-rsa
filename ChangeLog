@@ -1,5 +1,8 @@
 Easy-RSA 3 ChangeLog
 
+3.0.9 (TBD)
+   * Upgrade OpenSSL from 1.1.0j to 1.1.1g for Windows (#405)
+
 3.0.8 (2020-09-09)
    * Provide --version option (#372)
    * Version information now within generated certificates like on *nix
