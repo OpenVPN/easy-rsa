@@ -1,0 +1,296 @@
+#!/bin/sh
+#
+# easyrsa completion
+#
+# Copyright (C) 2020 Eric Belhomme <rico-github@ricozome.net>
+#
+# This code released under version 2 of the GNU GPL; see COPYING and the
+# Licensing/ directory of this project for full licensing details.
+
+# locate easyrsa distribution directory
+_find_easyrsa_dir() {
+    local EASYRSA=$(which easyrsa)
+    if [ -L $EASYRSA ]; then
+        EASYRSA=$(readlink -f $EASYRSA)
+    fi
+    echo -n "$(dirname $EASYRSA)"
+}
+
+# retrieve easyrsa vars file
+_find_vars() {
+    local VARS I ret
+    local COMP_WORDS=($@)
+
+    # find for --vars parameter in current cmdline
+    for I in "${!COMP_WORDS[@]}"; do
+        if echo "${COMP_WORDS[$I]}" | grep -wq -- '--vars'; then
+            VARS="${COMP_WORDS[$((I+2))]}"
+            break
+        fi
+    done
+
+    ret=1
+    if [ -n "$VARS" ] && [ -e $VARS ]; then
+        # priority to vars parameter in cmdline if specified
+        ret=0
+    elif [ -n "$EASYRSA_VARS_FILE" ] && [ -e $EASYRSA_VARS_FILE ]; then
+        # EASYRSA_VARS_FILE environement
+        VARS=$EASYRSA_VARS_FILE
+        ret=0
+    else
+        # failback to search vars into easyrsa binary executable directory
+        VARS=
+        local EASYRSA=$(_find_easyrsa_dir)
+        if [ -e "$EASYRSA/vars" ]; then
+            VARS="$EASYRSA/vars"
+            ret=0
+        fi
+    fi
+
+    echo -n $VARS
+    return $ret
+}
+
+# retrieve 'set_var' variable in vars file if defined
+_get_set_var() {
+    if [ -z "$1" ]; then return 1; fi
+    local VAR=$(grep -P "^set_var +$2 +" $1 | cut -d'"' -f2)
+    if [ ${PIPESTATUS[0]} -eq 0 ]; then
+        echo -n $VAR
+        return 0
+    fi
+    return 1
+}
+
+# retrieve EASYRSA_PKI directory
+_find_pki_dir() {
+    local VARS ret
+    if [ -n $1 ]; then
+        VARS="$1"
+    else
+        VARS="$(_find_vars)"
+    fi
+    local PKI_DIR="$( eval echo $(_get_set_var $VARS 'EASYRSA_PKI'))"
+    ret=$?
+    if [ $ret -ne 0 ]; then
+        if [ -n $EASYRSA_PKI ]; then
+            PKI_DIR="$EASYRSA_PKI"
+            ret=1
+        else
+            PKI_DIR=
+        fi
+    fi
+    echo -n "$PKI_DIR"
+    return $ret
+}
+
+# retrieve x509_types directory. Usually in distribution dir unless overidden in vars file
+_get-x509_types() {
+    local VARS
+    if [ -n $1 ]; then
+        VARS="$1"
+    else
+        VARS="$(_find_vars)"
+    fi
+    local X509_TYPES_PATH=$(_get_set_var $VARS 'EASYRSA_EXT_DIR')
+    if [ $? -ne 0 ]; then
+        X509_TYPES_PATH="$(_find_easyrsa_dir)/x509-types"
+    fi
+    ls -F1L /usr/local/EasyRSA/x509-types/ | grep -v COMMON | xargs
+}
+
+# retrieve files in PKI directories
+_get_easyrsa_pki_files() {
+    local VARS="$1"
+    local subdir="$2"
+    if [ -n "$3" ]; then local ext="$3"; fi
+    local PKI_DIR=$(_find_pki_dir $VARS)
+    if [ $? -ne 0 ]; then return 1; fi
+    if [ ! -d ${PKI_DIR}/${subdir} ]; then return 1; fi
+    if [ -n $ext ]; then
+        ls -F1L  ${PKI_DIR}/${subdir}/ | grep "\.${ext}$" | sed "s|.${ext}$||" | xargs
+    else
+        ls -F1L  ${PKI_DIR}/${subdir}/ | xargs
+    fi
+}
+
+_complete_easyrsa() {
+    local cur prev words cword
+    _init_completion -n : || return
+
+    #echo "cur: $cur - prev: $prev - words: $words - cword: $cword"
+
+    local EASYRSA_COMMANDS="init-pki build-ca gen-dh gen-req sign-req build-client-full build-server-full revoke renew build-serverClient-full gen-crl update-db show-req show-cert show-ca import-req export-p7 export-p8 export-p12 set-rsa-pass set-ec-pass upgrade"
+    local EASYRSA_OPTIONS="--batch --passin= --passout= --pki-dir= --vars= --version --days= --digest= --dn-mode= --keysize= --req-cn= --subca-len= --subject-alt-name= --use-algo= --curve= --copy-ext --req-c= --req-st= --req-city= --req-org= --req-email= --req-ou="
+
+    local I CMDIDX
+
+    # retrieve easyrsa command index number in array
+    CMDIDX=0
+    for I in "${!COMP_WORDS[@]}"; do
+        if echo "$EASYRSA_COMMANDS" | grep -wq -- "${COMP_WORDS[$I]}"; then
+            CMDIDX=$I
+            break
+        fi
+    done
+
+    # until we don't get an identified easyrsa command, display both main commands and options
+    if [ $CMDIDX -eq 0 ]; then
+        if [ "${COMP_WORDS[$COMP_CWORD]}" == '' ]; then
+            COMPREPLY=( $(compgen -W "$EASYRSA_COMMANDS $EASYRSA_OPTIONS" -- $cur) )
+        else
+            if [[ "${COMP_WORDS[$COMP_CWORD]}" =~ ^-.* ]]; then
+                compopt +o nospace
+                COMPREPLY=( $(compgen -W "$EASYRSA_OPTIONS" -- $cur) )
+            else
+                COMPREPLY=( $(compgen -W "$EASYRSA_COMMANDS" -- $cur) )
+            fi
+        fi
+        return 0
+    fi
+
+    # process main commands
+    case  ${COMP_WORDS[$CMDIDX]} in
+        # no extra args for these commands
+        init-pki | gen-dh | gen-crl | update-db)
+            ;;
+        build-ca) # [ cmd-opts ]
+            if [ $COMP_CWORD -eq $((CMDIDX +1)) ]; then
+                compopt +o nosort
+                COMPREPLY=( $(compgen -o  -W "nopass subca intca" -- $cur) )
+            fi
+            ;;
+        gen-req) # <filename_base> [ cmd-opts ]
+            case $((COMP_CWORD - CMDIDX)) in
+                1)
+                    ;;
+                2)
+                    COMPREPLY=( $(compgen -W "nopass" -- $cur) )
+                    ;;
+            esac
+            ;;
+        sign-req) # <type> <filename_base>
+            local VARS=$(_find_vars "${COMP_WORDS[@]}")
+            if [ $? -ne 0 ]; then return 1; fi
+            case $((COMP_CWORD - CMDIDX)) in
+                1)
+                    COMPREPLY=( $(compgen -W "$(_get-x509_types $VARS)" -- $cur) )
+                    ;;
+                2)
+                    COMPREPLY=( $(compgen -W "$(_get_easyrsa_pki_files $VARS 'reqs' 'req' )" -- $cur) )
+                    ;;
+                3)
+                    COMPREPLY=( $(compgen -W "nopass" -- $cur) )
+                    ;;
+            esac
+            ;;
+        build-client-full | build-server-full | build-serverClient-full) # <filename_base> [ cmd-opts ]
+            if [ $? -ne 0 ]; then return 1; fi
+            case $((COMP_CWORD - CMDIDX)) in
+                1)
+                    ;;
+                2 | 3)
+                    COMPREPLY=( $(compgen -W "nopass inline" -- $cur) )
+                    ;;
+            esac
+            ;;
+        revoke) # <filename_base> [cmd-opts]
+            local VARS=$(_find_vars "${COMP_WORDS[@]}")
+            if [ $? -ne 0 ]; then return 1; fi
+            case $((COMP_CWORD - CMDIDX)) in
+                1)
+                    COMPREPLY=( $(compgen -W "$(_get_easyrsa_pki_files $VARS 'issued' 'crt' )" -- $cur) )
+                    ;;
+                2)
+                    COMPREPLY=( $(compgen -W "unspecified keyCompromise CACompromise affiliationChanged superseded cessationOfOperation certificateHold" -- $cur) )
+                    ;;
+            esac
+            ;;
+        renew) # <filename_base> [cmd-opts]
+            local VARS=$(_find_vars "${COMP_WORDS[@]}")
+            if [ $? -ne 0 ]; then return 1; fi
+            case $((COMP_CWORD - CMDIDX)) in
+                1)
+                    COMPREPLY=( $(compgen -W "$(_get_easyrsa_pki_files $VARS 'issued' 'crt' )" -- $cur) )
+                    ;;
+                2)
+                    COMPREPLY=( $(compgen -W "nopass" -- $cur) )
+                    ;;
+            esac
+        show-req) # <filename_base> [ cmd-opts ]
+            local VARS=$(_find_vars "${COMP_WORDS[@]}")
+            if [ $? -ne 0 ]; then return 1; fi
+            case $((COMP_CWORD - CMDIDX)) in
+                1)
+                    COMPREPLY=( $(compgen -W "$(_get_easyrsa_pki_files $VARS 'reqs' 'req' )" -- $cur) )
+                    ;;
+                2)
+                    COMPREPLY=( $(compgen -W "full" -- $cur) )
+                    ;;
+            esac
+            ;;
+        show-cert) # <filename_base> [ cmd-opts ]
+            local VARS=$(_find_vars "${COMP_WORDS[@]}")
+            if [ $? -ne 0 ]; then return 1; fi
+            case $((COMP_CWORD - CMDIDX)) in
+                1)
+                    COMPREPLY=( $(compgen -W "$(_get_easyrsa_pki_files $VARS 'issued' 'crt' )" -- $cur) )
+                    ;;
+                2)
+                    COMPREPLY=( $(compgen -W "full" -- $cur) )
+                    ;;
+            esac
+            ;;
+        show-ca) # [ cmd-opts ]
+            if [ $((COMP_CWORD - CMDIDX)) -eq 1 ]; then
+                COMPREPLY=( $(compgen -W "full" -- $cur) )
+            fi
+            ;;
+        import-req) # <request_file_path> <short_basename>
+            ;;
+        export-p7 | export-p8) # <filename_base> [ cmd-opts ]
+            local VARS=$(_find_vars "${COMP_WORDS[@]}")
+            if [ $? -ne 0 ]; then return 1; fi
+            case $((COMP_CWORD - CMDIDX)) in
+                1)
+                    COMPREPLY=( $(compgen -W "$(_get_easyrsa_pki_files $VARS 'issued' 'crt' )" -- $cur) )
+                    ;;
+                2)
+                    COMPREPLY=( $(compgen -W "noca" -- $cur) )
+                    ;;
+            esac
+            ;;
+        export-p12) # <filename_base> [ cmd-opts ]
+            local VARS=$(_find_vars "${COMP_WORDS[@]}")
+            if [ $? -ne 0 ]; then return 1; fi
+            case $((COMP_CWORD - CMDIDX)) in
+                1)
+                    COMPREPLY=( $(compgen -W "$(_get_easyrsa_pki_files $VARS 'issued' 'crt' )" -- $cur) )
+                    ;;
+                2 | 3)
+                    COMPREPLY=( $(compgen -W "noca nokey" -- $cur) )
+                    ;;
+            esac
+            ;;
+        set-rsa-pass | set-ec-pass) # <filename_base> [ cmd-opts ]
+            local VARS=$(_find_vars "${COMP_WORDS[@]}")
+            if [ $? -ne 0 ]; then return 1; fi
+            case $((COMP_CWORD - CMDIDX)) in
+                1)
+                    COMPREPLY=( $(compgen -W "$(_get_easyrsa_pki_files $VARS 'private' 'key' )" -- $cur) )
+                    ;;
+                2 | 3)
+                    COMPREPLY=( $(compgen -W "nopass file" -- $cur) )
+                    ;;
+            esac
+            ;;
+        upgrade) # <type>
+            if [ $((COMP_CWORD - CMDIDX)) -eq 1 ]; then
+                COMPREPLY=( $(compgen -W "pki ca" -- $cur) )
+            fi
+            ;;
+    esac
+    return 0
+}
+
+complete -F _complete_easyrsa easyrsa
