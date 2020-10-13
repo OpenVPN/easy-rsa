@@ -56,6 +56,7 @@ Here is the list of commands available with a short syntax reminder. Use the
   export-p8 <file_name_base> [ cmd-opts ]
   export-p12 <file_name_base> [ cmd-opts ]
   publish-cert <file_name_base> [ cmd-opts ]
+  publish-ca
   set-rsa-pass <file_name_base> [ cmd-opts ]
   set-ec-pass <file_name_base> [ cmd-opts ]
   upgrade <type>
@@ -349,6 +350,13 @@ cmd_help() {
 
 		opts="
       * nostrip - do not strip plaintext"
+	;;
+	publish-ca)
+		text="
+* publish-ca [ cmd-opts ]
+      Publish the CA certificate, the index database and the crl."
+		opts="
+      * update - update db and crl before publishing."
 	;;
 	set-rsa-pass|set-ec-pass)
 		text="
@@ -2891,6 +2899,12 @@ CRL Generation failed."
 An updated CRL has been created.
 CRL file: $out_file"
 
+	# publish
+	if [ -n "$EASYRSA_PUBLISH" ]; then
+		publish crl crl.pem
+		publish crl crl.der to-der
+	fi
+
 	return 0
 } # => gen_crl()
 
@@ -2939,9 +2953,11 @@ publish() {
 	# opts support
 	shift 2
 	want_strip=1
+	opts=""
 	while [ -n "$1" ]; do
 		case "$1" in
 			nostrip|noregen) want_strip= ;;
+			to-der) opts="-inform PEM -outform DER" ;;
 			*) warn "Ignoring unknown command option: '$1'" ;;
 		esac
 		shift
@@ -2985,6 +3001,12 @@ Missing publish dir : $EASYRSA_PUBLISH"
 		mkdir -p "$EASYRSA_PUBLISH/private"
 		;;
 	#TODO add p1)
+	crl)
+		verify_ca_init
+		in_file="$EASYRSA_PKI/crl.pem"
+		out_file="$EASYRSA_PUBLISH/${name}"
+		format="crl"
+		;;
 	*)
 		die "\
 Unknown publish type : $type"
@@ -3003,12 +3025,53 @@ $in_file"
 	fi
 
 	if [ $want_strip ]; then
-		easyrsa_openssl $format -in "$in_file" -out "$out_file"
+		easyrsa_openssl $format -in "$in_file" -out "$out_file" $opts
 	else
 		cp "$in_file" "$out_file"
 	fi
-	notice "Certificate published at: $out_file"
+	notice "File published at: $out_file"
 } # => publish()
+
+# publish-ca backend
+publish_ca() {
+	# opts support
+	want_update=""
+	notice=""
+	while [ -n "$1" ]; do
+		case "$1" in
+			update) want_update=1 ;;
+			*) warn "Ignoring unknown command option: '$1'" ;;
+		esac
+		shift
+	done
+	# ensure the publish folder exists
+	[ -d "$EASYRSA_PUBLISH" ] || die "\
+Missing publish dir : $EASYRSA_PUBLISH"
+	verify_ca_init
+
+	if [ $want_update ]; then
+		update_db
+		gen_crl
+		notice="after being regenerated.
+The crl has been published at $EASYRSA_PUBLISH/crl.pem
+                          and $EASYRSA_PUBLISH/crl.der
+after being regenerated."
+	elif [ -e "$EASYRSA_PKI/crl.pem" ]; then
+		publish crl crl.pem
+		publish crl crl.der to-der
+		notice="\
+The crl has been published at $EASYRSA_PUBLISH/crl.pem
+                          and $EASYRSA_PUBLISH/crl.der"
+	fi
+	for i in index.txt ca.crt; do
+		cp "$EASYRSA_PKI/$i" "$EASYRSA_PUBLISH/$i"
+	done
+
+	notice "\
+The CA certificate has been published at $EASYRSA_PUBLISH/ca.crt
+The associated index has been published at $EASYRSA_PUBLISH/index.txt
+$notice"
+} # => publish_ca()
 
 # export pkcs#12, pkcs#7, pkcs#8 or pkcs#1
 export_pkcs() {
@@ -5273,6 +5336,9 @@ case "$cmd" in
 		;;
 	publish-cert)
 		publish cert "$@"
+		;;
+	publish-ca)
+		publish_ca "$@"
 		;;
 	set-rsa-pass)
 		set_pass rsa "$@"
