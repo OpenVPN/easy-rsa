@@ -40,6 +40,7 @@ Here is the list of commands available with a short syntax reminder. Use the
   revoke-renewed <file_name_base> [cmd-opts]
   rewind-renew <certificate-serial-number>
   rebuild <file_name_base> [cmd-opts]
+  status <file_name_base>
   gen-crl
   update-db
   show-req <file_name_base> [ cmd-opts ]
@@ -204,6 +205,11 @@ cmd_help() {
 
   * NOTE: This does NOT 'unrenew' or 'unrevoke' a certificate.
     Ref : https://github.com/OpenVPN/easy-rsa/issues/578"
+	;;
+	status)
+		 text="
+* status <filename_base>
+      Check the status of a certificate specified by the filename_base"
 	;;
 	gen-crl)
 		text="
@@ -2889,6 +2895,29 @@ Failed to remove the duplicate certificate in the certs_by_serial folder"
 	return 0
 } # => rebuild_move()
 
+# status backend
+status() {
+	verify_ca_init
+
+	# pull filename base:
+	[ -n "$1" ] || die "\
+Error: didn't find a file base name as the first argument.
+Run easyrsa without commands for usage and command help."
+	crt_in="$EASYRSA_PKI/issued/$1.crt"
+
+	verify_file x509 "$crt_in" || die "\
+Unable to get status as the input file is not a valid certificate.
+Unexpected input in file: $crt_in"
+
+	crt_serial_file=$(cd "$EASYRSA_PKI/certs_by_serial/" && md5sum *|grep "$(md5sum $crt_in|awk '{print $1}')"|awk '{print $2}')
+
+	[ ! -f $crt_serial_file ] || die "\
+Could not find serial associated with input in file: $crt_in
+Was it signed already ?"
+
+	easyrsa_openssl ca -utf8 -status "${crt_serial_file%.pem}" -config "$EASYRSA_SSL_CONF"
+} #= status()
+
 # gen-crl backend
 gen_crl() {
 	verify_ca_init
@@ -5332,6 +5361,9 @@ case "$cmd" in
 	rebuild)
 		[ "$alias_days" ] && export EASYRSA_CERT_EXPIRE="$alias_days"; :
 		rebuild "$@"
+		;;
+	status)
+		status "$@"
 		;;
 	import-req)
 		import_req "$@"
