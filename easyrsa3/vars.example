@@ -163,6 +163,13 @@ fi
 
 #set_var EASYRSA_TEMP_FILE	"$EASYRSA_PKI/extensions.temp"
 
+# This option allows to publish the signed certificates to a folder
+# outside the pki. Set this variable to the desired folder.
+# When empty the certificates are not published they remain in the pki
+# folder.
+
+#set_var EASYRSA_PUBLISH	""
+
 # !!
 # NOTE: ADVANCED OPTIONS BELOW THIS POINT
 # PLAY WITH THEM AT YOUR OWN RISK
