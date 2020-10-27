@@ -53,6 +53,11 @@ fi
 	exit 2
 }
 
+# Get Windows User $TEMP as $EASYRSA_TEMP_DIR fallback
+if [ $TEMP ]; then
+	export WINDOWS_USER_TEMP_DIR="$(printf '%s\n' "$TEMP" | sed 's,\\,\/,g')"
+fi
+
 # Set prompt and welcome message
 export PS1='
 EasyRSA Shell
