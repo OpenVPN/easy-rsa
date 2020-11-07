@@ -2377,7 +2377,7 @@ print_version()
 EasyRSA Version Information
 Version:     ~VER~
 Generated:   ~DATE~
-SSL Lib:     $(openssl version)
+SSL Lib:     $($EASYRSA_OPENSSL version)
 Git Commit:  ~GITHEAD~
 Source Repo: https://github.com/OpenVPN/easy-rsa
 HERE
