@@ -1230,7 +1230,7 @@ subjectAltName = $san"
 
 	# renew certificate
 	# shellcheck disable=SC2086
-	build_full $cert_type $1 $opts || die "\
+	build_full $cert_type "$1" $opts || die "\
 Failed to renew certificate: renew command failed."
 
 	notice "\
