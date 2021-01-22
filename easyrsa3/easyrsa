@@ -329,7 +329,7 @@ Type the word '$value' to continue, or any other input to abort."
 easyrsa_mktemp() {
 	[ -n "$EASYRSA_TEMP_DIR_session" ] || die "EASYRSA_TEMP_DIR_session not initialized!"
 	[ -d "$EASYRSA_TEMP_DIR_session" ] || mkdir -p "$EASYRSA_TEMP_DIR_session" ||
-	       die "Could not create temporary directory '$EASYRSA_TEMP_DIR_session'. Permission or concurrency problem?"
+		die "Could not create temporary directory '$EASYRSA_TEMP_DIR_session'. Permission or concurrency problem?"
 	[ -d "$EASYRSA_TEMP_DIR_session" ] || die "Temporary directory '$EASYRSA_TEMP_DIR_session' does not exist"
 
 	template="$EASYRSA_TEMP_DIR_session/tmp.XXXXXX"
@@ -1179,17 +1179,17 @@ at: $crt_in"
 		easyrsa_openssl x509 -in "$crt_in" -noout -enddate |
 		sed 's/^notAfter=//'
 		)
-        case $(uname 2>/dev/null) in
-        	"Darwin"|*"BSD")
-                	expire_date=$(date -j -f '%b %d %T %Y %Z' "$expire_date" +%s)
-                	allow_renew_date=$(date -j -v"+${EASYRSA_CERT_RENEW}d" +%s)
-                	;;
-          	*)
-                	# This works on Windows, too, since uname doesn't exist and this is catch-all
-                	expire_date=$(date -d "$expire_date" +%s)
-                	allow_renew_date=$(date -d "+${EASYRSA_CERT_RENEW}day" +%s)
-                	;;
-        esac
+		case $(uname 2>/dev/null) in
+			"Darwin"|*"BSD")
+				expire_date=$(date -j -f '%b %d %T %Y %Z' "$expire_date" +%s)
+				allow_renew_date=$(date -j -v"+${EASYRSA_CERT_RENEW}d" +%s)
+				;;
+			*)
+				# This works on Windows, too, since uname doesn't exist and this is catch-all
+				expire_date=$(date -d "$expire_date" +%s)
+				allow_renew_date=$(date -d "+${EASYRSA_CERT_RENEW}day" +%s)
+				;;
+		esac
 
 	[ "$expire_date" -lt "$allow_renew_date" ] || die "\
 Certificate expires in more than $EASYRSA_CERT_RENEW days.
