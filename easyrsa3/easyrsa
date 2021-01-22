@@ -445,9 +445,9 @@ $out"
 
 # Verify if Edward Curve exists
 verify_curve_ed() {
-	if [ "ed25519" = "$EASYRSA_CURVE" ] && "$EASYRSA_OPENSSL" genpkey -algorithm ED25519 > /dev/null; then
+	if [ "$EASYRSA_CURVE" = "ed25519" ] && "$EASYRSA_OPENSSL" genpkey -algorithm ED25519 > /dev/null; then
 		return 0
-	elif [ "ed448" = "$EASYRSA_CURVE" ] && "$EASYRSA_OPENSSL" genpkey -algorithm ED448 > /dev/null; then
+	elif [ "$EASYRSA_CURVE" = "ed448" ] && "$EASYRSA_OPENSSL" genpkey -algorithm ED448 > /dev/null; then
 		return 0
 	fi
 		die "Curve $EASYRSA_CURVE not found."
@@ -681,11 +681,11 @@ current CA keypair. If you intended to start a new CA, run init-pki first."
 		"$EASYRSA_OPENSSL" ecparam -in "$EASYRSA_ALGO_PARAMS" -genkey | \
 			"$EASYRSA_OPENSSL" ec -out "$out_key_tmp" $crypto_opts ${pass_opts:+-passout "${pass_opts}"} || \
 			die "Failed create CA private key"
-	elif [ "ed" = "$EASYRSA_ALGO" ]; then
-		if [ "ed25519" = "$EASYRSA_CURVE" ]; then
+	elif [ "$EASYRSA_ALGO" = "ed" ]; then
+		if [ "$EASYRSA_CURVE" = "ed25519" ]; then
 			"$EASYRSA_OPENSSL" genpkey -algorithm ED25519 -out "$out_key_tmp" $crypto_opts ${pass_opts:+-pass "${pass_opts}"} || \
 			die "Failed create CA private key"
-		elif [ "ed448" = "$EASYRSA_CURVE" ]; then
+		elif [ "$EASYRSA_CURVE" = "ed448" ]; then
 			"$EASYRSA_OPENSSL" genpkey -algorithm ED448 -out "$out_key_tmp" $crypto_opts ${pass_opts:+-pass "${pass_opts}"} || \
 			die "Failed create CA private key"
 		fi
@@ -812,7 +812,7 @@ $EASYRSA_EXTRA_EXTS"
 	# generate request
 	[ $EASYRSA_BATCH ] && opts="$opts -batch"
 	newkey_opts=""
-	if [ "ed" = "$EASYRSA_ALGO" ]; then
+	if [ "$EASYRSA_ALGO" = "ed" ]; then
 		newkey_opts="$EASYRSA_CURVE"
 	else
 		newkey_opts="$EASYRSA_ALGO:$EASYRSA_ALGO_PARAMS"
@@ -1744,11 +1744,11 @@ Note: using Easy-RSA configuration from: $vars"
 	fi
 
 	# EASYRSA_ALGO_PARAMS must be set depending on selected algo
-	if [ "ec" = "$EASYRSA_ALGO" ]; then
+	if [ "$EASYRSA_ALGO" = "ec" ]; then
 		EASYRSA_ALGO_PARAMS="$EASYRSA_EC_DIR/${EASYRSA_CURVE}.pem"
-	elif [ "rsa" = "$EASYRSA_ALGO" ]; then
+	elif [ "$EASYRSA_ALGO" = "rsa" ]; then
 		EASYRSA_ALGO_PARAMS="${EASYRSA_KEY_SIZE}"
-	elif [ "ed" != "$EASYRSA_ALGO" ]; then
+	elif [ "$EASYRSA_ALGO" != "ed" ]; then
 		die "Alg '$EASYRSA_ALGO' is invalid: must be 'rsa', 'ec' or 'ed' "
 	fi
 
