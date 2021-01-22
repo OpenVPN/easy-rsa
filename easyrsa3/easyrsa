@@ -1125,8 +1125,7 @@ input in file: $req_in"
 	[ -e "$key_in" ] && mv "$key_in" "$key_by_serial_revoked"
 
 	# move the rest of the files (p12, p7, ...)
-	# shellcheck disable=SC2231
-	for file in $EASYRSA_PKI/private/$1\.???
+	for file in "$EASYRSA_PKI/private/$1"\.???
 	do
 		# get file extension
 		file_ext="${file##*.}"
@@ -1291,8 +1290,7 @@ input in file: $req_in"
 	[ -e "$key_in" ] && mv "$key_in" "$key_by_serial_renewed"
 
 	# move the rest of the files (p12, p7, ...)
-	# shellcheck disable=SC2231
-	for file in $EASYRSA_PKI/private/$1\.???
+	for file in "$EASYRSA_PKI/private/$1"\.???
 	do
 		# get file extension
 		file_ext="${file##*.}"
