@@ -808,14 +808,13 @@ $EASYRSA_EXTRA_EXTS"
 	req_out_tmp="$(easyrsa_mktemp)" || die "Failed to create temporary file"
 	# generate request
 	[ $EASYRSA_BATCH ] && opts="$opts -batch"
-	# shellcheck disable=2086,2148
-	algo_opts=""
+	newkey_opts=""
 	if [ "ed" = "$EASYRSA_ALGO" ]; then
-		algo_opts=" -newkey $EASYRSA_CURVE "
+		newkey_opts="$EASYRSA_CURVE"
 	else
-		algo_opts=" -newkey $EASYRSA_ALGO:$EASYRSA_ALGO_PARAMS "
+		newkey_opts="$EASYRSA_ALGO:$EASYRSA_ALGO_PARAMS"
 	fi
-	easyrsa_openssl req -utf8 -new $algo_opts \
+	easyrsa_openssl req -utf8 -new -newkey "$newkey_opts" \
 		-keyout "$key_out_tmp" -out "$req_out_tmp" $opts ${EASYRSA_PASSOUT:+-passout "$EASYRSA_PASSOUT"} \
 		|| die "Failed to generate request"
 	mv "$key_out_tmp" "$key_out"
