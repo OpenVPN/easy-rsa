@@ -27,7 +27,7 @@
 # "C:/Program Files/OpenSSL-Win32/bin/openssl.exe"
 
 # A little housekeeping: DON'T EDIT THIS SECTION
-# 
+#
 # Easy-RSA 3.x doesn't source into the environment directly.
 # Complain if a user tries to do this:
 if [ -z "$EASYRSA_CALLER" ]; then
@@ -219,3 +219,24 @@ fi
 
 #set_var EASYRSA_BATCH		""
 
+# PKCS11 Module options
+# Default PKCS#11 tool to be used.
+set_var EASYRSA_PKCS11TOOL	"pkcs11-tool"
+
+# Path to load the pkcs module
+#set_var PKCS11_MODULE_PATH "/usr/lib/x86_64-linux-gnu/opensc-pkcs11.so"
+
+# Enable pin entry through external pinpad
+#set_var PKCS11_PINPAD  true
+
+# Use default Pin.
+# *This setting is UNSECURE*
+# Useful for testing and automatically logs the user in
+#set_var PKCS11_PIN		"1234"
+
+# Set PKCS11 Slot.
+# Find correct slot checking output of 'pkcs11-tool -L'
+#set_var PKCS11_SLOT	"0x0"
+
+# Set CA keypair label.
+#set_var PKCS11_LABEL	"EasyRSA-CA-Key"

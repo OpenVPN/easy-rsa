@@ -13,10 +13,29 @@ matrix:
         - shellcheck --version
         - bash -c 'export SHELLCHECK_OPTS="-S warning -e SC2006"; shopt -s globstar; shellcheck **/*.sh easyrsa3/easyrsa'
         - sh op_test.sh -vv
-
+    - os: linux
+      dist: bionic
+      env:
+        - PATH=/usr/bin:/bin:./:/usr/local/bin
+        - PKCS11_ENGINE=/usr/lib/x86_64-linux-gnu/engines-1.1/libpkcs11.so
+        - PKCS11_MODULE_PATH=/usr/lib/softhsm/libsofthsm2.so
+        - PKCS11_PIN=1234
+        - PKCS11_LABEL=my-test-token
+        - TEST_PKCS11=1       # Triggers op_test.sh to pass the pkcs11 parameter to build-ca
+      before_install:
+        # opensc to get pkcs11-tool
+        - sudo apt-get install -y opensc softhsm2 libengine-pkcs11-openssl1.1
+        - sudo mkdir -p /var/lib/softhsm/tokens
+        - sudo softhsm2-util --init-token --free --label test-token --so-pin 123456 --pin 1234
+      script:
+        - export PKCS11_SLOT=`sudo softhsm2-util --show-slots | grep ^Slot | head -n 1 | cut -d ' ' -f 2`
+        - openssl version
+        - shellcheck --version
+        - bash -c 'export SHELLCHECK_OPTS="-S warning -e SC2006"; shopt -s globstar; shellcheck **/*.sh easyrsa3/easyrsa'
+        - sudo sh op_test.orig -vv
+        
     - os: osx
       osx_image: xcode10.1
       script:
         - openssl version
         - sh op_test.sh -vv
-
