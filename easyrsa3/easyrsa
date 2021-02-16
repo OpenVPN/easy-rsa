@@ -376,7 +376,7 @@ easyrsa_pkcs11_tool() {
 			"$EASYRSA_PKCS11TOOL" --module "$PKCS11_MODULE_PATH" \
 						--slot "$PKCS11_SLOT" \
 						--login --login-type so \
-						--so-pin "$PKCS11_SOPIN" \
+						--so-pin "$PKCS11_SO_PIN" \
 						$PKCS11_EXTRA_OPTIONS \
 						"$@" \
 						$PKCS11_EXTRA_OPTIONS || die "Failed to access PKCS#11. Wrong PIN?"
@@ -749,8 +749,8 @@ current CA keypair. If you intended to start a new CA, run init-pki first."
 		if [ -z "$PKCS11_PIN" ] && [ -z "$PKCS11_PINPAD" ]; then
 			printf "PKCS#11 PIN: " && hide_read_pass PKCS11_PIN
 		fi
-		if [ -z "$PKCS11_SOPIN" ] && [ -n "$PKCS11_REQUIRE_SOPIN" ]; then
-		  printf "\nPKCS#11 SOPIN: " && hide_read_pass PKCS11_SOPIN
+		if [ -z "$PKCS11_SO_PIN" ] && [ -n "$PKCS11_REQUIRE_SOPIN" ]; then
+		  printf "\nPKCS#11 SOPIN: " && hide_read_pass PKCS11_SO_PIN
 		fi
 
 	elif [ ! $nopass ] && ( [ -z "$EASYRSA_PASSOUT" ] || [ -z "$EASYRSA_PASSIN" ] ); then

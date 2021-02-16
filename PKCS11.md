@@ -20,7 +20,7 @@ Environment Variables
 * `PKCS11_LABEL` - The label of the key to use.  (Not de-duplicated!!)
 * `PKCS11_EXTRA_OPTIONS` - Extra options for `pkcs11-tool` (i.e. `--id` for Yubikeys). *Use with caution!*
 * `PKCS11_REQUIRE_SOPIN` - Boolean, set to `true` for devices which require SO PIN login to generate keypairs (i.e. Yubikeys)
-*  `PKCS11_SOPIN` - *HIGLY INSECURE* useful for testing,  automatically logs the SO user in.
+*  `PKCS11_SO_PIN` - *HIGLY INSECURE* useful for testing,  automatically logs the SO user in.
 
 Once you've created your CA, `./pki/private/ca.key` will not be a normal PEM key file.  Instead it will look
 like the following:
@@ -95,7 +95,7 @@ set_var PKCS11_EXTRA_OPTIONS	"--id 2"
 set_var PKCS11_REQUIRE_SOPIN true
 # WARNING: Following settings are for test purpose only.
 # Writing PIN and SO PIN to config is highly discouraged for security reasons.
-set_var PKCS11_SOPIN "010203040506070801020304050607080102030405060708"
+set_var PKCS11_SO_PIN "010203040506070801020304050607080102030405060708"
 set_var PKCS11_PIN 123456
 ```
 

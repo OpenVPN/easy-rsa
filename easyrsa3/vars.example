@@ -250,4 +250,4 @@ set_var EASYRSA_PKCS11TOOL	"pkcs11-tool"
 
 # Use default SO Pin
 # *This setting is UNSECURE*
-#set_var PKCS11_SOPIN "123456"
+#set_var PKCS11_SO_PIN "123456"
