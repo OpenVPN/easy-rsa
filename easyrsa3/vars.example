@@ -7,7 +7,7 @@
 # HOW TO USE THIS FILE
 #
 # vars.example contains built-in examples to Easy-RSA settings. You MUST name
-# this file 'vars' if you want it to be used as a configuration file. If you do
+# this file 'vars' if you want it to be usecat d as a configuration file. If you do
 # not, it WILL NOT be automatically read when you call easyrsa commands.
 #
 # It is not necessary to use this config file unless you wish to change
@@ -240,3 +240,14 @@ set_var EASYRSA_PKCS11TOOL	"pkcs11-tool"
 
 # Set CA keypair label.
 #set_var PKCS11_LABEL	"EasyRSA-CA-Key"
+
+# Set extra pkcs11-tool options.
+# Useful for different implementations (i.e. "--login-type so" for Yubikeys).
+#set_var PKCS11_EXTRA_OPTIONS ""
+
+# Enable SO login when creating CA keys.
+#set_var PKCS11_REQUIRE_SOPIN true
+
+# Use default SO Pin
+# *This setting is UNSECURE*
+#set_var PKCS11_SOPIN "123456"
