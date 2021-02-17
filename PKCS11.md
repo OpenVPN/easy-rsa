@@ -1,15 +1,12 @@
 PKCS#11 support for EasyRSA
 ============================
 
-OpenSSL only ever operates on one key at time for any given command.  Leveraging this fact we can
-provide support for private keys stored in PKCS#11 tokens with a relatively simple configuration.
+OpenSSL only ever operates on one key at time for any given command. Leveraging this fact we can provide support for private keys stored in PKCS#11 tokens with a relatively simple configuration.
 In order to use this capability, you must install the OpenSSL PKCS#11 engine for you operating system.  
 
-This version of the capability does not persist your PIN number automatically.  If you would like to do
-this and are aware of the security implications of doing so, see the end of this document.
+This version of the capability does not persist your PIN number automatically.  If you would like to do this and are aware of the security implications of doing so, see the end of this document.
 
-To build the CA on a token use the `pkcs11` parameter when calling `build-ca`.  If desired you can also use the `subca` command.  The following environment variables can be used and they have equivalant command line
-arguments.
+To build the CA on a token use the `pkcs11` parameter when calling `build-ca`.  If desired you can also use the `subca` command.  The following environment variables can be used and they have equivalant command line arguments.
 
 Environment Variables
 
