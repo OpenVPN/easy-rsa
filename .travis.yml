@@ -25,7 +25,7 @@ matrix:
         - TEST_PKCS11=1       # Triggers op_test.sh to pass the pkcs11 parameter to build-ca
       before_install:
         # opensc to get pkcs11-tool
-        - sudo apt-get install -y opensc softhsm2 libengine-pkcs11-openssl1.1 p11tool
+        - sudo apt-get install -y opensc softhsm2 libengine-pkcs11-openssl1.1 gnutls-bin
         - sudo mkdir -p /var/lib/softhsm/tokens
         - sudo softhsm2-util --init-token --free --label my-test-token --so-pin 123456 --pin 1234
       script:
