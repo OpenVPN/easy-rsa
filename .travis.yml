@@ -29,7 +29,7 @@ matrix:
         - sudo mkdir -p /var/lib/softhsm/tokens
         - sudo softhsm2-util --init-token --free --label my-test-token --so-pin 123456 --pin 1234
       script:
-        - export PKCS11_TOKEN_URI="`sudo p11tool --list-tokens|grep -e "URL.*SoftHSM.*"| sed 's/^.*URL: //'`;"
+        - export PKCS11_TOKEN_URI=$(sudo p11tool --list-tokens|grep -e 'URL.*SoftHSM.*'|awk  '{print $2 ";"}')
         - openssl version
         - shellcheck --version
         - bash -c 'export SHELLCHECK_OPTS="-S warning -e SC2006"; shopt -s globstar; shellcheck **/*.sh easyrsa3/easyrsa'
