@@ -246,10 +246,12 @@ Certificate & Request options: (these impact cert/req field values)
 
 PKCS#11 Options:
 --module=PATH 	: Path to the module to use for the PKCS#11 interface
+--token-uri=PKCS11_TOKEN_URI : PKCS11 Token URI (according to RFC 7512)
 --slot=SLOT_ID  : Hexidecimal slot identifier
 --label=CA_KEY_LABEL : Unique name for CA key in the specified slot
---pin=PIN		: Token PIN, if not specified will be asked for
---pinpad		: Use external pinpad for pin entry.
+--pin=PIN				: Token PIN, if not specified will be asked for
+--sopin					: Token SO PIN
+--pinpad				: Use external pinpad for pin entry.
 
 Organizational DN options: (only used with the 'org' DN mode)
   (values may be blank for org DN options)
@@ -367,25 +369,21 @@ easyrsa_pkcs11_tool() {
 	if [ "$PKCS11_PINPAD" = true ]; then
 		print "Please enter PIN on external pinpad to generate CA keypair."
 		"$EASYRSA_PKCS11TOOL" --module "$PKCS11_MODULE_PATH" \
-					--slot "$PKCS11_SLOT" \
-					--login "$@" \
+					--login "$@" --id "$PKCS11_SLOT" \
 					$PKCS11_EXTRA_OPTIONS || die "Failed to access PKCS#11. Wrong PIN?"
 	else
 		# Command line Input - Requires SO-PIN
 		if [ -n "$PKCS11_REQUIRE_SOPIN" ]; then
 			"$EASYRSA_PKCS11TOOL" --module "$PKCS11_MODULE_PATH" \
-						--slot "$PKCS11_SLOT" \
 						--login --login-type so \
 						--so-pin "$PKCS11_SO_PIN" \
-						$PKCS11_EXTRA_OPTIONS \
-						"$@" \
+						"$@" --id "$PKCS11_SLOT" \
 						$PKCS11_EXTRA_OPTIONS || die "Failed to access PKCS#11. Wrong PIN?"
 		else
 			# Command line Input - Requires standard PIN
 			"$EASYRSA_PKCS11TOOL" --module "$PKCS11_MODULE_PATH" \
-						--slot "$PKCS11_SLOT" \
 						--login --pin "$PKCS11_PIN" \
-						"$@" \
+						"$@" --id "$PKCS11_SLOT" \
 						$PKCS11_EXTRA_OPTIONS || die "Failed to access PKCS#11. Wrong PIN?"
 		fi
 	fi
@@ -481,17 +479,20 @@ EOF
 	#		to openssl.  This will be important if we really want to put the PIN in the config so there isn't a chance
 	#       of it being exposed through temp files.
 
-	if [ $pkcs11 ]; then
-		sed -i'' -e "s/=.*\/private\/ca.key/= label_$PKCS11_LABEL/g" "$easyrsa_openssl_conf" \
-			|| die "Failed to configure PKCS#11 token"
-	fi
 	echo
 	if [ "$openssl_command" = "makesafeconf" ]; then
 		cp "$easyrsa_openssl_conf" "$EASYRSA_SAFE_CONF"
 		err=$?
 	else
-		"$EASYRSA_OPENSSL" "$openssl_command" -config "$easyrsa_openssl_conf" $openssl_pkcs11_params "$@"
-		err=$?
+		if [ "$pkcs11" ] && [ "$openssl_command" = "ca" ]; then
+			"$EASYRSA_OPENSSL" "$openssl_command" -config "$easyrsa_openssl_conf" $openssl_pkcs11_params \
+			"$@" \
+			-keyfile "${PKCS11_TOKEN_URI}id=$(echo $PKCS11_SLOT|sed 's/.\{2\}/%&/g');object=$PKCS11_LABEL;type=private"
+			err=$?
+		else
+			"$EASYRSA_OPENSSL" "$openssl_command" -config "$easyrsa_openssl_conf" $openssl_pkcs11_params "$@"
+			err=$?
+		fi
 	fi
 
 	rm -f "$easyrsa_openssl_conf"
@@ -738,10 +739,6 @@ current CA keypair. If you intended to start a new CA, run init-pki first."
 		if [ -z "$PKCS11_MODULE_PATH" ]; then
 			printf "PKCS#11 Module Library: " && read -r PKCS11_MODULE_PATH
 		fi
-		if [ -z "$PKCS11_SLOT" ]; then
-			"$EASYRSA_PKCS11TOOL" --module "$PKCS11_MODULE_PATH" --list-slots || die "unable to list slots using" "$PKCS11_MODULE_PATH"
-			printf "PKCS#11 Slot ID (hex): " && read -r PKCS11_SLOT
-		fi
 		if [ -z "$PKCS11_LABEL" ]; then
 			# TODO: "Validate PKCS11_LABEL otherwise a segfault is appearing"
 			printf "PKCS#11 Object Label: " && read -r PKCS11_LABEL
@@ -750,7 +747,7 @@ current CA keypair. If you intended to start a new CA, run init-pki first."
 			printf "PKCS#11 PIN: " && hide_read_pass PKCS11_PIN
 		fi
 		if [ -z "$PKCS11_SO_PIN" ] && [ -n "$PKCS11_REQUIRE_SOPIN" ]; then
-		  printf "\nPKCS#11 SOPIN: " && hide_read_pass PKCS11_SO_PIN
+		  printf "\nPKCS#11 SO PIN: " && hide_read_pass PKCS11_SO_PIN
 		fi
 
 	elif [ ! $nopass ] && ( [ -z "$EASYRSA_PASSOUT" ] || [ -z "$EASYRSA_PASSIN" ] ); then
@@ -781,7 +778,7 @@ current CA keypair. If you intended to start a new CA, run init-pki first."
 			die "Unsupported \$EASYRSA_ALGO=$EASYRSA_ALGO"
 		fi
 		easyrsa_pkcs11_tool --keypairgen --key-type "$KEY_TYPE" \
-			--label "'$PKCS11_LABEL'" \
+			--label "$PKCS11_LABEL" \
 			--usage-sign \
 			--private
 			# TODO: figure out how to determine if the --sensitive flag is available on pkcs11-tool
@@ -791,8 +788,8 @@ current CA keypair. If you intended to start a new CA, run init-pki first."
 		cat > "$out_key_tmp" << EOF
 # EasyRSA variables pointing to the private key object
 PKCS11_MODULE_PATH=${PKCS11_MODULE_PATH}
-PKCS11_SLOT=${PKCS11_SLOT}
-PKCS11_LABEL=${PKCS11_LABEL}
+PKCS11_TOKEN_URI='${PKCS11_TOKEN_URI}'
+PKCS11_LABEL='${PKCS11_LABEL}'
 EOF
 	else
 		crypto_opts=""
@@ -838,7 +835,8 @@ EOF
 			print "Please enter PIN on external pinpad to sign CA root certificate."
 		fi
 		easyrsa_openssl req -utf8 -new -sha256 \
-			-key "label_$PKCS11_LABEL" -out "$out_file_tmp" \
+			-key "${PKCS11_TOKEN_URI}id=$(echo $PKCS11_SLOT|sed 's/.\{2\}/%&/g');object=$PKCS11_LABEL;type=private" \
+			-out "$out_file_tmp" \
 			$crypto_opts $opts || \
 			die "Failed to build the CA using PKCS#11 token"
 	else
@@ -2614,15 +2612,22 @@ while :; do
 		export EASYRSA_EXTRA_EXTS="\
 $EASYRSA_EXTRA_EXTS
 subjectAltName = $val" ;;
-    --module)
+  --module)
 		empty_ok=1
 		export PKCS11_MODULE_PATH="$val" ;;
+	--token-uri)
+		empty_ok=1
+		export PKCS11_TOKEN_URI="$val" ;;
 	--slot)
 		empty_ok=1
 		export PKCS11_SLOT="$val" ;;
 	--pin)
 		empty_ok=1
 		export PKCS11_PIN="$val" ;;
+	--sopin)
+		empty_ok=1
+		export PKCS11_SO_PIN="$val"
+		export PKCS11_REQUIRE_SOPIN=true ;;
 	--label)
 		empty_ok=1
 		export PKCS11_LABEL="$val" ;;
