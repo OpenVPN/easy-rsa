@@ -19,9 +19,9 @@ matrix:
         - PATH=/usr/bin:/bin:./:/usr/local/bin
         - PKCS11_ENGINE=/usr/lib/x86_64-linux-gnu/engines-1.1/libpkcs11.so
         - PKCS11_MODULE_PATH=/usr/lib/softhsm/libsofthsm2.so
-        - PKCS11_SLOT=01
+        - PKCS11_KEY_ID=01
         - PKCS11_PIN=1234
-        - PKCS11_LABEL=test-CA-key
+        - PKCS11_KEY_LABEL=test-CA-key
         - TEST_PKCS11=1       # Triggers op_test.sh to pass the pkcs11 parameter to build-ca
       before_install:
         # opensc to get pkcs11-tool

@@ -754,14 +754,14 @@ Please select one of the available ones.
 If your device do not appear in the list, please verify it is connected
 and run the command again.\n"
 			tokens="$($EASYRSA_P11TOOL --list-token-urls| sed -e ':a' -e 'N' -e '$!ba' -e 's/\n/\|/g')"
-			for token_count in $(seq $(echo ${tokens}|awk -F"|" '{print NF}'))
+			for token_count in $(seq "$(echo ${tokens}|awk -F"|" '{print NF}')")
 			do
 				echo "\t[${token_count}] : \"$(echo $tokens|cut -d '|' -f${token_count})\""
 				token_count=$(( ${token_count} + 1 ))
 			done
-			echo -n "Enter PKCS11 Token number:"
+			echo "Enter PKCS11 Token number:"
 			read userinput
-			if [ ${userinput} -lt 1 ] || [ ${userinput} -gt $(echo ${tokens}|awk -F"|" '{print NF}') ]; then
+			if [ "${userinput}" -lt "1" ] || [ "${userinput}" -gt "$(echo ${tokens}|awk -F"|" '{print NF}')" ]; then
 				die "Invalid PKCS11 Token number selected."
 			fi
 			PKCS11_TOKEN_URI="$(echo ${tokens}|cut -d '|' -f${userinput})"
@@ -830,14 +830,6 @@ Expected '${EASYRSA_ALGO}', found '${existing_label}'."
 			fi
 		fi
 
-
-		if [ "$EASYRSA_ALGO" = "rsa" ]; then
-			KEY_TYPE=rsa:$EASYRSA_KEY_SIZE
-		elif [ "$EASYRSA_ALGO" = "ec" ]; then
-			KEY_TYPE=EC:$EASYRSA_CURVE
-		else
-			die "Unsupported \$EASYRSA_ALGO=$EASYRSA_ALGO"
-		fi
 			# Save the parameters for future usage to the out_key file
 			# TODO: Consider replacing with a pkcs11 url passed directly to the engine instead
 		cat > "$out_key_tmp" << EOF
