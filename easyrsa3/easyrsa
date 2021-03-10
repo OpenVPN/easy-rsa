@@ -822,7 +822,6 @@ Expected '${EASYRSA_ALGO}', found '${existing_label}'."
 			#key not found
 		else
 			if [ "$EASYRSA_ALGO" = "rsa" ]; then
-				easyrsa_p11_tool --generate-privkey=$EASYRSA_ALGO \
 				easyrsa_p11_tool --generate-rsa \
 				 --bits=$EASYRSA_KEY_SIZE --label="$PKCS11_KEY_LABEL" --id="$PKCS11_KEY_ID" "$PKCS11_TOKEN_URI" --mark-sign
 			else
@@ -831,6 +830,7 @@ Expected '${EASYRSA_ALGO}', found '${existing_label}'."
 					 --curve=$EASYRSA_CURVE --label="$PKCS11_KEY_LABEL" --id="$PKCS11_KEY_ID" "$PKCS11_TOKEN_URI" --mark-sign
 				else
 					die "Unsupported $EASYRSA_ALGO key generation for PKCS11 tool."
+				fi
 			fi
 		fi
 
