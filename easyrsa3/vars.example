@@ -221,7 +221,7 @@ fi
 
 # PKCS11 Module options
 # Default PKCS#11 tool to be used.
-set_var EASYRSA_PKCS11TOOL	"pkcs11-tool"
+set_var EASYRSA_P11TOOL	"p11tool"
 
 # Path to load the pkcs module
 #set_var PKCS11_MODULE_PATH "/usr/lib/x86_64-linux-gnu/opensc-pkcs11.so"
@@ -240,17 +240,14 @@ set_var EASYRSA_PKCS11TOOL	"pkcs11-tool"
 # (You might need to install gnutls-bin package.)
 #set_var PKCS11_TOKEN_URI	"pkcs11:model=SoftHSM%20v2;manufacturer=SoftHSM%20project;serial=390ab91a4f4faf7a;token=test-token;"
 
-# Set PKCS11 Slot ID.
-# Find correct slot checking output of 'pkcs11-tool -L'
+# Set PKCS11 Key ID.
+# Find correct CKA_ID checking output of 'p11tool '
 # Format is hex sequence, without leading '0x' characters.
-#set_var PKCS11_SLOT	"00"
+#set_var PKCS11_KEY_ID	"01"
 
 # Set CA keypair label.
-#set_var PKCS11_LABEL	"EasyRSA-CA-Key"
+#set_var PKCS11_KEY_LABEL	"EasyRSA-CA-Key"
 
-# Set extra pkcs11-tool options.
-# Might be useful for non-standard implementations.
-#set_var PKCS11_EXTRA_OPTIONS ""
 
 # Enable SO login when creating CA keys.
 #set_var PKCS11_REQUIRE_SOPIN true

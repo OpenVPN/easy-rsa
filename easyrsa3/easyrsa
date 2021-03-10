@@ -77,7 +77,7 @@ cmd_help() {
         nopass  - do not encrypt the CA key (default is encrypted)
         subca   - create an intermediate CA keypair and request (default is a root CA)
         intca   - alias to the above
-		pkcs11  - use a PKCS#11 token for key storage" ;;
+				pkcs11  - use a PKCS#11 token for key storage" ;;
 		gen-dh) text="
   gen-dh
       Generates DH (Diffie-Hellman) parameters" ;;
@@ -362,32 +362,27 @@ cleanup() {
 	(stty echo 2>/dev/null) || { (set -o echo 2>/dev/null) && set -o echo; }
 	echo "" # just to get a clean line
 } # => cleanup()
-
-easyrsa_pkcs11_tool() {
+easyrsa_p11_tool() {
 	print "Generating keypair on PKCS#11 Module..."
 	# External pinpad input
 	if [ "$PKCS11_PINPAD" = true ]; then
 		print "Please enter PIN on external pinpad to generate CA keypair."
-		"$EASYRSA_PKCS11TOOL" --module "$PKCS11_MODULE_PATH" \
-					--login "$@" --id "$PKCS11_SLOT" \
-					$PKCS11_EXTRA_OPTIONS || die "Failed to access PKCS#11. Wrong PIN?"
+		"$EASYRSA_P11TOOL" --provider="$PKCS11_MODULE_PATH" \
+					--login "$@" || die "Failed to access PKCS#11. Wrong PIN?"
 	else
 		# Command line Input - Requires SO-PIN
 		if [ -n "$PKCS11_REQUIRE_SOPIN" ]; then
-			"$EASYRSA_PKCS11TOOL" --module "$PKCS11_MODULE_PATH" \
-						--login --login-type so \
-						--so-pin "$PKCS11_SO_PIN" \
-						"$@" --id "$PKCS11_SLOT" \
-						$PKCS11_EXTRA_OPTIONS || die "Failed to access PKCS#11. Wrong PIN?"
+			"$EASYRSA_P11TOOL" --provider="$PKCS11_MODULE_PATH" \
+						--so-login --set-so-pin="$PKCS11_SO_PIN" \
+						"$@" || die "Failed to access PKCS#11. Wrong PIN?"
 		else
 			# Command line Input - Requires standard PIN
-			"$EASYRSA_PKCS11TOOL" --module "$PKCS11_MODULE_PATH" \
-						--login --pin "$PKCS11_PIN" \
-						"$@" --id "$PKCS11_SLOT" \
-						$PKCS11_EXTRA_OPTIONS || die "Failed to access PKCS#11. Wrong PIN?"
+						"$EASYRSA_P11TOOL" --provider="$PKCS11_MODULE_PATH" \
+									--login --set-pin="$PKCS11_PIN" \
+									"$@" || die "Failed to access PKCS#11. Wrong PIN?"
 		fi
 	fi
-} # => easyrsa_pkcs11_tool
+} # => easyrsa_p11_tool
 
 easyrsa_openssl() {
 	openssl_command=$1; shift
@@ -487,7 +482,7 @@ EOF
 		if [ "$pkcs11" ] && [ "$openssl_command" = "ca" ]; then
 			"$EASYRSA_OPENSSL" "$openssl_command" -config "$easyrsa_openssl_conf" $openssl_pkcs11_params \
 			"$@" \
-			-keyfile "${PKCS11_TOKEN_URI}id=$(echo $PKCS11_SLOT|sed 's/.\{2\}/%&/g');object=$PKCS11_LABEL;type=private"
+			-keyfile "${PKCS11_TOKEN_URI};id=$(echo $PKCS11_KEY_ID|sed 's/.\{2\}/%&/g');object=$PKCS11_KEY_LABEL;type=private"
 			err=$?
 		else
 			"$EASYRSA_OPENSSL" "$openssl_command" -config "$easyrsa_openssl_conf" $openssl_pkcs11_params "$@"
@@ -734,14 +729,18 @@ current CA keypair. If you intended to start a new CA, run init-pki first."
 	out_file_tmp="$(easyrsa_mktemp)" || die "Failed to create temporary file"
 	# Get password from user if necessary
 	if [ $pkcs11 ]; then
+		# Test PKCS11 requirements
+		if [ -z "$(which $EASYRSA_P11TOOL)" ]; then
+			die "${EASYRSA_P11TOOL} not found. Please install GnuTLS."
+		fi
 		# Prepare parameters for PKCS11
 		echo "\neasy-rsa stores the key specific configuration in the appropriate key file and will not store sensitive information"
 		if [ -z "$PKCS11_MODULE_PATH" ]; then
 			printf "PKCS#11 Module Library: " && read -r PKCS11_MODULE_PATH
 		fi
-		if [ -z "$PKCS11_LABEL" ]; then
-			# TODO: "Validate PKCS11_LABEL otherwise a segfault is appearing"
-			printf "PKCS#11 Object Label: " && read -r PKCS11_LABEL
+		if [ -z "$PKCS11_KEY_LABEL" ]; then
+			# TODO: "Validate PKCS11_KEY_LABEL otherwise a segfault is appearing"
+			printf "PKCS#11 Object Label: " && read -r PKCS11_KEY_LABEL
 		fi
 		if [ -z "$PKCS11_PIN" ] && [ -z "$PKCS11_PINPAD" ]; then
 			printf "PKCS#11 PIN: " && hide_read_pass PKCS11_PIN
@@ -749,6 +748,26 @@ current CA keypair. If you intended to start a new CA, run init-pki first."
 		if [ -z "$PKCS11_SO_PIN" ] && [ -n "$PKCS11_REQUIRE_SOPIN" ]; then
 		  printf "\nPKCS#11 SO PIN: " && hide_read_pass PKCS11_SO_PIN
 		fi
+		if [ -z "$PKCS11_TOKEN_URI" ]; then
+			echo "PKCS11 mode was selected, but no token URI was specified.
+Please select one of the available ones.
+If your device do not appear in the list, please verify it is connected
+and run the command again.\n"
+			tokens="$($EASYRSA_P11TOOL --list-token-urls| sed -e ':a' -e 'N' -e '$!ba' -e 's/\n/\|/g')"
+			for token_count in $(seq $(echo ${tokens}|awk -F"|" '{print NF}'))
+			do
+				echo "\t[${token_count}] : \"$(echo $tokens|cut -d '|' -f${token_count})\""
+				token_count=$(( ${token_count} + 1 ))
+			done
+			echo -n "Enter PKCS11 Token number:"
+			read userinput
+			if [ ${userinput} -lt 1 ] || [ ${userinput} -gt $(echo ${tokens}|awk -F"|" '{print NF}') ]; then
+				die "Invalid PKCS11 Token number selected."
+			fi
+			PKCS11_TOKEN_URI="$(echo ${tokens}|cut -d '|' -f${userinput})"
+			echo "Selected token: \"${PKCS11_TOKEN_URI}\""
+		fi
+
 
 	elif [ ! $nopass ] && ( [ -z "$EASYRSA_PASSOUT" ] || [ -z "$EASYRSA_PASSIN" ] ); then
 		out_key_pass_tmp="$(easyrsa_mktemp)" || die "Failed to create temporary file"
@@ -770,6 +789,48 @@ current CA keypair. If you intended to start a new CA, run init-pki first."
 
 	# create the CA key using AES256
 	if [ $pkcs11 ]; then
+		keyexists=$(p11tool --list-all "$(echo $PKCS11_TOKEN_URI | sed 's/\;$//')"|\
+		grep -e "ID: " -e "Label" -e "URL: " -e "Type: "|\
+		grep -B2 "ID: $(echo ${PKCS11_KEY_ID}|sed 's/..\B/&:/g')"|\
+		sed -rn "s/^.*Type: Public key \((.*)\)/\1/p")
+
+		# Key with selected ID exists
+		if [ -n "$keyexists" ]; then
+			# Key is correct algorithm
+			if [ -n "$(echo $keyexists|grep -i $EASYRSA_ALGO)" ]; then
+				existing_label=$(p11tool --list-all "$(echo $PKCS11_TOKEN_URI | sed 's/\;$//')"|\
+				grep -e "ID: " -e "Label" -e "URL: " -e "Type: "|\
+				grep -B2 "ID: $(echo ${PKCS11_KEY_ID}|sed 's/..\B/&:/g')"|\
+				grep -A1 "Type: Public key"|sed -rn 's/^.*Label: (.*)$/\1/p')
+				echo "\nFound existing key (ID: '$PKCS11_KEY_ID', Type: '$keyexists', Label: '$existing_label')"
+				if [ "$existing_label" != $PKCS11_KEY_LABEL ]; then
+					echo " WARNING!!	Label mismatch!"
+				fi
+				confirm "Confirm using this key to generate the CA: " "yes" "
+WARNING:
+Existing Public key found on ID '${PKCS11_KEY_ID}'.
+(Type: '$keyexists', Label: '$existing_label').
+You are about to use the pre-existing key."
+				#set_var PKCS11_KEY_LABEL "$existing_label"
+				PKCS11_KEY_LABEL="$existing_label"
+				# Key exist, but wrong algorithm
+			else
+				echo "Key found at ID ${PKCS11_KEY_ID}, but it is not of required type.
+Expected '${EASYRSA_ALGO}', found '${existing_label}'."
+				die "Wrong key type found."
+			fi
+			#key not found
+		else
+			if [ "$EASYRSA_ALGO" = "rsa" ]; then
+				easyrsa_p11_tool --generate-privkey=$EASYRSA_ALGO \
+				 --bits=$EASYRSA_KEY_SIZE --label="$PKCS11_KEY_LABEL" --id="$PKCS11_KEY_ID" "$PKCS11_TOKEN_URI" --mark-sign
+			else
+				easyrsa_p11_tool --generate-privkey=$EASYRSA_ALGO \
+				--curve=$EASYRSA_CURVE --label="$PKCS11_KEY_LABEL" --id="$PKCS11_KEY_ID" "$PKCS11_TOKEN_URI" --mark-sign
+			fi
+		fi
+
+
 		if [ "$EASYRSA_ALGO" = "rsa" ]; then
 			KEY_TYPE=rsa:$EASYRSA_KEY_SIZE
 		elif [ "$EASYRSA_ALGO" = "ec" ]; then
@@ -777,19 +838,13 @@ current CA keypair. If you intended to start a new CA, run init-pki first."
 		else
 			die "Unsupported \$EASYRSA_ALGO=$EASYRSA_ALGO"
 		fi
-		easyrsa_pkcs11_tool --keypairgen --key-type "$KEY_TYPE" \
-			--label "$PKCS11_LABEL" \
-			--usage-sign \
-			--private
-			# TODO: figure out how to determine if the --sensitive flag is available on pkcs11-tool
-			# --sensitive
 			# Save the parameters for future usage to the out_key file
 			# TODO: Consider replacing with a pkcs11 url passed directly to the engine instead
 		cat > "$out_key_tmp" << EOF
 # EasyRSA variables pointing to the private key object
 PKCS11_MODULE_PATH=${PKCS11_MODULE_PATH}
 PKCS11_TOKEN_URI='${PKCS11_TOKEN_URI}'
-PKCS11_LABEL='${PKCS11_LABEL}'
+PKCS11_KEY_LABEL='${PKCS11_KEY_LABEL}'
 EOF
 	else
 		crypto_opts=""
@@ -835,7 +890,7 @@ EOF
 			print "Please enter PIN on external pinpad to sign CA root certificate."
 		fi
 		easyrsa_openssl req -utf8 -new -sha256 \
-			-key "${PKCS11_TOKEN_URI}id=$(echo $PKCS11_SLOT|sed 's/.\{2\}/%&/g');object=$PKCS11_LABEL;type=private" \
+			-key "${PKCS11_TOKEN_URI};id=$(echo $PKCS11_KEY_ID|sed 's/.\{2\}/%&/g');object=$PKCS11_KEY_LABEL;type=private" \
 			-out "$out_file_tmp" \
 			$crypto_opts $opts || \
 			die "Failed to build the CA using PKCS#11 token"
@@ -1883,7 +1938,7 @@ Note: using Easy-RSA configuration from: $vars"
 	set_var EASYRSA_SSL_CONF	"$EASYRSA_PKI/openssl-easyrsa.cnf"
 	set_var EASYRSA_SAFE_CONF	"$EASYRSA_PKI/safessl-easyrsa.cnf"
 	set_var EASYRSA_KDC_REALM	"CHANGEME.EXAMPLE.COM"
-	set_var EASYRSA_PKCS11TOOL  pkcs11-tool
+	set_var EASYRSA_P11TOOL  p11tool
 
 	# Same as above for the x509-types extensions dir
 	if [ -d "$EASYRSA_PKI/x509-types" ]; then
@@ -2620,7 +2675,7 @@ subjectAltName = $val" ;;
 		export PKCS11_TOKEN_URI="$val" ;;
 	--slot)
 		empty_ok=1
-		export PKCS11_SLOT="$val" ;;
+		export PKCS11_KEY_ID="$val" ;;
 	--pin)
 		empty_ok=1
 		export PKCS11_PIN="$val" ;;
@@ -2630,7 +2685,7 @@ subjectAltName = $val" ;;
 		export PKCS11_REQUIRE_SOPIN=true ;;
 	--label)
 		empty_ok=1
-		export PKCS11_LABEL="$val" ;;
+		export PKCS11_KEY_LABEL="$val" ;;
 	--pinpad)
 		empty_ok=1
 		export PKCS11_PINPAD=1 ;;
