@@ -186,8 +186,7 @@ Use `opensc-pkcs11.so`, select your device `PKCS11_TOKEN_URI`, do not change `PK
 ```sh
 set_var PKCS11_MODULE_PATH	"path/to/opensc-pkcs11.so"
 set_var PKCS11_KEY_LABEL	"SIGN"
-set_var PKCS11_TOKEN_URI	"pkcs11:model=PKCS%2315%20emulated;manufacturer=piv_II;serial=0123456789abcdef;token=testkey
-"
+set_var PKCS11_TOKEN_URI	"pkcs11:model=PKCS%2315%20emulated;manufacturer=piv_II;serial=0123456789abcdef;token=testkey"
 set_var PKCS11_KEY_ID "02"
 # Only for testing & automation purpose.
 # Never write your production PIN to file.
@@ -198,7 +197,8 @@ set_var PKCS11_KEY_ID "02"
 ```sh
 easyrsa build-ca pkcs11
 ```
-Note: Yubikeys might require a second PIN entry during signing operations, even when `PKCS11_PIN` var is set.
+Note: Yubikeys might require multiple PIN entry during CA building and signing operations, even when `PKCS11_PIN` var is set.
+Also, you will get a `PKCS11_KEY_LABEL` mismatch when checking for existing key. Yubikey uses different labels for private and public keys of the same key pair (i.e. `SIGN key` vs `SIGN pubkey`). We could consider solving this checking `PKCS11_KEY_LABEL` against the private keys instead of the public ones, though this would require an extra login (extra pin insertion).
 
 Notes
 -----
