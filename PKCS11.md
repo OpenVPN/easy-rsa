@@ -73,13 +73,16 @@ Nitrokey HSM - Smartcard HSM
  The [SmartCard-HSM](https://www.smartcard-hsm.com/) is a lightweight hardware security module in a smart card form factor.
  The [Nitrokey HSM](https://www.nitrokey.com/#comparison) is a lightweight hardware security module in a USB key form factor containing the SmartCard-HSM. The [SmartCard-HSM](https://www.smartcard-hsm.com/#comparison) is available as USB key, ID-1 card with contact/contactless interface, as ID-000 plug-in and MicroSD card. Both are 100% compatible and provide a remote-manageable secure key store for RSA and ECC keys.
 (Adapted from [OpenSC Wiki](https://github.com/OpenSC/OpenSC/wiki/SmartCardHSM)).
+
 0. Initialize the token. Choose one option:
     - Simple initialization: (No DKEK shares, meaning no possibility to export a backup)
+
     ```sh
     #Initialize the token
     sc-hsm-tool --initialize
     ```
     - Initialization with DKEK share(s): (Enable to export encrypted backup --> more info)
+
     ```sh
     # Generate DKEK share
     sc-hsm-tool --create-dkek-share dkek-share-1.pbe
@@ -90,7 +93,8 @@ Nitrokey HSM - Smartcard HSM
     ```
 1. Suggested settings:
 Set `PKCS11_TOKEN_URI` according to your device serial or select it from the list during execution; choose fresh `PKCS11_KEY_LABEL` and `PKCS11_KEY_ID` for key generation or set them according to your existing keys.
-```sh
+
+  ```sh
 set_var PKCS11_MODULE_PATH	"path/to/opensc-pkcs11.so"
 set_var PKCS11_TOKEN_URI	"pkcs11:model=PKCS%2315%20emulated;manufacturer=www.CardContact.de;serial=DENK0000000;token=SmartCard-HSM%20%28UserPIN%29%00%00%00%00%00%00%00%00%00"
 set_var PKCS11_KEY_LABEL	"test-CA-key"
@@ -102,13 +106,14 @@ set_var PKCS11_KEY_ID "123456"
 
 
 2. Build the CA
-```sh
+
+  ```sh
 easyrsa build-ca pkcs11
 ```
 
 Nitrokey Pro
 ------------
-[Nitrokey Pro](https://www.nitrokey.com/#comparison)is an open-source USB key used to enable the secure encryption and signing of data. Among other features, it provides two emulated PKCS15 card, one using OpenPGP and one Using S/MIME. It can store 3 keys (more specifically, one identity, 3 subkeys).
+[Nitrokey Pro](https://www.nitrokey.com/#comparison) is an open-source USB key used to enable the secure encryption and signing of data. Among other features, it provides two emulated PKCS15 card, one using OpenPGP and one Using S/MIME. It can store 3 keys (more specifically, one identity, 3 subkeys).
 
 0. Initialize the token.  
 We suggest to [initialize the token](https://www.nitrokey.com/documentation/installation#p:nitrokey-pro) and [generate your keys](https://www.nitrokey.com/documentation/openpgp-email-encryption) following the respective manufacturer guides.
@@ -121,7 +126,8 @@ Nitrokey Pro shows up as 2 different slots:
 Select `PKCS11_TOKEN_URI` according to your device serial, choose `PKCS11_KEY_LABEL`.
 
   Set `PKCS11_TOKEN_URI` to the second one (or choose it interactively); `PKCS11_KEY_ID` should not be set to `01`.
-```sh
+
+  ```sh
 set_var PKCS11_MODULE_PATH	"path/to/opensc-pkcs11.so"
 set_var PKCS11_TOKEN_URI "pkcs11:model=PKCS%2315%20emulated;manufacturer=ZeitControl;serial=123456789123;token=OpenPGP%20card%20%28User%20PIN%20%28sig%29%29%00%00%00;"
 set_var PKCS11_KEY_LABEL "Signature key"
@@ -132,7 +138,8 @@ set_var PKCS11_KEY_ID "01"
 ```
 
 2. Build the CA
-```sh
+
+  ```sh
 easyrsa build-ca pkcs11
 ```
 
@@ -142,7 +149,8 @@ SoftHSM2
 [SoftHSM](https://www.opendnssec.org/softhsm/) is an implementation of a cryptographic store accessible through a PKCS #11 interface. You can use it to explore PKCS #11 without having a Hardware Security Module. It is being developed as a part of the OpenDNSSEC project. SoftHSM uses Botan for its cryptographic operations. (Adapted from [OpenDNSSEC wiki](https://www.opendnssec.org/softhsm/))
 
 0. Initialize a token
-```sh
+
+  ```sh
 softhsm2-util --init-token --free --label my-test-token --so-pin 123456 --pin 1234
 ```
   **Important:** Verify your user has sufficient permissions on `/var/lib/softhsm/tokens/`.
@@ -161,7 +169,8 @@ set_var PKCS11_KEY_LABEL "test-CA-key"
 ```
 
 2. Build the CA
-```sh
+
+  ```sh
 easyrsa build-ca pkcs11
 ```
 
@@ -183,7 +192,8 @@ Other slots requiring PIN should be valid, too. Nonetheless, take into account n
 
 1. Required settings:  
 Use `opensc-pkcs11.so`, select your device `PKCS11_TOKEN_URI`, do not change `PKCS11_KEY_LABEL` and `PKCS11_KEY_ID` unless you are using a different key.
-```sh
+
+  ```sh
 set_var PKCS11_MODULE_PATH	"path/to/opensc-pkcs11.so"
 set_var PKCS11_KEY_LABEL	"SIGN"
 set_var PKCS11_TOKEN_URI	"pkcs11:model=PKCS%2315%20emulated;manufacturer=piv_II;serial=0123456789abcdef;token=testkey"
@@ -194,7 +204,8 @@ set_var PKCS11_KEY_ID "02"
 ```
 
 2. Build CA
-```sh
+
+  ```sh
 easyrsa build-ca pkcs11
 ```
 Note: Yubikeys might require multiple PIN entry during CA building and signing operations, even when `PKCS11_PIN` var is set.
