@@ -790,7 +790,7 @@ and run the command again.\n"
 	# create the CA key using AES256
 	if [ $pkcs11 ]; then
 		echo "Checking existing keys on the token..."
-		keyexists=$(p11tool --list-all "$(echo $PKCS11_TOKEN_URI | sed 's/\;$//')"|\
+		keyexists=$($EASYRSA_P11TOOL --list-all "$(echo $PKCS11_TOKEN_URI | sed 's/\;$//')"|\
 		grep -e "ID: " -e "Label" -e "URL: " -e "Type: "|\
 		grep -B2 "ID: $(echo ${PKCS11_KEY_ID}|sed 's/..\B/&:/g')"|\
 		sed -rn "s/^.*Type: Public key \((.*)\)/\1/p")
@@ -799,7 +799,7 @@ and run the command again.\n"
 		if [ -n "$keyexists" ]; then
 			# Key is correct algorithm
 			if [ -n "$(echo $keyexists|grep -i $EASYRSA_ALGO)" ]; then
-				existing_label=$(p11tool --list-all "$(echo $PKCS11_TOKEN_URI | sed 's/\;$//')"|\
+				existing_label=$($EASYRSA_P11TOOL --list-all "$(echo $PKCS11_TOKEN_URI | sed 's/\;$//')"|\
 				grep -e "ID: " -e "Label" -e "URL: " -e "Type: "|\
 				grep -B2 "ID: $(echo ${PKCS11_KEY_ID}|sed 's/..\B/&:/g')"|\
 				grep -A1 "Type: Public key"|sed -rn 's/^.*Label: (.*)$/\1/p')
