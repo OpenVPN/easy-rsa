@@ -831,9 +831,10 @@ key: $key_out
 # common signing backend
 sign_req() {
 	crt_type="$1"
+	req_name="$2"
 	opts=""
-	req_in="$EASYRSA_PKI/reqs/$2.req"
-	crt_out="$EASYRSA_PKI/issued/$2.crt"
+	req_in="$EASYRSA_PKI/reqs/$req_name.req"
+	crt_out="$EASYRSA_PKI/issued/$req_name.crt"
 
 	# Randomize Serial number
 	if [ "$EASYRSA_RAND_SN" != "no" ];
@@ -858,7 +859,7 @@ sign_req() {
 	verify_ca_init
 
 	# Check argument sanity:
-	[ -n "$2" ] || die "\
+	[ -n "$req_name" ] || die "\
 Incorrect number of arguments provided to sign-req:
 expected 2, got $# (see command help for usage)"
 
@@ -868,7 +869,7 @@ Unknown cert type '$crt_type'"
 
 	# Request file must exist
 	[ -f "$req_in" ] || die "\
-No request found for the input: '$2'
+No request found for the input: '$req_name'
 Expected to find the request at: $req_in"
 
 	# Confirm input is a cert req
