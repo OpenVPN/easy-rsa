@@ -1414,6 +1414,9 @@ Missing key expected at: $key_in"
 		else
 			pkcs_opts="$pkcs_opts -nokeys"
 		fi
+		if [ -z $want_pass ]; then
+			pkcs_opts="$pkcs_opts -password pass: "
+		fi
 
 		# export the p12:
 		# shellcheck disable=SC2086
