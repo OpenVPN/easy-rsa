@@ -10,7 +10,7 @@ Current keys
 
 These keys are currently valid:
 
-* Key ID 0x9D7367F3
+* Key ID [0x9D7367F3](https://keys.openpgp.org/vks/v1/by-fingerprint/6F4056821152F03B6B24F2FCF8489F839D7367F3)
   * Owner: Eric Crist <ecrist@secure-computing.net>
   * Key fingerprint: 6F40 5682 1152 F03B 6B24  F2FC F848 9F83 9D73 67F3
 
