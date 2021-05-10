@@ -24,3 +24,12 @@ These keys were once valid but are now expired or revoked:
   * Key fingerprint: 65FF 3F24 AA08 E882 CB44  4C94 D731 D97A 606F D463
   * Member is no longer active with EasyRSA.
 
+Verifying Signatures
+===
+You can verify the signatures provided by downloading the public key for the current key (above) and adding it to your keychain. Then you can verify with the following command:
+```
+ecrist@marvin:~/Downloads-> gpg --verify EasyRSA-3.0.8.tgz.sig EasyRSA-3.0.8.tgz
+gpg: Signature made Wed Sep  9 16:00:35 2020 CDT
+gpg:                using RSA key C8FCA3E7F787072CDEB91D2F72964219390D0D0E
+gpg: Good signature from "Eric F Crist <ecrist@secure-computing.net>"
+```
