@@ -88,12 +88,14 @@ cmd_help() {
       			opts="
         nopass  - do not encrypt the private key (default is encrypted)" ;;
 		sign|sign-req) text="
-  sign-req <type> <filename_base>
+  sign-req <type> <filename_base> [ cmd-opts ]
       Sign a certificate request of the defined type. <type> must be a known
       type such as 'client', 'server', 'serverClient', or 'ca' (or a user-added type.)
 
       This request file must exist in the reqs/ dir and have a .req file
-      extension. See import-req below for importing reqs from other sources." ;;
+      extension. See import-req below for importing reqs from other sources."
+			opts="
+        subj  - use the next argument for the certificate subject" ;;
 		build|build-client-full|build-server-full|build-serverClient-full) text="
   build-client-full <filename_base> [ cmd-opts ]
   build-server-full <filename_base> [ cmd-opts ]
@@ -831,9 +833,11 @@ key: $key_out
 # common signing backend
 sign_req() {
 	crt_type="$1"
+	req_name="$2"
 	opts=""
-	req_in="$EASYRSA_PKI/reqs/$2.req"
-	crt_out="$EASYRSA_PKI/issued/$2.crt"
+	req_in="$EASYRSA_PKI/reqs/$req_name.req"
+	crt_out="$EASYRSA_PKI/issued/$req_name.crt"
+	subj=""
 
 	# Randomize Serial number
 	if [ "$EASYRSA_RAND_SN" != "no" ];
@@ -852,13 +856,24 @@ sign_req() {
 		done
 	fi
 
-	# Support batch by internal caller:
-	[ "$3" = "batch" ] && EASYRSA_BATCH=1
+	shift 2
+
+	# function opts support
+	req_opts=
+	while [ -n "$1" ]; do
+		case "$1" in
+			subj) shift; subj="$1" ;;
+			# Support batch by internal caller:
+			batch) EASYRSA_BATCH=1 ;;
+			*) warn "Ignoring unknown command option: '$1'" ;;
+		esac
+		shift
+	done
 
 	verify_ca_init
 
 	# Check argument sanity:
-	[ -n "$2" ] || die "\
+	[ -n "$req_name" ] || die "\
 Incorrect number of arguments provided to sign-req:
 expected 2, got $# (see command help for usage)"
 
@@ -868,7 +883,7 @@ Unknown cert type '$crt_type'"
 
 	# Request file must exist
 	[ -f "$req_in" ] || die "\
-No request found for the input: '$2'
+No request found for the input: '$req_name'
 Expected to find the request at: $req_in"
 
 	# Confirm input is a cert req
@@ -943,7 +958,9 @@ $ext_tmp"
 	# sign request
 	crt_out_tmp="$(easyrsa_mktemp)" || die "Failed to create temporary file"
 	easyrsa_openssl ca -utf8 -in "$req_in" -out "$crt_out_tmp" \
-		-extfile "$ext_tmp" -days "$EASYRSA_CERT_EXPIRE" -batch $opts ${EASYRSA_PASSIN:+-passin "$EASYRSA_PASSIN"} \
+		-extfile "$ext_tmp" -days "$EASYRSA_CERT_EXPIRE" -batch $opts \
+		${subj:+-subj "$subj"} \
+		${EASYRSA_PASSIN:+-passin "$EASYRSA_PASSIN"} \
 		|| die "signing failed (openssl output above may have more detail)"
 	mv "$crt_out_tmp" "$crt_out"
 	rm -f "$ext_tmp"
