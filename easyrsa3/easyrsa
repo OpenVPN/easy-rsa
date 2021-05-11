@@ -329,7 +329,7 @@ Type the word '$value' to continue, or any other input to abort."
 easyrsa_mktemp() {
 	[ -n "$EASYRSA_TEMP_DIR_session" ] || die "EASYRSA_TEMP_DIR_session not initialized!"
 	[ -d "$EASYRSA_TEMP_DIR_session" ] || mkdir -p "$EASYRSA_TEMP_DIR_session" ||
-	       die "Could not create temporary directory '$EASYRSA_TEMP_DIR_session'. Permission or concurrency problem?"
+		die "Could not create temporary directory '$EASYRSA_TEMP_DIR_session'. Permission or concurrency problem?"
 	[ -d "$EASYRSA_TEMP_DIR_session" ] || die "Temporary directory '$EASYRSA_TEMP_DIR_session' does not exist"
 
 	template="$EASYRSA_TEMP_DIR_session/tmp.XXXXXX"
@@ -445,9 +445,9 @@ $out"
 
 # Verify if Edward Curve exists
 verify_curve_ed() {
-	if [ "ed25519" = "$EASYRSA_CURVE" ] && "$EASYRSA_OPENSSL" genpkey -algorithm ED25519 > /dev/null; then
+	if [ "$EASYRSA_CURVE" = "ed25519" ] && "$EASYRSA_OPENSSL" genpkey -algorithm ED25519 > /dev/null; then
 		return 0
-	elif [ "ed448" = "$EASYRSA_CURVE" ] && "$EASYRSA_OPENSSL" genpkey -algorithm ED448 > /dev/null; then
+	elif [ "$EASYRSA_CURVE" = "ed448" ] && "$EASYRSA_OPENSSL" genpkey -algorithm ED448 > /dev/null; then
 		return 0
 	fi
 		die "Curve $EASYRSA_CURVE not found."
@@ -664,42 +664,45 @@ current CA keypair. If you intended to start a new CA, run init-pki first."
 
 	# create the CA key using AES256
 	crypto_opts=""
+	pass_opts=""
 	if [ ! $nopass ]; then
 		crypto_opts="$crypto"
-		if [ -z "$EASYRSA_PASSOUT" ]; then
-		    if [ "ed" = "$EASYRSA_ALGO" ]; then
-                crypto_opts="$crypto_opts -pass file:$out_key_pass_tmp"
-            else
-                crypto_opts="$crypto_opts -passout file:$out_key_pass_tmp"
-            fi
-        fi
+		pass_opts="file:$out_key_pass_tmp"
+	fi
+	if [ ! -z "$EASYRSA_PASSOUT" ]; then
+		pass_opts="$EASYRSA_PASSOUT"
 	fi
 	if [ "$EASYRSA_ALGO" = "rsa" ]; then
 		#shellcheck disable=SC2086
-		"$EASYRSA_OPENSSL" genrsa -out "$out_key_tmp" $crypto_opts ${EASYRSA_PASSOUT:+-passout "$EASYRSA_PASSOUT"} "$EASYRSA_ALGO_PARAMS" || \
+		"$EASYRSA_OPENSSL" genrsa -out "$out_key_tmp" $crypto_opts ${pass_opts:+-passout "${pass_opts}"} "$EASYRSA_ALGO_PARAMS" || \
 			die "Failed create CA private key"
 	elif [ "$EASYRSA_ALGO" = "ec" ]; then
 		#shellcheck disable=SC2086
 		"$EASYRSA_OPENSSL" ecparam -in "$EASYRSA_ALGO_PARAMS" -genkey | \
-			"$EASYRSA_OPENSSL" ec -out "$out_key_tmp" $crypto_opts ${EASYRSA_PASSOUT:+-passout "$EASYRSA_PASSOUT"} || \
+			"$EASYRSA_OPENSSL" ec -out "$out_key_tmp" $crypto_opts ${pass_opts:+-passout "${pass_opts}"} || \
 			die "Failed create CA private key"
-	elif [ "ed" = "$EASYRSA_ALGO" ]; then
-		if [ "ed25519" = "$EASYRSA_CURVE" ]; then
-			"$EASYRSA_OPENSSL" genpkey -algorithm ED25519 -out $out_key_tmp $crypto_opts ${EASYRSA_PASSOUT:+-pass "$EASYRSA_PASSOUT"} || \
+	elif [ "$EASYRSA_ALGO" = "ed" ]; then
+		if [ "$EASYRSA_CURVE" = "ed25519" ]; then
+			"$EASYRSA_OPENSSL" genpkey -algorithm ED25519 -out "$out_key_tmp" $crypto_opts ${pass_opts:+-pass "${pass_opts}"} || \
 			die "Failed create CA private key"
-		elif [ "ed448" = "$EASYRSA_CURVE" ]; then
-			"$EASYRSA_OPENSSL" genpkey -algorithm ED448 -out $out_key_tmp $crypto_opts ${EASYRSA_PASSOUT:+-pass "$EASYRSA_PASSOUT"} || \
+		elif [ "$EASYRSA_CURVE" = "ed448" ]; then
+			"$EASYRSA_OPENSSL" genpkey -algorithm ED448 -out "$out_key_tmp" $crypto_opts ${pass_opts:+-pass "${pass_opts}"} || \
 			die "Failed create CA private key"
 		fi
 	fi
 
 	# create the CA keypair:
-	crypto_opts=""
-	[ ! $nopass ] && [ -z "$EASYRSA_PASSIN" ] && crypto_opts="-passin file:$out_key_pass_tmp"
+	pass_opts=""
+	if [ ! $nopass ]; then
+		pass_opts="file:$out_key_pass_tmp"
+	fi
+	if [ ! -z "$EASYRSA_PASSIN" ]; then
+		pass_opts="$EASYRSA_PASSIN"
+	fi
 
 	#shellcheck disable=SC2086
 	easyrsa_openssl req -utf8 -new -key "$out_key_tmp" \
-		-keyout "$out_key_tmp" -out "$out_file_tmp" $crypto_opts $opts ${EASYRSA_PASSIN:+-passin "$EASYRSA_PASSIN"} || \
+		-keyout "$out_key_tmp" -out "$out_file_tmp" $opts ${pass_opts:+-passin "$pass_opts"} || \
 		die "Failed to build the CA"
 
 	mv "$out_key_tmp" "$out_key"
@@ -808,14 +811,13 @@ $EASYRSA_EXTRA_EXTS"
 	req_out_tmp="$(easyrsa_mktemp)" || die "Failed to create temporary file"
 	# generate request
 	[ $EASYRSA_BATCH ] && opts="$opts -batch"
-	# shellcheck disable=2086,2148
-	algo_opts=""
-	if [ "ed" = "$EASYRSA_ALGO" ]; then
-		algo_opts=" -newkey $EASYRSA_CURVE "
+	newkey_opts=""
+	if [ "$EASYRSA_ALGO" = "ed" ]; then
+		newkey_opts="$EASYRSA_CURVE"
 	else
-		algo_opts=" -newkey $EASYRSA_ALGO:$EASYRSA_ALGO_PARAMS "
+		newkey_opts="$EASYRSA_ALGO:$EASYRSA_ALGO_PARAMS"
 	fi
-	easyrsa_openssl req -utf8 -new $algo_opts \
+	easyrsa_openssl req -utf8 -new -newkey "$newkey_opts" \
 		-keyout "$key_out_tmp" -out "$req_out_tmp" $opts ${EASYRSA_PASSOUT:+-passout "$EASYRSA_PASSOUT"} \
 		|| die "Failed to generate request"
 	mv "$key_out_tmp" "$key_out"
@@ -1126,8 +1128,7 @@ input in file: $req_in"
 	[ -e "$key_in" ] && mv "$key_in" "$key_by_serial_revoked"
 
 	# move the rest of the files (p12, p7, ...)
-	# shellcheck disable=SC2231
-	for file in $EASYRSA_PKI/private/$1\.???
+	for file in "$EASYRSA_PKI/private/$1"\.???
 	do
 		# get file extension
 		file_ext="${file##*.}"
@@ -1178,17 +1179,17 @@ at: $crt_in"
 		easyrsa_openssl x509 -in "$crt_in" -noout -enddate |
 		sed 's/^notAfter=//'
 		)
-        case $(uname 2>/dev/null) in
-        	"Darwin"|*"BSD")
-                	expire_date=$(date -j -f '%b %d %T %Y %Z' "$expire_date" +%s)
-                	allow_renew_date=$(date -j -v"+${EASYRSA_CERT_RENEW}d" +%s)
-                	;;
-          	*)
-                	# This works on Windows, too, since uname doesn't exist and this is catch-all
-                	expire_date=$(date -d "$expire_date" +%s)
-                	allow_renew_date=$(date -d "+${EASYRSA_CERT_RENEW}day" +%s)
-                	;;
-        esac
+		case $(uname 2>/dev/null) in
+			"Darwin"|*"BSD")
+				expire_date=$(date -j -f '%b %d %T %Y %Z' "$expire_date" +%s)
+				allow_renew_date=$(date -j -v"+${EASYRSA_CERT_RENEW}d" +%s)
+				;;
+			*)
+				# This works on Windows, too, since uname doesn't exist and this is catch-all
+				expire_date=$(date -d "$expire_date" +%s)
+				allow_renew_date=$(date -d "+${EASYRSA_CERT_RENEW}day" +%s)
+				;;
+		esac
 
 	[ "$expire_date" -lt "$allow_renew_date" ] || die "\
 Certificate expires in more than $EASYRSA_CERT_RENEW days.
@@ -1292,8 +1293,7 @@ input in file: $req_in"
 	[ -e "$key_in" ] && mv "$key_in" "$key_by_serial_renewed"
 
 	# move the rest of the files (p12, p7, ...)
-	# shellcheck disable=SC2231
-	for file in $EASYRSA_PKI/private/$1\.???
+	for file in "$EASYRSA_PKI/private/$1"\.???
 	do
 		# get file extension
 		file_ext="${file##*.}"
@@ -1390,11 +1390,12 @@ Run easyrsa without commands for usage and command help."
 	done
 
 	pkcs_opts=
+	pkcs_certfile_path=
 	if [ $want_ca ]; then
 		verify_file x509 "$crt_ca" || die "\
 Unable to include CA cert in the $pkcs_type output (missing file, or use noca option.)
 Missing file expected at: $crt_ca"
-		pkcs_opts="$pkcs_opts -certfile $crt_ca"
+		pkcs_certfile_path="$crt_ca"
 	fi
 
 	# input files must exist
@@ -1412,13 +1413,14 @@ Unable to export p12 for short name '$short_name' without the key
 (if you want a p12 without the private key, use nokey option.)
 Missing key expected at: $key_in"
 		else
-			pkcs_opts="$pkcs_opts -nokeys"
+			pkcs_opts="-nokeys"
 		fi
 
 		# export the p12:
 		# shellcheck disable=SC2086
 		easyrsa_openssl pkcs12 -in "$crt_in" -inkey "$key_in" -export \
-			-out "$pkcs_out" $pkcs_opts ${EASYRSA_PASSIN:+-passin "$EASYRSA_PASSIN"} ${EASYRSA_PASSOUT:+-passout "$EASYRSA_PASSOUT"} || die "\
+			-out "$pkcs_out" $pkcs_opts ${pkcs_certfile_path:+-certfile "$pkcs_certfile_path"} \
+			${EASYRSA_PASSIN:+-passin "$EASYRSA_PASSIN"} ${EASYRSA_PASSOUT:+-passout "$EASYRSA_PASSOUT"} || die "\
 Export of p12 failed: see above for related openssl errors."
 	;;
 	p7)
@@ -1427,14 +1429,13 @@ Export of p12 failed: see above for related openssl errors."
 		# export the p7:
 		# shellcheck disable=SC2086
 		easyrsa_openssl crl2pkcs7 -nocrl -certfile "$crt_in" \
-			-out "$pkcs_out" $pkcs_opts ${EASYRSA_PASSIN:+-passin "$EASYRSA_PASSIN"} ${EASYRSA_PASSOUT:+-passout "$EASYRSA_PASSOUT"} || die "\
+			-out "$pkcs_out" ${pkcs_certfile_path:+-certfile "$pkcs_certfile_path"} \
+			${EASYRSA_PASSIN:+-passin "$EASYRSA_PASSIN"} ${EASYRSA_PASSOUT:+-passout "$EASYRSA_PASSOUT"} || die "\
 Export of p7 failed: see above for related openssl errors."
 	;;
 	p8)
 		if [ -z $want_pass ]; then
 			pkcs_opts="-nocrypt"
-		else
-			pkcs_opts=""
 		fi
 		pkcs_out="$EASYRSA_PKI/private/$short_name.p8"
 
@@ -1744,11 +1745,11 @@ Note: using Easy-RSA configuration from: $vars"
 	fi
 
 	# EASYRSA_ALGO_PARAMS must be set depending on selected algo
-	if [ "ec" = "$EASYRSA_ALGO" ]; then
+	if [ "$EASYRSA_ALGO" = "ec" ]; then
 		EASYRSA_ALGO_PARAMS="$EASYRSA_EC_DIR/${EASYRSA_CURVE}.pem"
-	elif [ "rsa" = "$EASYRSA_ALGO" ]; then
+	elif [ "$EASYRSA_ALGO" = "rsa" ]; then
 		EASYRSA_ALGO_PARAMS="${EASYRSA_KEY_SIZE}"
-	elif [ "ed" != "$EASYRSA_ALGO" ]; then
+	elif [ "$EASYRSA_ALGO" != "ed" ]; then
 		die "Alg '$EASYRSA_ALGO' is invalid: must be 'rsa', 'ec' or 'ed' "
 	fi
 
