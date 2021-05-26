@@ -1728,6 +1728,7 @@ Note: using Easy-RSA configuration from: $vars"
 	set_var EASYRSA_CRL_DAYS	180
 	set_var EASYRSA_NS_SUPPORT	no
 	set_var EASYRSA_NS_COMMENT	"Easy-RSA (~VER~) Generated Certificate"
+	[ "$WINDOWS_USER_TEMP_DIR" ] && set_var EASYRSA_TEMP_DIR "$WINDOWS_USER_TEMP_DIR"
 	set_var EASYRSA_TEMP_DIR	"$EASYRSA_PKI"
 	set_var EASYRSA_REQ_CN		ChangeMe
 	set_var EASYRSA_DIGEST		sha256
