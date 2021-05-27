@@ -18,7 +18,7 @@ documentation. Short forms may be substituted for longer forms as convenient.
     CA. The certificate contains the public key, some details describing the
     cert itself, and a digital signature from the CA.
  *  **request**: Certificate Request (optionally 'req'.) This is a request for a
-    certificate that is then send to a CA for signing. A request contains the
+    certificate that is then sent to a CA for signing. A request contains the
     desired cert information along with a digital signature from the private
     key.
  *  **keypair**: A keypair is an asymmetric cryptographic pair of keys. These
