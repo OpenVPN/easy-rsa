@@ -154,7 +154,7 @@ Using Easy-RSA as a CA
 #### Building the CA
 
   In order to sign requests to produce certificates, you need a CA. To create a
-  new CA in a PKI you have created, run:
+  new CA in the PKI you have created, run:
 
     ./easyrsa build-ca
 
@@ -197,7 +197,7 @@ Using Easy-RSA as a CA
   Additional types of certs may be defined by local sites as needed; see the
   advanced documentation for details.
 
-#### Revoking and publishing CRLs
+#### Revoking and publishing Certificate Revocation Lists (CRLs)
 
   If an issue certificate needs to be revoked, this can be done as follows:
 
