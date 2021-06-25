@@ -900,7 +900,7 @@ $(display_dn req "$req_in")
 
 		# Support a dynamic CA path length when present:
 		[ "$crt_type" = "ca" ] && [ -n "$EASYRSA_SUBCA_LEN" ] && \
-			print "basicConstraints = CA:TRUE, pathlen:$EASYRSA_SUBCA_LEN"
+			print "basicConstraints = critical, CA:TRUE, pathlen:$EASYRSA_SUBCA_LEN"
 
 		# Deprecated Netscape extension support, if enabled
 		if print "$EASYRSA_NS_SUPPORT" | awk_yesno; then
