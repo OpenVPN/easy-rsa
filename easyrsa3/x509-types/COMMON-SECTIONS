@@ -1,0 +1,13 @@
+# X509 extensions added to every signed cert
+
+# This file is included for every cert signed, and by default does nothing.
+# It could be used to add sections shared by every cert, such as a CDP as
+# demonstrated in the following example:
+
+# in COMMON
+#crlDistributionPoints = @crlDistributionPoints_values
+# in COMMON-SECTIONS (here)
+#[ crlDistributionPoints_values ]
+#URI.1=http://example.net/pki/crl.der
+#URI.2=http://example.net/pki/crl.pem
+

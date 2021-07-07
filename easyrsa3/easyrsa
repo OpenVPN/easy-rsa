@@ -36,6 +36,7 @@ Here is the list of commands available with a short syntax reminder. Use the
   revoke <filename_base> [cmd-opts]
   renew <filename_base> [cmd-opts]
   build-serverClient-full <filename_base> [ cmd-opts ]
+  status <filename_base>
   gen-crl
   update-db
   show-req <filename_base> [ cmd-opts ]
@@ -45,6 +46,8 @@ Here is the list of commands available with a short syntax reminder. Use the
   export-p7 <filename_base> [ cmd-opts ]
   export-p8 <filename_base> [ cmd-opts ]
   export-p12 <filename_base> [ cmd-opts ]
+  publish-cert <filename_base> [ cmd-opts ]
+  publish-ca
   set-rsa-pass <filename_base> [ cmd-opts ]
   set-ec-pass <filename_base> [ cmd-opts ]
   upgrade <type>
@@ -120,6 +123,9 @@ cmd_help() {
       Renew a certificate specified by the filename_base"
 				opts="
         nopass  - do not encrypt the private key (default is encrypted)" ;;
+		status) text="
+  status <filename_base>
+      Check the status of a certificate specified by the filename_base" ;;
 		gen-crl) text="
   gen-crl
       Generate a CRL" ;;
@@ -153,6 +159,9 @@ cmd_help() {
       preparation for signing.
       The <short_basename> is the filename base to create.
 
+      Note: the first parameter can be skipped the file will be looked up
+      in the publish directory
+
       Example usage:
         import-req /some/where/bob_request.req bob" ;;
 		export-p12) text="
@@ -171,6 +180,16 @@ cmd_help() {
       Export a PKCS#8 file with the private key specified by <filename_base>"
 			opts="
         noca  - do not include the ca.crt file in the PKCS7 output" ;;
+		publish-cert) text="
+  publish-cert <filename_base> [ cmd-opts ]
+      Publish the certificate specified by <filename_base>."
+			opts="
+        nostrip - do not strip plaintext" ;;
+		publish-ca) text="
+  publish-ca [ cmd-opts ]
+      Publish the CA certificate, the index database and the crl."
+			opts="
+        update - update db and crl before publishing." ;;
 		set-rsa-pass|set-ec-pass) text="
   set-rsa-pass <filename_base> [ cmd-opts ]
   set-ec-pass <filename_base> [ cmd-opts ]
@@ -227,6 +246,7 @@ General options:
 --passout=ARG   : set -passout ARG for openssl
 --pki-dir=DIR   : declares the PKI directory
 --vars=FILE     : define a specific 'vars' file to use for Easy-RSA config
+--pub-dir=DIR   : declares the publish directory
 --version       : prints EasyRSA version and build information, then exits
 
 Certificate & Request options: (these impact cert/req field values)
@@ -935,6 +955,9 @@ $(display_dn req "$req_in")
 		# Add any advanced extensions supplied by env-var:
 		[ -n "$EASYRSA_EXTRA_EXTS" ] && print "$EASYRSA_EXTRA_EXTS"
 
+		# Append last any COMMON-SECTIONS file (if present)
+		cat "$EASYRSA_EXT_DIR/COMMON-SECTIONS"
+
 		: # needed to keep die from inherting the above test
 	} > "$ext_tmp" || die "\
 Failed to create temp extension file (bad permissions?) at:
@@ -950,6 +973,11 @@ $ext_tmp"
 	notice "\
 Certificate created at: $crt_out
 "
+
+	# publish
+	if [ -n "$EASYRSA_PUBLISH" ]; then
+		publish cert "$2"
+	fi
 	return 0
 } # => sign_req()
 
@@ -1308,6 +1336,29 @@ input in file: $req_in"
 
 } #= move_renewed()
 
+# status backend
+status() {
+	verify_ca_init
+
+	# pull filename base:
+	[ -n "$1" ] || die "\
+Error: didn't find a file base name as the first argument.
+Run easyrsa without commands for usage and command help."
+	crt_in="$EASYRSA_PKI/issued/$1.crt"
+
+	verify_file x509 "$crt_in" || die "\
+Unable to get status as the input file is not a valid certificate.
+Unexpected input in file: $crt_in"
+
+	crt_serial_file=$(cd "$EASYRSA_PKI/certs_by_serial/" && md5sum *|grep "$(md5sum $crt_in|awk '{print $1}')"|awk '{print $2}')
+
+	[ ! -f $crt_serial_file ] || die "\
+Could not find serial associated with input in file: $crt_in
+Was it signed already ?"
+
+	easyrsa_openssl ca -utf8 -status "${crt_serial_file%.pem}" -config "$EASYRSA_SSL_CONF"
+} #= status()
+
 # gen-crl backend
 gen_crl() {
 	verify_ca_init
@@ -1323,6 +1374,11 @@ CRL Generation failed.
 An updated CRL has been created.
 CRL file: $out_file
 "
+	# publish
+	if [ -n "$EASYRSA_PUBLISH" ]; then
+		publish crl crl.pem
+		publish crl crl.der to-der
+	fi
 	return 0
 } # => gen_crl()
 
@@ -1330,9 +1386,15 @@ CRL file: $out_file
 import_req() {
 	verify_pki_init
 
-	# pull passed paths
-	in_req="$1" short_name="$2"
-	out_req="$EASYRSA_PKI/reqs/$2.req" 
+	if [ -n "$EASYRSA_PUBLISH" ] && [ -f "$EASYRSA_PUBLISH/reqs/$1.req" ]; then
+		# take from publish dir
+		in_req="$EASYRSA_PUBLISH/reqs/$1.req" short_name="$1"
+		out_req="$EASYRSA_PKI/reqs/$1.req"
+	else
+		# pull passed paths
+		in_req="$1" short_name="$2"
+		out_req="$EASYRSA_PKI/reqs/$2.req"
+	fi
 
 	[ -n "$short_name" ] || die "\
 Unable to import: incorrect command syntax.
@@ -1358,13 +1420,147 @@ You may now use this name to perform signing operations on this request.
 	return 0
 } # => import_req()
 
-# export pkcs#12 or pkcs#7
+# publish backend
+publish() {
+	type="$1"
+	name="$2"
+	in_file=""
+	out_file=""
+	format=""
+
+	# opts support
+	shift 2
+	want_strip=1
+	opts=""
+	while [ -n "$1" ]; do
+		case "$1" in
+			nostrip|noregen) want_strip= ;;
+			to-der) opts="-inform PEM -outform DER" ;;
+			*) warn "Ignoring unknown command option: '$1'" ;;
+		esac
+		shift
+	done
+
+	# ensure the publish folder exists
+	[ -d "$EASYRSA_PUBLISH" ] || die "\
+Missing publish dir : $EASYRSA_PUBLISH
+"
+	do_verify=1
+	case "$type" in
+	cert)
+		verify_ca_init
+		in_file="$EASYRSA_PKI/issued/${name}.crt"
+		out_file="$EASYRSA_PUBLISH/issued/${name}.crt"
+		format="x509"
+		mkdir -p "$EASYRSA_PUBLISH/issued"
+		;;
+	p12)
+		verify_pki_init
+		in_file="$EASYRSA_PKI/private/$short_name.p12"
+		out_file="$EASYRSA_PUBLISH/private/$short_name.p12"
+		format="pkcs12"
+		#skip verification when passout is set to avoid prompt
+		if [ ${EASYRSA_PASSOUT:+1} ]; then do_verify= ; fi
+		mkdir -p "$EASYRSA_PUBLISH/private"
+		;;
+	p7)
+		verify_pki_init
+		in_file="$EASYRSA_PKI/issued/$short_name.p7b"
+		out_file="$EASYRSA_PUBLISH/issued/$short_name.p7b"
+		format="pkcs7"
+		mkdir -p "$EASYRSA_PUBLISH/issued"
+		;;
+	p8)
+		verify_pki_init
+		in_file="$EASYRSA_PKI/private/$short_name.p8"
+		out_file="$EASYRSA_PUBLISH/private/$short_name.p8"
+		format="pkcs8"
+		do_verify=
+		mkdir -p "$EASYRSA_PUBLISH/private"
+		;;
+	crl)
+		verify_ca_init
+		in_file="$EASYRSA_PKI/crl.pem"
+		out_file="$EASYRSA_PUBLISH/${name}"
+		format="crl"
+		;;
+	*)
+		die "\
+Unknown publish type : $type
+"
+		;;
+	esac
+
+	# Verify file exists and is of the correct type
+	[ -f "$in_file" ] || die "\
+No such $type file with a basename of '$name' is present.
+Expected to find this file at:
+$in_file"
+	if [ $do_verify ]; then
+		verify_file $format "$in_file" || die "\
+This file is not a valid $type file:
+$in_file"
+	fi
+
+	if [ $want_strip ]; then
+		easyrsa_openssl $format -in "$in_file" -out "$out_file" $opts
+	else
+		cp "$in_file" "$out_file"
+	fi
+	notice "File published at: $out_file"
+} # => publish()
+
+# publish-ca backend
+publish_ca() {
+	# opts support
+	want_update=""
+	notice=""
+	while [ -n "$1" ]; do
+		case "$1" in
+			update) want_update=1 ;;
+			*) warn "Ignoring unknown command option: '$1'" ;;
+		esac
+		shift
+	done
+	# ensure the publish folder exists
+	[ -d "$EASYRSA_PUBLISH" ] || die "\
+Missing publish dir : $EASYRSA_PUBLISH
+"
+	verify_ca_init
+
+	if [ $want_update ]; then
+		update_db
+		gen_crl
+		notice="after being regenerated.
+The crl has been published at $EASYRSA_PUBLISH/crl.pem
+                          and $EASYRSA_PUBLISH/crl.der
+after being regenerated.
+"
+	elif [ -e "$EASYRSA_PKI/crl.pem" ]; then
+		publish crl crl.pem
+		publish crl crl.der to-der
+		notice="\
+The crl has been published at $EASYRSA_PUBLISH/crl.pem
+                          and $EASYRSA_PUBLISH/crl.der
+"
+	fi
+	for i in index.txt ca.crt; do
+		cp "$EASYRSA_PKI/$i" "$EASYRSA_PUBLISH/$i"
+	done
+
+	notice "\
+The CA certificate has been published at $EASYRSA_PUBLISH/ca.crt
+The associated index has been published at $EASYRSA_PUBLISH/index.txt
+$notice"
+} # => publish_ca()
+
+# export pkcs#12, pkcs#8 or pkcs#7
 export_pkcs() {
 	pkcs_type="$1"
 	shift
 
 	[ -n "$1" ] || die "\
-Unable to export p12: incorrect command syntax.
+Unable to export ${pkcs_type}: incorrect command syntax.
 Run easyrsa without commands for usage and command help."
 
 	short_name="$1"
@@ -1450,6 +1646,10 @@ esac
 Successful export of $pkcs_type file. Your exported file is at the following
 location: $pkcs_out
 "
+	# publish
+	if [ -n "$EASYRSA_PUBLISH" ]; then
+		publish $pkcs_type "$short_name" noregen
+	fi
 	return 0
 } # => export_pkcs()
 
@@ -1591,7 +1791,7 @@ Run easyrsa without commands for usage help."
 
 	# Determine cert/req type
 	if [ "$type" = "cert" ]; then
-		verify_ca_init
+		verify_pki_init
 		in_file="$EASYRSA_PKI/issued/${name}.crt"
 		format="x509"
 	else
@@ -1731,6 +1931,7 @@ Note: using Easy-RSA configuration from: $vars"
 	set_var EASYRSA_TEMP_DIR	"$EASYRSA_PKI"
 	set_var EASYRSA_REQ_CN		ChangeMe
 	set_var EASYRSA_DIGEST		sha256
+	set_var EASYRSA_PUBLISH		""
 	set_var EASYRSA_SSL_CONF	"$EASYRSA_PKI/openssl-easyrsa.cnf"
 	set_var EASYRSA_SAFE_CONF	"$EASYRSA_PKI/safessl-easyrsa.cnf"
 	set_var EASYRSA_KDC_REALM	"CHANGEME.EXAMPLE.COM"
@@ -2409,6 +2610,9 @@ while :; do
 		;;
 	--pki-dir)
 		export EASYRSA_PKI="$val" ;;
+	--pub-dir|--publish-dir)
+		empty_ok=1
+		export EASYRSA_PUBLISH="$val" ;;
 	--use-algo)
 		export EASYRSA_ALGO="$val" ;;
 	--keysize)
@@ -2531,6 +2735,9 @@ case "$cmd" in
 	renew)
 		renew "$@"
 		;;
+	status)
+		status "$@"
+		;;
 	import-req)
 		import_req "$@"
 		;;
@@ -2542,6 +2749,12 @@ case "$cmd" in
 		;;
 	export-p8)
 		export_pkcs p8 "$@"
+		;;
+	publish-cert)
+		publish cert "$@"
+		;;
+	publish-ca)
+		publish_ca "$@"
 		;;
 	set-rsa-pass)
 		set_pass rsa "$@"

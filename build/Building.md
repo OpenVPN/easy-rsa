@@ -54,14 +54,14 @@ with a basic build dir from earlier, proceed as follows.
    * cat.exe
    * cp.exe
    * diff.exe [+]
-   * grep.exe [+]
+   * grep.exe
    * ls.exe [+]
-   * md5sum.exe [+]
+   * md5sum.exe
    * mkdir.exe
-   * mv.exe [+]
+   * mv.exe
    * printf.exe
    * rm.exe
-   * sed.exe [+]
+   * sed.exe
    * which.exe
 
 5. Zip up the target directory for release distribution.
