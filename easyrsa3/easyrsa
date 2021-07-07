@@ -1181,7 +1181,7 @@ at: $crt_in"
         case $(uname 2>/dev/null) in
         	"Darwin"|*"BSD")
                 	expire_date=$(date -j -f '%b %d %T %Y %Z' "$expire_date" +%s)
-                	allow_renew_date=$(date -j -v"+${EASYRSA_CERT_RENEW}d" +%s)
+                	allow_renew_date=$(($(date -j +%s) + 24*60*60*$EASYRSA_CERT_RENEW))
                 	;;
           	*)
                 	# This works on Windows, too, since uname doesn't exist and this is catch-all
