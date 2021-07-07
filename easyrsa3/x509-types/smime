@@ -1,0 +1,12 @@
+# X509 extensions for an S/MIME certificate
+#
+# S/MIME certificates can be issued only when running with
+# EASYRSA_DN=org set, because only then an email address
+# is included in the signing request.
+
+basicConstraints = CA:FALSE
+nsCertType = email
+subjectKeyIdentifier = hash
+authorityKeyIdentifier = keyid,issuer:always
+extendedKeyUsage = emailProtection
+keyUsage = digitalSignature, keyEncipherment
