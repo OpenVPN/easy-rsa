@@ -1229,7 +1229,7 @@ subjectAltName = $san"
 
 	# renew certificate
 	# shellcheck disable=SC2086
-	build_full $cert_type $1 $opts || die "\
+	build_full $cert_type "$1" $opts || die "\
 Failed to renew certificate: renew command failed."
 
 	notice "\
@@ -2378,7 +2378,7 @@ print_version()
 EasyRSA Version Information
 Version:     ~VER~
 Generated:   ~DATE~
-SSL Lib:     $(openssl version)
+SSL Lib:     $($EASYRSA_OPENSSL version)
 Git Commit:  ~GITHEAD~
 Source Repo: https://github.com/OpenVPN/easy-rsa
 HERE
