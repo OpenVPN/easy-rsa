@@ -1793,7 +1793,7 @@ set_var() {
 # You can report problems on the normal openvpn support channels:
 # --------------------------------------------------------------------------
 #   1. The Openvpn Forum: https://forums.openvpn.net/viewforum.php?f=31
-#   2. The #easyrsa IRC channel at freenode
+#   2. The #easyrsa IRC channel at libera.chat
 #   3. Info: https://community.openvpn.net/openvpn/wiki/easyrsa-upgrade
 # --------------------------------------------------------------------------
 #
