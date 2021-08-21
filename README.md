@@ -1,7 +1,7 @@
 # Overview
 
 easy-rsa is a CLI utility to build and manage a PKI CA. In laymen's terms,
-this means to create a root certificate authority, and request and sign 
+this means to create a root certificate authority, and request and sign
 certificates, including intermediate CAs and certificate revocation lists (CRL).
 
 # Downloads
@@ -30,8 +30,8 @@ You can also try libera.chat IRC network, in channels #openvpn for general suppo
 # Branch structure
 
 The easy-rsa master branch is currently tracking development for the 3.x release
-cycle. Please note that, at any given time, master may be broken.  Feel free to
-create issues against master, but have patience when using the master branch.  It
+cycle. Please note that, at any given time, master may be broken. Feel free to
+create issues against master, but have patience when using the master branch. It
 is recommended to use a release, and priority will be given to bugs identified in
 the most recent release.
 

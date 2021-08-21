@@ -27,7 +27,7 @@
 # "C:/Program Files/OpenSSL-Win32/bin/openssl.exe"
 
 # A little housekeeping: DON'T EDIT THIS SECTION
-# 
+#
 # Easy-RSA 3.x doesn't source into the environment directly.
 # Complain if a user tries to do this:
 if [ -z "$EASYRSA_CALLER" ]; then
@@ -218,4 +218,3 @@ fi
 # or most output. Setting this to any non-blank string enables batch mode.
 
 #set_var EASYRSA_BATCH		""
-

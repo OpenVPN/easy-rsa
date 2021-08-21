@@ -120,5 +120,5 @@ possible terse description is shown below:
     password using any openssl password options like pass:1234 or env:var
  *  `EASYRSA_PASSOUT` (CLI: `--passout`) - allows to specify a source for
     password using any openssl password options like pass:1234 or env:var
-    
+
 **NOTE:** the global options need to be provided before the actual commands.

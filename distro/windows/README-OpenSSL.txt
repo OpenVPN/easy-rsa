@@ -1,4 +1,3 @@
 -----------------------------------------------------------------------
-OpenSSL v1.1.1g from https://bintray.com/vszakats/generic/openssl 
+OpenSSL v1.1.1g from https://bintray.com/vszakats/generic/openssl
 -----------------------------------------------------------------------
-
