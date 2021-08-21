@@ -39,7 +39,7 @@ note() { echo "build-dist NOTE: $1"; }
 
 # ask before dangerous things
 confirm() {
-	[ "$2" ] && return
+	[ -n "$2" ] && return
 	printf "%s y/n: " "$1"
 	read r
 	[ "$r" = "y" ] || die "user abort"
