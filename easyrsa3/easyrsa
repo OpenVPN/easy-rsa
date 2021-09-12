@@ -534,7 +534,7 @@ $help_note"
 # init-pki backend:
 init_pki() {
 
-	# If EASYRSA_PKI exists, confirm before we rm -rf (skiped with EASYRSA_BATCH)
+	# If EASYRSA_PKI exists, confirm before we rm -rf (skipped with EASYRSA_BATCH)
 	if [ -e "$EASYRSA_PKI" ]; then
 		confirm "Confirm removal: " "yes" "
 WARNING!!!
@@ -935,7 +935,7 @@ $(display_dn req "$req_in")
 		# Add any advanced extensions supplied by env-var:
 		[ -n "$EASYRSA_EXTRA_EXTS" ] && print "$EASYRSA_EXTRA_EXTS"
 
-		: # needed to keep die from inherting the above test
+		: # needed to keep die from inheriting the above test
 	} > "$ext_tmp" || die "\
 Failed to create temp extension file (bad permissions?) at:
 $ext_tmp"
@@ -1135,7 +1135,7 @@ input in file: $req_in"
 		[ -f "$file" ] && mv "$file" "$EASYRSA_PKI/revoked/private_by_serial/$cert_serial.$file_ext"
 	done
 
-	# remove the dublicate certificate in the certs_by_serial folder
+	# remove the duplicate certificate in the certs_by_serial folder
 	rm "$crt_by_serial"
 
 	return 0

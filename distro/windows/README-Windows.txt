@@ -107,7 +107,7 @@ Contents of this file:
  4.1: mksh/Win32
 
     A special thanks is in order to the mksh/Win32 project and its primary
-    maintainer, Michael Langguth <mksh-w32@gmx.net>. This shell offers featurs
+    maintainer, Michael Langguth <mksh-w32@gmx.net>. This shell offers features
     that allow Easy-RSA to run smoothly under Windows; by using mksh/Win32,
     Easy-RSA can deliver the same PKI flexibility to all major platforms.
        

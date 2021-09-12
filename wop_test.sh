@@ -6,7 +6,7 @@
 # project; use with other POSIX shells for Windows may require modification to
 # this wrapper script.
 
-cd easyrsa3 || { echo "ERROR: Cannot find easyrsa3 direcory"; exit 1; }
+cd easyrsa3 || { echo "ERROR: Cannot find easyrsa3 directory"; exit 1; }
 
 setup_path="${EASYRSA:-$PWD}"
 export PATH="$setup_path;$setup_path/bin;$PATH"
