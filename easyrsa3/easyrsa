@@ -2392,7 +2392,7 @@ NL='
 '
 
 # Be secure with a restrictive umask
-[ -z "$EASYRSA_NO_UMASK" ] && umask 077
+[ -z "$EASYRSA_NO_UMASK" ] && umask ${EASYRSA_UMASK:-077}
 
 # Parse options
 while :; do
