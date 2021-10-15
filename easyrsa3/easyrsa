@@ -233,9 +233,10 @@ Certificate & Request options: (these impact cert/req field values)
 
 --days=#        : sets the signing validity to the specified number of days
 --digest=ALG    : digest to use in the requests & certificates
---dn-mode=MODE  : DN mode to use (cn_only or org)
+--dn-mode=MODE  : DN mode to use (cn_only, device, or org)
 --keysize=#     : size in bits of keypair to generate
 --req-cn=NAME   : default CN to use
+--req-sn=SN     : default device serial number (only useful if --dn-mode=device)
 --subca-len=#   : path length of signed intermediate CA certs; must be >= 0 if used
 --subject-alt-name : Add a subjectAltName. For more info and syntax, see:
                      ./easyrsa help altname
@@ -394,6 +395,7 @@ easyrsa_openssl() {
 		-e "s\`\$EASYRSA_REQ_CITY\`$EASYRSA_REQ_CITY\`g" \
 		-e "s\`\$EASYRSA_REQ_ORG\`$EASYRSA_REQ_ORG\`g" \
 		-e "s\`\$EASYRSA_REQ_OU\`$EASYRSA_REQ_OU\`g" \
+		-e "s\`\$EASYRSA_REQ_SN\`$EASYRSA_REQ_SN\`g" \
 		-e "s\`\$EASYRSA_REQ_CN\`$EASYRSA_REQ_CN\`g" \
 		-e "s\`\$EASYRSA_REQ_EMAIL\`$EASYRSA_REQ_EMAIL\`g" \
 		${EASYRSA_EXTRA_EXTS:+-e "/^#%EXTRA_EXTS%/r $easyrsa_extra_exts"} \
@@ -1718,6 +1720,7 @@ Note: using Easy-RSA configuration from: $vars"
 	set_var EASYRSA_REQ_ORG		"Copyleft Certificate Co"
 	set_var EASYRSA_REQ_EMAIL	me@example.net
 	set_var EASYRSA_REQ_OU		"My Organizational Unit"
+	set_var EASYRSA_REQ_SN		"My device SN"
 	set_var EASYRSA_ALGO		rsa
 	set_var EASYRSA_KEY_SIZE	2048
 	set_var EASYRSA_CURVE		secp384r1
@@ -1862,7 +1865,7 @@ up23_verify_current_pki ()
 	# This list may not be complete
 	# Not required: DH_KEY_SIZE PKCS11_MODULE_PATH PKCS11_PIN
 	for i in KEY_DIR KEY_SIZE KEY_COUNTRY KEY_PROVINCE \
-	KEY_CITY KEY_ORG KEY_EMAIL KEY_CN KEY_NAME KEY_OU
+	KEY_CITY KEY_ORG KEY_EMAIL KEY_CN KEY_NAME KEY_OU KEY_SN
 	do
 		# Effectively, source the v2 vars file
 		UNIQUE="set $i"
@@ -1915,6 +1918,7 @@ up23_verify_current_ca ()
 	[ "$CA_localityName" = "$KEY_CITY" ] || CA_vars_match=0
 	[ "$CA_organizationName" = "$KEY_ORG" ] || CA_vars_match=0
 	[ "$CA_organizationalUnitName" = "$KEY_OU" ] || CA_vars_match=0
+	[ "$CA_serialNumber" = "$KEY_SN" ] || CA_vars_match=0
 	[ "$CA_emailAddress" = "$KEY_EMAIL" ] || CA_vars_match=0
 
 	if [ "$CA_vars_match" -eq 1 ]
@@ -2127,6 +2131,7 @@ up23_build_v3_vars ()
 		printf "%s\n" "set_var EASYRSA_REQ_ORG \"$KEY_ORG\""
 		printf "%s\n" "set_var EASYRSA_REQ_EMAIL \"$KEY_EMAIL\""
 		printf "%s\n" "set_var EASYRSA_REQ_OU \"$KEY_OU\""
+		printf "%s\n" "set_var EASYRSA_REQ_SN \"$KEY_SN\""
 		printf "%s\n" 'set_var EASYRSA_NS_SUPPORT "yes"'
 		printf "%s\n" 'set_var EASYRSA_DN "org"'
 		printf "%s\n" 'set_var EASYRSA_RAND_SN "no"'
@@ -2439,6 +2444,9 @@ while :; do
 	--req-ou)
 		empty_ok=1
 		export EASYRSA_REQ_OU="$val" ;;
+	--req-sn)
+		empty_ok=1
+		export EASYRSA_REQ_SN="$val" ;;
 	--ns-cert)
 		export EASYRSA_NS_SUPPORT="$val" ;;
 	--ns-comment)

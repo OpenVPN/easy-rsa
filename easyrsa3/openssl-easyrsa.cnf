@@ -48,6 +48,7 @@ organizationalUnitName	= optional
 commonName		= supplied
 name			= optional
 emailAddress		= optional
+serialNumber		= optional
 
 ####################################################################
 # Easy-RSA request handling
@@ -70,6 +71,16 @@ x509_extensions		= easyrsa_ca	# The extensions to add to the self signed cert
 commonName		= Common Name (eg: your user, host, or server name)
 commonName_max		= 64
 commonName_default	= $ENV::EASYRSA_REQ_CN
+
+# Easy-RSA DN for IoT devices (CN + SN)
+# Note that this is the Subject's SN, not the certificate's!
+[ device ]
+commonName		= Common Name (eg: your user, host, or server name)
+commonName_max		= 64
+commonName_default	= $ENV::EASYRSA_REQ_CN
+
+serialNumber		= Device's serial number
+serialNumber_default	= $ENV::EASYRSA_REQ_SN
 
 # Easy-RSA DN for org support:
 [ org ]

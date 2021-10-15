@@ -84,8 +84,8 @@ possible terse description is shown below:
  *  `EASYRSA_SSL_CONF` - the openssl config file to use
  *  `EASYRSA_PKI` (CLI: `--pki-dir`) - dir to use to hold all PKI-specific
     files, defaults to `$PWD/pki`.
- *  `EASYRSA_DN` (CLI: `--dn-mode`) - set to the string `cn_only` or `org` to
-    alter the fields to include in the req DN
+ *  `EASYRSA_DN` (CLI: `--dn-mode`) - set to the string `cn_only`, `device`, or
+    `org` to alter the fields to include in the req DN
  *  `EASYRSA_REQ_COUNTRY` (CLI: `--req-c`) - set the DN country with org mode
  *  `EASYRSA_REQ_PROVINCE` (CLI: `--req-st`) - set the DN state/province with
     org mode

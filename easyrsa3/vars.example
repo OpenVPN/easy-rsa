@@ -82,11 +82,18 @@ fi
 #
 # Choices are:
 #   cn_only  - use just a CN value
+#   device   - use a CN and a serialNumber (useful for IoT devices)
 #   org      - use the "traditional" Country/Province/City/Org/OU/email/CN format
 
 #set_var EASYRSA_DN	"cn_only"
 
-# Organizational fields (used with 'org' mode and ignored in 'cn_only' mode.)
+# Device fields (used with 'device' mode and ignored in 'cn_only' and
+# 'org' modes.)
+
+# set_var EASYRSA_REQ_SN	"My device SN"
+
+# Organizational fields (used with 'org' mode and ignored in 'cn_only'
+# and 'device' mode.)
 # These are the default values for fields which will be placed in the
 # certificate.  Don't leave any of these fields blank, although interactively
 # you may omit any specific field by typing the "." symbol (not valid for
