@@ -56,6 +56,13 @@ Obtaining and Using Easy-RSA
   You should install and run Easy-RSA as a non-root (non-Administrator) account
   as root access is not required.
 
+  Download the latest stable release package from the
+  [Easy-RSA GitHub repository](https://github.com/OpenVPN/easy-rsa/releases/latest),
+  or clone the live repository:
+  ```sh
+  git clone https://github.com/OpenVPN/easy-rsa.git
+  ```
+
 #### Running Easy-RSA
 
   Invoking Easy-RSA is done through your preferred shell. Under Windows, you
