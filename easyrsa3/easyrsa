@@ -1738,9 +1738,11 @@ Note: using Easy-RSA configuration from: $vars"
 	# Same as above for the x509-types extensions dir
 	if [ -d "$EASYRSA_PKI/x509-types" ]; then
 		set_var EASYRSA_EXT_DIR		"$EASYRSA_PKI/x509-types"
-	else	
+	elif [ -d "$EASYRSA/x509-types" ]; then
 		#TODO: This should be removed.  Not really suitable for packaging.
 		set_var EASYRSA_EXT_DIR		"$EASYRSA/x509-types"
+	else
+		die "Missing x509-types folder"
 	fi
 
 	# EASYRSA_ALGO_PARAMS must be set depending on selected algo
