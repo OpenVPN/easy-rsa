@@ -1674,8 +1674,8 @@ vars_setup() {
 
 	# command-line path:
 	if [ ! -z "$EASYRSA_VARS_FILE" ]; then
-	  if [ ! -f "$EASYRSA_VARS_FILE" ]; then
-		  # If the --vars option does not point to a file, show helpful error.
+		if [ ! -f "$EASYRSA_VARS_FILE" ]; then
+			# If the --vars option does not point to a file, show helpful error.
 			die "The file '$EASYRSA_VARS_FILE' was not found."
 		fi
 		vars="$EASYRSA_VARS_FILE"
