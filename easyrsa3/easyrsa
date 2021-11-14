@@ -1748,9 +1748,9 @@ Note: using Easy-RSA configuration from: $vars"
 	# EASYRSA_ALGO_PARAMS must be set depending on selected algo
 	case "$EASYRSA_ALGO" in
 	rsa)
-		EASYRSA_ALGO_PARAMS="${EASYRSA_KEY_SIZE}" ;;
+		EASYRSA_ALGO_PARAMS="$EASYRSA_KEY_SIZE" ;;
 	ec)
-		EASYRSA_ALGO_PARAMS="$EASYRSA_EC_DIR/${EASYRSA_CURVE}.pem" ;;
+		EASYRSA_ALGO_PARAMS="$EASYRSA_EC_DIR/$EASYRSA_CURVE.pem" ;;
 	ed)
 		: ;;
 	*)
