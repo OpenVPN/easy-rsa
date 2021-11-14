@@ -1746,13 +1746,16 @@ Note: using Easy-RSA configuration from: $vars"
 	fi
 
 	# EASYRSA_ALGO_PARAMS must be set depending on selected algo
-	if [ "ec" = "$EASYRSA_ALGO" ]; then
-		EASYRSA_ALGO_PARAMS="$EASYRSA_EC_DIR/${EASYRSA_CURVE}.pem"
-	elif [ "rsa" = "$EASYRSA_ALGO" ]; then
-		EASYRSA_ALGO_PARAMS="${EASYRSA_KEY_SIZE}"
-	elif [ "ed" != "$EASYRSA_ALGO" ]; then
-		die "Alg '$EASYRSA_ALGO' is invalid: must be 'rsa', 'ec' or 'ed' "
-	fi
+	case "$EASYRSA_ALGO" in
+	rsa)
+		EASYRSA_ALGO_PARAMS="${EASYRSA_KEY_SIZE}" ;;
+	ec)
+		EASYRSA_ALGO_PARAMS="$EASYRSA_EC_DIR/${EASYRSA_CURVE}.pem" ;;
+	ed)
+		: ;;
+	*)
+		die "Alg '$EASYRSA_ALGO' is invalid: must be 'rsa', 'ec' or 'ed' " ;;
+	esac
 
 	# Assign value to $EASYRSA_TEMP_DIR_session and work around Windows mktemp bug when parent dir is missing
 	if [ -z "$EASYRSA_TEMP_DIR_session" ]; then
