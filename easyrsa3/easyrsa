@@ -699,7 +699,7 @@ current CA keypair. If you intended to start a new CA, run init-pki first."
 
 	#shellcheck disable=SC2086
 	easyrsa_openssl req -utf8 -new -key "$out_key_tmp" \
-		-keyout "$out_key_tmp" -out "$out_file_tmp" $crypto_opts $opts ${EASYRSA_PASSIN:+-passin "$EASYRSA_PASSIN"} || \
+		-out "$out_file_tmp" $crypto_opts $opts ${EASYRSA_PASSIN:+-passin "$EASYRSA_PASSIN"} || \
 		die "Failed to build the CA"
 
 	mv "$out_key_tmp" "$out_key"
