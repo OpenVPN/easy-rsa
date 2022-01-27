@@ -1708,7 +1708,7 @@ Note: using Easy-RSA configuration from: $vars"
 	fi
 	
 	# Set defaults, preferring existing env-vars if present
-	set_var EASYRSA		"$prog_dir"
+	set_var EASYRSA		"$PWD"
 	set_var EASYRSA_OPENSSL	openssl
 	set_var EASYRSA_PKI	"$PWD/pki"
 	set_var EASYRSA_DN	cn_only
@@ -1844,7 +1844,7 @@ up23_verify_new_pki ()
 	|| up23_fail_upgrade "cannot find $EASYRSA_SSL_CNFFILE"
 
 	up23_verbose "> Verify vars.example does exist .."
-	EASYRSA_VARSV3_EXMP="$EASYRSA/vars.example"
+	EASYRSA_VARSV3_EXMP="$prog_dir/vars.example"
 	[ -f "$EASYRSA_VARSV3_EXMP" ] \
 	|| up23_fail_upgrade "cannot find $EASYRSA_VARSV3_EXMP"
 
