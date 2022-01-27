@@ -3,6 +3,7 @@ Easy-RSA 3 ChangeLog
 3.0.9 (TBD)
    * Upgrade OpenSSL from 1.1.0j to 1.1.1g for Windows (#405)
    * Fix --version so it uses EASYRSA_OPENSSL (#416)
+   * Fix paths in `upgrade pki` function (#475)
 
 3.0.8 (2020-09-09)
    * Provide --version option (#372)
