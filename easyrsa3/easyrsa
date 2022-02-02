@@ -593,12 +593,25 @@ build_ca() {
 	opts=""
 	sub_ca=""
 	nopass=""
+	noenc=""
 	crypto="-aes256"
 	while [ -n "$1" ]; do
 		case "$1" in
 			intca) sub_ca=1 ;;
 			subca) sub_ca=1 ;;
-			nopass) nopass=1 ;;
+			nopass)
+				nopass=1
+				# verify_ssl_lib mjor version
+				if verify_ssl_lib; then
+					case "$osslv_major" in
+						1) : ;;
+						3) noenc="-noenc" ;;
+						*) die "build-ca ssl lib: $osslv_major"
+					esac
+				else
+					die "build-ca ssl lib: $osslv_major"
+				fi
+			;;
 			*) warn "Ignoring unknown command option: '$1'" ;;
 		esac
 		shift
@@ -704,7 +717,7 @@ current CA keypair. If you intended to start a new CA, run init-pki first."
 	[ ! $nopass ] && [ -z "$EASYRSA_PASSIN" ] && crypto_opts="-passin file:$out_key_pass_tmp"
 
 	#shellcheck disable=SC2086
-	easyrsa_openssl req -utf8 -new -key "$out_key_tmp" \
+	easyrsa_openssl req ${noenc} -utf8 -new -key "$out_key_tmp" \
 		-keyout "$out_key_tmp" -out "$out_file_tmp" $crypto_opts $opts ${EASYRSA_PASSIN:+-passin "$EASYRSA_PASSIN"} || \
 		die "Failed to build the CA"
 
