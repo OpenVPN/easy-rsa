@@ -459,6 +459,12 @@ verify_ssl_lib () {
 		val="$("$EASYRSA_OPENSSL" version)"
 		case "${val%% *}" in
 			OpenSSL|LibreSSL)
+				osslv_major="${val#* }"
+				osslv_major="${osslv_major%%.*}"
+				case "$osslv_major" in
+					1|3) : ;; # OK
+					*) die "Unsupported SSL library: $osslv_major"
+				esac
 				print "\
 Using SSL: $EASYRSA_OPENSSL $("$EASYRSA_OPENSSL" version)" ;;
 			*) die "\
