@@ -1663,12 +1663,18 @@ vars_setup() {
 	# If one is found, source it
 	vars=
 
-	# set up program path
-	prog_file="$0"
-	prog_file2="$(which -- "$prog_file" 2>/dev/null)" && prog_file="$prog_file2"
-	prog_file2="$(readlink -f "$prog_file" 2>/dev/null)" && prog_file="$prog_file2"
-	prog_dir="${prog_file%/*}"
-	prog_vars="${prog_dir}/vars"
+        # set up program path
+        prog_file="$0"
+        prog_dir="${prog_file%/*}"
+        if [ -e "${prog_dir}/vars" ]; then
+                prog_vars="${prog_dir}/vars"
+        else
+                prog_file2="$(which -- "$prog_file" 2>/dev/null)" && prog_file="$prog_file2"
+                prog_file2="$(readlink -f "$prog_file" 2>/dev/null)" && prog_file="$prog_file2"
+                prog_dir="${prog_file%/*}"
+                prog_vars="${prog_dir}/vars"
+        fi
+
 	# set up PKI path
 	pki_vars="${EASYRSA_PKI:-$PWD/pki}/vars"
 
