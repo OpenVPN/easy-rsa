@@ -459,6 +459,12 @@ verify_ssl_lib () {
 		val="$("$EASYRSA_OPENSSL" version)"
 		case "${val%% *}" in
 			OpenSSL|LibreSSL)
+				osslv_major="${val#* }"
+				osslv_major="${osslv_major%%.*}"
+				case "$osslv_major" in
+					1|3) : ;; # OK
+					*) die "Unsupported SSL library: $osslv_major"
+				esac
 				print "\
 Using SSL: $EASYRSA_OPENSSL $("$EASYRSA_OPENSSL" version)" ;;
 			*) die "\
@@ -674,6 +680,94 @@ current CA keypair. If you intended to start a new CA, run init-pki first."
             fi
         fi
 	fi
+
+	# verify_ssl_lib major version number
+	if verify_ssl_lib; then
+		case "$osslv_major" in
+			1|3) : ;;
+			*) die "build-ca ssl lib: $osslv_major"
+		esac
+	else
+		die "build-ca ssl lib: $osslv_major"
+	fi
+
+	# Generate the CA with AES256
+	case "$osslv_major" in
+	# => BEGIN SSL lib version
+
+	# BEGIN SSL V3
+	3)
+		# OSSL3 uses -noenc not -nodes
+		if [ -n "$nopass" ]; then no_password="-noenc"; fi
+
+		# OpenSSL 3 is different
+		unset -v crypto_opts
+
+		# Generate CA
+		case "$EASYRSA_ALGO" in
+		rsa)
+			[ -n "$no_password" ] || crypto_opts="-passout file:${out_key_pass_tmp}"
+			easyrsa_openssl req -utf8 "${no_password}" \
+					-newkey "$EASYRSA_ALGO":"$EASYRSA_KEY_SIZE" \
+					-keyout "$out_key_tmp" -out "$out_file_tmp" \
+					${opts} ${crypto_opts} \
+					${EASYRSA_PASSOUT:+-passout "$EASYRSA_PASSOUT"} || \
+						die "Failed to build the CA"
+		;;
+		ec)
+			# EC params
+			param_file="$(easyrsa_mktemp)"
+			easyrsa_openssl ecparam -name "$EASYRSA_CURVE" > "$param_file"
+
+			[ -n "$no_password" ] || crypto_opts="-passout file:${out_key_pass_tmp}"
+			easyrsa_openssl req -utf8 "${no_password}" \
+					-newkey "$EASYRSA_ALGO":"$param_file" \
+					-keyout "$out_key_tmp" -out "$out_file_tmp" \
+					${opts} ${crypto_opts} \
+					${EASYRSA_PASSOUT:+-passout "$EASYRSA_PASSOUT"} || \
+						die "Failed to build the CA"
+		;;
+		ed)
+			# Easy-RSA ${opts} is not 'genpkey' compatible, do not use it
+			[ -n "$no_password" ] || crypto_opts="-pass file:$out_key_pass_tmp"
+			case "$EASYRSA_CURVE" in
+			ed25519)
+				"$EASYRSA_OPENSSL" genpkey -algorithm "$EASYRSA_CURVE" \
+					-out "$out_key_tmp" \
+					${crypto_opts} \
+					${EASYRSA_PASSOUT:+-pass "$EASYRSA_PASSOUT"} || \
+						die "Failed create CA private key"
+			;;
+			ed448)
+				"$EASYRSA_OPENSSL" genpkey -algorithm "$EASYRSA_CURVE" \
+					-out "$out_key_tmp" \
+					${crypto_opts} \
+					${EASYRSA_PASSOUT:+-pass "$EASYRSA_PASSOUT"} || \
+						die "Failed create CA private key"
+			;;
+			*)
+				die "Unknown curve: $EASYRSA_CURVE"
+			esac
+
+			[ -n "$no_password" ] || crypto_opts="-passout file:${out_key_pass_tmp}"
+
+			#shellcheck disable=SC2086
+			easyrsa_openssl req -utf8 "${no_password}" -new -key "$out_key_tmp" \
+				-keyout "$out_key_tmp" -out "$out_file_tmp" \
+				${opts} ${crypto_opts} \
+				${EASYRSA_PASSIN:+-passout "$EASYRSA_PASSIN"} || \
+					die "Failed to build the CA"
+
+		;;
+		*)
+			die "Unknown algorithm: $EASYRSA_ALGO"
+		esac
+	;;
+	# END SSL V3
+
+	# BEGIN SSL V1
+	1)
+
 	if [ "$EASYRSA_ALGO" = "rsa" ]; then
 		#shellcheck disable=SC2086
 		"$EASYRSA_OPENSSL" genrsa -out "$out_key_tmp" $crypto_opts ${EASYRSA_PASSOUT:+-passout "$EASYRSA_PASSOUT"} "$EASYRSA_ALGO_PARAMS" || \
@@ -701,6 +795,13 @@ current CA keypair. If you intended to start a new CA, run init-pki first."
 	easyrsa_openssl req -utf8 -new -key "$out_key_tmp" \
 		-keyout "$out_key_tmp" -out "$out_file_tmp" $crypto_opts $opts ${EASYRSA_PASSIN:+-passin "$EASYRSA_PASSIN"} || \
 		die "Failed to build the CA"
+	;;
+	# END SSL V1
+
+	*) die "build-ca ssl lib: $osslv_major"
+
+	# => END SSL lib version
+	esac
 
 	mv "$out_key_tmp" "$out_key"
 	mv "$out_file_tmp" "$out_file"
