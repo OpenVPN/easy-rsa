@@ -332,16 +332,9 @@ easyrsa_mktemp() {
 	       die "Could not create temporary directory '$EASYRSA_TEMP_DIR_session'. Permission or concurrency problem?"
 	[ -d "$EASYRSA_TEMP_DIR_session" ] || die "Temporary directory '$EASYRSA_TEMP_DIR_session' does not exist"
 
-	template="$EASYRSA_TEMP_DIR_session/tmp.XXXXXX"
-	tempfile=$(mktemp "$template") || return
-
-	# win32 mktemp shipped by easyrsa returns template as file!
-	if [ "$template" = "$tempfile" ]; then
-		# but win32 mktemp -d does work
-		# but win32 mktemp -u does not work
-		tempfile=$(mktemp -du "$tempfile") || return
-		printf "" > "$tempfile" || return
-	fi
+	tempfile="$EASYRSA_TEMP_DIR_session/tmp.$($EASYRSA_OPENSSL rand -hex 3)" || return
+	printf "" > "$tempfile" || return
+	
 	echo "$tempfile"
 } # => easyrsa_mktemp
 
