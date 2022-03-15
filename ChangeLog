@@ -1,6 +1,7 @@
 Easy-RSA 3 ChangeLog
 
 3.0.9 (TBD)
+   * Introduce support for OpenSSL version 3 (#487)
    * Upgrade OpenSSL from 1.1.0j to 1.1.1g for Windows (#405)
    * Fix --version so it uses EASYRSA_OPENSSL (#416)
 
