@@ -1,93 +1,42 @@
+-----------------------------------------------------------------------
+OpenSSL v1.1.1m Win64 for ICS, http://www.overbyte.be
+-----------------------------------------------------------------------
 
- OpenSSL 1.1.1g 21 Apr 2020
+Only supports Windows Vista/Server 2008, and later, not Windows XP.
 
- Copyright (c) 1998-2020 The OpenSSL Project
- Copyright (c) 1995-1998 Eric A. Young, Tim J. Hudson
- All rights reserved.
+ICS V8.57 or later are required to use these DLLs.
 
- DESCRIPTION
- -----------
+The OpenSSL DLLs and EXE files are digitally code signed 'Magenta
+Systems Ltd', one of the organisations that maintains ICS.  ICS can be
+set to optonally check the DLLs are correctly signed when opening them.
+Beware that Windows needs recent root certificates to check newly signed
+code, and may give an error if the root store has not been kept current
+by Windows Update, particularly on older versions of Windows such as
+Vista, 7 and Windows 2008.
 
- The OpenSSL Project is a collaborative effort to develop a robust,
- commercial-grade, fully featured, and Open Source toolkit implementing the
- Transport Layer Security (TLS) protocols (including SSLv3) as well as a
- full-strength general purpose cryptographic library.
+Built with:
+                  Visual Studio Build Tools 2017
+                  The Netwide Assembler (NASM) v2.14.02
+                  Strawberry Perl v5.20.3.1
 
- OpenSSL is descended from the SSLeay library developed by Eric A. Young
- and Tim J. Hudson.  The OpenSSL toolkit is licensed under a dual-license (the
- OpenSSL license plus the SSLeay license), which means that you are free to
- get and use it for commercial and non-commercial purposes as long as you
- fulfill the conditions of both licenses.
+Build Commands:
+                  perl configure VC-WIN64A-rtt
+                  nmake
 
- OVERVIEW
- --------
+Custom configuration file (.conf file at the "Configurations" folder):
 
- The OpenSSL toolkit includes:
+## -*- mode: perl; -*-
+## Personal configuration targets
 
- libssl (with platform specific naming):
-     Provides the client and server-side implementations for SSLv3 and TLS.
-
- libcrypto (with platform specific naming):
-     Provides general cryptographic and X.509 support needed by SSL/TLS but
-     not logically part of it.
-
- openssl:
-     A command line tool that can be used for:
-        Creation of key parameters
-        Creation of X.509 certificates, CSRs and CRLs
-        Calculation of message digests
-        Encryption and decryption
-        SSL/TLS client and server tests
-        Handling of S/MIME signed or encrypted mail
-        And more...
-
- INSTALLATION
- ------------
-
- See the appropriate file:
-        INSTALL         Linux, Unix, Windows, OpenVMS, ...
-        NOTES.*         INSTALL addendums for different platforms
-
- SUPPORT
- -------
-
- See the OpenSSL website www.openssl.org for details on how to obtain
- commercial technical support. Free community support is available through the
- openssl-users email list (see
- https://www.openssl.org/community/mailinglists.html for further details).
-
- If you have any problems with OpenSSL then please take the following steps
- first:
-
-    - Download the latest version from the repository
-      to see if the problem has already been addressed
-    - Configure with no-asm
-    - Remove compiler optimization flags
-
- If you wish to report a bug then please include the following information
- and create an issue on GitHub:
-
-    - OpenSSL version: output of 'openssl version -a'
-    - Configuration data: output of 'perl configdata.pm --dump'
-    - OS Name, Version, Hardware platform
-    - Compiler Details (name, version)
-    - Application Details (name, version)
-    - Problem Description (steps that will reproduce the problem, if known)
-    - Stack Traceback (if the application dumps core)
-
- Just because something doesn't work the way you expect does not mean it
- is necessarily a bug in OpenSSL. Use the openssl-users email list for this type
- of query.
-
- HOW TO CONTRIBUTE TO OpenSSL
- ----------------------------
-
- See CONTRIBUTING
-
- LEGALITIES
- ----------
-
- A number of nations restrict the use or export of cryptography. If you
- are potentially subject to such restrictions you should seek competent
- professional legal advice before attempting to develop or distribute
- cryptographic code.
+%targets = (
+    "VC-WIN32-rtt" => {
+        inherit_from     => [ "VC-WIN32" ],
+        cflags           => sub{my $v=pop; $v=~ s/\/MD/\/MT/ig; return $v},
+        lflags           => "/nologo /release",
+    },
+    "VC-WIN64A-rtt" => {
+        inherit_from     => [ "VC-WIN64A" ],
+        cflags           => sub{my $v=pop; $v=~ s/\/MD/\/MT/ig; return $v},
+        lflags           => "/nologo /release",
+    },
+);
