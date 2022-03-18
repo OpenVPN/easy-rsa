@@ -716,17 +716,18 @@ current CA keypair. If you intended to start a new CA, run init-pki first."
 			die "Unknown algorithm: $EASYRSA_ALGO"
 		esac
 
-		# OpenSSL v3: '-nodes' is deprecate, use '-noenc'
-		unset -v no_password; [ ! $nopass ] || no_password='-noenc'
+		# Private key encryption password or use no_password
+		crypto_opts=""
+		if [ ! $nopass ] && [ -z "$EASYRSA_PASSIN" ]; then
+			crypto_opts="-passin file:$out_key_pass_tmp"
+		else
+			crypto_opts="$no_password"
+		fi
 
 		# create the CA keypair:
-		crypto_opts=""
-		[ ! $nopass ] && [ -z "$EASYRSA_PASSIN" ] && \
-			crypto_opts="-passin file:$out_key_pass_tmp"
-
 		# shellcheck disable=SC2086
-		easyrsa_openssl req -utf8 "${no_password}" -new -key "$out_key_tmp" \
-			-keyout "$out_key_tmp" -out "$out_file_tmp" ${opts} ${crypto_opts} \
+		easyrsa_openssl req -utf8 -new -key "$out_key_tmp" \
+			-out "$out_file_tmp" ${opts} ${crypto_opts} \
 			${EASYRSA_PASSIN:+-passin "$EASYRSA_PASSIN"} || \
 				die "Failed to build the CA"
 	;;
