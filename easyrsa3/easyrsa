@@ -680,6 +680,16 @@ current CA keypair. If you intended to start a new CA, run init-pki first."
 
 	# BEGIN SSL V3
 	3)
+		# If encrypted then create the CA key using AES256 cipher ($crypto)
+		# 'genpkey' requires '-pass'
+		crypto_opts=""
+		if [ ! $nopass ]; then
+			crypto_opts="$crypto"
+			if [ -z "$EASYRSA_PASSOUT" ]; then
+				crypto_opts="$crypto_opts -pass file:$out_key_pass_tmp"
+			fi
+		fi
+
 		# Generate CA Key - OpenSSL v3 'genpkey' is not compatible
 		# with easyrsa $opts and $no_password, do NOT use them here
 		# shellcheck disable=SC2086 # Ignore unquoted variables
@@ -717,6 +727,7 @@ current CA keypair. If you intended to start a new CA, run init-pki first."
 		esac
 
 		# Private key encryption password or use no_password
+		# 'req' requires '-passin'
 		crypto_opts=""
 		if [ ! $nopass ] && [ -z "$EASYRSA_PASSIN" ]; then
 			crypto_opts="-passin file:$out_key_pass_tmp"
