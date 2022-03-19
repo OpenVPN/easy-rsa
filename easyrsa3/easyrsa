@@ -662,19 +662,6 @@ current CA keypair. If you intended to start a new CA, run init-pki first."
 		fi
 	fi
 
-	# create the CA key using AES256
-	crypto_opts=""
-	if [ ! $nopass ]; then
-		crypto_opts="$crypto"
-		if [ -z "$EASYRSA_PASSOUT" ]; then
-		    if [ "ed" = "$EASYRSA_ALGO" ]; then
-                crypto_opts="$crypto_opts -pass file:$out_key_pass_tmp"
-            else
-                crypto_opts="$crypto_opts -passout file:$out_key_pass_tmp"
-            fi
-        fi
-	fi
-
 	# Choose SSL Library version (1 or 3) and build CA
 	case "$osslv_major" in # => BEGIN SSL lib version
 
@@ -746,33 +733,55 @@ current CA keypair. If you intended to start a new CA, run init-pki first."
 
 	# BEGIN SSL V1
 	1)
+		# create the CA key using AES256
+		crypto_opts=""
+		if [ ! $nopass ]; then
+			crypto_opts="$crypto"
+			if [ -z "$EASYRSA_PASSOUT" ]; then
+				if [ "ed" = "$EASYRSA_ALGO" ]; then
+					crypto_opts="$crypto_opts -pass file:$out_key_pass_tmp"
+				else
+					crypto_opts="$crypto_opts -passout file:$out_key_pass_tmp"
+				fi
+			fi
+		fi
+
+		#shellcheck disable=SC2086
 		if [ "$EASYRSA_ALGO" = "rsa" ]; then
-			#shellcheck disable=SC2086
-			"$EASYRSA_OPENSSL" genrsa -out "$out_key_tmp" $crypto_opts ${EASYRSA_PASSOUT:+-passout "$EASYRSA_PASSOUT"} "$EASYRSA_ALGO_PARAMS" || \
-				die "Failed create CA private key"
+			"$EASYRSA_OPENSSL" genrsa -out "$out_key_tmp" $crypto_opts \
+				${EASYRSA_PASSOUT:+-passout "$EASYRSA_PASSOUT"} \
+				"$EASYRSA_ALGO_PARAMS" || \
+					die "Failed create CA private key"
 		elif [ "$EASYRSA_ALGO" = "ec" ]; then
-			#shellcheck disable=SC2086
 			"$EASYRSA_OPENSSL" ecparam -in "$EASYRSA_ALGO_PARAMS" -genkey | \
-				"$EASYRSA_OPENSSL" ec -out "$out_key_tmp" $crypto_opts ${EASYRSA_PASSOUT:+-passout "$EASYRSA_PASSOUT"} || \
-				die "Failed create CA private key"
+				"$EASYRSA_OPENSSL" ec -out "$out_key_tmp" $crypto_opts \
+					${EASYRSA_PASSOUT:+-passout "$EASYRSA_PASSOUT"} || \
+						die "Failed create CA private key"
 		elif [ "ed" = "$EASYRSA_ALGO" ]; then
 			if [ "ed25519" = "$EASYRSA_CURVE" ]; then
-				"$EASYRSA_OPENSSL" genpkey -algorithm ED25519 -out $out_key_tmp $crypto_opts ${EASYRSA_PASSOUT:+-pass "$EASYRSA_PASSOUT"} || \
-				die "Failed create CA private key"
+				"$EASYRSA_OPENSSL" genpkey -algorithm ED25519 -out $out_key_tmp \
+					$crypto_opts ${EASYRSA_PASSOUT:+-pass "$EASYRSA_PASSOUT"} || \
+						die "Failed create CA private key"
 			elif [ "ed448" = "$EASYRSA_CURVE" ]; then
-				"$EASYRSA_OPENSSL" genpkey -algorithm ED448 -out $out_key_tmp $crypto_opts ${EASYRSA_PASSOUT:+-pass "$EASYRSA_PASSOUT"} || \
-				die "Failed create CA private key"
+				"$EASYRSA_OPENSSL" genpkey -algorithm ED448 -out $out_key_tmp \
+					$crypto_opts ${EASYRSA_PASSOUT:+-pass "$EASYRSA_PASSOUT"} || \
+						die "Failed create CA private key"
 			fi
 		fi
 
 		# create the CA keypair:
 		crypto_opts=""
-		[ ! $nopass ] && [ -z "$EASYRSA_PASSIN" ] && crypto_opts="-passin file:$out_key_pass_tmp"
+		if [ ! $nopass ] && [ -z "$EASYRSA_PASSIN" ]; then
+			crypto_opts="-passin file:$out_key_pass_tmp"
+		else
+			crypto_opts="$no_password"
+		fi
 
 		#shellcheck disable=SC2086
 		easyrsa_openssl req -utf8 -new -key "$out_key_tmp" \
-			-keyout "$out_key_tmp" -out "$out_file_tmp" $crypto_opts $opts ${EASYRSA_PASSIN:+-passin "$EASYRSA_PASSIN"} || \
-			die "Failed to build the CA"
+		-keyout "$out_key_tmp" -out "$out_file_tmp" $crypto_opts $opts \
+			${EASYRSA_PASSIN:+-passin "$EASYRSA_PASSIN"} || \
+				die "Failed to build the CA"
 	;;
 	# END SSL V1
 
