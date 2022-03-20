@@ -351,8 +351,20 @@ easyrsa_openssl() {
 
 	case $openssl_command in
 		makesafeconf) has_config=true;;
-		ca|req|srp|ts|genpkey) has_config=true;;
+		ca|req|srp|ts) has_config=true;;
 		*) has_config=false;;
+	esac
+
+	case "$osslv_major" in
+	3)
+		case $openssl_command in
+		genpkey) has_config=true;;
+		*) : ;; # ok
+		esac
+	;;
+	1)	: ;; # ok
+	'')	: ;; # Unset then this is init-pki
+	*)	die "Unsupported openssl version: $osslv_major"
 	esac
 
 	if ! $has_config; then
