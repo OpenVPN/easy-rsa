@@ -450,12 +450,8 @@ $out"
 
 # Verify if Edward Curve exists
 verify_curve_ed() {
-	if [ "ed25519" = "$EASYRSA_CURVE" ] && "$EASYRSA_OPENSSL" genpkey -algorithm ED25519 > /dev/null; then
-		return 0
-	elif [ "ed448" = "$EASYRSA_CURVE" ] && "$EASYRSA_OPENSSL" genpkey -algorithm ED448 > /dev/null; then
-		return 0
-	fi
-		die "Curve $EASYRSA_CURVE not found."
+	easyrsa_openssl genpkey -algorithm "$EASYRSA_CURVE" > /dev/null && return 0
+	die "Edward Curve $EASYRSA_CURVE not found."
 }
 
 verify_ssl_lib () {
@@ -699,26 +695,22 @@ current CA keypair. If you intended to start a new CA, run init-pki first."
 				-out "$out_key_tmp" ${crypto_opts} \
 				-pkeyopt rsa_keygen_bits:"$EASYRSA_ALGO_PARAMS" \
 				${EASYRSA_PASSOUT:+-pass "$EASYRSA_PASSOUT"} || \
-					die "Failed create CA private key" ;;
+					die "Failed create CA private key"
+		;;
 		ec)
 			easyrsa_openssl genpkey -paramfile "$EASYRSA_ALGO_PARAMS" \
 				-out "$out_key_tmp" ${crypto_opts} \
 				${EASYRSA_PASSOUT:+-pass "$EASYRSA_PASSOUT"} || \
-					die "Failed create CA private key" ;;
+					die "Failed create CA private key"
+		;;
 		ed)
 			case "$EASYRSA_CURVE" in
-			ed25519)
+			[eE][dD]25519|[eE][dD]448)
 				easyrsa_openssl genpkey -algorithm "$EASYRSA_CURVE" \
 					-out "$out_key_tmp" ${crypto_opts} \
 					${EASYRSA_PASSOUT:+-pass "$EASYRSA_PASSOUT"} || \
 						die "Failed create CA private key" ;;
-			ed448)
-				easyrsa_openssl genpkey -algorithm "$EASYRSA_CURVE" \
-					-out "$out_key_tmp" ${crypto_opts} \
-					${EASYRSA_PASSOUT:+-pass "$EASYRSA_PASSOUT"} || \
-						die "Failed create CA private key" ;;
-			*)
-				die "Unknown curve: $EASYRSA_CURVE"
+			*)	die "Unknown curve: $EASYRSA_CURVE"
 			esac
 		;;
 		*)
@@ -745,7 +737,7 @@ current CA keypair. If you intended to start a new CA, run init-pki first."
 
 	# BEGIN SSL V1
 	1)
-		# create the CA key using AES256
+		# If encrypted then create the CA key using AES256 cipher ($crypto)
 		crypto_opts=""
 		if [ ! $nopass ]; then
 			crypto_opts="$crypto"
@@ -758,28 +750,33 @@ current CA keypair. If you intended to start a new CA, run init-pki first."
 			fi
 		fi
 
+		# create the CA key
 		#shellcheck disable=SC2086
-		if [ "$EASYRSA_ALGO" = "rsa" ]; then
+		case "$EASYRSA_ALGO" in
+		rsa)
 			"$EASYRSA_OPENSSL" genrsa -out "$out_key_tmp" $crypto_opts \
 				${EASYRSA_PASSOUT:+-passout "$EASYRSA_PASSOUT"} \
 				"$EASYRSA_ALGO_PARAMS" || \
 					die "Failed create CA private key"
-		elif [ "$EASYRSA_ALGO" = "ec" ]; then
+		;;
+		ec)
 			"$EASYRSA_OPENSSL" ecparam -in "$EASYRSA_ALGO_PARAMS" -genkey | \
 				"$EASYRSA_OPENSSL" ec -out "$out_key_tmp" $crypto_opts \
 					${EASYRSA_PASSOUT:+-passout "$EASYRSA_PASSOUT"} || \
 						die "Failed create CA private key"
-		elif [ "ed" = "$EASYRSA_ALGO" ]; then
-			if [ "ed25519" = "$EASYRSA_CURVE" ]; then
-				"$EASYRSA_OPENSSL" genpkey -algorithm ED25519 -out "$out_key_tmp" \
-					$crypto_opts ${EASYRSA_PASSOUT:+-pass "$EASYRSA_PASSOUT"} || \
-						die "Failed create CA private key"
-			elif [ "ed448" = "$EASYRSA_CURVE" ]; then
-				"$EASYRSA_OPENSSL" genpkey -algorithm ED448 -out "$out_key_tmp" \
-					$crypto_opts ${EASYRSA_PASSOUT:+-pass "$EASYRSA_PASSOUT"} || \
-						die "Failed create CA private key"
-			fi
-		fi
+		;;
+		ed)
+			case "$EASYRSA_CURVE" in
+			[eE][dD]25519|[eE][dD]448)
+				"$EASYRSA_OPENSSL" genpkey -algorithm "$EASYRSA_CURVE" \
+					-out "$out_key_tmp" $crypto_opts \
+					${EASYRSA_PASSOUT:+-pass "$EASYRSA_PASSOUT"} || \
+						die "Failed create CA private key" ;;
+			*)	die "Unknown curve: $EASYRSA_CURVE"
+			esac
+		;;
+		*)	die "Unknown algorithm: $EASYRSA_ALGO"
+		esac
 
 		# create the CA keypair:
 		crypto_opts=""
@@ -1844,13 +1841,12 @@ Note: using Easy-RSA configuration from: $vars"
 	fi
 
 	# EASYRSA_ALGO_PARAMS must be set depending on selected algo
-	if [ "ec" = "$EASYRSA_ALGO" ]; then
-		EASYRSA_ALGO_PARAMS="$EASYRSA_EC_DIR/${EASYRSA_CURVE}.pem"
-	elif [ "rsa" = "$EASYRSA_ALGO" ]; then
-		EASYRSA_ALGO_PARAMS="${EASYRSA_KEY_SIZE}"
-	elif [ "ed" != "$EASYRSA_ALGO" ]; then
-		die "Alg '$EASYRSA_ALGO' is invalid: must be 'rsa', 'ec' or 'ed' "
-	fi
+	case "$EASYRSA_ALGO" in
+	ec)		EASYRSA_ALGO_PARAMS="$EASYRSA_EC_DIR/${EASYRSA_CURVE}.pem" ;;
+	rsa)	EASYRSA_ALGO_PARAMS="${EASYRSA_KEY_SIZE}" ;;
+	ed)		: ;; # ok
+	*)		die "Alg '$EASYRSA_ALGO' is invalid: must be 'rsa', 'ec' or 'ed' "
+	esac
 
 	# Assign value to $EASYRSA_TEMP_DIR_session and work around Windows mktemp bug when parent dir is missing
 	if [ -z "$EASYRSA_TEMP_DIR_session" ]; then
