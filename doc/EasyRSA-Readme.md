@@ -183,16 +183,17 @@ Using Easy-RSA as a CA
 
 #### Signing a request
 
-  Once Easy-RSA has imported a request, it can be reviewed and signed. Every
-  certificate needs a "type" which controls what extensions the certificate gets
-  Easy-RSA ships with 3 possible types: `client`, `server`, and `ca`, described
-  below:
-
-  * client - A TLS client, suitable for a VPN user or web browser (web client)
-  * server - A TLS server, suitable for a VPN or web server
-  * ca - A intermediate CA, used when chaining multiple CAs together
+  Once Easy-RSA has imported a request, it can be reviewed and signed:
 
     ./easyrsa sign-req <type> nameOfRequest
+
+  Every certificate needs a `type` which controls what extensions the certificate
+  gets.  Easy-RSA ships with 3 possible types: `client`, `server`, and `ca`, described
+  below:
+
+  * `client` - A TLS client, suitable for a VPN user or web browser (web client)
+  * `server` - A TLS server, suitable for a VPN or web server
+  * `ca` - A intermediate CA, used when chaining multiple CAs together
 
   Additional types of certs may be defined by local sites as needed; see the
   advanced documentation for details.
