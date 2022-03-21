@@ -95,7 +95,7 @@ possible terse description is shown below:
  *  `EASYRSA_REQ_EMAIL` (CLI: `--req-email`) - set the DN email with org mode
  *  `EASYRSA_REQ_OU` (CLI: `--req-ou`) - set the DN organizational unit with org
     mode
- *  `EASYRSA_KEY_SIZE` (CLI: `--key-size`) - set the key size in bits to
+ *  `EASYRSA_KEY_SIZE` (CLI: `--keysize`) - set the key size in bits to
     generate
  *  `EASYRSA_ALGO` (CLI: `--use-algo`) - set the crypto alg to use: rsa or ec
  *  `EASYRSA_CURVE` (CLI: `--curve`) - define the named EC curve to use
