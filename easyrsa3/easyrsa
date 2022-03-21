@@ -908,11 +908,11 @@ $EASYRSA_EXTRA_EXTS"
 	# shellcheck disable=2086,2148
 	algo_opts=""
 	if [ "ed" = "$EASYRSA_ALGO" ]; then
-		algo_opts=" -newkey $EASYRSA_CURVE "
+		algo_opts="$EASYRSA_CURVE"
 	else
-		algo_opts=" -newkey $EASYRSA_ALGO:$EASYRSA_ALGO_PARAMS "
+		algo_opts="$EASYRSA_ALGO:$EASYRSA_ALGO_PARAMS"
 	fi
-	easyrsa_openssl req -utf8 -new $algo_opts \
+	easyrsa_openssl req -utf8 -new -newkey "$algo_opts" \
 		-keyout "$key_out_tmp" -out "$req_out_tmp" $opts ${EASYRSA_PASSOUT:+-passout "$EASYRSA_PASSOUT"} \
 		|| die "Failed to generate request"
 	mv "$key_out_tmp" "$key_out"
