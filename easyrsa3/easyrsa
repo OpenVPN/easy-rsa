@@ -2324,7 +2324,7 @@ up23_manage_upgrade_23 ()
 
 	if [ $EASYRSA_FOUND_VARS -ne 1 ];
 	then
-		die echo "vars file not found"
+		die "vars file not found"
 	fi
 
 	# Only allow specific vars/vars.bat to exist
