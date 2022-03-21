@@ -239,7 +239,7 @@ Certificate & Request options: (these impact cert/req field values)
 --subca-len=#   : path length of signed intermediate CA certs; must be >= 0 if used
 --subject-alt-name : Add a subjectAltName. For more info and syntax, see:
                      ./easyrsa help altname
---use-algo=ALG  : crypto alg to use: choose rsa (default) or ec
+--use-algo=ALG  : crypto alg to use: choose rsa (default), ec or ed
 --curve=NAME    : for elliptic curve, sets the named curve to use
 --copy-ext      : Copy included request X509 extensions (namely subjAltName
 
