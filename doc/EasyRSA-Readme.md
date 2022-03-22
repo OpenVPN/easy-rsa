@@ -188,12 +188,14 @@ Using Easy-RSA as a CA
     ./easyrsa sign-req <type> nameOfRequest
 
   Every certificate needs a `type` which controls what extensions the certificate
-  gets.  Easy-RSA ships with 3 possible types: `client`, `server`, and `ca`, described
-  below:
+  gets.
+
+  Easy-RSA ships with 4 possible "types":
 
   * `client` - A TLS client, suitable for a VPN user or web browser (web client)
   * `server` - A TLS server, suitable for a VPN or web server
   * `ca` - A intermediate CA, used when chaining multiple CAs together
+  * `serverClient` - A TLS server and TLS client
 
   Additional types of certs may be defined by local sites as needed; see the
   advanced documentation for details.
