@@ -120,5 +120,8 @@ possible terse description is shown below:
     password using any openssl password options like pass:1234 or env:var
  *  `EASYRSA_PASSOUT` (CLI: `--passout`) - allows to specify a source for
     password using any openssl password options like pass:1234 or env:var
+ *  `EASYRSA_UMASK` - safe umask to use for file creation. Defaults to `077`
+ *  `EASYRSA_NO_UMASK` - disable safe umask. Files will be created using the
+    system's default
 
 **NOTE:** the global options need to be provided before the actual commands.
