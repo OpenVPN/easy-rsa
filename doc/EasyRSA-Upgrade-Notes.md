@@ -5,6 +5,10 @@ People upgrading to Easy-RSA 3 from a 2.x version should note some important
 changes starting with version 3. For a better overview of version 3 in general,
 see the Readme in the doc/ directory.
 
+Easy-RSA 3 comes with an automated upgrade utility to convert an existing 2.x
+PKI to version 3. For details, see [this article on the OpenVPN
+wiki](https://community.openvpn.net/openvpn/wiki/easyrsa-upgrade).
+
 List of important changes
 ----
 
