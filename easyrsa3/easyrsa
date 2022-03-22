@@ -106,8 +106,8 @@ cmd_help() {
         inline  - create an inline credentials file for this node" ;;
 		revoke) text="
   revoke <filename_base> [reason]
-      Revoke a certificate specified by the filename_base, with an optional 
-      revocation reason that is one of: 
+      Revoke a certificate specified by the filename_base, with an optional
+      revocation reason that is one of:
         unspecified
         keyCompromise
         CACompromise
@@ -542,7 +542,7 @@ $help_note"
 # init-pki backend:
 init_pki() {
 
-	# If EASYRSA_PKI exists, confirm before we rm -rf (skiped with EASYRSA_BATCH)
+	# If EASYRSA_PKI exists, confirm before we rm -rf (skipped with EASYRSA_BATCH)
 	if [ -e "$EASYRSA_PKI" ]; then
 		confirm "Confirm removal: " "yes" "
 WARNING!!!
@@ -557,7 +557,7 @@ and initialize a fresh PKI here."
 	for i in private reqs; do
 		mkdir -p "$EASYRSA_PKI/$i" || die "Failed to create PKI file structure (permissions?)"
 	done
-	
+
 	# Create $EASYRSA_SAFE_CONF ($OPENSSL_CONF) prevents bogus warnings (especially useful on win32)
 	if [ ! -f "$EASYRSA_SSL_CONF" ] && [ -f "$EASYRSA/openssl-easyrsa.cnf" ];
 	then
@@ -1032,7 +1032,7 @@ $(display_dn req "$req_in")
 		# Add any advanced extensions supplied by env-var:
 		[ -n "$EASYRSA_EXTRA_EXTS" ] && print "$EASYRSA_EXTRA_EXTS"
 
-		: # needed to keep die from inherting the above test
+		: # needed to keep die from inheriting the above test
 	} > "$ext_tmp" || die "\
 Failed to create temp extension file (bad permissions?) at:
 $ext_tmp"
@@ -1139,7 +1139,7 @@ Run easyrsa without commands for usage and command help."
 	if [ "$2" ]; then
 		opts="$opts -crl_reason $2"
 	fi
-	
+
 	verify_file x509 "$crt_in" || die "\
 Unable to revoke as the input file is not a valid certificate. Unexpected
 input in file: $crt_in"
@@ -1232,7 +1232,7 @@ input in file: $req_in"
 		[ -f "$file" ] && mv "$file" "$EASYRSA_PKI/revoked/private_by_serial/$cert_serial.$file_ext"
 	done
 
-	# remove the dublicate certificate in the certs_by_serial folder
+	# remove the duplicate certificate in the certs_by_serial folder
 	rm "$crt_by_serial"
 
 	return 0
@@ -1429,7 +1429,7 @@ import_req() {
 
 	# pull passed paths
 	in_req="$1" short_name="$2"
-	out_req="$EASYRSA_PKI/reqs/$2.req" 
+	out_req="$EASYRSA_PKI/reqs/$2.req"
 
 	[ -n "$short_name" ] || die "\
 Unable to import: incorrect command syntax.
@@ -1444,7 +1444,7 @@ File Path: $in_req"
 Unable to import the request as the destination file already exists.
 Please choose a different name for your imported request file.
 Existing file at: $out_req"
-	
+
 	# now import it
 	cp "$in_req" "$out_req"
 
@@ -1654,7 +1654,7 @@ default_server_san() {
 
 # verify a file seems to be a valid req/X509
 verify_file() {
-	format="$1" 
+	format="$1"
 	path="$2"
 	easyrsa_openssl "$format" -in "$path" -noout 2>/dev/null || return 1
 	return 0
@@ -1663,8 +1663,8 @@ verify_file() {
 # show-* command backend
 # Prints req/cert details in a readable format
 show() {
-	type="$1" 
-	name="$2" 
+	type="$1"
+	name="$2"
 	in_file=""
 	format=""
 	[ -n "$name" ] || die "\
@@ -1676,11 +1676,11 @@ Run easyrsa without commands for usage help."
 	opts="-${type}opt no_pubkey,no_sigdump"
 	while [ -n "$1" ]; do
 		case "$1" in
-			full) 
+			full)
 				opts=""
 				;;
-			*) 
-				warn "Ignoring unknown command option: '$1'" 
+			*)
+				warn "Ignoring unknown command option: '$1'"
 				;;
 		esac
 		shift
@@ -1786,7 +1786,7 @@ vars_setup() {
 	elif [ -f "$prog_vars" ]; then
 		vars="$prog_vars"
 	fi
-	
+
 	# If a vars file was located, source it
 	# If $EASYRSA_NO_VARS is defined (not blank) this is skipped
 	if [ -z "$EASYRSA_NO_VARS" ] && [ -n "$vars" ]; then
@@ -1797,13 +1797,13 @@ file. Storing sensitive information in the configuration file is not \
 recommended - please remove it from there before continuing."
 		fi
 		#shellcheck disable=SC2034
-		EASYRSA_CALLER=1 
+		EASYRSA_CALLER=1
 		# shellcheck disable=SC1090
 		. "$vars"
 		notice "\
 Note: using Easy-RSA configuration from: $vars"
 	fi
-	
+
 	# Set defaults, preferring existing env-vars if present
 	set_var EASYRSA		"$prog_dir"
 	set_var EASYRSA_OPENSSL	openssl
@@ -1820,7 +1820,7 @@ Note: using Easy-RSA configuration from: $vars"
 	set_var EASYRSA_CURVE		secp384r1
 	set_var EASYRSA_EC_DIR		"$EASYRSA_PKI/ecparams"
 	set_var EASYRSA_CA_EXPIRE	3650
-	set_var EASYRSA_CERT_EXPIRE	825 # new default of 36 months	
+	set_var EASYRSA_CERT_EXPIRE	825 # new default of 36 months
 	set_var EASYRSA_CERT_RENEW	30
 	set_var EASYRSA_CRL_DAYS	180
 	set_var EASYRSA_NS_SUPPORT	no
@@ -1835,7 +1835,7 @@ Note: using Easy-RSA configuration from: $vars"
 	# Same as above for the x509-types extensions dir
 	if [ -d "$EASYRSA_PKI/x509-types" ]; then
 		set_var EASYRSA_EXT_DIR		"$EASYRSA_PKI/x509-types"
-	else	
+	else
 		#TODO: This should be removed.  Not really suitable for packaging.
 		set_var EASYRSA_EXT_DIR		"$EASYRSA/x509-types"
 	fi
@@ -1889,7 +1889,7 @@ set_var() {
 # You can report problems on the normal openvpn support channels:
 # --------------------------------------------------------------------------
 #   1. The Openvpn Forum: https://forums.openvpn.net/viewforum.php?f=31
-#   2. The #easyrsa IRC channel at freenode
+#   2. The #easyrsa IRC channel at libera.chat
 #   3. Info: https://community.openvpn.net/openvpn/wiki/easyrsa-upgrade
 # --------------------------------------------------------------------------
 #
@@ -2123,7 +2123,7 @@ up23_upgrade_ca ()
 	# Otherwise this is required for all easyrsa v3
 	#confirm "Set 'unique_subject = no' in index.txt.attr for your current CA: " \
 	#"yes" "This version of easyrsa requires that 'unique_subject = no' is set correctly"
-	
+
 	printf "%s\n" "unique_subject = no" > "$EASYRSA_PKI/index.txt.attr"
 	up23_verbose "> OK"
 	up23_verbose "  Upgraded index.txt.attr to v306+"
