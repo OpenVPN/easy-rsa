@@ -9,7 +9,7 @@ Feature support:
         * Keep platform-specific tools separate from platform-neutral code
     * add detection for duplicate CN prior to OpenSSL failure
         * This gets tricky if `updatedb` requires a CA passphrase
-	* It would help to warn users before OpenSSL throws errors
+    * It would help to warn users before OpenSSL throws errors
 
 Longer term wishlist:
     * Support openssl's -password source mechanism:

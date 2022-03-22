@@ -29,8 +29,7 @@ IF ERRORLEVEL 0 (
 		rm %WORK_DIR%\easyrsa3\.rnd
 	) ELSE echo NOTICE; Saved Layout
 ) ELSE echo Error occurred, no clean up
-	
+
 set SAVE_LAYOUT=
 set SYS_ARCH=
 pause
-

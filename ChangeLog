@@ -82,11 +82,11 @@ Easy-RSA 3 ChangeLog
 
     * 8b42eea Make aes256 default, replacing 3des
         (keros: Github)
-    
+
     * f2f4ac8 Make -utf8 default
         (roubert: Github)
 
-	
+
 3.0.0-rc2 (2014/07/27)
 
     * 1551e5f docs: fix typo

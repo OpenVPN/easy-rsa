@@ -39,7 +39,7 @@ note() { echo "build-dist NOTE: $1"; }
 
 # ask before dangerous things
 confirm() {
-	[ "$2" ] && return
+	[ -n "$2" ] && return
 	printf "%s y/n: " "$1"
 	read r
 	[ "$r" = "y" ] || die "user abort"
@@ -70,14 +70,14 @@ dist_clean() {
 stage_unix() {
 	# make our unix stage if it doesn't exist
 	mkdir -p "$DIST_ROOT/unix/$PV"
-	
+
 	# Copy files into $PV, starting with easyrsa3 as the initial root dir
 	src_files="easyrsa3/. Licensing/. COPYING.md ChangeLog README.md README.quickstart.md doc"
 	for f in $src_files
 	do
 		cp -R "$SRC_ROOT/$f" "$DIST_ROOT/unix/$PV/" || die "failed to copy $f"
 	done
-	
+
 	# FreeBSD does not accept -i without argument in a way also acceptable by GNU sed
 	sed -i.tmp -e "s/~VER~/$VERSION/" \
 		   -e "s/~DATE~/$(date)/" \
@@ -95,7 +95,7 @@ stage_win() {
 	do
 		# make our windows stage if it doesn't exist
 		mkdir -p "$DIST_ROOT/$win/$PV"
-	
+
 		# make doc dir
 		mkdir -p "$DIST_ROOT/$win/$PV/doc"
 
@@ -106,28 +106,28 @@ stage_win() {
 			rm -f "$SRC_ROOT/$f.tmp"
 			python -m markdown "$SRC_ROOT/$f" > "$DIST_ROOT/$win/$PV/${f%.md}.html" || die "Failed to convert markdown to HTML"
 		done
-	
+
 		# Copy files into $PV, starting with easyrsa3 as the initial root dir
 		src_files="easyrsa3/. ChangeLog COPYING.md Licensing distro/windows/Licensing distro/windows/bin distro/windows/$win/lib* distro/windows/$win/openssl.exe"
 		for f in $src_files
 		do
 			cp -R "$SRC_ROOT/$f" "$DIST_ROOT/$win/$PV/" || die "failed to copy $f"
 		done
-		
+
 		src_files="README-Windows.txt EasyRSA-Start.bat"
 		for f in $src_files
 		do
 			cp -R "$SRC_ROOT/distro/windows/$f" "$DIST_ROOT/$win/$PV/" || die "failed to copy $f"
 			unix2dos "$DIST_ROOT/$win/$PV/$f" || die "unix2dos conversion failed for $f"
 		done
-	
+
 		sed -i.tmp -e "s/~VER~/$VERSION/" \
 			   -e "s/~DATE~/$(date)/" \
 			   -e "s/~HOST~/$(hostname -s)/" \
 			   -e "s/~GITHEAD~/$(git rev-parse HEAD)/" \
 			   "$DIST_ROOT/$win/$PV/easyrsa" || die "Cannot update easyrsa version data"
 		rm -f "$DIST_ROOT/$win/$PV/easyrsa.tmp"
-		
+
 		# files not included
 		rm -rf "$DIST_ROOT/$win/$PV/doc/TODO" || die "failed rm TODO"
 	done
@@ -135,14 +135,14 @@ stage_win() {
 
 make_tar() {
 	(cd "$DIST_ROOT/unix/"; tar -czf "../${PV}.tgz" "$PV") || die "tar failed"
-	note "tarball created at: $DIST_ROOT/${PV}.tgz" 
+	note "tarball created at: $DIST_ROOT/${PV}.tgz"
 }
 
 make_zip() {
 	for win in win32 win64;
 	do
 		(cd "$DIST_ROOT/$win/"; zip -qr "../${PV}-$win.zip" "$PV") || die "zip failed"
-		note "zip file created at: $DIST_ROOT/${PV}-$win.zip" 
+		note "zip file created at: $DIST_ROOT/${PV}-$win.zip"
 	done
 }
 

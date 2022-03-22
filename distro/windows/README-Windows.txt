@@ -3,7 +3,7 @@ Easy-RSA 3 Windows README
 Easy-RSA 3 runs POSIX shell code, so use on Windows has some additional
 requirements: an OpenSSL installation, and a usable shell environment.
 
-The Windows packages of EasyRSA 3.0.7+ include an OpenSSL binary and 
+The Windows packages of EasyRSA 3.0.7+ include an OpenSSL binary and
 libraries that will be used by default.  If you want to use a system binary
 instead, remove the openssl.exe and the lib*.dll files from the bin
 directory.
@@ -107,8 +107,8 @@ Contents of this file:
  4.1: mksh/Win32
 
     A special thanks is in order to the mksh/Win32 project and its primary
-    maintainer, Michael Langguth <mksh-w32@gmx.net>. This shell offers featurs
+    maintainer, Michael Langguth <mksh-w32@gmx.net>. This shell offers features
     that allow Easy-RSA to run smoothly under Windows; by using mksh/Win32,
     Easy-RSA can deliver the same PKI flexibility to all major platforms.
-       
+
 vim: wrap tw=80 expandtab
