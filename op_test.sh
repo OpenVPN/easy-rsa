@@ -4,14 +4,24 @@
 # and executes that - allows for disconnected testing from the easy-rsa
 # repo with TravisCI.
 
-curl -O 'https://raw.githubusercontent.com/OpenVPN/easyrsa-unit-tests/master/easyrsa-unit-tests.sh'
+case "$1" in
+-v)		verb='-v' ;;
+-vv)	verb='-vv' ;;
+*)		verb='-v'
+esac
 
-if [ -e "easyrsa-unit-tests.sh" ];
-then
-	sh easyrsa-unit-tests.sh -v
+estat=0
+
+if [ -e "easyrsa-unit-tests.sh" ]; then
+	sh easyrsa-unit-tests.sh "$verb"
 	estat=$?
+else
+	curl -O 'https://raw.githubusercontent.com/OpenVPN/easyrsa-unit-tests/master/easyrsa-unit-tests.sh'
+	[ -e "easyrsa-unit-tests.sh" ] || { echo "Unit-test download failed."; exit 9; }
+	sh easyrsa-unit-tests.sh "$verb"
+	estat=$?
+	rm -f easyrsa-unit-tests.sh
 fi
 
-rm -f easyrsa-unit-tests.sh
-
+echo "estat: $estat"
 exit $estat
