@@ -329,7 +329,7 @@ Type the word '$value' to continue, or any other input to abort."
 easyrsa_mktemp() {
 	[ -n "$EASYRSA_TEMP_DIR_session" ] || die "EASYRSA_TEMP_DIR_session not initialized!"
 	[ -d "$EASYRSA_TEMP_DIR_session" ] || mkdir -p "$EASYRSA_TEMP_DIR_session" ||
-	       die "Could not create temporary directory '$EASYRSA_TEMP_DIR_session'. Permission or concurrency problem?"
+		die "Could not create temporary directory '$EASYRSA_TEMP_DIR_session'. Permission or concurrency problem?"
 	[ -d "$EASYRSA_TEMP_DIR_session" ] || die "Temporary directory '$EASYRSA_TEMP_DIR_session' does not exist"
 
 	tempfile="$EASYRSA_TEMP_DIR_session/tmp.$($EASYRSA_OPENSSL rand -hex 3)" || return
@@ -784,6 +784,7 @@ current CA keypair. If you intended to start a new CA, run init-pki first."
 			crypto_opts="-passin file:$out_key_pass_tmp"
 		else
 			crypto_opts="$no_password"
+
 		fi
 
 		#shellcheck disable=SC2086
@@ -1223,8 +1224,7 @@ input in file: $req_in"
 	[ -e "$key_in" ] && mv "$key_in" "$key_by_serial_revoked"
 
 	# move the rest of the files (p12, p7, ...)
-	# shellcheck disable=SC2231
-	for file in $EASYRSA_PKI/private/$1\.???
+	for file in "$EASYRSA_PKI/private/$1"\.???
 	do
 		# get file extension
 		file_ext="${file##*.}"
@@ -1275,17 +1275,17 @@ at: $crt_in"
 		easyrsa_openssl x509 -in "$crt_in" -noout -enddate |
 		sed 's/^notAfter=//'
 		)
-        case $(uname 2>/dev/null) in
-        	"Darwin"|*"BSD")
-                	expire_date=$(date -j -f '%b %d %T %Y %Z' "$expire_date" +%s)
-                	allow_renew_date=$(date -j -v"+${EASYRSA_CERT_RENEW}d" +%s)
-                	;;
-          	*)
-                	# This works on Windows, too, since uname doesn't exist and this is catch-all
-                	expire_date=$(date -d "$expire_date" +%s)
-                	allow_renew_date=$(date -d "+${EASYRSA_CERT_RENEW}day" +%s)
-                	;;
-        esac
+		case $(uname 2>/dev/null) in
+			"Darwin"|*"BSD")
+				expire_date=$(date -j -f '%b %d %T %Y %Z' "$expire_date" +%s)
+				allow_renew_date=$(date -j -v"+${EASYRSA_CERT_RENEW}d" +%s)
+				;;
+			*)
+				# This works on Windows, too, since uname doesn't exist and this is catch-all
+				expire_date=$(date -d "$expire_date" +%s)
+				allow_renew_date=$(date -d "+${EASYRSA_CERT_RENEW}day" +%s)
+				;;
+		esac
 
 	[ "$expire_date" -lt "$allow_renew_date" ] || die "\
 Certificate expires in more than $EASYRSA_CERT_RENEW days.
@@ -1389,8 +1389,7 @@ input in file: $req_in"
 	[ -e "$key_in" ] && mv "$key_in" "$key_by_serial_renewed"
 
 	# move the rest of the files (p12, p7, ...)
-	# shellcheck disable=SC2231
-	for file in $EASYRSA_PKI/private/$1\.???
+	for file in "$EASYRSA_PKI/private/$1"\.???
 	do
 		# get file extension
 		file_ext="${file##*.}"
@@ -1487,11 +1486,12 @@ Run easyrsa without commands for usage and command help."
 	done
 
 	pkcs_opts=
+	pkcs_certfile_path=
 	if [ $want_ca ]; then
 		verify_file x509 "$crt_ca" || die "\
 Unable to include CA cert in the $pkcs_type output (missing file, or use noca option.)
 Missing file expected at: $crt_ca"
-		pkcs_opts="$pkcs_opts -certfile $crt_ca"
+		pkcs_certfile_path="$crt_ca"
 	fi
 
 	# input files must exist
@@ -1509,13 +1509,14 @@ Unable to export p12 for short name '$short_name' without the key
 (if you want a p12 without the private key, use nokey option.)
 Missing key expected at: $key_in"
 		else
-			pkcs_opts="$pkcs_opts -nokeys"
+			pkcs_opts="-nokeys"
 		fi
 
 		# export the p12:
 		# shellcheck disable=SC2086
 		easyrsa_openssl pkcs12 -in "$crt_in" -inkey "$key_in" -export \
-			-out "$pkcs_out" $pkcs_opts ${EASYRSA_PASSIN:+-passin "$EASYRSA_PASSIN"} ${EASYRSA_PASSOUT:+-passout "$EASYRSA_PASSOUT"} || die "\
+			-out "$pkcs_out" $pkcs_opts ${pkcs_certfile_path:+-certfile "$pkcs_certfile_path"} \
+			${EASYRSA_PASSIN:+-passin "$EASYRSA_PASSIN"} ${EASYRSA_PASSOUT:+-passout "$EASYRSA_PASSOUT"} || die "\
 Export of p12 failed: see above for related openssl errors."
 	;;
 	p7)
@@ -1524,14 +1525,13 @@ Export of p12 failed: see above for related openssl errors."
 		# export the p7:
 		# shellcheck disable=SC2086
 		easyrsa_openssl crl2pkcs7 -nocrl -certfile "$crt_in" \
-			-out "$pkcs_out" $pkcs_opts ${EASYRSA_PASSIN:+-passin "$EASYRSA_PASSIN"} ${EASYRSA_PASSOUT:+-passout "$EASYRSA_PASSOUT"} || die "\
+			-out "$pkcs_out" ${pkcs_certfile_path:+-certfile "$pkcs_certfile_path"} \
+			${EASYRSA_PASSIN:+-passin "$EASYRSA_PASSIN"} ${EASYRSA_PASSOUT:+-passout "$EASYRSA_PASSOUT"} || die "\
 Export of p7 failed: see above for related openssl errors."
 	;;
 	p8)
 		if [ -z $want_pass ]; then
 			pkcs_opts="-nocrypt"
-		else
-			pkcs_opts=""
 		fi
 		pkcs_out="$EASYRSA_PKI/private/$short_name.p8"
 
