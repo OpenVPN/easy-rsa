@@ -4,4 +4,4 @@ basicConstraints = CA:FALSE
 subjectKeyIdentifier = hash
 authorityKeyIdentifier = keyid,issuer:always
 extendedKeyUsage = serverAuth,clientAuth
-keyUsage = digitalSignature,keyEncipherment
+keyUsage = critical, digitalSignature, keyEncipherment

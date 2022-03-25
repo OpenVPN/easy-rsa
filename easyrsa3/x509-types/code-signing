@@ -3,5 +3,5 @@
 basicConstraints = CA:FALSE
 subjectKeyIdentifier = hash
 authorityKeyIdentifier = keyid,issuer:always
-extendedKeyUsage = codeSigning
-keyUsage = digitalSignature
+extendedKeyUsage = critical, codeSigning
+keyUsage = critical, digitalSignature
