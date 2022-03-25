@@ -573,6 +573,233 @@ Your newly created PKI dir is: $EASYRSA_PKI
 	return 0
 } # => init_pki()
 
+# Copy data-files from various sources
+install_data_to_pki ()
+{
+	# This function is here to explicitly copy data-files to the PKI.
+	# During 'init-pki' this is the new default.
+	# During all other functions these requirements are tested for and
+	# files will be copied to the PKI, if they do not already exist there.
+	#
+	# One of the reasons for this change is to make packing EasyRSA work.
+	# This function searches favoured and then common 'areas' for the
+	# EasyRSA data-files*:
+	#   'openssl-easyrsa.cnf' 'x509-types':(folder).
+	#
+	# These files MUST be found in at least one location and will be copied
+	# to the current PKI, if they do not already exist there.
+	#
+	#
+	# Other EasyRSA data-files*: it is not crucial that these are found
+	# but if they are then they are also copied to the PKI.
+	#   'vars' 'vars.example'
+	#
+	#
+	# For 'vars' consideration must be given to:
+	#   "Where the user expects to find vars!"
+	#
+	# Currently, *if* 'vars' is copied to the PKI then the PKI 'vars' will take
+	# priority over './vars'. But it will not be updated if './vars' is changed.
+	#
+	# Copying 'vars' to the PKI is complicated, code is included but DISABLED.
+
+	# Set supported sources
+	source_vars="vars"
+	source_vars_example="vars.example"
+	source_file="openssl-easyrsa.cnf"
+	source_dir="x509-types"
+
+	# Only use if required
+	if [ -e "$EASYRSA_PKI_SAFE_CONF" ] && \
+		[ -e "${EASYRSA_PKI}/${source_vars}" ] && \
+		[ -e "${EASYRSA_PKI}/${source_vars_example}" ] && \
+		[ -e "${EASYRSA_PKI}/${source_file}" ] && \
+		[ -e "${EASYRSA_PKI}/${source_dir}" ]
+	then
+		return 0
+	fi
+
+	# PWD covers EasyRSA-Windows installed by OpenVPN, and git forks
+	area_pwd="$PWD"
+	# I have no idea
+	area_prog="${0%/*}"
+	# Sensible default - Includes: Arch-Linux
+	area_etc="/etc/easy-rsa"
+	# Exandable distros
+	area_ubuntu="/usr/share/easy-rsa"
+	# Add more distros here
+
+	# Initialize
+	unset -v \
+		found_pwd_vars \
+		found_pwd_vars_example \
+		found_pwd_file \
+		found_pwd_dir \
+		found_prog_vars \
+		found_prog_vars_example \
+		found_prog_file \
+		found_prog_dir \
+		found_etc_vars \
+		found_etc_vars_example \
+		found_etc_file \
+		found_etc_dir \
+		found_ubuntu_vars \
+		found_ubuntu_vars_example \
+		found_ubuntu_file \
+		found_ubuntu_dir
+	# EOL - Add more distros here
+
+	# Find source
+	# PWD
+	[ -e "${area_pwd}/${source_vars}" ] && \
+		found_pwd_vars="${area_pwd}/${source_vars}"
+	[ -e "${area_pwd}/${source_vars_example}" ] && \
+		found_pwd_vars_example="${area_pwd}/${source_vars_example}"
+	[ -e "${area_pwd}/${source_file}" ] && \
+		found_pwd_file="${area_pwd}/${source_file}"
+	[ -d "${area_pwd}/${source_dir}" ] && \
+		found_pwd_dir="${area_pwd}/${source_dir}"
+	# prog_dir
+	[ -e "${area_prog}/${source_vars}" ] && \
+		found_prog_vars="${area_prog}/${source_vars}"
+	[ -e "${area_prog}/${source_vars_example}" ] && \
+		found_prog_vars_example="${area_prog}/${source_vars_example}"
+	[ -e "${area_prog}/${source_file}" ] && \
+		found_prog_file="${area_prog}/${source_file}"
+	[ -d "${area_prog}/${source_dir}" ] && \
+		found_prog_dir="${area_prog}/${source_dir}"
+	# etc
+	[ -e "${area_etc}/${source_vars}" ] && \
+		found_etc_vars="${area_etc}/${source_vars}"
+	[ -e "${area_etc}/${source_vars_example}" ] && \
+		found_etc_vars_example="${area_etc}/${source_vars_example}"
+	[ -e "${area_etc}/${source_file}" ] && \
+		found_etc_file="${area_etc}/${source_file}"
+	[ -d "${area_etc}/${source_dir}" ] && \
+		found_etc_dir="${area_etc}/${source_dir}"
+	# ubuntu
+	[ -e "${area_ubuntu}/${source_vars}" ] && \
+		found_ubuntu_vars="${area_ubuntu}/${source_vars}"
+	[ -e "${area_ubuntu}/${source_vars_example}" ] && \
+		found_ubuntu_vars_example="${area_ubuntu}/${source_vars_example}"
+	[ -e "${area_ubuntu}/${source_file}" ] && \
+		found_ubuntu_file="${area_ubuntu}/${source_file}"
+	[ -d "${area_ubuntu}/${source_dir}" ] && \
+		found_ubuntu_dir="${area_ubuntu}/${source_dir}"
+	# Add more distros here
+
+	# Copy 'vars' from source by specific priority
+	if [ -e "${EASYRSA_PKI}/${source_vars}" ]; then
+		: # ok
+	elif : ; then
+		# Disable copying 'vars' for the time being
+		: # ok
+	else
+		unset -v recurse
+		# PWD
+		if [ "$found_pwd_vars" ]; then
+			copy_data_to_pki "$found_pwd_file" || return
+			#mv "$found_pwd_file" "$EASYRSA_PKI" || return
+		# prog_dir
+		elif [ "$found_prog_vars" ]; then
+			copy_data_to_pki "$found_prog_file" || return
+		# etc
+		elif [ "$found_etc_vars" ]; then
+			copy_data_to_pki "$found_etc_file" || return
+		# ubuntu
+		elif [ "$found_ubuntu_vars" ]; then
+			copy_data_to_pki "$found_ubuntu_file" || return
+		# Add more distros here
+		# ERROR
+		else
+			die "install_data_to_pki - cannot find a vars file."
+		fi
+	fi
+
+	# Copy 'vars.example' from source by specific priority
+	if [ -e "${EASYRSA_PKI}/${source_vars_example}" ]; then
+		: # ok
+	else
+		unset -v recurse
+		# PWD
+		if [ "$found_pwd_vars_example" ]; then
+			copy_data_to_pki "$found_pwd_vars_example" || return
+		# prog_dir
+		elif [ "$found_prog_vars_example" ]; then
+			copy_data_to_pki "$found_prog_vars_example" || return
+		# etc
+		elif [ "$found_etc_vars_example" ]; then
+			copy_data_to_pki "$found_etc_vars_example" || return
+		# ubuntu
+		elif [ "$found_ubuntu_vars_example" ]; then
+			copy_data_to_pki "$found_ubuntu_vars_example" || return
+		# Add more distros here
+		# ERROR
+		else
+			die "install_data_to_pki - cannot find a vars file."
+		fi
+	fi
+
+	# Copy FILE from source by specific priority
+	if [ -e "${EASYRSA_PKI}/${source_file}" ]; then
+		: # ok
+	else
+		unset -v recurse
+		# PWD
+		if [ "$found_pwd_file" ]; then
+			copy_data_to_pki "$found_pwd_file" || return
+		# prog_dir
+		elif [ "$found_prog_file" ]; then
+			copy_data_to_pki "$found_prog_file" || return
+		# etc
+		elif [ "$found_etc_file" ]; then
+			copy_data_to_pki "$found_etc_file" || return
+		# ubuntu
+		elif [ "$found_ubuntu_file" ]; then
+			copy_data_to_pki "$found_ubuntu_file" || return
+		# Add more distros here
+		# ERROR
+		else
+			die "install_data_to_pki - cannot find a source file."
+		fi
+	fi
+
+	# Copy DIR from source by specific priority
+	if [ -e "${EASYRSA_PKI}/${source_dir}" ]; then
+		: # ok
+	else
+		recurse=1
+		# PWD
+		if [ "$found_pwd_dir" ]; then
+			copy_data_to_pki "$found_pwd_dir" || return
+		# prog_dir
+		elif [ "$found_prog_dir" ]; then
+			copy_data_to_pki "$found_prog_dir" || return
+		# etc
+		elif [ "$found_etc_dir" ]; then
+			copy_data_to_pki "$found_etc_dir" || return
+		# ubuntu
+		elif [ "$found_ubuntu_dir" ]; then
+			copy_data_to_pki "$found_ubuntu_dir" || return
+		# Add more distros here
+		# ERROR
+		else
+			die "install_data_to_pki - cannot find a source dir."
+		fi
+	fi
+
+	# Check or error
+	easyrsa_openssl makesafeconf || \
+		die "Failed to make safe SSL config file in PKI."
+} # => install_data_to_pki ()
+
+# Copy the source to the PKI
+copy_data_to_pki ()
+{
+	cp ${recurse:+-r} "$1" "$EASYRSA_PKI"
+} # => copy_data_to_pki ()
+
+# Disable terminal echo, if possible, otherwise warn
 hide_read_pass()
 {
 	# shellcheck disable=SC2039
