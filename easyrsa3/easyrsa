@@ -2031,7 +2031,7 @@ Note: using Easy-RSA configuration from: $vars"
 	fi
 
 	# Set defaults, preferring existing env-vars if present
-	set_var EASYRSA		"$prog_dir"
+	set_var EASYRSA		"$PWD"
 	set_var EASYRSA_OPENSSL	openssl
 	set_var EASYRSA_PKI	"$PWD/pki"
 	set_var EASYRSA_DN	cn_only
