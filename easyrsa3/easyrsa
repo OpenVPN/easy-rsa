@@ -464,6 +464,7 @@ verify_ssl_lib () {
 				osslv_major="${osslv_major%%.*}"
 				case "$osslv_major" in
 					1) no_password='-nodes' ;;
+					2) no_password='-nodes' ;; # LibreSSL Only
 					3) no_password='-noenc' ;;
 					*) die "Unsupported SSL library: $osslv_major"
 				esac
@@ -735,8 +736,8 @@ current CA keypair. If you intended to start a new CA, run init-pki first."
 	;;
 	# END SSL V3
 
-	# BEGIN SSL V1
-	1)
+	# BEGIN SSL V1 - Includes LibreSSL 2.x
+	1|2)
 		# If encrypted then create the CA key using AES256 cipher ($crypto)
 		crypto_opts=""
 		if [ ! $nopass ]; then
