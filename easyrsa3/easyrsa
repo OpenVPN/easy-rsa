@@ -362,7 +362,7 @@ easyrsa_openssl() {
 		*) : ;; # ok
 		esac
 	;;
-	1)	: ;; # ok
+	1|2)	: ;; # ok - LibreSSL 2.x
 	'')	: ;; # Unset then this is init-pki
 	*)	die "Unsupported openssl version: $osslv_major"
 	esac
