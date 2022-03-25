@@ -9,4 +9,4 @@
 basicConstraints = critical, CA:TRUE
 subjectKeyIdentifier = hash
 authorityKeyIdentifier = keyid:always,issuer:always
-keyUsage = critical, cRLSign, keyCertSign
+keyUsage = critical, cRLSign, digitalSignature, keyCertSign
