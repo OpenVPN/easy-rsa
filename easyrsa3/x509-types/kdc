@@ -2,7 +2,7 @@
 
 basicConstraints = CA:FALSE
 subjectKeyIdentifier = hash
-authorityKeyIdentifier = keyid,issuer:always
+authorityKeyIdentifier = keyid:always
 extendedKeyUsage = 1.3.6.1.5.2.3.5
 keyUsage = nonRepudiation,digitalSignature,keyEncipherment,keyAgreement
 issuerAltName = issuer:copy

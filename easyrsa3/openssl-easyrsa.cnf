@@ -113,7 +113,7 @@ serialNumber_default	= $ENV::EASYRSA_REQ_SERIAL
 [ basic_exts ]
 basicConstraints	= CA:FALSE
 subjectKeyIdentifier	= hash
-authorityKeyIdentifier	= keyid,issuer:always
+authorityKeyIdentifier	= keyid:always
 
 # The Easy-RSA CA extensions
 [ easyrsa_ca ]
@@ -121,7 +121,6 @@ authorityKeyIdentifier	= keyid,issuer:always
 # PKIX recommendations:
 
 subjectKeyIdentifier=hash
-authorityKeyIdentifier=keyid:always,issuer:always
 
 # This could be marked critical, but it's nice to support reading by any
 # broken clients who attempt to do so.
@@ -143,4 +142,4 @@ keyUsage = cRLSign, keyCertSign
 # Only issuerAltName and authorityKeyIdentifier make any sense in a CRL.
 
 # issuerAltName=issuer:copy
-authorityKeyIdentifier=keyid:always,issuer:always
+authorityKeyIdentifier=keyid:always
