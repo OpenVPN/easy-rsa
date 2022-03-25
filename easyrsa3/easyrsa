@@ -574,8 +574,7 @@ Your newly created PKI dir is: $EASYRSA_PKI
 } # => init_pki()
 
 # Copy data-files from various sources
-install_data_to_pki ()
-{
+install_data_to_pki () {
 	# This function is here to explicitly copy data-files to the PKI.
 	# During 'init-pki' this is the new default.
 	# During all other functions these requirements are tested for and
@@ -736,7 +735,7 @@ install_data_to_pki ()
 		# Add more distros here
 		# ERROR
 		else
-			die "install_data_to_pki - cannot find a vars file."
+			warn "install_data_to_pki - cannot find a vars.example file."
 		fi
 	fi
 
@@ -794,8 +793,7 @@ install_data_to_pki ()
 } # => install_data_to_pki ()
 
 # Copy the source to the PKI
-copy_data_to_pki ()
-{
+copy_data_to_pki () {
 	cp ${recurse:+-r} "$1" "$EASYRSA_PKI"
 } # => copy_data_to_pki ()
 
