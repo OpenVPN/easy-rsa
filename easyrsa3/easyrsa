@@ -613,8 +613,8 @@ install_data_to_pki () {
 	source_dir="x509-types"
 
 	# Only use if required
+	# Omit 'vars' - [ -e "${EASYRSA_PKI}/${source_vars}" ] &&
 	if [ -e "$EASYRSA_PKI_SAFE_CONF" ] && \
-		[ -e "${EASYRSA_PKI}/${source_vars}" ] && \
 		[ -e "${EASYRSA_PKI}/${source_vars_example}" ] && \
 		[ -e "${EASYRSA_PKI}/${source_file}" ] && \
 		[ -e "${EASYRSA_PKI}/${source_dir}" ]
@@ -633,7 +633,13 @@ install_data_to_pki () {
 	# Add more distros here
 
 	# Find and copy data-files, in specific order
-	for area in "$area_pwd" "$area_prog" "$area_etc" "$area_ubuntu"; do
+	for area in \
+				"$area_pwd" \
+				"$area_prog" \
+				"$area_etc" \
+				"$area_ubuntu" \
+				# EOL - # Add more distros here
+	do
 		# Omitting "$source_vars"
 		for source in "$source_vars_example" "$source_file"; do
 			# Find each item
