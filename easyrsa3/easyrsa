@@ -579,34 +579,35 @@ Your newly created PKI dir is: $EASYRSA_PKI
 
 # Copy data-files from various sources
 install_data_to_pki () {
-	# This function is here to explicitly copy data-files to the PKI.
-	# During 'init-pki' this is the new default.
-	# During all other functions these requirements are tested for and
-	# files will be copied to the PKI, if they do not already exist there.
-	#
-	# One of the reasons for this change is to make packing EasyRSA work.
-	# This function searches favoured and then common 'areas' for the
-	# EasyRSA data-files*:
-	#   'openssl-easyrsa.cnf' 'x509-types':(folder).
-	#
-	# These files MUST be found in at least one location and will be copied
-	# to the current PKI, if they do not already exist there.
-	#
-	#
-	# Other EasyRSA data-files*: it is not crucial that these are found
-	# but if they are then they are also copied to the PKI.
-	#   'vars' 'vars.example'
-	#
-	#
-	# For 'vars' consideration must be given to:
-	#   "Where the user expects to find vars!"
-	#
-	# Currently, *if* 'vars' is copied to the PKI then the PKI 'vars' will take
-	# priority over './vars'. But it will not be updated if './vars' is changed.
-	#
-	# Copying 'vars' to the PKI is complicated, code is included but DISABLED.
+#
+# This function is here to explicitly copy data-files to the PKI.
+# During 'init-pki' this is the new default.
+# During all other functions these requirements are tested for and
+# files will be copied to the PKI, if they do not already exist there.
+#
+# One of the reasons for this change is to make packing EasyRSA work.
+# This function searches favoured and then common 'areas' for the
+#   EasyRSA data-files(A):
+#     'openssl-easyrsa.cnf' 'x509-types':(folder).
+#
+# These files MUST be found in at least one location and will be copied
+# to the current PKI, if they do not already exist there.
+#
+#
+# Other EasyRSA data-files(B): it is not crucial that these are found
+# but if they are then they are also copied to the PKI.
+#   'vars' 'vars.example'
+#
+#
+# For 'vars' consideration must be given to:
+#   "Where the user expects to find vars!"
+#
+# Currently, *if* 'vars' is copied to the PKI then the PKI 'vars' will take
+# priority over './vars'. But it will not be updated if './vars' is changed.
+#
+# Copying 'vars' to the PKI is complicated, code is included but DISABLED.
 
-	# Set supported sources
+	# Set required sources
 	source_vars='vars'
 	source_vars_example='vars.example'
 	source_file='openssl-easyrsa.cnf'
@@ -668,9 +669,9 @@ install_data_to_pki () {
 		fi
 	done
 
-	# Check PKI is updated - Omit 'vars'
+	# Check PKI is updated - Omit 'vars' and example.
 	#[ -e "${EASYRSA_PKI}/${source_vars}" ] || return
-	[ -e "${EASYRSA_PKI}/${source_vars_example}" ] || return
+	#[ -e "${EASYRSA_PKI}/${source_vars_example}" ] || return
 	[ -e "${EASYRSA_PKI}/${source_file}" ] || return
 	[ -e "${EASYRSA_PKI}/${source_dir}" ] || return
 
