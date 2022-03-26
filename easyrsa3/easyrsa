@@ -680,7 +680,7 @@ install_data_to_pki () {
 
 # Copy the source to the PKI
 copy_data_to_pki () {
-	cp ${2:+-r} "$1" "$EASYRSA_PKI"
+	cp ${2:+-R} "$1" "$EASYRSA_PKI"
 } # => copy_data_to_pki ()
 
 # Disable terminal echo, if possible, otherwise warn
