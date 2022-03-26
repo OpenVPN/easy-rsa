@@ -607,10 +607,10 @@ install_data_to_pki () {
 	# Copying 'vars' to the PKI is complicated, code is included but DISABLED.
 
 	# Set supported sources
-	source_vars="vars"
-	source_vars_example="vars.example"
-	source_file="openssl-easyrsa.cnf"
-	source_dir="x509-types"
+	source_vars='vars'
+	source_vars_example='vars.example'
+	source_file='openssl-easyrsa.cnf'
+	source_dir='x509-types'
 
 	# Only use if required
 	# Omit 'vars' - [ -e "${EASYRSA_PKI}/${source_vars}" ] &&
@@ -624,42 +624,47 @@ install_data_to_pki () {
 
 	# PWD covers EasyRSA-Windows installed by OpenVPN, and git forks
 	area_pwd="$PWD"
-	# I have no idea
+	# Old way
 	area_prog="${0%/*}"
 	# Sensible default - Includes: Arch-Linux
-	area_etc="/etc/easy-rsa"
-	# Exandable distros
-	area_ubuntu="/usr/share/easy-rsa"
+	area_etc='/etc/easy-rsa'
+	# Expandable distros
+	area_ubuntu='/usr/share/easy-rsa'
 	# Add more distros here
 
 	# Find and copy data-files, in specific order
 	for area in \
-				"$area_pwd" \
-				"$area_prog" \
-				"$area_etc" \
-				"$area_ubuntu" \
-				# EOL - # Add more distros here
+		"$area_pwd" \
+		"$area_prog" \
+		"$area_etc" \
+		"$area_ubuntu" \
+		# EOL - # Add more distros here
 	do
 		# Omitting "$source_vars"
-		for source in "$source_vars_example" "$source_file"; do
+		for source in \
+			"$source_vars_example" \
+			"$source_file" \
+			# EOL - Do x509-types separately
+		do
 			# Find each item
 			[ -e "${area}/${source}" ] || continue
+
 			# If the item does not exist in the PKI then copy it.
 			if [ -e "${EASYRSA_PKI}/${source}" ]; then
 				continue
 			else
-				unset -v recurse
 				copy_data_to_pki "${area}/${source}" || return
 			fi
 		done
+
 		# Find x509-types
 		[ -e "${area}/${source_dir}" ] || continue
-		# If the item does not exist in the PKI then copy it.
+
+		# If x509-types does not exist in the PKI then copy it.
 		if [ -e "${EASYRSA_PKI}/${source_dir}" ]; then
 			continue
 		else
-			recurse=1
-			copy_data_to_pki "${area}/${source_dir}" || return
+			copy_data_to_pki "${area}/${source_dir}" recurse || return
 		fi
 	done
 
@@ -675,7 +680,7 @@ install_data_to_pki () {
 
 # Copy the source to the PKI
 copy_data_to_pki () {
-	cp ${recurse:+-r} "$1" "$EASYRSA_PKI"
+	cp ${2:+-r} "$1" "$EASYRSA_PKI"
 } # => copy_data_to_pki ()
 
 # Disable terminal echo, if possible, otherwise warn
