@@ -1526,10 +1526,9 @@ Run easyrsa without commands for usage help."
 		in_file="$EASYRSA_PKI/issued/${name}.crt"
 		format="x509"
  	elif [ "$type" = "cert-revocation" ]; then
-	        crl="$EASYRSA_PKI/ca+crl.pem"
+	        crl="$EASYRSA_PKI/crl.pem"
 	        [ -e "$crl" ] || die "\
-Missing expected CRL file: $crl"
-	    
+Missing expected CRL file: $crl, perhaps run gen-crl first"
  		verify_ca_init
  		in_file="$EASYRSA_PKI/issued/${name}.crt"
  		format="verify -crl_check -CAfile $crl"
