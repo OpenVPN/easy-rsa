@@ -199,7 +199,7 @@ fi
 # specific and you cannot just use a standard config file, so this is an
 # advanced feature.
 
-#set_var EASYRSA_SSL_CONF	"$EASYRSA/openssl-easyrsa.cnf"
+#set_var EASYRSA_SSL_CONF	"$EASYRSA_PKI/openssl-easyrsa.cnf"
 
 # Default CN:
 # This is best left alone. Interactively you will set this manually, and BATCH
