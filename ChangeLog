@@ -1,6 +1,8 @@
 Easy-RSA 3 ChangeLog
 
 3.0.9 (TBD)
+   * Improve packaging options (#510)
+   * Introduce basic support for OpenSSL version 3 (#492)
    * Upgrade OpenSSL from 1.1.0j to 1.1.1m (#405, #407) 
    * Fix --version so it uses EASYRSA_OPENSSL (#416)
    * Use openssl rand instead of non-POSIX mktemp (#478)
