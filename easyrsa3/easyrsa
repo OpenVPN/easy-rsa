@@ -559,11 +559,16 @@ and initialize a fresh PKI here."
 		mkdir -p "$EASYRSA_PKI/$i" || die "Failed to create PKI file structure (permissions?)"
 	done
 
-	# Create $EASYRSA_SAFE_CONF ($OPENSSL_CONF) prevents bogus warnings (especially useful on win32)
-	if [ ! -f "$EASYRSA_SSL_CONF" ] && [ -f "$EASYRSA/openssl-easyrsa.cnf" ];
-	then
-		cp "$EASYRSA/openssl-easyrsa.cnf" "$EASYRSA_SSL_CONF"
-		easyrsa_openssl makesafeconf
+	# Install data-files into ALL new PKIs
+	install_data_to_pki || \
+		warn "Failed to install required data-files to PKI. (init)"
+
+	# Verify that $EASYRSA_SAFE_CONF exists ($OPENSSL_CONF)
+	# Prevents bogus warnings (especially useful on win32)
+	if [ -n "$EASYRSA_SAFE_CONF" ] && [ -e "$EASYRSA_SAFE_CONF" ]; then
+		: # ok
+	else
+		die "init-pki failed to create safe SSL conf: $EASYRSA_SAFE_CONF"
 	fi
 
 	notice "\
@@ -573,6 +578,111 @@ Your newly created PKI dir is: $EASYRSA_PKI
 	return 0
 } # => init_pki()
 
+# Copy data-files from various sources
+install_data_to_pki () {
+#
+# This function is here to explicitly copy data-files to the PKI.
+# During 'init-pki' this is the new default.
+# During all other functions these requirements are tested for and
+# files will be copied to the PKI, if they do not already exist there.
+#
+# One of the reasons for this change is to make packing EasyRSA work.
+# This function searches favoured and then common 'areas' for the
+#   EasyRSA data-files(A):
+#     'openssl-easyrsa.cnf' 'x509-types':(folder).
+#
+# These files MUST be found in at least one location and will be copied
+# to the current PKI, if they do not already exist there.
+#
+#
+# Other EasyRSA data-files(B): it is not crucial that these are found
+# but if they are then they are also copied to the PKI.
+#   'vars' 'vars.example'
+#
+#
+# For 'vars' consideration must be given to:
+#   "Where the user expects to find vars!"
+#
+# Currently, *if* 'vars' is copied to the PKI then the PKI 'vars' will take
+# priority over './vars'. But it will not be updated if './vars' is changed.
+#
+# Copying 'vars' to the PKI is complicated, code is included but DISABLED.
+
+	# Set required sources
+	vars_file='vars'
+	vars_file_example='vars.example'
+	ssl_cnf_file='openssl-easyrsa.cnf'
+	x509_types_dir='x509-types'
+
+	# Only use if required
+	# Omit 'vars' - [ -e "${EASYRSA_PKI}/${vars_file}" ] &&
+	if [ -e "$EASYRSA_SAFE_CONF" ] && \
+		[ -e "${EASYRSA_PKI}/${vars_file_example}" ] && \
+		[ -e "${EASYRSA_PKI}/${ssl_cnf_file}" ] && \
+		[ -e "${EASYRSA_PKI}/${x509_types_dir}" ]
+	then
+		return 0
+	fi
+
+	# PWD - Covers EasyRSA-Windows installed by OpenVPN, and git forks
+	# "prog_dir" - Old way
+	# /etc/easy-rsa - Sensible default - Includes: Arch, hopefully others agree..
+	# /usr/share/easy-rsa - usr
+	# /usr/local/share/easy-rsa - usr/local
+
+	# Find and copy data-files, in specific order
+	for area in \
+		"$PWD" \
+		"${0%/*}" \
+		'/etc/easy-rsa' \
+		'/usr/share/easy-rsa' \
+		'/usr/local/share/easy-rsa' \
+		# EOL - # Add more distros here
+	do
+		# Omitting "$vars_file"
+		for source in \
+			"$vars_file_example" \
+			"$ssl_cnf_file" \
+			# EOL - Do x509-types separately
+		do
+			# Find each item
+			[ -e "${area}/${source}" ] || continue
+
+			# If the item does not exist in the PKI then copy it.
+			if [ -e "${EASYRSA_PKI}/${source}" ]; then
+				continue
+			else
+				copy_data_to_pki "${area}/${source}" || return
+			fi
+		done
+
+		# Find x509-types
+		[ -e "${area}/${x509_types_dir}" ] || continue
+
+		# If x509-types does not exist in the PKI then copy it.
+		if [ -e "${EASYRSA_PKI}/${x509_types_dir}" ]; then
+			continue
+		else
+			copy_data_to_pki "${area}/${x509_types_dir}" recurse || return
+		fi
+	done
+
+	# Check PKI is updated - Omit 'vars' and example.
+	#[ -e "${EASYRSA_PKI}/${vars_file}" ] || return
+	#[ -e "${EASYRSA_PKI}/${vars_file_example}" ] || return
+	[ -e "${EASYRSA_PKI}/${ssl_cnf_file}" ] || return
+	[ -e "${EASYRSA_PKI}/${x509_types_dir}" ] || return
+
+	# Complete or error
+	[ -e "$EASYRSA_SAFE_CONF" ] || easyrsa_openssl makesafeconf
+} # => install_data_to_pki ()
+
+# Copy the source to the PKI
+copy_data_to_pki () {
+	cp ${2:+-R} "$1" "$EASYRSA_PKI"
+} # => copy_data_to_pki ()
+
+# Disable terminal echo, if possible, otherwise warn
 hide_read_pass()
 {
 	# shellcheck disable=SC2039
@@ -1806,7 +1916,7 @@ Note: using Easy-RSA configuration from: $vars"
 	fi
 
 	# Set defaults, preferring existing env-vars if present
-	set_var EASYRSA		"$prog_dir"
+	set_var EASYRSA		"$PWD"
 	set_var EASYRSA_OPENSSL	openssl
 	set_var EASYRSA_PKI	"$PWD/pki"
 	set_var EASYRSA_DN	cn_only
@@ -1833,14 +1943,6 @@ Note: using Easy-RSA configuration from: $vars"
 	set_var EASYRSA_SAFE_CONF	"$EASYRSA_PKI/safessl-easyrsa.cnf"
 	set_var EASYRSA_KDC_REALM	"CHANGEME.EXAMPLE.COM"
 
-	# Same as above for the x509-types extensions dir
-	if [ -d "$EASYRSA_PKI/x509-types" ]; then
-		set_var EASYRSA_EXT_DIR		"$EASYRSA_PKI/x509-types"
-	else
-		#TODO: This should be removed.  Not really suitable for packaging.
-		set_var EASYRSA_EXT_DIR		"$EASYRSA/x509-types"
-	fi
-
 	# EASYRSA_ALGO_PARAMS must be set depending on selected algo
 	case "$EASYRSA_ALGO" in
 	ec)		EASYRSA_ALGO_PARAMS="$EASYRSA_EC_DIR/${EASYRSA_CURVE}.pem" ;;
@@ -1849,26 +1951,68 @@ Note: using Easy-RSA configuration from: $vars"
 	*)		die "Alg '$EASYRSA_ALGO' is invalid: must be 'rsa', 'ec' or 'ed' "
 	esac
 
-	# Assign value to $EASYRSA_TEMP_DIR_session and work around Windows mktemp bug when parent dir is missing
+	# Assign value to $EASYRSA_TEMP_DIR_session
+	# and work-around Windows mktemp bug when parent dir is missing
+	#
+	# Bug: When the parent-dir is missing Windows'mktemp -du' fails.
+	# The work-around is to create the parent-dir, if it does not exist.
+	# The reason it does not exist is because 'init-pki' has not been run.
+	# Use the same gaurd against a missing PKI; Only set variables which
+	# require a PKI, eg '$EASYRSA_PKI', if there is a PKI !
+	#
+	# Also, integrate a partial 'init-pki' by using 'install_data_to_pki()'
+	#
 	if [ -z "$EASYRSA_TEMP_DIR_session" ]; then
 		if [ -d "$EASYRSA_TEMP_DIR" ]; then
-			EASYRSA_TEMP_DIR_session="$(mktemp -du "$EASYRSA_TEMP_DIR/easy-rsa-$$.XXXXXX")"
+			EASYRSA_TEMP_DIR_session="$(
+					mktemp -du "$EASYRSA_TEMP_DIR/easy-rsa-$$.XXXXXX"
+				)"
+
+			# Same as above for the x509-types extensions dir
+			if [ -d "$EASYRSA_PKI/x509-types" ]; then
+				set_var EASYRSA_EXT_DIR		"$EASYRSA_PKI/x509-types"
+			else
+
+			#TODO: This should be removed.  Not really suitable for packaging.
+			#set_var EASYRSA_EXT_DIR		"$EASYRSA/x509-types"
+
+			# Hard break from 'old' Easy-RSA, see obsolete comment above.
+				# Install data-files into ALL PKIs
+				install_data_to_pki || \
+					warn "Failed to install new required data-dir to PKI. (x509)"
+				set_var EASYRSA_EXT_DIR		"$EASYRSA_PKI/x509-types"
+			fi
+
+			# Setting EasyRSA specific OPENSSL_CONF to sanatized safe conf
+			if [ -e "$EASYRSA_SAFE_CONF" ]; then
+				export OPENSSL_CONF="$EASYRSA_SAFE_CONF"
+			else
+				# Install data-files into ALL PKIs
+				install_data_to_pki || \
+					warn "Failed to install new required data-files to PKI. (SSL)"
+				# EASYRSA_SAFE_CONF is output by
+				# 'install_data_to_pki()' via 'easyrsa_openssl() makesafeconf'
+				export OPENSSL_CONF="$EASYRSA_SAFE_CONF"
+			fi
+
+			# Upgrade to 306: Create $EASYRSA_SSL_CONF if it does not exist
+			# but only if $EASYRSA_PKI exists.
+			if [ ! -f "$EASYRSA_SSL_CONF" ] && \
+				[ -f "$EASYRSA/openssl-easyrsa.cnf" ] && [ -d "$EASYRSA_PKI" ];
+			then
+				cp "$EASYRSA/openssl-easyrsa.cnf" "$EASYRSA_SSL_CONF"
+				easyrsa_openssl makesafeconf
+			fi
+
 		else
 			# If the directory does not exist then we have not run init-pki
-			mkdir -p "$EASYRSA_TEMP_DIR" || die "Cannot create $EASYRSA_TEMP_DIR (permission?)"
-			EASYRSA_TEMP_DIR_session="$(mktemp -du "$EASYRSA_TEMP_DIR/easy-rsa-$$.XXXXXX")"
+			mkdir -p "$EASYRSA_TEMP_DIR" || \
+				die "Cannot create $EASYRSA_TEMP_DIR (permission?)"
+			EASYRSA_TEMP_DIR_session="$(
+					mktemp -du "$EASYRSA_TEMP_DIR/easy-rsa-$$.XXXXXX"
+				)"
 			rm -rf "$EASYRSA_TEMP_DIR"
 		fi
-	fi
-
-	# Setting OPENSSL_CONF prevents bogus warnings (especially useful on win32)
-	export OPENSSL_CONF="$EASYRSA_SAFE_CONF"
-
-	# Upgrade to 306: Create $EASYRSA_SSL_CONF if it does not exist but only if $EASYRSA_PKI exists.
-	if [ ! -f "$EASYRSA_SSL_CONF" ] && [ -f "$EASYRSA/openssl-easyrsa.cnf" ] && [ -d "$EASYRSA_PKI" ];
-	then
-		cp "$EASYRSA/openssl-easyrsa.cnf" "$EASYRSA_SSL_CONF"
-		easyrsa_openssl makesafeconf
 	fi
 
 } # vars_setup()
