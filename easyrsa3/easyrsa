@@ -560,7 +560,8 @@ and initialize a fresh PKI here."
 	done
 
 	# Install data-files into ALL new PKIs
-	install_data_to_pki || die "Failed to install required data-files to PKI."
+	install_data_to_pki || \
+		warn "Failed to install required data-files to PKI. (init)"
 
 	# Verify that $EASYRSA_SAFE_CONF exists ($OPENSSL_CONF)
 	# Prevents bogus warnings (especially useful on win32)
@@ -1980,7 +1981,8 @@ Note: using Easy-RSA configuration from: $vars"
 
 			# Hard break from 'old' Easy-RSA, see obsolete comment above.
 				# Install data-files into ALL PKIs
-				install_data_to_pki || die "Failed to install new required data-dir to PKI."
+				install_data_to_pki || \
+					warn "Failed to install new required data-dir to PKI. (x509)"
 				set_var EASYRSA_EXT_DIR		"$EASYRSA_PKI/x509-types"
 			fi
 
@@ -1989,7 +1991,8 @@ Note: using Easy-RSA configuration from: $vars"
 				export OPENSSL_CONF="$EASYRSA_SAFE_CONF"
 			else
 				# Install data-files into ALL PKIs
-				install_data_to_pki || die "Failed to install new required data-files to PKI."
+				install_data_to_pki || \
+					warn "Failed to install new required data-files to PKI. (SSL)"
 				# EASYRSA_SAFE_CONF is output by
 				# 'install_data_to_pki()' via 'easyrsa_openssl() makesafeconf'
 				export OPENSSL_CONF="$EASYRSA_SAFE_CONF"
