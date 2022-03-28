@@ -609,7 +609,7 @@ install_data_to_pki () {
 # Copying 'vars' to the PKI is complicated, code is included but DISABLED.
 
 	# Set required sources
-	vars_file='vars'
+	#vars_file='vars'
 	vars_file_example='vars.example'
 	ssl_cnf_file='openssl-easyrsa.cnf'
 	x509_types_dir='x509-types'
@@ -624,22 +624,19 @@ install_data_to_pki () {
 		return 0
 	fi
 
-	# PWD covers EasyRSA-Windows installed by OpenVPN, and git forks
-	area_pwd="$PWD"
-	# Old way
-	area_prog="${0%/*}"
-	# Sensible default - Includes: Arch-Linux
-	area_etc='/etc/easy-rsa'
-	# Expandable distros
-	area_ubuntu='/usr/share/easy-rsa'
-	# Add more distros here
+	# PWD - Covers EasyRSA-Windows installed by OpenVPN, and git forks
+	# "prog_dir" - Old way
+	# /etc/easy-rsa - Sensible default - Includes: Arch, hopefully others agree..
+	# /usr/share/easy-rsa - usr
+	# /usr/local/share/easy-rsa - usr/local
 
 	# Find and copy data-files, in specific order
 	for area in \
-		"$area_pwd" \
-		"$area_prog" \
-		"$area_etc" \
-		"$area_ubuntu" \
+		"$PWD" \
+		"${0%/*}" \
+		'/etc/easy-rsa' \
+		'/usr/share/easy-rsa' \
+		'/usr/local/share/easy-rsa' \
 		# EOL - # Add more distros here
 	do
 		# Omitting "$vars_file"
