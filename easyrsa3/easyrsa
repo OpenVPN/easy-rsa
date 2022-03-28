@@ -341,7 +341,7 @@ easyrsa_mktemp() {
 # remove temp files and do terminal cleanups
 cleanup() {
 	[ -z "$EASYRSA_TEMP_DIR_session" ] || rm -rf "$EASYRSA_TEMP_DIR_session"
-	# shellcheck disable=SC2039
+	# shellcheck disable=SC3040
 	(stty echo 2>/dev/null) || { (set -o echo 2>/dev/null) && set -o echo; }
 	echo "" # just to get a clean line
 } # => cleanup()
@@ -685,7 +685,7 @@ copy_data_to_pki () {
 # Disable terminal echo, if possible, otherwise warn
 hide_read_pass()
 {
-	# shellcheck disable=SC2039
+	# shellcheck disable=SC3040,SC3045
 	if stty -echo 2>/dev/null; then
 		read -r "$@"
 		stty echo
@@ -1128,8 +1128,9 @@ $(display_dn req "$req_in")
 		if [ "$crt_type" = 'server' ] || [ "$crt_type" = 'serverClient' ];
 		then
 			echo "$EASYRSA_EXTRA_EXTS" | grep -q subjectAltName
-			if [ $? -ne 0 ];
-			then
+			if echo "$EASYRSA_EXTRA_EXTS" | grep -q subjectAltName; then
+				: #ok
+			else
 				san=$(display_san req "$req_in")
 
 				if [ -n "$san" ];
@@ -1598,7 +1599,7 @@ Run easyrsa without commands for usage and command help."
 
 	pkcs_opts=
 	pkcs_certfile_path=
-	if [ $want_ca ]; then
+	if [ "$want_ca" ]; then
 		verify_file x509 "$crt_ca" || die "\
 Unable to include CA cert in the $pkcs_type output (missing file, or use noca option.)
 Missing file expected at: $crt_ca"
@@ -1614,7 +1615,7 @@ Missing cert expected at: $crt_in"
 	p12)
 		pkcs_out="$EASYRSA_PKI/private/$short_name.p12"
 
-		if [ $want_key ]; then
+		if [ "$want_key" ]; then
 			[ -f "$key_in" ] || die "\
 Unable to export p12 for short name '$short_name' without the key
 (if you want a p12 without the private key, use nokey option.)
@@ -1641,7 +1642,7 @@ Export of p12 failed: see above for related openssl errors."
 Export of p7 failed: see above for related openssl errors."
 	;;
 	p8)
-		if [ -z $want_pass ]; then
+		if [ -z "$want_pass" ]; then
 			pkcs_opts="-nocrypt"
 		fi
 		pkcs_out="$EASYRSA_PKI/private/$short_name.p8"
@@ -1720,9 +1721,8 @@ Failed to perform update-db: see above for related openssl errors."
 display_san() {
 	format="$1" path="$2"
 
-	echo "$EASYRSA_EXTRA_EXTS" | grep -q subjectAltName
-
-	if [ $? -eq 0 ]; then
+	if echo "$EASYRSA_EXTRA_EXTS" | grep -q subjectAltName; then
+	#if [ $? -eq 0 ]; then
 		print "$(echo "$EASYRSA_EXTRA_EXTS" | grep subjectAltName | sed 's/^\s*subjectAltName\s*=\s*//')"
 	else
 		san=$(
@@ -2633,7 +2633,7 @@ NL='
 '
 
 # Be secure with a restrictive umask
-[ -z "$EASYRSA_NO_UMASK" ] && umask ${EASYRSA_UMASK:-077}
+[ -z "$EASYRSA_NO_UMASK" ] && umask "${EASYRSA_UMASK:-077}"
 
 # Parse options
 while :; do
