@@ -226,6 +226,7 @@ General options:
 --passin=ARG    : set -passin ARG for openssl
 --passout=ARG   : set -passout ARG for openssl
 --pki-dir=DIR   : declares the PKI directory
+--ssl-conf=FILE : define a specific OpenSSL config file for Easy-RSA to use
 --vars=FILE     : define a specific 'vars' file to use for Easy-RSA config
 --version       : prints EasyRSA version and build information, then exits
 
@@ -2683,6 +2684,8 @@ while :; do
 		;;
 	--pki-dir)
 		export EASYRSA_PKI="$val" ;;
+	--ssl-conf)
+		export EASYRSA_SSL_CONF="$val" ;;
 	--use-algo)
 		export EASYRSA_ALGO="$val" ;;
 	--keysize)
