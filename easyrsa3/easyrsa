@@ -560,7 +560,7 @@ and initialize a fresh PKI here."
 	done
 
 	# Install data-files into ALL new PKIs
-	install_data_to_pki || \
+	install_data_to_pki init || \
 		warn "Failed to install required data-files to PKI. (init)"
 
 	# Verify that $EASYRSA_SAFE_CONF exists ($OPENSSL_CONF)
@@ -666,6 +666,11 @@ install_data_to_pki () {
 			copy_data_to_pki "${area}/${x509_types_dir}" recurse || return
 		fi
 	done
+
+	# If this is init-pki then create PKI/vars from example
+	if [ -n "$1" ] && [ -e "${EASYRSA_PKI}/${vars_file_example}" ]; then
+		cp -f "${EASYRSA_PKI}/${vars_file_example}" "${EASYRSA_PKI}/${vars_file}"
+	fi
 
 	# Check PKI is updated - Omit 'vars' and example.
 	#[ -e "${EASYRSA_PKI}/${vars_file}" ] || return
