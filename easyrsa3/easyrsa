@@ -560,7 +560,7 @@ and initialize a fresh PKI here."
 	done
 
 	# Install data-files into ALL new PKIs
-	install_data_to_pki init || \
+	install_data_to_pki init-pki || \
 		warn "Failed to install required data-files to PKI. (init)"
 
 	# Verify that $EASYRSA_SAFE_CONF exists ($OPENSSL_CONF)
@@ -667,10 +667,24 @@ install_data_to_pki () {
 		fi
 	done
 
-	# If this is init-pki then create PKI/vars from example
-	if [ -n "$1" ] && [ -e "${EASYRSA_PKI}/${vars_file_example}" ]; then
-		cp -f "${EASYRSA_PKI}/${vars_file_example}" "${EASYRSA_PKI}/${vars_file}"
-	fi
+	# If this is init-pki then create PKI/vars from PKI/example
+	case "$1" in
+	init-pki)
+		shift
+		if [ -e "${EASYRSA_PKI}/${vars_file_example}" ] && \
+			[ ! -e "${EASYRSA_PKI}/${vars_file}" ]
+		then
+			cp -f "${EASYRSA_PKI}/${vars_file_example}" \
+				"${EASYRSA_PKI}/${vars_file}"
+		fi
+	;;
+	vars-setup)
+		shift ;; # ok
+	'')
+		die "install_data_to_pki - unspecified context" ;;
+	*)
+		die "install_data_to_pki - unknown context: $1"
+	esac
 
 	# Check PKI is updated - Omit 'vars' and example.
 	#[ -e "${EASYRSA_PKI}/${vars_file}" ] || return
@@ -1997,7 +2011,7 @@ Note: using Easy-RSA configuration from: $vars"
 
 			# Hard break from 'old' Easy-RSA, see obsolete comment above.
 				# Install data-files into ALL PKIs
-				install_data_to_pki || \
+				install_data_to_pki vars-setup || \
 					warn "Failed to install new required data-dir to PKI. (x509)"
 				set_var EASYRSA_EXT_DIR		"$EASYRSA_PKI/x509-types"
 			fi
@@ -2007,7 +2021,7 @@ Note: using Easy-RSA configuration from: $vars"
 				export OPENSSL_CONF="$EASYRSA_SAFE_CONF"
 			else
 				# Install data-files into ALL PKIs
-				install_data_to_pki || \
+				install_data_to_pki vars-setup || \
 					warn "Failed to install new required data-files to PKI. (SSL)"
 				# EASYRSA_SAFE_CONF is output by
 				# 'install_data_to_pki()' via 'easyrsa_openssl() makesafeconf'
