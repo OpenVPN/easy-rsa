@@ -1735,13 +1735,13 @@ display_san() {
 	format="$1" path="$2"
 
 	if echo "$EASYRSA_EXTRA_EXTS" | grep -q subjectAltName; then
-	#if [ $? -eq 0 ]; then
-		print "$(echo "$EASYRSA_EXTRA_EXTS" | grep subjectAltName | sed
-			's/^\s*subjectAltName\s*=\s*//')"
+		print "$(echo "$EASYRSA_EXTRA_EXTS" | grep subjectAltName |
+			sed 's/^\s*subjectAltName\s*=\s*//')"
 	else
 		san=$(
-			"$EASYRSA_OPENSSL" "$format" -in "$path" -noout -text | sed -n \
-				"/X509v3 Subject Alternative Name:/{n;s/ //g;s/IPAddress:/IP:/g;s/RegisteredID/RID/;p;}"
+		x509v3san="X509v3 Subject Alternative Name:"
+		"$EASYRSA_OPENSSL" "$format" -in "$path" -noout -text |
+			sed -n "/${x509v3san}/{n;s/ //g;s/IPAddress:/IP:/g;s/RegisteredID/RID/;p;}"
 			)
 
 		[ -n "$san" ] && print "$san"
