@@ -22,6 +22,7 @@ jobs:
 
     env:
       EASYRSA_REMOTE_CI: 1
+      EASYRSA_NIX: 1
       TERM: xterm-256color
 
     # Steps represent a sequence of tasks that will be executed as part of the job
@@ -30,9 +31,6 @@ jobs:
       - uses: actions/checkout@v2
 
       # Runs a single command using the runners shell
-      - name: shellcheck test
-        run: shellcheck -V
-        #run: shellcheck easyrsa3/easyrsa
       - name: operational test
         run: sh op_test.sh -v
 
@@ -49,6 +47,7 @@ jobs:
 
     env:
       EASYRSA_REMOTE_CI: 1
+      EASYRSA_WIN: 1
       TERM: xterm-256color
 
     # Steps represent a sequence of tasks that will be executed as part of the job
