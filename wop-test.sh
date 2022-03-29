@@ -67,4 +67,4 @@ echo "Invoke './easyrsa' to call the program. Without commands, help is displaye
 
 cd ..
 
-./op_test.sh -vv
+./op-test.sh -v
