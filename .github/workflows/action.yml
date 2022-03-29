@@ -31,7 +31,8 @@ jobs:
 
       # Runs a single command using the runners shell
       - name: shellcheck test
-        run: shellcheck easyrsa3/easyrsa
+        run: shellcheck -V
+        #run: shellcheck easyrsa3/easyrsa
       - name: operational test
         run: sh op_test.sh -v
 
