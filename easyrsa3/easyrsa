@@ -1824,7 +1824,7 @@ Missing key expected at: $key_in"
 		else
 			nokeys=1
 		fi
-		if [ -z $want_pass ]; then
+		if [ -z "$want_pass" ]; then
 			pkcs_opts="$pkcs_opts -password pass: "
 		fi
 
