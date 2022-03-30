@@ -583,26 +583,28 @@ Your newly created PKI dir is: $EASYRSA_PKI"
 # Copy data-files from various sources
 install_data_to_pki () {
 #
-# This function is here to explicitly copy data-files to the PKI.
+# This function will explicitly find and optionally copy data-files to the PKI.
 # During 'init-pki' this is the new default.
 # During all other functions these requirements are tested for and
 # files will be copied to the PKI, if they do not already exist there.
 #
-# One of the reasons for this change is to make packing EasyRSA work.
-# This function searches favoured and then common 'areas' for the
-#   EasyRSA data-files(A):
-#     'openssl-easyrsa.cnf' 'x509-types':(folder).
+# One of the reasons for this change is to make packaging EasyRSA work.
 #
-# These files MUST be found in at least one location and will be copied
-# to the current PKI, if they do not already exist there.
+# First: search favoured and then common 'areas' for the EasyRSA data-files(A):
+# * 'openssl-easyrsa.cnf' and 'x509-types' (folder).
 #
+# These files MUST be found in at least one location.
+# * 'openssl-easyrsa.cnf' will be copied to the PKI.
+#   A warning will be issued if this file cannot be found.
+#
+# * 'x509-types' will set EASYRSA_EXT_DIR to the found location.
+#   If x509-types cannot be found then that is a FATAL error.
 #
 # Other EasyRSA data-files(B): it is not crucial that these are found
-# but if they are then they are also copied to the PKI.
-#   'vars' 'vars.example'
+# but if they are then they are copied to the PKI. (Note: 1)
+# * 'vars' and 'vars.example'
 #
-#
-# For 'vars' consideration must be given to:
+# Note 1: For 'vars' consideration must be given to:
 #   "Where the user expects to find vars!"
 #
 # Currently, *if* 'vars' is copied to the PKI then the PKI 'vars' will take
@@ -615,16 +617,6 @@ install_data_to_pki () {
 	vars_file_example='vars.example'
 	ssl_cnf_file='openssl-easyrsa.cnf'
 	x509_types_dir='x509-types'
-
-	# Only use if required
-	# Omit 'vars' - [ -e "${EASYRSA_PKI}/${vars_file}" ] &&
-	if [ -e "$EASYRSA_SAFE_CONF" ] && \
-		[ -e "${EASYRSA_PKI}/${vars_file_example}" ] && \
-		[ -e "${EASYRSA_PKI}/${ssl_cnf_file}" ] && \
-		[ -e "${EASYRSA_PKI}/${x509_types_dir}" ]
-	then
-		return 0
-	fi
 
 	# PWD - Covers EasyRSA-Windows installed by OpenVPN, and git forks
 	# "prog_dir" - Old way (Who installs data files in /usr/bin ?)
@@ -698,8 +690,10 @@ install_data_to_pki () {
 	#[ -e "${EASYRSA_PKI}/${vars_file_example}" ] || return
 	[ -e "${EASYRSA_PKI}/${ssl_cnf_file}" ] || return
 	#[ -e "${EASYRSA_PKI}/${x509_types_dir}" ] || return
+
 	# EASYRSA_EXT_DIR must be found! No exceptions!
-	[ -n "$EASYRSA_EXT_DIR" ] && [ -e "$EASYRSA_EXT_DIR" ] || return
+	[ -n "$EASYRSA_EXT_DIR" ] && [ -e "$EASYRSA_EXT_DIR" ] || \
+		die "x509-types folder cannot be found"
 
 	# Complete or error
 	[ -e "$EASYRSA_SAFE_CONF" ] || easyrsa_openssl makesafeconf
@@ -707,8 +701,8 @@ install_data_to_pki () {
 
 # Copy the source to the PKI
 copy_data_to_pki () {
-	cp ${2:+-R} "$1" "$EASYRSA_PKI" || return
-	shift # Clear recurse
+	cp "$1" "$EASYRSA_PKI" || return
+	shift
 } # => copy_data_to_pki ()
 
 # Disable terminal echo, if possible, otherwise warn
@@ -2011,19 +2005,14 @@ Note: using Easy-RSA configuration from: $vars"
 					mktemp -du "$EASYRSA_TEMP_DIR/easy-rsa-$$.XXXXXX"
 				)"
 
-			# Same as above for the x509-types extensions dir
-			if [ -d "$EASYRSA_PKI/x509-types" ]; then
-				set_var EASYRSA_EXT_DIR		"$EASYRSA_PKI/x509-types"
-			else
-
 			#TODO: This should be removed.  Not really suitable for packaging.
 			#set_var EASYRSA_EXT_DIR		"$EASYRSA/x509-types"
 
 			# Hard break from 'old' Easy-RSA, see obsolete comment above.
-				# Install data-files into ALL PKIs
-				install_data_to_pki vars-setup || \
-					warn "Failed to install new required data-dir to PKI. (x509)"
-			fi
+			# Install data-files into ALL PKIs
+			# This will find x509-types and export EASYRSA_EXT_DIR or warn.
+			install_data_to_pki vars-setup || \
+				warn "Failed to install new required data-dir to PKI. (x509)"
 
 			# Setting EasyRSA specific OPENSSL_CONF to sanatized safe conf
 			if [ -e "$EASYRSA_SAFE_CONF" ]; then
