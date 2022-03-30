@@ -2010,20 +2010,18 @@ Note: using Easy-RSA configuration from: $vars"
 
 			# Hard break from 'old' Easy-RSA, see obsolete comment above.
 			# Install data-files into ALL PKIs
-			# This will find x509-types and export EASYRSA_EXT_DIR or warn.
+			# This will find x509-types and export EASYRSA_EXT_DIR or die.
+			# Other errors only require warning.
 			install_data_to_pki vars-setup || \
-				warn "Failed to install new required data-dir to PKI. (x509)"
+				warn "Failed to install new required data-dir to PKI. (setup)"
 
+			# EASYRSA_SAFE_CONF is output by 'install_data_to_pki()'
+			# via 'easyrsa_openssl() makesafeconf' above.
 			# Setting EasyRSA specific OPENSSL_CONF to sanatized safe conf
 			if [ -e "$EASYRSA_SAFE_CONF" ]; then
 				export OPENSSL_CONF="$EASYRSA_SAFE_CONF"
 			else
-				# Install data-files into ALL PKIs
-				install_data_to_pki vars-setup || \
-					warn "Failed to install new required data-files to PKI. (SSL)"
-				# EASYRSA_SAFE_CONF is output by
-				# 'install_data_to_pki()' via 'easyrsa_openssl() makesafeconf'
-				export OPENSSL_CONF="$EASYRSA_SAFE_CONF"
+				die "Failed to find Safe-SSL config file."
 			fi
 
 			# Upgrade to 306: Create $EASYRSA_SSL_CONF if it does not exist
