@@ -627,8 +627,8 @@ install_data_to_pki () {
 	fi
 
 	# PWD - Covers EasyRSA-Windows installed by OpenVPN, and git forks
-	# "prog_dir" - Old way
-	# /etc/easy-rsa - Sensible default - Includes: Arch, hopefully others agree..
+	# "prog_dir" - Old way (Who installs data files in /usr/bin ?)
+	# /etc/easy-rsa - possible default
 	# /usr/share/easy-rsa - usr
 	# /usr/local/share/easy-rsa - usr/local
 
@@ -661,13 +661,18 @@ install_data_to_pki () {
 		# Find x509-types
 		[ -e "${area}/${x509_types_dir}" ] || continue
 
-		# If x509-types does not exist in the PKI then copy it.
-		if [ -e "${EASYRSA_PKI}/${x509_types_dir}" ]; then
-			continue
-		else
-			copy_data_to_pki "${area}/${x509_types_dir}" recurse || return
+		# Declare in preferred order, first wins, beaten by command line.
+		# Only set if not in PKI; Same condition made in vars_setup()
+		if [ ! -d "$EASYRSA_PKI/x509-types" ]; then
+			set_var EASYRSA_EXT_DIR "${area}/${x509_types_dir}"
 		fi
 	done
+
+	# if PKI/x509-types exists then it wins, except command line
+	# Same condition made in vars_setup()
+	if [ -d "$EASYRSA_PKI/x509-types" ]; then
+		set_var EASYRSA_EXT_DIR "$EASYRSA_PKI/x509-types"
+	fi
 
 	# If this is init-pki then create PKI/vars from PKI/example
 	case "$1" in
@@ -677,7 +682,7 @@ install_data_to_pki () {
 			[ ! -e "${EASYRSA_PKI}/${vars_file}" ]
 		then
 			cp -f "${EASYRSA_PKI}/${vars_file_example}" \
-				"${EASYRSA_PKI}/${vars_file}"
+				"${EASYRSA_PKI}/${vars_file}" || return
 		fi
 	;;
 	vars-setup)
@@ -688,11 +693,13 @@ install_data_to_pki () {
 		die "install_data_to_pki - unknown context: $1"
 	esac
 
-	# Check PKI is updated - Omit 'vars' and example.
+	# Check PKI is updated - Omit unnecessary checks
 	#[ -e "${EASYRSA_PKI}/${vars_file}" ] || return
 	#[ -e "${EASYRSA_PKI}/${vars_file_example}" ] || return
 	[ -e "${EASYRSA_PKI}/${ssl_cnf_file}" ] || return
-	[ -e "${EASYRSA_PKI}/${x509_types_dir}" ] || return
+	#[ -e "${EASYRSA_PKI}/${x509_types_dir}" ] || return
+	# EASYRSA_EXT_DIR must be found! No exceptions!
+	[ -n "$EASYRSA_EXT_DIR" ] && [ -e "$EASYRSA_EXT_DIR" ] || return
 
 	# Complete or error
 	[ -e "$EASYRSA_SAFE_CONF" ] || easyrsa_openssl makesafeconf
@@ -2016,7 +2023,6 @@ Note: using Easy-RSA configuration from: $vars"
 				# Install data-files into ALL PKIs
 				install_data_to_pki vars-setup || \
 					warn "Failed to install new required data-dir to PKI. (x509)"
-				set_var EASYRSA_EXT_DIR		"$EASYRSA_PKI/x509-types"
 			fi
 
 			# Setting EasyRSA specific OPENSSL_CONF to sanatized safe conf
