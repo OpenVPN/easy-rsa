@@ -26,7 +26,7 @@ For a listing of options that can be supplied before the command, use:
 Here is the list of commands available with a short syntax reminder. Use the
 'help' command above to get full usage details.
 
-  init-pki
+  init-pki [ cmd-opts ]
   build-ca [ cmd-opts ]
   gen-dh
   gen-req <filename_base> [ cmd-opts ]
@@ -69,7 +69,10 @@ cmd_help() {
 	case "$1" in
 		init-pki|clean-all) text="
   init-pki [ cmd-opts ]
-      Removes & re-initializes the PKI dir for a clean PKI" ;;
+      Removes & re-initializes the PKI dir for a clean PKI"
+      				opts="
+        hard-reset  - Recursively deletes the PKI directory if it exists.
+        soft-reset  - Keeps the vars file and the PKI directory itself intact." ;;
 		build-ca) text="
   build-ca [ cmd-opts ]
       Creates a new CA"
@@ -544,6 +547,16 @@ $help_note"
 # init-pki backend:
 init_pki() {
 
+	reset="hard"
+	while [ -n "$1" ]; do
+		case "$1" in
+			hard-reset|hard) reset="hard" ;;
+			soft-reset|soft) reset="soft" ;;
+			*) warn "Ignoring unknown command option: '$1'" ;;
+		esac
+		shift
+	done
+
 	# If EASYRSA_PKI exists, confirm before we rm -rf (skipped with EASYRSA_BATCH)
 	if [ -e "$EASYRSA_PKI" ]; then
 		confirm "Confirm removal: " "yes" "
@@ -552,7 +565,22 @@ WARNING!!!
 You are about to remove the EASYRSA_PKI at: $EASYRSA_PKI
 and initialize a fresh PKI here."
 		# now remove it:
-		rm -rf "$EASYRSA_PKI" || die "Removal of PKI dir failed. Check/correct errors above"
+		case "$reset" in
+			hard)
+				rm -rf "$EASYRSA_PKI" || die "Removal of PKI dir failed. Check/correct errors above"
+				;;
+			soft)
+				files="ca.crt certs_by_serial ecparams index.txt index.txt.attr index.txt.old issued private reqs serial serial.old"
+				for i in $files; do
+					rm -rf "${EASYRSA_PKI:?}/$i" || die "Removal of PKI dir failed. Check/correct errors above"
+				done
+				;;
+			# More modes could be added here, e.g. only remove
+			# issued certs (and clean database), but keep CA intact.
+			*)
+				die "Removal of PKI dir failed. Unknown reset type."
+				;;
+		esac
 	fi
 
 	# new dirs:
