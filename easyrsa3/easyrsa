@@ -70,13 +70,13 @@ cmd_help() {
 		init-pki|clean-all) text="
   init-pki [ cmd-opts ]
       Removes & re-initializes the PKI dir for a clean PKI"
-      				opts="
+			opts="
         hard-reset  - Recursively deletes the PKI directory if it exists.
         soft-reset  - Keeps the vars file and the PKI directory itself intact." ;;
 		build-ca) text="
   build-ca [ cmd-opts ]
       Creates a new CA"
-      			opts="
+			opts="
         nopass  - do not encrypt the CA key (default is encrypted)
         subca   - create an intermediate CA keypair and request (default is a root CA)
         intca   - alias to the above" ;;
@@ -88,7 +88,7 @@ cmd_help() {
       Generate a standalone keypair and request (CSR)
 
       This request is suitable for sending to a remote CA for signing."
-      			opts="
+			opts="
         nopass  - do not encrypt the private key (default is encrypted)" ;;
 		sign|sign-req) text="
   sign-req <type> <filename_base>
@@ -121,7 +121,7 @@ cmd_help() {
 		renew) text="
   renew <filename_base> [ cmd-opts ]
       Renew a certificate specified by the filename_base"
-				opts="
+			opts="
         nopass  - do not encrypt the private key (default is encrypted)" ;;
 		gen-crl) text="
   gen-crl
@@ -132,14 +132,14 @@ cmd_help() {
 
       This command will use the system time to update the status of issued
       certificates." ;;
-      		show-req|show-cert) text="
+		show-req|show-cert) text="
   show-req  <filename_base> [ cmd-opts ]
   show-cert <filename_base> [ cmd-opts ]
       Shows details of the req or cert referenced by filename_base
 
       Human-readable output is shown, including any requested cert options when
       showing a request."
-      			opts="
+			opts="
           full   - show full req/cert info, including pubkey/sig data" ;;
 		show-ca) text="
   show-ca [ cmd-opts ]
@@ -178,7 +178,7 @@ cmd_help() {
   set-rsa-pass <filename_base> [ cmd-opts ]
   set-ec-pass <filename_base> [ cmd-opts ]
       Set a new passphrase on an RSA or EC key for the listed <filename_base>."
-                        opts="
+			opts="
         nopass - use no password and leave the key unencrypted
         file   - (advanced) treat the file as a raw path, not a short-name" ;;
 		upgrade) text="
@@ -546,7 +546,7 @@ $help_note"
 
 # init-pki backend:
 init_pki() {
-
+	# Process command options
 	reset="hard"
 	while [ -n "$1" ]; do
 		case "$1" in
@@ -566,26 +566,28 @@ You are about to remove the EASYRSA_PKI at: $EASYRSA_PKI
 and initialize a fresh PKI here."
 		# now remove it:
 		case "$reset" in
-			hard)
-				rm -rf "$EASYRSA_PKI" || die "Removal of PKI dir failed. Check/correct errors above"
-				;;
-			soft)
-				files="ca.crt certs_by_serial ecparams index.txt index.txt.attr index.txt.old issued private reqs serial serial.old"
-				for i in $files; do
-					rm -rf "${EASYRSA_PKI:?}/$i" || die "Removal of PKI dir failed. Check/correct errors above"
-				done
-				;;
-			# More modes could be added here, e.g. only remove
-			# issued certs (and clean database), but keep CA intact.
-			*)
-				die "Removal of PKI dir failed. Unknown reset type."
-				;;
+		hard)
+			rm -rf "$EASYRSA_PKI" || \
+				die "Removal of PKI dir failed. Check/correct errors above"
+		;;
+		soft)
+			for i in ca.crt certs_by_serial ecparams index.txt index.txt.attr \
+						index.txt.old issued private reqs serial serial.old; do
+				rm -rf "${EASYRSA_PKI:?}/$i" || \
+					die "Removal of PKI dir failed. Check/correct errors above"
+			done
+		;;
+		# More modes could be added here, e.g. only remove
+		# issued certs (and clean database), but keep CA intact.
+		*)
+			die "Removal of PKI dir failed. Unknown reset type."
 		esac
 	fi
 
 	# new dirs:
 	for i in private reqs; do
-		mkdir -p "$EASYRSA_PKI/$i" || die "Failed to create PKI file structure (permissions?)"
+		mkdir -p "$EASYRSA_PKI/$i" || \
+			die "Failed to create PKI file structure (permissions?)"
 	done
 
 	# Install data-files into ALL new PKIs
