@@ -676,7 +676,7 @@ install_data_to_pki () {
 			if [ -e "${EASYRSA_PKI}/${source}" ]; then
 				continue
 			else
-				copy_data_to_pki "${area}/${source}" || return
+				cp "${area}/${source}" "$EASYRSA_PKI" || return
 			fi
 		done
 
@@ -728,12 +728,6 @@ install_data_to_pki () {
 	# Complete or error
 	[ -e "$EASYRSA_SAFE_CONF" ] || easyrsa_openssl makesafeconf
 } # => install_data_to_pki ()
-
-# Copy the source to the PKI
-copy_data_to_pki () {
-	cp "$1" "$EASYRSA_PKI" || return
-	shift
-} # => copy_data_to_pki ()
 
 # Disable terminal echo, if possible, otherwise warn
 hide_read_pass()
