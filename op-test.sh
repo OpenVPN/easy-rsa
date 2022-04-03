@@ -9,14 +9,22 @@ github_url='https://raw.githubusercontent.com'
 if [ -e "shellcheck" ] && [ "$EASYRSA_NIX" ]; then
 	chmod +x shellcheck
 	./shellcheck -V
-	./shellcheck easyrsa3/easyrsa
+	if [ -e easyrsa3/easyrsa ];then
+		./shellcheck easyrsa3/easyrsa
+	else
+		echo "* easyrsa binary not present, using path, no shellcheck"
+	fi
 elif [ "$EASYRSA_NIX" ]; then
 	github_target='OpenVPN/easyrsa-unit-tests/master/shellcheck'
 	curl -O "${github_url}/${github_target}"
 	[ -e "shellcheck" ] || { echo "shellcheck download failed."; exit 9; }
 	chmod +x shellcheck
 	./shellcheck -V
-	./shellcheck easyrsa3/easyrsa
+	if [ -e easyrsa3/easyrsa ];then
+		./shellcheck easyrsa3/easyrsa
+	else
+		echo "* easyrsa binary not present, using path, no shellcheck"
+	fi
 	rm -f ./shellcheck
 fi
 
@@ -30,7 +38,9 @@ estat=0
 
 if [ -e "easyrsa-unit-tests.sh" ]; then
 	if sh easyrsa-unit-tests.sh "$verb"; then
-		: # ok
+		if [ "$EASYRSA_NIX" ]; then
+			sh easyrsa-unit-tests.sh "$verb" -x || estat=2
+		fi
 	else
 		estat=1
 	fi
