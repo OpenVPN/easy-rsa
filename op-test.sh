@@ -30,7 +30,9 @@ estat=0
 
 if [ -e "easyrsa-unit-tests.sh" ]; then
 	if sh easyrsa-unit-tests.sh "$verb"; then
-		: # ok
+		if [ "$EASYRSA_NIX" ]; then
+			sh easyrsa-unit-tests.sh "$verb" -x || estat=2
+		fi
 	else
 		estat=1
 	fi
