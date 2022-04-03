@@ -984,7 +984,7 @@ gen_dh() {
 
 	# check to see if we already have a dh parameters file
 	if [ -e "$EASYRSA_PKI/dh.pem" ]; then
-		if [ "$EASYRSA_BATCH" = "1" ]; then
+		if [ "$EASYRSA_BATCH" ]; then
 			# if batch is enabled, die
 			die "file $EASYRSA_PKI/dh.pem already exists!"
 		else
@@ -1063,7 +1063,7 @@ $EASYRSA_EXTRA_EXTS"
 	key_out_tmp="$(easyrsa_mktemp)" || die "Failed to create temporary file"
 	req_out_tmp="$(easyrsa_mktemp)" || die "Failed to create temporary file"
 	# generate request
-	[ $EASYRSA_BATCH ] && opts="$opts -batch"
+	[ "$EASYRSA_BATCH" ] && opts="$opts -batch"
 	# shellcheck disable=2086,2148
 	algo_opts=""
 	if [ "ed" = "$EASYRSA_ALGO" ]; then
