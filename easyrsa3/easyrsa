@@ -646,7 +646,11 @@ install_data_to_pki () {
 	vars_file='vars'
 	vars_file_example='vars.example'
 	ssl_cnf_file='openssl-easyrsa.cnf'
-	x509_types_dir='x509-types'
+	if [ -z "$alt_x509" ]; then
+		x509_types_dir='x509-types'
+	else
+		x509_types_dir='x509-alt-types'
+	fi
 
 	# PWD - Covers EasyRSA-Windows installed by OpenVPN, and git forks
 	# "prog_dir" - Old way (Who installs data files in /usr/bin ?)
@@ -2754,6 +2758,9 @@ while :; do
 	--copy-ext)
 		empty_ok=1
 		export EASYRSA_CP_EXT=1 ;;
+	--x509-alt)
+		empty_ok=1
+		alt_x509=1 ;;
 	--subject-alt-name)
 		export EASYRSA_EXTRA_EXTS="\
 $EASYRSA_EXTRA_EXTS
