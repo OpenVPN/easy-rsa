@@ -834,6 +834,30 @@ current CA keypair. If you intended to start a new CA, run init-pki first."
 		fi
 	fi
 
+	# Insert x509-types COMMON and 'ca'
+	#shellcheck disable=SC2016
+	awkscript='
+{if ( match($0, "^#%X509_TYPES%") )
+	{ while ( getline<"/dev/stdin" ) {print} next }
+ {print}
+}'
+	conf_tmp="$(easyrsa_mktemp)" || die "Failed to create temporary file"
+	cat "${EASYRSA_EXT_DIR}/ca" "${EASYRSA_EXT_DIR}/COMMON" | \
+		awk "$awkscript" "$EASYRSA_SSL_CONF" \
+		> "$conf_tmp" \
+		|| die "Copying SSL config to temp file failed"
+	# Use this new SSL config for the rest of this function
+	EASYRSA_SSL_CONF="$conf_tmp"
+
+	# When EASYRSA_EXTRA_EXTS is defined, pass it as-is to SSL -addext
+	if [ -n "$EASYRSA_EXTRA_EXTS" ]; then
+		# example: "-addext foo,a:b -addext bah,c:d -addext baz e:f,g"
+		[ "${EASYRSA_EXTRA_EXTS%% *}" = '-addext' ] || \
+			die "EASYRSA_EXTRA_EXTS: $EASYRSA_EXTRA_EXTS"
+		EASYRSA_CA_EXTRA_EXTS="$EASYRSA_EXTRA_EXTS"
+		unset -v EASYRSA_EXTRA_EXTS
+	fi
+
 	# Choose SSL Library version (1 or 3) and build CA
 	case "$osslv_major" in # => BEGIN SSL lib version
 
@@ -894,6 +918,7 @@ current CA keypair. If you intended to start a new CA, run init-pki first."
 		# shellcheck disable=SC2086
 		easyrsa_openssl req -utf8 -new -key "$out_key_tmp" \
 			-out "$out_file_tmp" ${opts} ${crypto_opts} \
+			${EASYRSA_CA_EXTRA_EXTS} \
 			${EASYRSA_PASSIN:+-passin "$EASYRSA_PASSIN"} || \
 				die "Failed to build the CA"
 	;;
@@ -954,6 +979,7 @@ current CA keypair. If you intended to start a new CA, run init-pki first."
 		#shellcheck disable=SC2086
 		easyrsa_openssl req -utf8 -new -key "$out_key_tmp" \
 			-keyout "$out_key_tmp" -out "$out_file_tmp" $crypto_opts $opts \
+			${EASYRSA_CA_EXTRA_EXTS} \
 			${EASYRSA_PASSIN:+-passin "$EASYRSA_PASSIN"} \
 				|| die "Failed to build the CA"
 	;;
