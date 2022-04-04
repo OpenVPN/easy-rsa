@@ -4,7 +4,22 @@
 # and executes that - allows for disconnected testing from the easy-rsa
 # repo with TravisCI.
 
+verb='-v'
+enable_shellcheck=1
+
+while [ -n "$1" ]; do
+	case "$1" in
+	-v)		verb='-v' ;;
+	-vv)	verb='-vv' ;;
+	-scoff)	unset -v enable_shellcheck ;;
+	*)		verb='-v'
+	esac
+	shift
+done
+
 github_url='https://raw.githubusercontent.com'
+
+if [ "$enable_shellcheck" ]; then
 
 if [ -e "shellcheck" ] && [ "$EASYRSA_NIX" ]; then
 	chmod +x shellcheck
@@ -28,17 +43,17 @@ elif [ "$EASYRSA_NIX" ]; then
 	rm -f ./shellcheck
 fi
 
-case "$1" in
--v)		verb='-v' ;;
--vv)	verb='-vv' ;;
-*)		verb='-v'
-esac
+else
+	# shellcheck is disabled
+	:
+fi
+
 
 estat=0
 
 if [ -e "easyrsa-unit-tests.sh" ]; then
 	if sh easyrsa-unit-tests.sh "$verb"; then
-		if [ "$EASYRSA_NIX" ]; then
+		if [ "$EASYRSA_NIX" ] && [ "$EASYRSA_BY_TINCANTECH" ]; then
 			sh easyrsa-unit-tests.sh "$verb" -x || estat=2
 		fi
 	else
