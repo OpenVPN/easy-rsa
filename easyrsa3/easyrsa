@@ -1271,7 +1271,7 @@ Matching file found at: "
 	}
 
 	# inline it
-	if [ $EASYRSA_INLINE ]; then
+	if [ "$EASYRSA_INLINE" ]; then
 		inline_creds
 	fi
 } # => build_full()
@@ -1360,22 +1360,23 @@ Run easyrsa without commands for usage and command help."
 	crt_in="$EASYRSA_PKI/issued/$1.crt"
 	key_in="$EASYRSA_PKI/private/$1.key"
 	req_in="$EASYRSA_PKI/reqs/$1.req"
+	creds_in="$EASYRSA_PKI/$1.creds"
 
 	verify_file x509 "$crt_in" || die "\
-Unable to move revoked input file. The file is not a valid certificate. Unexpected
-input in file: $crt_in"
+Unable to move revoked input file. The file is not a valid certificate.
+Unexpected input in file: $crt_in"
 
 	if [ -e "$req_in" ]
 	then
 		verify_file req "$req_in" || die "\
-Unable to move request. The file is not a valid request. Unexpected
-input in file: $req_in"
+Unable to move request. The file is not a valid request.
+Unexpected input in file: $req_in"
 	fi
 
 	# get the serial number of the certificate -> serial=XXXX
 	cert_serial="$(easyrsa_openssl x509 -in "$crt_in" -noout -serial)"
 	# remove the serial= part -> we only need the XXXX part
-	cert_serial=${cert_serial##*=}
+	cert_serial="${cert_serial##*=}"
 
 	crt_by_serial="$EASYRSA_PKI/certs_by_serial/$cert_serial.pem"
 	crt_by_serial_revoked="$EASYRSA_PKI/revoked/certs_by_serial/$cert_serial.crt"
@@ -1383,10 +1384,14 @@ input in file: $req_in"
 	req_by_serial_revoked="$EASYRSA_PKI/revoked/reqs_by_serial/$cert_serial.req"
 
 	# make sure revoked dirs exist
-	[ -d "$EASYRSA_PKI/revoked" ] || mkdir "$EASYRSA_PKI/revoked"
-	[ -d "$EASYRSA_PKI/revoked/certs_by_serial" ] || mkdir "$EASYRSA_PKI/revoked/certs_by_serial"
-	[ -d "$EASYRSA_PKI/revoked/private_by_serial" ] || mkdir "$EASYRSA_PKI/revoked/private_by_serial"
-	[ -d "$EASYRSA_PKI/revoked/reqs_by_serial" ] || mkdir "$EASYRSA_PKI/revoked/reqs_by_serial"
+	[ -d "$EASYRSA_PKI/revoked" ] || \
+		mkdir "$EASYRSA_PKI/revoked"
+	[ -d "$EASYRSA_PKI/revoked/certs_by_serial" ] || \
+		mkdir "$EASYRSA_PKI/revoked/certs_by_serial"
+	[ -d "$EASYRSA_PKI/revoked/private_by_serial" ] || \
+		mkdir "$EASYRSA_PKI/revoked/private_by_serial"
+	[ -d "$EASYRSA_PKI/revoked/reqs_by_serial" ] || \
+		mkdir "$EASYRSA_PKI/revoked/reqs_by_serial"
 
 	# move crt, key and req file to revoked folders
 	mv "$crt_in" "$crt_by_serial_revoked"
@@ -1403,14 +1408,24 @@ input in file: $req_in"
 		# get file extension
 		file_ext="${file##*.}"
 
-		[ -f "$file" ] && mv "$file" "$EASYRSA_PKI/revoked/private_by_serial/$cert_serial.$file_ext"
+		if [ -f "$file" ]; then
+			mv "$file" \
+				"$EASYRSA_PKI/revoked/private_by_serial/$cert_serial.$file_ext" \
+					|| die "Failed to move file: $file"
+		fi
 	done
 
 	# remove the duplicate certificate in the certs_by_serial folder
-	rm "$crt_by_serial"
+	rm "$crt_by_serial" || warn \
+		"Failed to remove the duplicate certificate in the certs_by_serial folder"
+
+	# remove credentials file (if exists)
+	if [ -e "$creds_in" ]; then
+		confirm "Remove inline file ? " "yes" "An inline file exists. $creds_in"
+		rm "$creds_in" || warn "Failed to remove the inline file."
+	fi
 
 	return 0
-
 } #= move_revoked()
 
 # renew backend
@@ -1525,22 +1540,23 @@ Run easyrsa without commands for usage and command help."
 	crt_in="$EASYRSA_PKI/issued/$1.crt"
 	key_in="$EASYRSA_PKI/private/$1.key"
 	req_in="$EASYRSA_PKI/reqs/$1.req"
+	creds_in="$EASYRSA_PKI/$1.creds"
 
 	verify_file x509 "$crt_in" || die "\
-Unable to move renewed input file. The file is not a valid certificate. Unexpected
-input in file: $crt_in"
+Unable to move renewed input file. The file is not a valid certificate.
+Unexpected input in file: $crt_in"
 
 	if [ -e "$req_in" ]
 	then
 		verify_file req "$req_in" || die "\
-Unable to move request. The file is not a valid request. Unexpected
-input in file: $req_in"
+Unable to move request. The file is not a valid request.
+Unexpected input in file: $req_in"
 	fi
 
 	# get the serial number of the certificate -> serial=XXXX
 	cert_serial="$(easyrsa_openssl x509 -in "$crt_in" -noout -serial)"
 	# remove the serial= part -> we only need the XXXX part
-	cert_serial=${cert_serial##*=}
+	cert_serial="${cert_serial##*=}"
 
 	crt_by_serial="$EASYRSA_PKI/certs_by_serial/$cert_serial.pem"
 	crt_by_serial_renewed="$EASYRSA_PKI/renewed/certs_by_serial/$cert_serial.crt"
@@ -1548,10 +1564,14 @@ input in file: $req_in"
 	req_by_serial_renewed="$EASYRSA_PKI/renewed/reqs_by_serial/$cert_serial.req"
 
 	# make sure renewed dirs exist
-	[ -d "$EASYRSA_PKI/renewed" ] || mkdir "$EASYRSA_PKI/renewed"
-	[ -d "$EASYRSA_PKI/renewed/certs_by_serial" ] || mkdir "$EASYRSA_PKI/renewed/certs_by_serial"
-	[ -d "$EASYRSA_PKI/renewed/private_by_serial" ] || mkdir "$EASYRSA_PKI/renewed/private_by_serial"
-	[ -d "$EASYRSA_PKI/renewed/reqs_by_serial" ] || mkdir "$EASYRSA_PKI/renewed/reqs_by_serial"
+	[ -d "$EASYRSA_PKI/renewed" ] || \
+		mkdir "$EASYRSA_PKI/renewed"
+	[ -d "$EASYRSA_PKI/renewed/certs_by_serial" ] || \
+		mkdir "$EASYRSA_PKI/renewed/certs_by_serial"
+	[ -d "$EASYRSA_PKI/renewed/private_by_serial" ] || \
+		mkdir "$EASYRSA_PKI/renewed/private_by_serial"
+	[ -d "$EASYRSA_PKI/renewed/reqs_by_serial" ] || \
+		mkdir "$EASYRSA_PKI/renewed/reqs_by_serial"
 
 	# move crt, key and req file to renewed folders
 	mv "$crt_in" "$crt_by_serial_renewed"
@@ -1568,14 +1588,24 @@ input in file: $req_in"
 		# get file extension
 		file_ext="${file##*.}"
 
-		[ -f "$file" ] && mv "$file" "$EASYRSA_PKI/renewed/private_by_serial/$cert_serial.$file_ext"
+		if [ -f "$file" ]; then
+			mv "$file" \
+				"$EASYRSA_PKI/renewed/private_by_serial/$cert_serial.$file_ext" \
+					|| die "Failed to move file: $file"
+		fi
 	done
 
 	# remove the duplicate certificate in the certs_by_serial folder
-	rm "$crt_by_serial"
+	rm "$crt_by_serial" || warn \
+		"Failed to remove the duplicate certificate in the certs_by_serial folder"
+
+	# remove credentials file (if exists)
+	if [ -e "$creds_in" ]; then
+		confirm "Remove inline file ? " "yes" "An inline file exists. $creds_in"
+		rm "$creds_in" || warn "Failed to remove the inline file."
+	fi
 
 	return 0
-
 } #= move_renewed()
 
 # gen-crl backend
