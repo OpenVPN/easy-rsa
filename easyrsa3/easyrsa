@@ -89,6 +89,7 @@ cmd_help() {
 
       This request is suitable for sending to a remote CA for signing."
 			opts="
+        text    - Include certificate text in request
         nopass  - do not encrypt the private key (default is encrypted)" ;;
 		sign|sign-req) text="
   sign-req <type> <filename_base>
@@ -1009,7 +1010,9 @@ Error: gen-req must have a file base as the first argument.
 Run easyrsa without commands for usage and commands."
 	key_out="$EASYRSA_PKI/private/$1.key"
 	req_out="$EASYRSA_PKI/reqs/$1.req"
-	[ ! "$EASYRSA_BATCH" ] && EASYRSA_REQ_CN="$1"
+
+	# Set the request commonName
+	EASYRSA_REQ_CN="$1"
 	shift
 
 	# Require SSL Lib version for 'nopass' -> $no_password
@@ -1019,14 +1022,16 @@ Run easyrsa without commands for usage and commands."
 	opts=
 	while [ -n "$1" ]; do
 		case "$1" in
+			text) opts="$opts -text" ;;
 			nopass) opts="$opts $no_password" ;;
 			# batch flag supports internal callers needing silent operation
-			batch) EASYRSA_BATCH=1 ;;
+			batch) openssl_batch=1 ;;
 			*) warn "Ignoring unknown command option: '$1'" ;;
 		esac
 		shift
 	done
 
+	# Verify required curves
 	[ "$EASYRSA_ALGO" = "ec" ] && verify_curve_ec
 	[ "$EASYRSA_ALGO" = "ed" ] && verify_curve_ed
 
@@ -1060,17 +1065,24 @@ $EASYRSA_EXTRA_EXTS"
 		EASYRSA_SSL_CONF="$conf_tmp"
 	fi
 
+	# Name temp files
 	key_out_tmp="$(easyrsa_mktemp)" || die "Failed to create temporary file"
 	req_out_tmp="$(easyrsa_mktemp)" || die "Failed to create temporary file"
-	# generate request
-	[ "$EASYRSA_BATCH" ] && opts="$opts -batch"
-	# shellcheck disable=2086,2148
+
+	# Set SSL non-interactive mode, otherwise allow full user interaction
+	if [ "$EASYRSA_BATCH" ] || [ "$openssl_batch" ]; then
+		opts="$opts -batch"
+	fi
+
+	# Set Edwards curve name or elliptic curve parameters file
 	algo_opts=""
 	if [ "ed" = "$EASYRSA_ALGO" ]; then
 		algo_opts="$EASYRSA_CURVE"
 	else
 		algo_opts="$EASYRSA_ALGO:$EASYRSA_ALGO_PARAMS"
 	fi
+
+	# Generate request
 	easyrsa_openssl req -utf8 -new -newkey "$algo_opts" \
 		-keyout "$key_out_tmp" -out "$req_out_tmp" $opts \
 		${EASYRSA_PASSOUT:+-passout "$EASYRSA_PASSOUT"} \
