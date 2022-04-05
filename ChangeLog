@@ -1,6 +1,7 @@
 Easy-RSA 3 ChangeLog
 
 3.0.9 (TBD)
+   * Warnings are no longer silenced by --batch (#523)
    * Improve packaging options (#510)
    * Introduce basic support for OpenSSL version 3 (#492)
    * Upgrade OpenSSL from 1.1.0j to 1.1.1m (#405, #407) 
