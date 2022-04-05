@@ -89,7 +89,7 @@ cmd_help() {
 
       This request is suitable for sending to a remote CA for signing."
 			opts="
-		text    - Include certificate text in request
+        text    - Include certificate text in request
         nopass  - do not encrypt the private key (default is encrypted)" ;;
 		sign|sign-req) text="
   sign-req <type> <filename_base>
