@@ -21,6 +21,7 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
+      #EASYRSA_BY_TINCANTECH: 1
       EASYRSA_REMOTE_CI: 1
       EASYRSA_NIX: 1
       TERM: xterm-256color
