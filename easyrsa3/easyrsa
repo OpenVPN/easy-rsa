@@ -2001,53 +2001,110 @@ OpenSSL failure to process the input"
 # vars setup
 # Here sourcing of 'vars' if present occurs. If not present, defaults are used
 # to support running without a sourced config format
+# That is the intention, at least ..
 vars_setup() {
-	# Try to locate a 'vars' file in order of location preference.
+	# Try to locate a 'vars' file in order of weird location preference.
 	# If one is found, source it
+	# NOTE: EASYRSA_PKI is never set here, unless cmd-line --pki-dir=<DIR> is set.
+	# NOTE: EASYRSA is never set here, unless done so outside of easyrsa.
 	vars=
 
 	# set up program path
 	prog_file="$0"
-	prog_file2="$(which -- "$prog_file" 2>/dev/null)" && prog_file="$prog_file2"
-	prog_file2="$(readlink -f "$prog_file" 2>/dev/null)" && prog_file="$prog_file2"
+	# Removed for basic sanity - To re-enable provide a REASON
+	#prog_file2="$(which -- "$prog_file" 2>/dev/null)" && prog_file="$prog_file2"
+	# Removed for breaking New Windows - To re-enable provide a SOLUTION
+	#prog_file2="$(readlink -f "$prog_file" 2>/dev/null)" && prog_file="$prog_file2"
 	prog_dir="${prog_file%/*}"
-	prog_vars="${prog_dir}/vars"
-	# set up PKI path
-	pki_vars="${EASYRSA_PKI:-$PWD/pki}/vars"
 
-	# command-line path:
-	if [ ! -z "$EASYRSA_VARS_FILE" ]; then
-	  if [ ! -f "$EASYRSA_VARS_FILE" ]; then
-		  # If the --vars option does not point to a file, show helpful error.
+	# Program dir vars - This location is least wanted. Weird order ..
+	prog_vars="${prog_dir}/vars"
+	# set up PKI path vars - Top preference
+	pki_vars="${EASYRSA_PKI:-$PWD/pki}/vars"
+	# Some other place vars, out of scope.
+	if [ "$EASYRSA" ]; then
+		easy_vars="${EASYRSA}/vars"
+	else
+		unset -v easy_vars
+	fi
+	# vars of last resort - Eventually this file must be removed from EasyRSA
+	pwd_vars="$PWD/vars"
+
+	# Explicit command-line path:
+	if [ -n "$EASYRSA_VARS_FILE" ]; then
+		if [ -f "$EASYRSA_VARS_FILE" ]; then
+			vars="$EASYRSA_VARS_FILE"
+		else
+			# If the --vars option does not point to a file, show helpful error.
 			die "The file '$EASYRSA_VARS_FILE' was not found."
 		fi
-		vars="$EASYRSA_VARS_FILE"
-	# PKI location, if present:
-	elif [ -f "$pki_vars" ]; then
-		vars="$pki_vars"
-	# EASYRSA, if defined:
-	elif [ -n "$EASYRSA" ] && [ -f "$EASYRSA/vars" ]; then
-		vars="$EASYRSA/vars"
-	# program location:
-	elif [ -f "$prog_vars" ]; then
-		vars="$prog_vars"
-	fi
+	# Otherwise, find vars 'the new way' followed by 'the old way' ..
+	else
+		# Clear flags
+		unset -v f_pki_vars f_prog_vars f_easyrsa_vars f_pwd_vars
 
-	# If a vars file was located, source it
-	# If $EASYRSA_NO_VARS is defined (not blank) this is skipped
-	if [ -z "$EASYRSA_NO_VARS" ] && [ -n "$vars" ]; then
-		if grep -Eq 'EASYRSA_PASSIN|EASYRSA_PASSOUT' "$vars"; then
-			die "\
+		# if NOT $want_init_pki
+		if [ -z "$want_init_pki" ]; then
+			# PKI location, if present:
+			[ -f "$pki_vars" ] && f_pki_vars=1 && \
+				print "Found: $pki_vars"
+			# program location:
+			[ -f "$prog_vars" ] && f_prog_vars=1 && \
+				print "Found: $prog_vars"
+			# EASYRSA, if defined:
+			[ -n "$easy_vars" ] && [ -f "$easy_vars" ] && f_easyrsa_vars=1 && \
+				print "Found: $easy_vars"
+			# vars of last resort - Eventually this file must be removed from EasyRSA
+			[ -f "$pwd_vars" ] && f_pwd_vars=1 && \
+				print "Found: $pwd_vars"
+
+			# These are likely duplicates
+			[ "$pwd_vars" = "$easy_vars" ] && unset -v f_easyrsa_vars
+
+			# Allow only one vars to be found, No exceptions!
+			vars_found="$((f_pki_vars +f_prog_vars +f_easyrsa_vars +f_pwd_vars))"
+			case "$vars_found" in
+			0|1) : ;; # ok
+			*) die "Conflicting 'vars' files found.
+
+Priority should be given to your PKI vars file:
+* $pki_vars
+"
+			esac
+
+			# Assign vars in order of preference, there should be only one anyway.
+			[ -n "$found_pki_vars" ] && [ -z "$vars" ] && vars="$pki_vars"
+			[ -n "$found_prog_vars" ] && [ -z "$vars" ] && vars="$prog_vars"
+			[ -n "$found_pwd_vars" ] && [ -z "$vars" ] && vars="$pwd_vars"
+			[ -n "$found_easyrsa_vars" ] && [ -z "$vars" ] && vars="$easy_vars"
+		fi
+
+		# If $EASYRSA_NO_VARS is defined (not blank) then do not use vars
+		# if $want_init_pki then do not use vars
+		if [ -z "$EASYRSA_NO_VARS" ] && [ -z "$want_init_pki" ]; then
+			# If a vars file was located then source it
+			if [ -n "$vars" ]; then
+				if grep -Eq 'EASYRSA_PASSIN|EASYRSA_PASSOUT' "$vars"; then
+					die "\
 Variable EASYRSA_PASSIN or EASYRSA_PASSOUT has been found in the configuration \
 file. Storing sensitive information in the configuration file is not \
 recommended - please remove it from there before continuing."
-		fi
-		#shellcheck disable=SC2034
-		EASYRSA_CALLER=1
-		# shellcheck disable=SC1090
-		. "$vars"
-		notice "\
+				fi
+				#shellcheck disable=SC2034
+				EASYRSA_CALLER=1
+				# shellcheck disable=SC1090
+				. "$vars"
+				notice "\
 Note: using Easy-RSA configuration from: $vars"
+			else
+				# $vars remains undefined .. no vars found
+				warn "  No vars file found!"
+			fi
+		else
+			# EASYRSA_NO_VARS is defined or want_init_pki, no vars is required.
+			:
+		fi
+	# END: Find vars 'the new way' followed by 'the old way' ..
 	fi
 
 	# Set defaults, preferring existing env-vars if present
@@ -2136,7 +2193,7 @@ Note: using Easy-RSA configuration from: $vars"
 			mkdir -p "$EASYRSA_TEMP_DIR" || \
 				die "Cannot create $EASYRSA_TEMP_DIR (permission?)"
 			EASYRSA_TEMP_DIR_session="$(
-					mktemp -du "$EASYRSA_TEMP_DIR/easy-rsa-$$.XXXXXX"
+				mktemp -du "$EASYRSA_TEMP_DIR/easy-rsa-$$.XXXXXX"
 				)"
 			rm -rf "$EASYRSA_TEMP_DIR"
 		fi
@@ -2854,6 +2911,14 @@ subjectAltName = $val" ;;
 	shift
 done
 
+# Set cmd now because vars_setup needs to know if this is init-pki
+cmd="$1"
+[ -n "$1" ] && shift # scrape off command
+case "$cmd" in
+init-pki|clean-all) want_init_pki=1 ;;
+*) unset -v want_init_pki
+esac
+
 # Intelligent env-var detection and auto-loading:
 vars_setup
 
@@ -2872,8 +2937,6 @@ trap "exit 14" 15
 #up23_manage_upgrade_23
 
 # determine how we were called, then hand off to the function responsible
-cmd="$1"
-[ -n "$1" ] && shift # scrape off command
 case "$cmd" in
 	init-pki|clean-all)
 		init_pki "$@"
