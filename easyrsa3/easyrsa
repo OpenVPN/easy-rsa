@@ -1070,7 +1070,7 @@ $EASYRSA_EXTRA_EXTS"
 	req_out_tmp="$(easyrsa_mktemp)" || die "Failed to create temporary file"
 
 	# Set SSL non-interactive mode, otherwise allow full user interaction
-	if [ "EASYRSA_BATCH" ] || [ "$openssl_batch" ]; then
+	if [ "$EASYRSA_BATCH" ] || [ "$openssl_batch" ]; then
 		opts="$opts -batch"
 	fi
 
