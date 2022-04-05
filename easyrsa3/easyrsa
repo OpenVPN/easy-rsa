@@ -227,6 +227,9 @@ non-empty values to options are mandatory.
 General options:
 
 --batch         : set automatic (no-prompts when possible) mode
+--silent        : Disable all Warnings and Notices
+--sbatch        : Combined --silent and --batch operating mode
+
 --passin=ARG    : set -passin ARG for openssl
 --passout=ARG   : set -passout ARG for openssl
 --pki-dir=DIR   : declares the PKI directory
@@ -281,20 +284,18 @@ $1" 1>&2
 
 # non-fatal warning output
 warn() {
-	[ ! "$EASYRSA_BATCH" ] && \
-		print "
-$1" 1>&2
+	[ "$EASYRSA_SILENT" ] && return
+	print "* Warning:
 
-	return 0
+$1" 1>&2
 } # => warn()
 
 # informational notices to stdout
 notice() {
-	[ ! "$EASYRSA_BATCH" ] && \
-		print "
+	[ "$EASYRSA_SILENT" ] && return
+	[ "$EASYRSA_BATCH" ] && return
+	print "
 $1"
-
-	return 0
 } # => notice()
 
 # yes/no case-insensitive match (operates on stdin pipe)
@@ -2815,6 +2816,13 @@ while :; do
 		export EASYRSA_NS_COMMENT="$val" ;;
 	--batch)
 		empty_ok=1
+		export EASYRSA_BATCH=1 ;;
+	--silent)
+		empty_ok=1
+		export EASYRSA_SILENT=1 ;;
+	--silent-batch|--sbatch)
+		empty_ok=1
+		export EASYRSA_SILENT=1
 		export EASYRSA_BATCH=1 ;;
 	--passin)
 		export EASYRSA_PASSIN="$val";;
