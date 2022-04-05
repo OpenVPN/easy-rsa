@@ -723,6 +723,7 @@ install_data_to_pki () {
 	#[ -e "${EASYRSA_PKI}/${x509_types_dir}" ] || return
 
 	# EASYRSA_EXT_DIR must be found! No exceptions!
+	# The shellcheck warning 2015 is valid, however, this code works correctly.
 	[ -n "$EASYRSA_EXT_DIR" ] && [ -e "$EASYRSA_EXT_DIR" ] || \
 		die "x509-types folder cannot be found"
 
@@ -772,7 +773,7 @@ build_ca() {
 	# setup for the simpler intermediate CA situation and overwrite with root-CA if needed:
 	out_file="$EASYRSA_PKI/reqs/ca.req"
 	out_key="$EASYRSA_PKI/private/ca.key"
-	if [ ! $sub_ca ]; then
+	if [ -z "$sub_ca" ]; then
 		out_file="$EASYRSA_PKI/ca.crt"
 		opts="$opts -x509 -days $EASYRSA_CA_EXPIRE "
 	fi
@@ -811,7 +812,10 @@ current CA keypair. If you intended to start a new CA, run init-pki first."
 	out_key_tmp="$(easyrsa_mktemp)" || die "Failed to create temporary file"
 	out_file_tmp="$(easyrsa_mktemp)" || die "Failed to create temporary file"
 	# Get password from user if necessary
-	if [ ! $nopass ] && ( [ -z "$EASYRSA_PASSOUT" ] || [ -z "$EASYRSA_PASSIN" ] ); then
+	if [ -z "$nopass" ] && {
+		[ -z "$EASYRSA_PASSOUT" ] || [ -z "$EASYRSA_PASSIN" ]
+		}
+	then
 		out_key_pass_tmp="$(easyrsa_mktemp)" || die "Failed to create temporary file"
 		echo
 		printf "Enter New CA Key Passphrase: "
@@ -862,7 +866,7 @@ current CA keypair. If you intended to start a new CA, run init-pki first."
 		# If encrypted then create the CA key using AES256 cipher ($crypto)
 		# 'genpkey' requires '-pass'
 		crypto_opts=""
-		if [ ! $nopass ]; then
+		if [ -z "$nopass" ]; then
 			crypto_opts="$crypto"
 			if [ -z "$EASYRSA_PASSOUT" ]; then
 				crypto_opts="$crypto_opts -pass file:$out_key_pass_tmp"
@@ -904,7 +908,7 @@ current CA keypair. If you intended to start a new CA, run init-pki first."
 		# Private key encryption password or use no_password
 		# 'req' requires '-passin'
 		crypto_opts=""
-		if [ ! $nopass ] && [ -z "$EASYRSA_PASSIN" ]; then
+		if [ -z "$nopass" ] && [ -z "$EASYRSA_PASSIN" ]; then
 			crypto_opts="-passin file:$out_key_pass_tmp"
 		else
 			crypto_opts="$no_password"
@@ -924,7 +928,7 @@ current CA keypair. If you intended to start a new CA, run init-pki first."
 	1|2)
 		# If encrypted then create the CA key using AES256 cipher ($crypto)
 		crypto_opts=""
-		if [ ! $nopass ]; then
+		if [ -z "$nopass" ]; then
 			crypto_opts="$crypto"
 			if [ -z "$EASYRSA_PASSOUT" ]; then
 				if [ "ed" = "$EASYRSA_ALGO" ]; then
@@ -965,7 +969,7 @@ current CA keypair. If you intended to start a new CA, run init-pki first."
 
 		# create the CA keypair:
 		crypto_opts=""
-		if [ ! $nopass ] && [ -z "$EASYRSA_PASSIN" ]; then
+		if [ -z "$nopass" ] && [ -z "$EASYRSA_PASSIN" ]; then
 			crypto_opts="-passin file:$out_key_pass_tmp"
 		else
 			crypto_opts="$no_password"
@@ -989,7 +993,7 @@ current CA keypair. If you intended to start a new CA, run init-pki first."
 	[ -f "$out_key_pass_tmp" ] && rm "$out_key_pass_tmp"
 
 	# Success messages
-	if [ $sub_ca ]; then
+	if [ -n "$sub_ca" ]; then
 		notice "\
 NOTE: Your intermediate CA request is at $out_file
 and now must be sent to your parent CA for signing. Place your resulting cert
