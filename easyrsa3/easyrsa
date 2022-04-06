@@ -269,6 +269,7 @@ Deprecated features:
 } # => opt_usage()
 
 # Wrapper around printf - clobber print since it's not POSIX anyway
+# print() is used internally, so MUST NOT be silenced.
 # shellcheck disable=SC1117
 print() { printf "%s\n" "$*" || exit 1; }
 
@@ -564,7 +565,9 @@ init_pki() {
 		confirm "Confirm removal: " "yes" "
 WARNING!!!
 
-You are about to remove the EASYRSA_PKI at: $EASYRSA_PKI
+You are about to remove the EASYRSA_PKI at:
+* $EASYRSA_PKI
+
 and initialize a fresh PKI here."
 		# now remove it:
 		case "$reset" in
@@ -606,7 +609,8 @@ and initialize a fresh PKI here."
 
 	notice "\
 init-pki complete; you may now create a CA or requests.
-Your newly created PKI dir is: $EASYRSA_PKI"
+Your newly created PKI dir is:
+* $EASYRSA_PKI"
 
 	notice "* Easy-RSA 'vars' file has now been moved to your PKI above."
 	return 0
@@ -2001,9 +2005,8 @@ OpenSSL failure to process the input"
 # vars setup
 # Here sourcing of 'vars' if present occurs. If not present, defaults are used
 # to support running without a sourced config format
-# That is the intention, at least ..
 vars_setup() {
-	# Try to locate a 'vars' file in order of weird location preference.
+	# Try to locate a 'vars' file in order of location preference.
 	# If one is found, source it
 	# NOTE: EASYRSA_PKI is never set here, unless cmd-line --pki-dir=<DIR> is set.
 	# NOTE: EASYRSA is never set here, unless done so outside of easyrsa.
@@ -2017,7 +2020,7 @@ vars_setup() {
 	#prog_file2="$(readlink -f "$prog_file" 2>/dev/null)" && prog_file="$prog_file2"
 	prog_dir="${prog_file%/*}"
 
-	# Program dir vars - This location is least wanted. Weird order ..
+	# Program dir vars - This location is least wanted.
 	prog_vars="${prog_dir}/vars"
 	# set up PKI path vars - Top preference
 	pki_vars="${EASYRSA_PKI:-$PWD/pki}/vars"
@@ -2031,7 +2034,7 @@ vars_setup() {
 	pwd_vars="$PWD/vars"
 
 	# Explicit command-line path:
-	if [ -n "$EASYRSA_VARS_FILE" ]; then
+	if [ "$EASYRSA_VARS_FILE" ]; then
 		if [ -f "$EASYRSA_VARS_FILE" ]; then
 			vars="$EASYRSA_VARS_FILE"
 		else
@@ -2046,94 +2049,91 @@ vars_setup() {
 		# if NOT $want_init_pki
 		if [ -z "$want_init_pki" ]; then
 			# PKI location, if present:
-			[ -f "$pki_vars" ] && f_pki_vars=1 && \
-				print "Found: $pki_vars"
+			[ -e "$pki_vars" ] && f_pki_vars=1
 			# program location:
-			[ -f "$prog_vars" ] && f_prog_vars=1 && \
-				print "Found: $prog_vars"
+			[ -e "$prog_vars" ] && f_prog_vars=1
 			# EASYRSA, if defined:
-			[ -n "$easy_vars" ] && [ -f "$easy_vars" ] && f_easyrsa_vars=1 && \
-				print "Found: $easy_vars"
+			[ -e "$easy_vars" ] && f_easyrsa_vars=1
 			# vars of last resort - Eventually this file must be removed from EasyRSA
-			[ -f "$pwd_vars" ] && f_pwd_vars=1 && \
-				print "Found: $pwd_vars"
-
-			# These are likely duplicates
-			[ "$pwd_vars" = "$easy_vars" ] && unset -v f_easyrsa_vars
+			[ -e "$pwd_vars" ] && f_pwd_vars=1
 
 			# Allow only one vars to be found, No exceptions!
 			vars_found="$((f_pki_vars +f_prog_vars +f_easyrsa_vars +f_pwd_vars))"
 			case "$vars_found" in
 			0|1) : ;; # ok
-			*) die "Conflicting 'vars' files found.
+			*)
+				[ "$f_pki_vars" ] && print "Found: $pki_vars"
+				[ "$f_prog_vars" ] && print "Found: $prog_vars"
+				[ "$f_easyrsa_vars" ] && print "Found: $easy_vars"
+				[ "$f_pwd_vars" ] && print "Found: $pwd_vars"
+				die "Conflicting 'vars' files found.
 
 Priority should be given to your PKI vars file:
 * $pki_vars
 "
 			esac
 
-			# Assign vars in order of preference, there should be only one anyway.
-			[ -n "$found_pki_vars" ] && [ -z "$vars" ] && vars="$pki_vars"
-			[ -n "$found_prog_vars" ] && [ -z "$vars" ] && vars="$prog_vars"
-			[ -n "$found_pwd_vars" ] && [ -z "$vars" ] && vars="$pwd_vars"
-			[ -n "$found_easyrsa_vars" ] && [ -z "$vars" ] && vars="$easy_vars"
+			# Assign vars in order of preference.
+			for i in "$pki_vars" "$prog_vars" "$easy_vars" "$pwd_vars"; do
+				set_var vars "$i"
+			done
 		fi
 
 		# If $EASYRSA_NO_VARS is defined (not blank) then do not use vars
 		# if $want_init_pki then do not use vars
 		if [ -z "$EASYRSA_NO_VARS" ] && [ -z "$want_init_pki" ]; then
 			# If a vars file was located then source it
-			if [ -n "$vars" ]; then
+			if [ "$vars" ]; then
 				if grep -Eq 'EASYRSA_PASSIN|EASYRSA_PASSOUT' "$vars"; then
 					die "\
 Variable EASYRSA_PASSIN or EASYRSA_PASSOUT has been found in the configuration \
 file. Storing sensitive information in the configuration file is not \
 recommended - please remove it from there before continuing."
 				fi
-				#shellcheck disable=SC2034
+				# shellcheck disable=SC2034 # EASYRSA_CALLER appears unused.
 				EASYRSA_CALLER=1
-				# shellcheck disable=SC1090
+				# shellcheck source=vars.example
 				. "$vars"
 				notice "\
 Note: using Easy-RSA configuration from: $vars"
 			else
 				# $vars remains undefined .. no vars found
-				warn "  No vars file found!"
+				[ "$want_init_pki" ] || warn "  No vars file found!"
 			fi
 		else
 			# EASYRSA_NO_VARS is defined or want_init_pki, no vars is required.
-			:
+			: # ok
 		fi
 	# END: Find vars 'the new way' followed by 'the old way' ..
 	fi
 
 	# Set defaults, preferring existing env-vars if present
-	set_var EASYRSA		"$PWD"
-	set_var EASYRSA_OPENSSL	openssl
-	set_var EASYRSA_PKI	"$PWD/pki"
-	set_var EASYRSA_DN	cn_only
-	set_var EASYRSA_REQ_COUNTRY	"US"
+	set_var EASYRSA					"$PWD"
+	set_var EASYRSA_OPENSSL			openssl
+	set_var EASYRSA_PKI				"$PWD/pki"
+	set_var EASYRSA_DN				cn_only
+	set_var EASYRSA_REQ_COUNTRY		"US"
 	set_var EASYRSA_REQ_PROVINCE	"California"
-	set_var EASYRSA_REQ_CITY	"San Francisco"
-	set_var EASYRSA_REQ_ORG		"Copyleft Certificate Co"
-	set_var EASYRSA_REQ_EMAIL	me@example.net
-	set_var EASYRSA_REQ_OU		"My Organizational Unit"
-	set_var EASYRSA_ALGO		rsa
-	set_var EASYRSA_KEY_SIZE	2048
-	set_var EASYRSA_CURVE		secp384r1
-	set_var EASYRSA_EC_DIR		"$EASYRSA_PKI/ecparams"
-	set_var EASYRSA_CA_EXPIRE	3650
-	set_var EASYRSA_CERT_EXPIRE	825 # new default of 36 months
-	set_var EASYRSA_CERT_RENEW	30
-	set_var EASYRSA_CRL_DAYS	180
-	set_var EASYRSA_NS_SUPPORT	no
-	set_var EASYRSA_NS_COMMENT	"Easy-RSA (~VER~) Generated Certificate"
-	set_var EASYRSA_TEMP_DIR	"$EASYRSA_PKI"
-	set_var EASYRSA_REQ_CN		ChangeMe
-	set_var EASYRSA_DIGEST		sha256
-	set_var EASYRSA_SSL_CONF	"$EASYRSA_PKI/openssl-easyrsa.cnf"
-	set_var EASYRSA_SAFE_CONF	"$EASYRSA_PKI/safessl-easyrsa.cnf"
-	set_var EASYRSA_KDC_REALM	"CHANGEME.EXAMPLE.COM"
+	set_var EASYRSA_REQ_CITY		"San Francisco"
+	set_var EASYRSA_REQ_ORG			"Copyleft Certificate Co"
+	set_var EASYRSA_REQ_EMAIL		me@example.net
+	set_var EASYRSA_REQ_OU			"My Organizational Unit"
+	set_var EASYRSA_ALGO			rsa
+	set_var EASYRSA_KEY_SIZE		2048
+	set_var EASYRSA_CURVE			secp384r1
+	set_var EASYRSA_EC_DIR			"$EASYRSA_PKI/ecparams"
+	set_var EASYRSA_CA_EXPIRE		3650
+	set_var EASYRSA_CERT_EXPIRE		825 # new default of 36 months
+	set_var EASYRSA_CERT_RENEW		30
+	set_var EASYRSA_CRL_DAYS		180
+	set_var EASYRSA_NS_SUPPORT		no
+	set_var EASYRSA_NS_COMMENT		"Easy-RSA (~VER~) Generated Certificate"
+	set_var EASYRSA_TEMP_DIR		"$EASYRSA_PKI"
+	set_var EASYRSA_REQ_CN			ChangeMe
+	set_var EASYRSA_DIGEST			sha256
+	set_var EASYRSA_SSL_CONF		"$EASYRSA_PKI/openssl-easyrsa.cnf"
+	set_var EASYRSA_SAFE_CONF		"$EASYRSA_PKI/safessl-easyrsa.cnf"
+	set_var EASYRSA_KDC_REALM		"CHANGEME.EXAMPLE.COM"
 
 	# EASYRSA_ALGO_PARAMS must be set depending on selected algo
 	case "$EASYRSA_ALGO" in
@@ -2181,8 +2181,8 @@ Note: using Easy-RSA configuration from: $vars"
 
 			# Upgrade to 306: Create $EASYRSA_SSL_CONF if it does not exist
 			# but only if $EASYRSA_PKI exists.
-			if [ ! -f "$EASYRSA_SSL_CONF" ] && \
-				[ -f "$EASYRSA/openssl-easyrsa.cnf" ] && [ -d "$EASYRSA_PKI" ];
+			if [ -d "$EASYRSA_PKI" ] && [ -f "$EASYRSA/openssl-easyrsa.cnf" ] && \
+				[ ! -f "$EASYRSA_SSL_CONF" ]
 			then
 				cp "$EASYRSA/openssl-easyrsa.cnf" "$EASYRSA_SSL_CONF"
 				easyrsa_openssl makesafeconf
@@ -2198,7 +2198,6 @@ Note: using Easy-RSA configuration from: $vars"
 			rm -rf "$EASYRSA_TEMP_DIR"
 		fi
 	fi
-
 } # vars_setup()
 
 # variable assignment by indirection when undefined; merely exports
