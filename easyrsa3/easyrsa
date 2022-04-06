@@ -2076,7 +2076,7 @@ Priority should be given to your PKI vars file:
 
 			# Assign vars in order of preference.
 			for i in "$pki_vars" "$prog_vars" "$easy_vars" "$pwd_vars"; do
-				set_var vars "$i"
+				vars="${vars:-"$i"}"
 			done
 		fi
 
@@ -2099,7 +2099,7 @@ recommended - please remove it from there before continuing."
 Note: using Easy-RSA configuration from: $vars"
 			else
 				# $vars remains undefined .. no vars found
-				[ "$want_init_pki" ] || warn "  No vars file found!"
+				[ "$want_init_pki" ] || warn "  No vars file defined!"
 			fi
 		else
 			# EASYRSA_NO_VARS is defined or want_init_pki, no vars is required.
