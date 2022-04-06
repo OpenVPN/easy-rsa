@@ -2033,9 +2033,10 @@ vars_setup() {
 	# vars of last resort - Eventually this file must be removed from EasyRSA
 	pwd_vars="$PWD/vars"
 
+	# Find vars
 	# Explicit command-line path:
 	if [ "$EASYRSA_VARS_FILE" ]; then
-		if [ -f "$EASYRSA_VARS_FILE" ]; then
+		if [ -e "$EASYRSA_VARS_FILE" ]; then
 			vars="$EASYRSA_VARS_FILE"
 		else
 			# If the --vars option does not point to a file, show helpful error.
@@ -2104,7 +2105,7 @@ Note: using Easy-RSA configuration from: $vars"
 			# EASYRSA_NO_VARS is defined or want_init_pki, no vars is required.
 			: # ok
 		fi
-	# END: Find vars 'the new way' followed by 'the old way' ..
+	# END: Find vars
 	fi
 
 	# Set defaults, preferring existing env-vars if present
@@ -2181,8 +2182,8 @@ Note: using Easy-RSA configuration from: $vars"
 
 			# Upgrade to 306: Create $EASYRSA_SSL_CONF if it does not exist
 			# but only if $EASYRSA_PKI exists.
-			if [ -d "$EASYRSA_PKI" ] && [ -f "$EASYRSA/openssl-easyrsa.cnf" ] && \
-				[ ! -f "$EASYRSA_SSL_CONF" ]
+			if [ -d "$EASYRSA_PKI" ] && [ -e "$EASYRSA/openssl-easyrsa.cnf" ] && \
+				[ ! -e "$EASYRSA_SSL_CONF" ]
 			then
 				cp "$EASYRSA/openssl-easyrsa.cnf" "$EASYRSA_SSL_CONF"
 				easyrsa_openssl makesafeconf
@@ -2190,12 +2191,14 @@ Note: using Easy-RSA configuration from: $vars"
 
 		else
 			# If the directory does not exist then we have not run init-pki
-			mkdir -p "$EASYRSA_TEMP_DIR" || \
+			if mkdir -p "$EASYRSA_TEMP_DIR"; then
+				EASYRSA_TEMP_DIR_session="$(
+					mktemp -du "$EASYRSA_TEMP_DIR/easy-rsa-$$.XXXXXX"
+					)"
+				rm -rf "$EASYRSA_TEMP_DIR"
+			else
 				die "Cannot create $EASYRSA_TEMP_DIR (permission?)"
-			EASYRSA_TEMP_DIR_session="$(
-				mktemp -du "$EASYRSA_TEMP_DIR/easy-rsa-$$.XXXXXX"
-				)"
-			rm -rf "$EASYRSA_TEMP_DIR"
+			fi
 		fi
 	fi
 } # vars_setup()

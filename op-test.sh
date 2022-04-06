@@ -26,6 +26,7 @@ if [ -e "shellcheck" ] && [ "$EASYRSA_NIX" ]; then
 	./shellcheck -V
 	if [ -e easyrsa3/easyrsa ]; then
 		./shellcheck -s sh -S warning -x easyrsa3/easyrsa
+		echo "* shellcheck completed *"
 	else
 		echo "* easyrsa binary not present, using path, no shellcheck"
 	fi
@@ -37,6 +38,7 @@ elif [ "$EASYRSA_NIX" ]; then
 	./shellcheck -V
 	if [ -e easyrsa3/easyrsa ]; then
 		./shellcheck -s sh -S warning -x easyrsa3/easyrsa
+		echo "* shellcheck completed *"
 	else
 		echo "* easyrsa binary not present, using path, no shellcheck"
 	fi
