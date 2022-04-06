@@ -24,8 +24,8 @@ if [ "$enable_shellcheck" ]; then
 if [ -e "shellcheck" ] && [ "$EASYRSA_NIX" ]; then
 	chmod +x shellcheck
 	./shellcheck -V
-	if [ -e easyrsa3/easyrsa ];then
-		./shellcheck easyrsa3/easyrsa
+	if [ -e easyrsa3/easyrsa ]; then
+		./shellcheck -s sh -S warning -x easyrsa3/easyrsa
 	else
 		echo "* easyrsa binary not present, using path, no shellcheck"
 	fi
@@ -35,8 +35,8 @@ elif [ "$EASYRSA_NIX" ]; then
 	[ -e "shellcheck" ] || { echo "shellcheck download failed."; exit 9; }
 	chmod +x shellcheck
 	./shellcheck -V
-	if [ -e easyrsa3/easyrsa ];then
-		./shellcheck easyrsa3/easyrsa
+	if [ -e easyrsa3/easyrsa ]; then
+		./shellcheck -s sh -S warning -x easyrsa3/easyrsa
 	else
 		echo "* easyrsa binary not present, using path, no shellcheck"
 	fi
