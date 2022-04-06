@@ -2074,10 +2074,11 @@ Priority should be given to your PKI vars file:
 "
 			esac
 
-			# Assign vars in order of preference.
-			for i in "$pki_vars" "$prog_vars" "$easy_vars" "$pwd_vars"; do
-				vars="${vars:-"$i"}"
-			done
+			# If a vars file is found then assign $vars
+			[ "$f_pki_vars" ] && vars="$pki_vars"
+			[ "$f_prog_vars" ] && vars="$prog_vars"
+			[ "$f_easy_vars" ] && vars="$easy_vars"
+			[ "$f_pwd_vars" ] && vars="$pwd_vars"
 		fi
 
 		# If $EASYRSA_NO_VARS is defined (not blank) then do not use vars
