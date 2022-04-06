@@ -2024,6 +2024,7 @@ vars_setup() {
 	prog_vars="${prog_dir}/vars"
 	# set up PKI path vars - Top preference
 	pki_vars="${EASYRSA_PKI:-$PWD/pki}/vars"
+	keep_pki_vars="$pki_vars"
 	# Some other place vars, out of scope.
 	if [ "$EASYRSA" ]; then
 		easy_vars="${EASYRSA}/vars"
@@ -2050,35 +2051,52 @@ vars_setup() {
 		# if NOT $want_init_pki
 		if [ -z "$want_init_pki" ]; then
 			# PKI location, if present:
-			[ -e "$pki_vars" ] && f_pki_vars=1
+			[ -e "$pki_vars" ] || unset -v pki_vars
 			# program location:
-			[ -e "$prog_vars" ] && f_prog_vars=1
+			[ -e "$prog_vars" ] || unset -v prog_vars
 			# EASYRSA, if defined:
-			[ -e "$easy_vars" ] && f_easyrsa_vars=1
+			[ -e "$easy_vars" ] || unset -v easy_vars
 			# vars of last resort - Eventually this file must be removed from EasyRSA
-			[ -e "$pwd_vars" ] && f_pwd_vars=1
+			[ -e "$pwd_vars" ] || unset -v pwd_vars
 
 			# Allow only one vars to be found, No exceptions!
-			vars_found="$((f_pki_vars +f_prog_vars +f_easyrsa_vars +f_pwd_vars))"
-			case "$vars_found" in
-			0|1) : ;; # ok
-			*)
-				[ "$f_pki_vars" ] && print "Found: $pki_vars"
-				[ "$f_prog_vars" ] && print "Found: $prog_vars"
-				[ "$f_easyrsa_vars" ] && print "Found: $easy_vars"
-				[ "$f_pwd_vars" ] && print "Found: $pwd_vars"
+			too_many_vars=
+			if [ "$pki_vars" ]; then
+				if [ "$pwd_vars" ] || [ "$easy_vars" ] || [ "$prog_vars" ]; then
+					too_many_vars=1
+				fi
+			elif [ "$prog_vars" ]; then
+				if [ "$pwd_vars" ] || [ "$easy_vars" ]; then
+					too_many_vars=1
+				fi
+			elif [ "$easy_vars" ]; then
+				if [ "$pwd_vars" ]; then
+					too_many_vars=1
+				fi
+			elif [ "$pwd_vars" ]; then
+				warn "Move your vars file to your PKI folder, where it is safe!"
+			else
+				warn "No vars file found! Please create one in your PKI folder."
+			fi
+
+			# If too_many_vars then output user info and exit
+			if [ "$too_many_vars" ]; then
+				[ "$pki_vars" ] && print "Found: $pki_vars"
+				[ "$prog_vars" ] && print "Found: $prog_vars"
+				[ "$easy_vars" ] && print "Found: $easy_vars"
+				[ "$pwd_vars" ] && print "Found: $pwd_vars"
 				die "Conflicting 'vars' files found.
 
 Priority should be given to your PKI vars file:
-* $pki_vars
+* $keep_pki_vars
 "
-			esac
+			fi
 
-			# If a vars file is found then assign $vars
-			[ "$f_pki_vars" ] && vars="$pki_vars"
-			[ "$f_prog_vars" ] && vars="$prog_vars"
-			[ "$f_easy_vars" ] && vars="$easy_vars"
-			[ "$f_pwd_vars" ] && vars="$pwd_vars"
+			# If a SINGLE vars file is found then assign $vars
+			[ "$pwd_vars" ] && vars="$pwd_vars"
+			[ "$easy_vars" ] && vars="$easy_vars"
+			[ "$prog_vars" ] && vars="$prog_vars"
+			[ "$pki_vars" ] && vars="$pki_vars"
 		fi
 
 		# If $EASYRSA_NO_VARS is defined (not blank) then do not use vars
@@ -2100,7 +2118,11 @@ recommended - please remove it from there before continuing."
 Note: using Easy-RSA configuration from: $vars"
 			else
 				# $vars remains undefined .. no vars found
-				[ "$want_init_pki" ] || warn "  No vars file defined!"
+				[ "$want_init_pki" ] || warn "  No vars file defined!
+
+Expected to find 'vars' file:
+* $keep_pki_vars
+"
 			fi
 		else
 			# EASYRSA_NO_VARS is defined or want_init_pki, no vars is required.
