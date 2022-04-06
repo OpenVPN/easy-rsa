@@ -1,6 +1,8 @@
 Easy-RSA 3 ChangeLog
 
 3.0.9 (TBD)
+   * Prefer 'PKI/vars' over all other locations (#528)
+   * Introduce 'init-pki soft'  option (#197)
    * Warnings are no longer silenced by --batch (#523)
    * Improve packaging options (#510)
    * Introduce basic support for OpenSSL version 3 (#492)
@@ -57,7 +59,7 @@ Easy-RSA 3 ChangeLog
     * Remove use of egrep (#154)
     * Integrate with Travis-CI (#165)
     * Remove "local" from variable assignment (#165)
-        * Other changes related to Travis-CI fixes
+    * Other changes related to Travis-CI fixes
 	* Assign values to variables defined previously w/local
     * Finally(?) fix the subjectAltName issues I presented earlier (really
       fixes #168)
