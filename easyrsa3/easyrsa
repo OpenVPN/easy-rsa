@@ -2134,7 +2134,7 @@ file. Storing sensitive information in the configuration file is not
 recommended - please remove it from there before continuing.
 "
 				fi
-				if grep -Eq \' "$vars"; then
+				if grep -q "'" "$vars"; then
 					die "
 Single quote (') has been found in the configuration file.
 This character is not allowed in the configuration file.
