@@ -2067,11 +2067,9 @@ vars_setup() {
 			# If the --vars option does not point to a file, show helpful error.
 			die "The file '$EASYRSA_VARS_FILE' was not found."
 		fi
+
 	# Otherwise, find vars 'the new way' followed by 'the old way' ..
 	else
-		# Clear flags
-		unset -v f_pki_vars f_prog_vars f_easyrsa_vars f_pwd_vars
-
 		# if NOT $want_init_pki
 		if [ -z "$want_init_pki" ]; then
 			# PKI location, if present:
