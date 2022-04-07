@@ -175,7 +175,7 @@ cmd_help() {
   export-p8 <filename_base> [ cmd-opts ]
       Export a PKCS#8 file with the private key specified by <filename_base>"
 			opts="
-        noca  - do not include the ca.crt file in the PKCS7 output" ;;
+	nopass - use or expect unencrypted private key" ;;
 		export-p1) text="
   export-p1 <filename_base> [ cmd-opts ]
 	  Export a PKCS#1 (RSA format) file with the pubkey specified by <filename_base>"
