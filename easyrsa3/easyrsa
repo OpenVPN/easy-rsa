@@ -249,7 +249,7 @@ Certificate & Request options: (these impact cert/req field values)
                      ./easyrsa help altname
 --use-algo=ALG  : crypto alg to use: choose rsa (default), ec or ed
 --curve=NAME    : for elliptic curve, sets the named curve to use
---copy-ext      : Copy included request X509 extensions (namely subjAltName
+--copy-ext      : Copy included request X509 extensions (namely subjAltName)
 
 Organizational DN options: (only used with the 'org' DN mode)
   (values may be blank for org DN options)
@@ -2126,18 +2126,27 @@ Priority should be given to your PKI vars file:
 		if [ -z "$EASYRSA_NO_VARS" ] && [ -z "$want_init_pki" ]; then
 			# If a vars file was located then source it
 			if [ "$vars" ]; then
+				# Sanitize vars
 				if grep -Eq 'EASYRSA_PASSIN|EASYRSA_PASSOUT' "$vars"; then
-					die "\
-Variable EASYRSA_PASSIN or EASYRSA_PASSOUT has been found in the configuration \
-file. Storing sensitive information in the configuration file is not \
-recommended - please remove it from there before continuing."
+					die "
+Variable EASYRSA_PASSIN or EASYRSA_PASSOUT has been found in the configuration
+file. Storing sensitive information in the configuration file is not
+recommended - please remove it from there before continuing.
+"
 				fi
+				if grep -Eq \' "$vars"; then
+					die "
+Single quote (') has been found in the configuration file.
+This character is not allowed in the configuration file.
+Please remove it before continuing.
+"
+				fi
+
 				# shellcheck disable=SC2034 # EASYRSA_CALLER appears unused.
 				EASYRSA_CALLER=1
 				# shellcheck disable=1090 # can't follow non-constant source. vars
 				. "$vars"
-				notice "\
-Note: using Easy-RSA configuration from: $vars"
+				notice "Note: using Easy-RSA configuration from: $vars"
 			else
 				# $vars remains undefined .. no vars found
 				[ "$want_init_pki" ] || warn "  No vars file defined!
