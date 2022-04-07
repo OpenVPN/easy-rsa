@@ -1,6 +1,6 @@
 Easy-RSA 3 ChangeLog
 
-3.0.9 (TBD)
+3.1.0 (TBD)
    * Prefer 'PKI/vars' over all other locations (#528)
    * Introduce 'init-pki soft'  option (#197)
    * Warnings are no longer silenced by --batch (#523)
@@ -11,6 +11,13 @@ Easy-RSA 3 ChangeLog
    * Use openssl rand instead of non-POSIX mktemp (#478)
    * Fix paths with spaces (#443)
    * Correct OpenSSL version from Homebrew on macOs (#416)
+
+3.0.9 - Superseded - These changes are significant
+
+   The reasons to leave v3.0.9 as a developement only version are:
+
+   * Support for OpenSSL v3
+   * New maintainer: Richard T Bonhomme <tincantech@protonmail.com>
 
 3.0.8 (2020-09-09)
    * Provide --version option (#372)
