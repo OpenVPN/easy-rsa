@@ -839,7 +839,7 @@ current CA keypair. If you intended to start a new CA, run init-pki first."
 	fi
 
 	# Insert x509-types COMMON and 'ca'
-	#shellcheck disable=SC2016
+	# shellcheck disable=SC2016
 	awkscript='
 {if ( match($0, "^#%X509_TYPES%") )
 	{ while ( getline<"/dev/stdin" ) {print} next }
@@ -863,7 +863,12 @@ current CA keypair. If you intended to start a new CA, run init-pki first."
 		unset -v EASYRSA_EXTRA_EXTS
 	fi
 
-	# Choose SSL Library version (1 or 3) and build CA
+	# Choose SSL Library version (1, 2(LibreSSL) or 3) and build CA
+	#
+	# * shellcheck SC2086 # Ignore unquoted variables
+	#   The "correct" solution is to not need unquoted substitutions ..
+	#
+	# shellcheck disable=SC2086 # Ignore unquoted variables
 	case "$osslv_major" in # => BEGIN SSL lib version
 
 	# BEGIN SSL V3
@@ -880,7 +885,6 @@ current CA keypair. If you intended to start a new CA, run init-pki first."
 
 		# Generate CA Key - OpenSSL v3 'genpkey' is not compatible
 		# with easyrsa $opts and $no_password, do NOT use them here
-		# shellcheck disable=SC2086 # Ignore unquoted variables
 		case "$EASYRSA_ALGO" in
 		rsa)
 			# OpenSSL v3: 'genrsa' is deprecate, use 'genpkey'
@@ -920,7 +924,6 @@ current CA keypair. If you intended to start a new CA, run init-pki first."
 		fi
 
 		# create the CA keypair:
-		# shellcheck disable=SC2086
 		easyrsa_openssl req -utf8 -new -key "$out_key_tmp" \
 			-out "$out_file_tmp" ${opts} ${crypto_opts} \
 			${EASYRSA_CA_EXTRA_EXTS} \
@@ -945,7 +948,6 @@ current CA keypair. If you intended to start a new CA, run init-pki first."
 		fi
 
 		# create the CA key
-		#shellcheck disable=SC2086
 		case "$EASYRSA_ALGO" in
 		rsa)
 			"$EASYRSA_OPENSSL" genrsa -out "$out_key_tmp" $crypto_opts \
@@ -981,7 +983,6 @@ current CA keypair. If you intended to start a new CA, run init-pki first."
 
 		fi
 
-		#shellcheck disable=SC2086
 		easyrsa_openssl req -utf8 -new -key "$out_key_tmp" \
 			-keyout "$out_key_tmp" -out "$out_file_tmp" $crypto_opts $opts \
 			${EASYRSA_CA_EXTRA_EXTS} \
@@ -1119,6 +1120,7 @@ $EASYRSA_EXTRA_EXTS"
 	fi
 
 	# Generate request
+	# shellcheck disable=SC2086 # Ignore unquoted variables
 	easyrsa_openssl req -utf8 -new -newkey "$algo_opts" \
 		-keyout "$key_out_tmp" -out "$req_out_tmp" $opts \
 		${EASYRSA_PASSOUT:+-passout "$EASYRSA_PASSOUT"} \
@@ -1248,10 +1250,12 @@ $ext_tmp"
 
 	# sign request
 	crt_out_tmp="$(easyrsa_mktemp)" || die "Failed to create temporary file"
+	# shellcheck disable=SC2086 # Ignore unquoted variables
 	easyrsa_openssl ca -utf8 -in "$req_in" -out "$crt_out_tmp" \
 		-extfile "$ext_tmp" -days "$EASYRSA_CERT_EXPIRE" -batch $opts \
 		${EASYRSA_PASSIN:+-passin "$EASYRSA_PASSIN"} \
 			|| die "signing failed (openssl output above may have more detail)"
+
 	mv "$crt_out_tmp" "$crt_out"
 	rm -f "$ext_tmp"
 	notice "\
@@ -1297,7 +1301,7 @@ Matching file found at: "
 
 	# create request
 	EASYRSA_REQ_CN="$name"
-	#shellcheck disable=SC2086
+	#shellcheck disable=SC2086 # Ignore unquoted variables
 	gen_req "$name" batch $req_opts
 
 	# Sign it
@@ -1366,7 +1370,7 @@ $(display_dn x509 "$crt_in")
 Unable to revoke as no certificate was found. Certificate was expected
 at: $crt_in"
 
-	# shellcheck disable=SC2086
+	# shellcheck disable=SC2086 # Ignore unquoted variables
 	easyrsa_openssl ca -utf8 -revoke "$crt_in" $opts \
 		${EASYRSA_PASSIN:+-passin "$EASYRSA_PASSIN"} || die "\
 Failed to revoke certificate: revocation command failed."
@@ -1495,32 +1499,40 @@ $(display_dn x509 "$crt_in")
 Unable to renew as no certificate was found. Certificate was expected
 at: $crt_in"
 
-	# Check if old cert is expired or expires within 30 days
+	# Check if old cert is expired or expires within 30
+	# - NOT using: shellcheck disable=SC2086 # Ignore unquoted variables
+	# - The "correct" solution is to not need unquoted substitutions ..
 	expire_date=$(
 		easyrsa_openssl x509 -in "$crt_in" -noout -enddate |
 		sed 's/^notAfter=//'
 		)
-		case $(uname 2>/dev/null) in
-			"Darwin"|*"BSD")
-				expire_date=$(date -j -f '%b %d %T %Y %Z' "$expire_date" +%s)
-				allow_renew_date=$(($(date -j +%s) + 24*60*60*$EASYRSA_CERT_RENEW))
-				;;
-			*)
-				# This works on Windows, too, since uname doesn't exist and this is catch-all
-				expire_date=$(date -d "$expire_date" +%s)
-				allow_renew_date=$(date -d "+${EASYRSA_CERT_RENEW}day" +%s)
-				;;
-		esac
+
+	# - NOT using: shellcheck disable=SC2086 # Ignore unquoted variables
+	# - The "correct" solution is to not need unquoted substitutions ..
+	case $(uname 2>/dev/null) in
+	"Darwin"|*"BSD")
+		expire_date=$(date -j -f '%b %d %T %Y %Z' "$expire_date" +%s)
+		allow_renew_date=$(($(date -j +%s) + 24*60*60*EASYRSA_CERT_RENEW))
+	;;
+	*)
+		# This works on Windows, too, since uname doesn't exist and this is catch-all
+		expire_date=$(date -d "$expire_date" +%s)
+		allow_renew_date=$(date -d "+${EASYRSA_CERT_RENEW}day" +%s)
+	;;
+	esac
 
 	[ "$expire_date" -lt "$allow_renew_date" ] || die "\
 Certificate expires in more than $EASYRSA_CERT_RENEW days.
 Renewal not allowed."
 
 	# Extract certificate usage from old cert
+	# - NOT using: shellcheck disable=SC2086 # Ignore unquoted variables
+	# - The "correct" solution is to not need unquoted substitutions ..
 	cert_ext_key_usage=$(
 		easyrsa_openssl x509 -in "$crt_in" -noout -text |
 		sed -n "/X509v3 Extended Key Usage:/{n;s/^ *//g;p;}"
 		)
+
 	case $cert_ext_key_usage in
 		"TLS Web Client Authentication")
 			cert_type=client
@@ -1534,6 +1546,9 @@ Renewal not allowed."
 	esac
 
 	# Use SAN from --subject-alt-name if set else use SAN from old cert
+	# - NOT using: shellcheck disable=SC2086 # Ignore unquoted variables
+	# - The "correct" solution is to not need unquoted substitutions ..
+	# How did this ever get in ?
 	echo "$EASYRSA_EXTRA_EXTS" | grep -q subjectAltName || \
 	{
 		san=$(
@@ -1550,7 +1565,7 @@ subjectAltName = $san"
 	move_renewed "$1"
 
 	# renew certificate
-	# shellcheck disable=SC2086
+	# shellcheck disable=SC2086 # Ignore unquoted variables
 	build_full $cert_type "$1" $opts || die "\
 Failed to renew certificate: renew command failed."
 
@@ -1650,6 +1665,8 @@ gen_crl() {
 
 	out_file="$EASYRSA_PKI/crl.pem"
 	out_file_tmp="$(easyrsa_mktemp)" || die "Failed to create temporary file"
+
+	# shellcheck disable=SC2086 # Ignore unquoted variables
 	easyrsa_openssl ca -utf8 -gencrl -out "$out_file_tmp" \
 		${EASYRSA_PASSIN:+-passin "$EASYRSA_PASSIN"} || die "\
 CRL Generation failed.
@@ -1754,7 +1771,7 @@ Missing key expected at: $key_in"
 		fi
 
 		# export the p12:
-		# shellcheck disable=SC2086
+		# shellcheck disable=SC2086 # Ignore unquoted variables
 		easyrsa_openssl pkcs12 -in "$crt_in" -inkey "$key_in" -export \
 			-out "$pkcs_out" $pkcs_opts \
 			${pkcs_certfile_path:+-certfile "$pkcs_certfile_path"} \
@@ -1766,7 +1783,7 @@ Export of p12 failed: see above for related openssl errors."
 		pkcs_out="$EASYRSA_PKI/issued/$short_name.p7b"
 
 		# export the p7:
-		# shellcheck disable=SC2086
+		# shellcheck disable=SC2086 # Ignore unquoted variables
 		easyrsa_openssl crl2pkcs7 -nocrl -certfile "$crt_in" \
 			-out "$pkcs_out" \
 			${pkcs_certfile_path:+-certfile "$pkcs_certfile_path"} \
@@ -1781,7 +1798,7 @@ Export of p7 failed: see above for related openssl errors."
 		pkcs_out="$EASYRSA_PKI/private/$short_name.p8"
 
 		# export the p8:
-		# shellcheck disable=SC2086
+		# shellcheck disable=SC2086 # Ignore unquoted variables
 		easyrsa_openssl pkcs8 -in "$key_in" -topk8 \
 			-out "$pkcs_out" $pkcs_opts \
 			${EASYRSA_PASSIN:+-passin "$EASYRSA_PASSIN"} \
@@ -1831,7 +1848,9 @@ $file"
 If the key is currently encrypted you must supply the decryption passphrase.
 ${crypto:+You will then enter a new PEM passphrase for this key.$NL}"
 
+	# Set password
 	out_key_tmp="$(easyrsa_mktemp)" || die "Failed to create temporary file"
+	# shellcheck disable=SC2086 # Ignore unquoted variables
 	easyrsa_openssl "$key_type" -in "$file" -out "$out_key_tmp" $crypto \
 		${EASYRSA_PASSIN:+-passin "$EASYRSA_PASSIN"} \
 		${EASYRSA_PASSOUT:+-passout "$EASYRSA_PASSOUT"} || die "\
@@ -1952,6 +1971,7 @@ Run easyrsa without commands for usage help."
 No such $type file with a basename of '$name' is present.
 Expected to find this file at:
 $in_file"
+	# shellcheck disable=SC2086 # Ignore unquoted variables
 	verify_file $format "$in_file" || die "\
 This file is not a valid $type file:
 $in_file"
@@ -1961,6 +1981,7 @@ Showing $type details for '$name'.
 This file is stored at:
 $in_file
 "
+	# shellcheck disable=SC2086 # Ignore unquoted variables
 	easyrsa_openssl $format -in "$in_file" -noout -text\
 		-nameopt multiline $opts || die "\
 OpenSSL failure to process the input"
@@ -1988,6 +2009,7 @@ show_ca() {
 No such $type file with a basename of '$name' is present.
 Expected to find this file at:
 $in_file"
+
 	verify_file $format "$in_file" || die "\
 This file is not a valid $type file:
 $in_file"
@@ -1997,6 +2019,8 @@ Showing $type details for 'ca'.
 This file is stored at:
 $in_file
 "
+
+	# shellcheck disable=SC2086 # Ignore unquoted variables
 	easyrsa_openssl $format -in "$in_file" -noout -text\
 		-nameopt multiline $opts || die "\
 OpenSSL failure to process the input"
@@ -2112,7 +2136,7 @@ recommended - please remove it from there before continuing."
 				fi
 				# shellcheck disable=SC2034 # EASYRSA_CALLER appears unused.
 				EASYRSA_CALLER=1
-				# shellcheck source=vars.example
+				# shellcheck disable=1090 # can't follow non-constant source. vars
 				. "$vars"
 				notice "\
 Note: using Easy-RSA configuration from: $vars"
@@ -2391,9 +2415,9 @@ up23_show_current_ca ()
 {
 	printf "%s\n" "-------------------------------------------------------------------------"
 	# $opts is always set here
-	# shellcheck disable=SC2086
-	easyrsa_openssl $format -in "$in_file" -noout -text\
-	-nameopt multiline $opts || die "\
+	# shellcheck disable=SC2086 # Ignore unquoted variables
+	easyrsa_openssl $format -in "$in_file" -noout -text \
+		-nameopt multiline $opts || die "\
 	OpenSSL failure to process the input CA certificate: $in_file"
 	printf "%s\n" "-------------------------------------------------------------------------"
 } #=> up23_show_current_ca ()
