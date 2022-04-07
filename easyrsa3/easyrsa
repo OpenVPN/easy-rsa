@@ -286,17 +286,17 @@ $1" 1>&2
 # non-fatal warning output
 warn() {
 	[ "$EASYRSA_SILENT" ] && return
-	print "* Warning:
+	print "* WARNING:
 
-$1" 1>&2
+  $1
+" 1>&2
 } # => warn()
 
 # informational notices to stdout
 notice() {
 	[ "$EASYRSA_SILENT" ] && return
 	[ "$EASYRSA_BATCH" ] && return
-	print "
-$1"
+	print "* Notice: $1"
 } # => notice()
 
 # yes/no case-insensitive match (operates on stdin pipe)
@@ -475,9 +475,8 @@ verify_ssl_lib () {
 					3) no_password='-noenc' ;;
 					*) die "Unsupported SSL library: $osslv_major"
 				esac
-				print "\
-Using SSL: $EASYRSA_OPENSSL $("$EASYRSA_OPENSSL" version)" ;;
-			*) die "\
+				notice "Using SSL: $EASYRSA_OPENSSL $("$EASYRSA_OPENSSL" version)" ;;
+			*) die "
 Missing or invalid OpenSSL
 Expected to find openssl command at: $EASYRSA_OPENSSL" ;;
 		esac
@@ -485,7 +484,7 @@ Expected to find openssl command at: $EASYRSA_OPENSSL" ;;
 	EASYRSA_SSL_OK=1
 
 	# Verify EASYRSA_SSL_CONF file exists
-	[ -f "$EASYRSA_SSL_CONF" ] || die "\
+	[ -f "$EASYRSA_SSL_CONF" ] || die "
 The OpenSSL config file cannot be found.
 Expected location: $EASYRSA_SSL_CONF"
 } # => verify_ssl_lib ()
@@ -2014,10 +2013,10 @@ $in_file"
 This file is not a valid $type file:
 $in_file"
 
-	notice "\
-Showing $type details for 'ca'.
-This file is stored at:
-$in_file
+	notice "
+  Showing $type details for 'ca'.
+  This file is stored at:
+  $in_file
 "
 
 	# shellcheck disable=SC2086 # Ignore unquoted variables
@@ -2046,15 +2045,18 @@ vars_setup() {
 
 	# Program dir vars - This location is least wanted.
 	prog_vars="${prog_dir}/vars"
+
 	# set up PKI path vars - Top preference
 	pki_vars="${EASYRSA_PKI:-$PWD/pki}/vars"
-	keep_pki_vars="$pki_vars"
+	expected_pki_vars="$pki_vars"
+
 	# Some other place vars, out of scope.
 	if [ "$EASYRSA" ]; then
 		easy_vars="${EASYRSA}/vars"
 	else
 		unset -v easy_vars
 	fi
+
 	# vars of last resort - Eventually this file must be removed from EasyRSA
 	pwd_vars="$PWD/vars"
 
@@ -2072,53 +2074,58 @@ vars_setup() {
 	else
 		# if NOT $want_init_pki
 		if [ -z "$want_init_pki" ]; then
+
+			# Clear flags - This is the preferred order to find:
+			unset -v e_pki_vars e_easy_vars e_pwd_vars e_prog_vars found_vars
+
 			# PKI location, if present:
-			[ -e "$pki_vars" ] || unset -v pki_vars
-			# program location:
-			[ -e "$prog_vars" ] || unset -v prog_vars
+			{ [ -e "$pki_vars" ] && e_pki_vars=1; } || unset -v pki_vars
+
 			# EASYRSA, if defined:
-			[ -e "$easy_vars" ] || unset -v easy_vars
-			# vars of last resort - Eventually this file must be removed from EasyRSA
-			[ -e "$pwd_vars" ] || unset -v pwd_vars
+			{ [ -e "$easy_vars" ] && e_easy_vars=1; } || unset -v easy_vars
+
+			# Eventually the file below must be removed from EasyRSA
+			# vars of last resort
+			{ [ -e "$pwd_vars" ] && e_pwd_vars=1; } || unset -v pwd_vars
+
+			# program location:
+			{ [ -e "$prog_vars" ] && e_prog_vars=1; } || unset -v prog_vars
 
 			# Allow only one vars to be found, No exceptions!
-			too_many_vars=
-			if [ "$pki_vars" ]; then
-				if [ "$pwd_vars" ] || [ "$easy_vars" ] || [ "$prog_vars" ]; then
-					too_many_vars=1
-				fi
-			elif [ "$prog_vars" ]; then
-				if [ "$pwd_vars" ] || [ "$easy_vars" ]; then
-					too_many_vars=1
-				fi
-			elif [ "$easy_vars" ]; then
-				if [ "$pwd_vars" ]; then
-					too_many_vars=1
-				fi
-			elif [ "$pwd_vars" ]; then
-				warn "Move your vars file to your PKI folder, where it is safe!"
-			else
-				warn "No vars file found! Please create one in your PKI folder."
-			fi
+			found_vars="$((e_pki_vars + e_easy_vars + e_pwd_vars + e_prog_vars))"
 
-			# If too_many_vars then output user info and exit
-			if [ "$too_many_vars" ]; then
-				[ "$pki_vars" ] && print "Found: $pki_vars"
-				[ "$prog_vars" ] && print "Found: $prog_vars"
-				[ "$easy_vars" ] && print "Found: $easy_vars"
-				[ "$pwd_vars" ] && print "Found: $pwd_vars"
+			# If found_vars greater than 1 then output user info and exit
+			case "$found_vars" in
+			0)
+				unset -v found_vars
+			;;
+			1) : ;; #ok
+			*)
+				[ "$e_pki_vars" ] && print "Found: $pki_vars"
+				[ "$e_easy_vars" ] && print "Found: $easy_vars"
+				[ "$e_pwd_vars" ] && print "Found: $pwd_vars"
+				[ "$e_prog_vars" ] && print "Found: $prog_vars"
 				die "Conflicting 'vars' files found.
 
 Priority should be given to your PKI vars file:
-* $keep_pki_vars
+
+* $expected_pki_vars
 "
-			fi
+			esac
 
 			# If a SINGLE vars file is found then assign $vars
-			[ "$pwd_vars" ] && vars="$pwd_vars"
-			[ "$easy_vars" ] && vars="$easy_vars"
-			[ "$prog_vars" ] && vars="$prog_vars"
-			[ "$pki_vars" ] && vars="$pki_vars"
+			if [ "$found_vars" ] && [ "$e_pki_vars" ]; then
+				vars="${pki_vars}"
+			# Final warnings
+			elif  [ -z "$found_vars" ]; then
+				vars=
+				warn "No vars file found! Please create one in your PKI folder."
+			else
+				# This can only be one:
+				vars="${easy_vars}${pwd_vars}${prog_vars}"
+				[ -e "$vars" ] || die "undefined state, vars: $vars"
+				warn "Move your vars file to your PKI folder, where it is safe!"
+			fi
 		fi
 
 		# If $EASYRSA_NO_VARS is defined (not blank) then do not use vars
@@ -2127,24 +2134,20 @@ Priority should be given to your PKI vars file:
 			# If a vars file was located then source it
 			if [ "$vars" ]; then
 				if grep -Eq 'EASYRSA_PASSIN|EASYRSA_PASSOUT' "$vars"; then
-					die "\
-Variable EASYRSA_PASSIN or EASYRSA_PASSOUT has been found in the configuration \
-file. Storing sensitive information in the configuration file is not \
+					die "
+Variable EASYRSA_PASSIN or EASYRSA_PASSOUT has been found in the configuration
+file. Storing sensitive information in the configuration file is not
 recommended - please remove it from there before continuing."
 				fi
 				# shellcheck disable=SC2034 # EASYRSA_CALLER appears unused.
 				EASYRSA_CALLER=1
 				# shellcheck disable=1090 # can't follow non-constant source. vars
 				. "$vars"
-				notice "\
-Note: using Easy-RSA configuration from: $vars"
+				notice "Note: using Easy-RSA configuration from: $vars"
 			else
 				# $vars remains undefined .. no vars found
-				[ "$want_init_pki" ] || warn "  No vars file defined!
-
-Expected to find 'vars' file:
-* $keep_pki_vars
-"
+				# Warning already issued!
+				: # ok
 			fi
 		else
 			# EASYRSA_NO_VARS is defined or want_init_pki, no vars is required.
