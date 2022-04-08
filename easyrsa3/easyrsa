@@ -3012,10 +3012,6 @@ trap "exit 3" 3
 trap "exit 6" 6
 trap "exit 14" 15
 
-# Upgrade: EasyRSA v2.x to EasyRSA v3.x
-# Upgrade: EasyRSA < v3.0.6 to v3.0.6+
-#up23_manage_upgrade_23
-
 # determine how we were called, then hand off to the function responsible
 case "$cmd" in
 	init-pki|clean-all)
