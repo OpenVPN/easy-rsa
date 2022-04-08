@@ -350,7 +350,7 @@ cleanup() {
 	[ -z "$EASYRSA_TEMP_DIR_session" ] || rm -rf "$EASYRSA_TEMP_DIR_session"
 	# shellcheck disable=SC3040
 	(stty echo 2>/dev/null) || { (set -o echo 2>/dev/null) && set -o echo; }
-	echo "" # just to get a clean line
+	[ "$EASYRSA_SILENT" ] || echo "" # just to get a clean line
 } # => cleanup()
 
 easyrsa_openssl() {
