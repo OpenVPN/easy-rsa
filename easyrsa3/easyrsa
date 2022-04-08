@@ -425,12 +425,6 @@ easyrsa_openssl() {
 	return $err
 } # => easyrsa_openssl
 
-vars_source_check() {
-	# Check for defined EASYRSA_PKI
-	[ -n "$EASYRSA_PKI" ] || die "\
-EASYRSA_PKI env-var undefined"
-} # => vars_source_check()
-
 # Verify supplied curve exists and generate curve file if needed
 verify_curve_ec() {
 	if ! "$EASYRSA_OPENSSL" ecparam -name "$EASYRSA_CURVE" > /dev/null; then
@@ -493,8 +487,11 @@ Expected location: $EASYRSA_SSL_CONF"
 verify_pki_init() {
 	help_note="Run easyrsa without commands for usage and command help."
 
+	# Check for defined EASYRSA_PKI
+	[ -n "$EASYRSA_PKI" ] || die "\
+EASYRSA_PKI env-var undefined"
+
 	# check that the pki dir exists
-	vars_source_check
 	[ -d "$EASYRSA_PKI" ] || die "\
 EASYRSA_PKI does not exist (perhaps you need to run init-pki)?
 Expected to find the EASYRSA_PKI at: $EASYRSA_PKI
