@@ -2975,29 +2975,20 @@ init-pki|clean-all) want_init_pki=1 ;;
 esac
 
 # Detect Windows
-if [ "$OS" ]; then
-	case "$OS" in
-	Windows_NT)
-		EASYRSA_WIN=Windows_NT
-	;;
+case "$OS" in
+	'') unset -v EASYRSA_WIN ;;
 	*) EASYRSA_WIN="$OS"
-	esac
-else
-	unset -v EASYRSA_WIN
-fi
+esac
 
 # Detect Windows git/bash
-if [ "$EXEPATH" ]; then
-	case "${EXEPATH##*\\}" in
+case "${EXEPATH##*\\}" in
 	Git)
 		EASYRSA_WIN_GIT_BASH=Git-bash
 		[ -e /usr/bin/openssl ] && set_var EASYRSA_OPENSSL /usr/bin/openssl
 	;;
+	'') unset -v EASYRSA_WIN_GIT_BASH ;;
 	*) EASYRSA_WIN_GIT_BASH="$EXEPATH"
-	esac
-else
-	unset -v EASYRSA_WIN_GIT_BASH
-fi
+esac
 
 # Intelligent env-var detection and auto-loading:
 vars_setup
