@@ -280,6 +280,10 @@ die() {
 Easy-RSA error:
 
 $1" 1>&2
+
+	[ "$EASYRSA_WIN" ] && print "$EASYRSA_WIN"
+	[ "$EASYRSA_WIN_GIT_BASH" ] && print "$EASYRSA_WIN_GIT_BASH"
+
 	exit "${2:-1}"
 } # => die()
 
@@ -2262,6 +2266,7 @@ set_var() {
 } #=> set_var()
 
 
+
 ############################################################################
 # Upgrade v2 PKI to v3 PKI
 
@@ -2968,6 +2973,31 @@ case "$cmd" in
 init-pki|clean-all) want_init_pki=1 ;;
 *) unset -v want_init_pki
 esac
+
+# Detect Windows
+if [ "$OS" ]; then
+	case "$OS" in
+	Windows_NT)
+		EASYRSA_WIN=Windows_NT
+	;;
+	*) EASYRSA_WIN="$OS"
+	esac
+else
+	unset -v EASYRSA_WIN
+fi
+
+# Detect Windows git/bash
+if [ "$EXEPATH" ]; then
+	case "${EXEPATH##*\\}" in
+	Git)
+		EASYRSA_WIN_GIT_BASH=Git-bash
+		[ -e /usr/bin/openssl ] && set_var EASYRSA_OPENSSL /usr/bin/openssl
+	;;
+	*) EASYRSA_WIN_GIT_BASH="$EXEPATH"
+	esac
+else
+	unset -v EASYRSA_WIN_GIT_BASH
+fi
 
 # Intelligent env-var detection and auto-loading:
 vars_setup
