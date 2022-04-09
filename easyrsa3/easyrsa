@@ -353,76 +353,63 @@ cleanup() {
 	[ "$EASYRSA_SILENT" ] || echo "" # just to get a clean line
 } # => cleanup()
 
+# Easy-RSA meta-wrapper for SSL
 easyrsa_openssl() {
-	openssl_command=$1; shift
+	openssl_command="$1"; shift
 
-	case $openssl_command in
-		makesafeconf) has_config=true;;
-		ca|req|srp|ts) has_config=true;;
-		*) has_config=false;;
+	case "$openssl_command" in
+		makesafeconf) has_config=true ;;
+		ca|req|srp|ts) has_config=true ;;
+		*) has_config=false
 	esac
 
-	case "$osslv_major" in
-	3)
-		case $openssl_command in
-		genpkey) has_config=true;;
-		*) : ;; # ok
-		esac
+	# OpenSSL 1x genpkey does not support -config - Not as documented:
+	# https://www.openssl.org/docs/manmaster/man1/openssl-genpkey.html
+	if [ "$osslv_major" = 3 ] && [ "$openssl_command" = genpkey ]; then
+		has_config=true
+	fi
+
+	case "$has_config" in
+	false)
+		"$EASYRSA_OPENSSL" "$openssl_command" "$@" || return
 	;;
-	1|2)	: ;; # ok - LibreSSL 2.x
-	'')	: ;; # Unset then this is init-pki
-	*)	die "Unsupported openssl version: $osslv_major"
+	true)
+		# Make LibreSSL safe config file from OpenSSL config file
+		easyrsa_openssl_conf="$(easyrsa_mktemp)" || \
+			die "easyrsa_openssl - Failed to create temporary file"
+
+		sed \
+			-e "s\`ENV::EASYRSA\`EASYRSA\`g" \
+			-e "s\`\$dir\`$EASYRSA_PKI\`g" \
+			-e "s\`\$EASYRSA_PKI\`$EASYRSA_PKI\`g" \
+			-e "s\`\$EASYRSA_CERT_EXPIRE\`$EASYRSA_CERT_EXPIRE\`g" \
+			-e "s\`\$EASYRSA_CRL_DAYS\`$EASYRSA_CRL_DAYS\`g" \
+			-e "s\`\$EASYRSA_DIGEST\`$EASYRSA_DIGEST\`g" \
+			-e "s\`\$EASYRSA_KEY_SIZE\`$EASYRSA_KEY_SIZE\`g" \
+			-e "s\`\$EASYRSA_DIGEST\`$EASYRSA_DIGEST\`g" \
+			-e "s\`\$EASYRSA_DN\`$EASYRSA_DN\`g" \
+			-e "s\`\$EASYRSA_REQ_COUNTRY\`$EASYRSA_REQ_COUNTRY\`g" \
+			-e "s\`\$EASYRSA_REQ_PROVINCE\`$EASYRSA_REQ_PROVINCE\`g" \
+			-e "s\`\$EASYRSA_REQ_CITY\`$EASYRSA_REQ_CITY\`g" \
+			-e "s\`\$EASYRSA_REQ_ORG\`$EASYRSA_REQ_ORG\`g" \
+			-e "s\`\$EASYRSA_REQ_OU\`$EASYRSA_REQ_OU\`g" \
+			-e "s\`\$EASYRSA_REQ_CN\`$EASYRSA_REQ_CN\`g" \
+			-e "s\`\$EASYRSA_REQ_EMAIL\`$EASYRSA_REQ_EMAIL\`g" \
+			"$EASYRSA_SSL_CONF" > "$easyrsa_openssl_conf" || \
+				die "easyrsa_openssl - Failed to make temporary config"
+
+		if [ "$openssl_command" = "makesafeconf" ]; then
+			# move temp file to safessl-easyrsa.cnf
+			mv "$easyrsa_openssl_conf" "$EASYRSA_SAFE_CONF" || \
+				die "easyrsa_openssl - makesafeconf failed"
+		else
+			# Exec SSL with -config temp-file
+			"$EASYRSA_OPENSSL" "$openssl_command" \
+				-config "$easyrsa_openssl_conf" "$@" || return
+		fi
+	;;
+	*) die "Undefined state: has_config is $has_config"
 	esac
-
-	if ! $has_config; then
-		"$EASYRSA_OPENSSL" "$openssl_command" "$@"
-		return
-	fi
-
-	easyrsa_openssl_conf=$(easyrsa_mktemp) || die "Failed to create temporary file"
-	easyrsa_extra_exts=
-	if [ -n "$EASYRSA_EXTRA_EXTS" ]; then
-		easyrsa_extra_exts=$(easyrsa_mktemp) || die "Failed to create temporary file"
-		cat >"$easyrsa_extra_exts" <<-EOF
-			req_extensions = req_extra
-			[ req_extra ]
-			$EASYRSA_EXTRA_EXTS
-		EOF
-	fi
-
-	# Make LibreSSL safe config file from OpenSSL config file
-	sed \
-		-e "s\`ENV::EASYRSA\`EASYRSA\`g" \
-		-e "s\`\$dir\`$EASYRSA_PKI\`g" \
-		-e "s\`\$EASYRSA_PKI\`$EASYRSA_PKI\`g" \
-		-e "s\`\$EASYRSA_CERT_EXPIRE\`$EASYRSA_CERT_EXPIRE\`g" \
-		-e "s\`\$EASYRSA_CRL_DAYS\`$EASYRSA_CRL_DAYS\`g" \
-		-e "s\`\$EASYRSA_DIGEST\`$EASYRSA_DIGEST\`g" \
-		-e "s\`\$EASYRSA_KEY_SIZE\`$EASYRSA_KEY_SIZE\`g" \
-		-e "s\`\$EASYRSA_DIGEST\`$EASYRSA_DIGEST\`g" \
-		-e "s\`\$EASYRSA_DN\`$EASYRSA_DN\`g" \
-		-e "s\`\$EASYRSA_REQ_COUNTRY\`$EASYRSA_REQ_COUNTRY\`g" \
-		-e "s\`\$EASYRSA_REQ_PROVINCE\`$EASYRSA_REQ_PROVINCE\`g" \
-		-e "s\`\$EASYRSA_REQ_CITY\`$EASYRSA_REQ_CITY\`g" \
-		-e "s\`\$EASYRSA_REQ_ORG\`$EASYRSA_REQ_ORG\`g" \
-		-e "s\`\$EASYRSA_REQ_OU\`$EASYRSA_REQ_OU\`g" \
-		-e "s\`\$EASYRSA_REQ_CN\`$EASYRSA_REQ_CN\`g" \
-		-e "s\`\$EASYRSA_REQ_EMAIL\`$EASYRSA_REQ_EMAIL\`g" \
-		${EASYRSA_EXTRA_EXTS:+-e "/^#%EXTRA_EXTS%/r $easyrsa_extra_exts"} \
-		"$EASYRSA_SSL_CONF" > "$easyrsa_openssl_conf" ||
-		die "Failed to update $easyrsa_openssl_conf"
-
-	if [ "$openssl_command" = "makesafeconf" ]; then
-		cp "$easyrsa_openssl_conf" "$EASYRSA_SAFE_CONF"
-		err=$?
-	else
-		"$EASYRSA_OPENSSL" "$openssl_command" -config "$easyrsa_openssl_conf" "$@"
-		err=$?
-	fi
-
-	rm -f "$easyrsa_openssl_conf"
-	rm -f "$easyrsa_extra_exts"
-	return $err
 } # => easyrsa_openssl
 
 # Verify supplied curve exists and generate curve file if needed
@@ -469,7 +456,7 @@ verify_ssl_lib () {
 					3) no_password='-noenc' ;;
 					*) die "Unsupported SSL library: $osslv_major"
 				esac
-				notice "Using SSL: $EASYRSA_OPENSSL $("$EASYRSA_OPENSSL" version)" ;;
+				notice "Using SSL: $EASYRSA_OPENSSL $val" ;;
 			*) die "
 Missing or invalid OpenSSL
 Expected to find openssl command at: $EASYRSA_OPENSSL" ;;
