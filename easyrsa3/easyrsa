@@ -2225,15 +2225,6 @@ recommended - please remove it from there before continuing."
 				die "Failed to find Safe-SSL config file."
 			fi
 
-			# Upgrade to 306: Create $EASYRSA_SSL_CONF if it does not exist
-			# but only if $EASYRSA_PKI exists.
-			if [ -d "$EASYRSA_PKI" ] && [ -e "$EASYRSA/openssl-easyrsa.cnf" ] && \
-				[ ! -e "$EASYRSA_SSL_CONF" ]
-			then
-				cp "$EASYRSA/openssl-easyrsa.cnf" "$EASYRSA_SSL_CONF"
-				easyrsa_openssl makesafeconf
-			fi
-
 		else
 			# If the directory does not exist then we have not run init-pki
 			if mkdir -p "$EASYRSA_TEMP_DIR"; then
