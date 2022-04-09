@@ -77,14 +77,14 @@ if [ -e "easyrsa-unit-tests.sh" ]; then
 			# openssl v3
 			if [ ! -e ./openssl ]; then
 				github_target='OpenVPN/easyrsa-unit-tests/master/openssl'
-				curl -f -O "${github_url}/${github_target}" || {
-					echo "openssl download failed."
-					exit 9
-					}
+				curl -SO "${github_url}/${github_target}" ||
+					printf '%s\n' "openssl download failed."
 			fi
+
 			chmod +x openssl
 			./openssl version
 			export EASYRSA_OPENSSL="${PWD}/openssl"
+			printf '%s\n' "* exported EASYRSA_OPENSSL:" "  ${PWD}/openssl" "  $EASYRSA_OPENSSL"
 			sh easyrsa-unit-tests.sh "$verb" || estat=2
 			#rm ./openssl
 		fi
@@ -95,6 +95,29 @@ else
 	github_target='OpenVPN/easyrsa-unit-tests/master/easyrsa-unit-tests.sh'
 	curl -O "${github_url}/${github_target}"
 	[ -e "easyrsa-unit-tests.sh" ] || { echo "Unit-test download failed."; exit 9; }
+
+
+	if [ "$EASYRSA_NIX" ] && [ "$EASYRSA_BY_TINCANTECH" ]; then
+
+
+		# two tests in one: x509-alt and ossl-3
+		# Not without --x509-alt, waiting for merge
+
+		# openssl v3
+		if [ ! -e ./openssl ]; then
+			github_target='OpenVPN/easyrsa-unit-tests/master/openssl'
+			curl -SO "${github_url}/${github_target}" ||
+				printf '%s\n' "openssl download failed."
+		fi
+
+		chmod +x openssl
+		./openssl version
+		export EASYRSA_OPENSSL="${PWD}/openssl"
+		printf '%s\n' "* exported EASYRSA_OPENSSL:" "  ${PWD}/openssl" "  $EASYRSA_OPENSSL"
+		sh easyrsa-unit-tests.sh "$verb" || estat=2
+		#rm ./openssl
+	fi
+
 	if sh easyrsa-unit-tests.sh "$verb"; then
 		: # ok
 	else
