@@ -32,8 +32,10 @@ if [ -e "shellcheck" ] && [ "$EASYRSA_NIX" ]; then
 	fi
 elif [ "$EASYRSA_NIX" ]; then
 	github_target='OpenVPN/easyrsa-unit-tests/master/shellcheck'
-	curl -O "${github_url}/${github_target}"
-	[ -e "shellcheck" ] || { echo "shellcheck download failed."; exit 9; }
+	curl -f -O "${github_url}/${github_target}" || {
+		echo "shellcheck download failed."
+		exit 9
+		}
 	chmod +x shellcheck
 	./shellcheck -V
 	if [ -e easyrsa3/easyrsa ]; then
@@ -54,9 +56,35 @@ fi
 estat=0
 
 if [ -e "easyrsa-unit-tests.sh" ]; then
-	if sh easyrsa-unit-tests.sh "$verb"; then
+
+
+	if : ; then
+
+
+
+# sh easyrsa-unit-tests.sh "$verb"; then
+
+
+
 		if [ "$EASYRSA_NIX" ] && [ "$EASYRSA_BY_TINCANTECH" ]; then
-			sh easyrsa-unit-tests.sh "$verb" -x || estat=2
+
+
+			# two tests in one: x509-alt and ossl-3
+			# Not without --x509-alt, waiting for merge
+
+			# openssl v3
+			if [ ! -e ./openssl ]; then
+				github_target='OpenVPN/easyrsa-unit-tests/master/openssl'
+				curl -f -O "${github_url}/${github_target}" || {
+					echo "openssl download failed."
+					exit 9
+					}
+			fi
+			chmod +x openssl
+			./openssl version
+			export EASYRSA_OPENSSL="${PWD}/openssl"
+			sh easyrsa-unit-tests.sh "$verb" || estat=2
+			#rm ./openssl
 		fi
 	else
 		estat=1

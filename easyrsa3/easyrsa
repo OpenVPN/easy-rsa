@@ -339,7 +339,7 @@ easyrsa_mktemp() {
 		die "Could not create temporary directory '$EASYRSA_TEMP_DIR_session'. Permission or concurrency problem?"
 	[ -d "$EASYRSA_TEMP_DIR_session" ] || die "Temporary directory '$EASYRSA_TEMP_DIR_session' does not exist"
 
-	tempfile="$EASYRSA_TEMP_DIR_session/tmp.$($EASYRSA_OPENSSL rand -hex 3)" || return
+	tempfile="$EASYRSA_TEMP_DIR_session/tmp.$("$EASYRSA_OPENSSL" rand -hex 3)" || return
 	printf "" > "$tempfile" || return
 	
 	echo "$tempfile"
