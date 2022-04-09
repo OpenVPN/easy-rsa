@@ -19,6 +19,8 @@ done
 
 github_url='https://raw.githubusercontent.com'
 
+# disable 'shellcheck' in favour of 'openssl3'
+unset -v enable_shellcheck
 if [ "$enable_shellcheck" ]; then
 
 if [ -e "shellcheck" ] && [ "$EASYRSA_NIX" ]; then
