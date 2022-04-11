@@ -105,6 +105,8 @@ run_unit_test ()
 
 		# Start unit tests
 		log ">>> BEGIN unit tests:"
+		[ "$no_delete" ] && export SAVE_PKI=1
+
 		if [ "${dry_run}" ]; then
 			log "<<dry-run>> sh ${utest_bin} ${verb}"
 			estat=1
@@ -119,6 +121,7 @@ run_unit_test ()
 			fi
 		fi
 		log "<<< END unit tests:"
+		unset SAVE_PKI
 	else
 		log "unit-test abandoned"
 		estat=1
@@ -249,6 +252,8 @@ download_opensslv3 () {
 				log "version check failed: ${ERSA_UT}/${target_file}"
 			ssl_bin="${ERSA_UT}/${target_file}"
 			ssl_bin_ok=1
+			# Set up Easy-RSA Unit-Test for OpenSSL-v3
+			export EASYRSA_OPENSSL="${ssl_bin}"
 		else
 			# download and basic check
 			log "curl_it ${target_file}"
@@ -270,8 +275,7 @@ download_opensslv3 () {
 			fi
 		fi
 
-		log "setup openssl3 - hey hokey-dokey-lopey"
-			log "OpenSSL-v3 ENabled"
+			log "OpenSSL-v3 enabled"
 
 	else
 		if [ "$EASYRSA_NIX" ]; then
