@@ -2135,10 +2135,10 @@ recommended - please remove it from there before continuing.
 "
 				fi
 				if grep -q "'" "$vars"; then
-					die "
+					warn "
 Single quote (') has been found in the configuration file.
-This character is not allowed in the configuration file.
-Please remove it before continuing.
+This character is not supported in the configuration file.
+Sourcing the vars file will probably fail ..
 "
 				fi
 
