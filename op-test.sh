@@ -144,6 +144,7 @@ download_unit_test () {
 			if "${ERSA_UT}/${target_file}" version; then
 				utest_bin="${ERSA_UT}/${target_file}"
 				utest_bin_ok=1
+				export ERSA_UTEST_CURL_TARGET=localhost
 			else
 				log "version check failed: ${ERSA_UT}/${target_file}"
 			fi
@@ -157,6 +158,7 @@ download_unit_test () {
 				if "${ERSA_UT}/${target_file}" version; then
 					utest_bin="${ERSA_UT}/${target_file}"
 					utest_bin_ok=1
+					export ERSA_UTEST_CURL_TARGET=online
 				else
 					log "version check failed: ${target_file}"
 				fi
@@ -179,14 +181,26 @@ download_unit_test () {
 # Run shellcheck
 run_shellcheck () {
 	if [ "$enable_shellcheck" ] && [ "$sc_bin_ok" ] && [ "$EASYRSA_NIX" ]; then
+		# shellcheck easyrsa3/easyrsa
 		if [ -e easyrsa3/easyrsa ]; then
 			if "${sc_bin}" -s sh -S warning -x easyrsa3/easyrsa; then
-				log "shellcheck completed - ok"
+				log "shellcheck easyrsa3/easyrsa completed - ok"
 			else
-				log "shellcheck completed - *easyrsa* FAILED"
+				log "shellcheck easyrsa3/easyrsa completed - FAILED"
 			fi
 		else
 			log "easyrsa binary not present, not using shellcheck"
+		fi
+
+		# shellcheck easyrsa-unit-tests.sh
+		if [ -e easyrsa-unit-tests.sh ]; then
+			if "${sc_bin}" -s sh -S warning -x easyrsa-unit-tests.sh; then
+				log "shellcheck easyrsa-unit-tests.sh completed - ok"
+			else
+				log "shellcheck easyrsa-unit-tests.sh completed - FAILED"
+			fi
+		else
+			log "easyrsa-unit-tests.sh binary not present, not using shellcheck"
 		fi
 	else
 		log "shellcheck abandoned"
@@ -341,15 +355,11 @@ ssl_hash='SHA256(openssl)= bc4a5882bad4f51e6d04c25877e1e85ad86f14c5f6e078dd9c02f
 
 # Here we go ..
 
-# allow shellcheck to fail
 download_shellcheck
-run_shellcheck
-
-# if this fails then fly system ssl
 download_opensslv3
-
-# The test which matters!
 download_unit_test
+
+run_shellcheck
 run_unit_test
 
 clean_up
@@ -360,4 +370,3 @@ log "estat: $estat ${dry_run:+<<dry run>>}"
 exit $estat
 
 # vim: no
-
