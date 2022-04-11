@@ -280,6 +280,10 @@ die() {
 Easy-RSA error:
 
 $1" 1>&2
+
+	[ "$EASYRSA_WIN" ] && print "$EASYRSA_WIN"
+	[ "$EASYRSA_WIN_GIT_BASH" ] && print "$EASYRSA_WIN_GIT_BASH"
+
 	exit "${2:-1}"
 } # => die()
 
@@ -2250,6 +2254,7 @@ set_var() {
 } #=> set_var()
 
 
+
 ############################################################################
 # Upgrade v2 PKI to v3 PKI
 
@@ -2957,6 +2962,22 @@ init-pki|clean-all) want_init_pki=1 ;;
 *) unset -v want_init_pki
 esac
 
+# Detect Windows
+case "$OS" in
+	'') unset -v EASYRSA_WIN ;;
+	*) EASYRSA_WIN="$OS"
+esac
+
+# Detect Windows git/bash
+case "${EXEPATH##*\\}" in
+	Git)
+		EASYRSA_WIN_GIT_BASH=Git-bash
+		[ -e /usr/bin/openssl ] && set_var EASYRSA_OPENSSL /usr/bin/openssl
+	;;
+	'') unset -v EASYRSA_WIN_GIT_BASH ;;
+	*) EASYRSA_WIN_GIT_BASH="$EXEPATH"
+esac
+
 # Intelligent env-var detection and auto-loading:
 vars_setup
 
@@ -2969,10 +2990,6 @@ trap "exit 2" 2
 trap "exit 3" 3
 trap "exit 6" 6
 trap "exit 14" 15
-
-# Upgrade: EasyRSA v2.x to EasyRSA v3.x
-# Upgrade: EasyRSA < v3.0.6 to v3.0.6+
-#up23_manage_upgrade_23
 
 # determine how we were called, then hand off to the function responsible
 case "$cmd" in
