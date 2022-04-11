@@ -2118,7 +2118,9 @@ Priority should be given to your PKI vars file:
 			[ "$pwd_vars" ] && vars="$pwd_vars"
 			[ "$easy_vars" ] && vars="$easy_vars"
 			[ "$prog_vars" ] && vars="$prog_vars"
-			[ "$pki_vars" ] && vars="$pki_vars"
+			# Prioritise vars_in_pki
+			unset -v vars_in_pki && \
+				[ "$pki_vars" ] && vars="$pki_vars" && vars_in_pki=1
 		fi
 
 		# If $EASYRSA_NO_VARS is defined (not blank) then do not use vars
@@ -2134,7 +2136,7 @@ file. Storing sensitive information in the configuration file is not
 recommended - please remove it from there before continuing.
 "
 				fi
-				if grep -q "'" "$vars"; then
+				if [ "$vars_in_pki" ] && grep -q "'" "$vars"; then
 					warn "
 Single quote (') has been found in the configuration file.
 This character is not supported in the configuration file.
