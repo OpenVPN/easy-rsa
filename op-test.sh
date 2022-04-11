@@ -280,6 +280,9 @@ download_opensslv3 () {
 			ssl_bin_ok=1
 		else
 			log "Windows, no OpenSSL-v3"
+			log "System SSL enabled"
+			ssl_bin="openssl"
+			ssl_bin_ok=1
 		fi
 	fi
 } # => ## DOWNLOAD openssl-3
