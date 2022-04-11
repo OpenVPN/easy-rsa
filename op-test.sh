@@ -4,127 +4,359 @@
 # and executes that - allows for disconnected testing from the easy-rsa
 # repo with TravisCI.
 
-verb='-v'
-enable_shellcheck=1
+# log
+log () {
+	[ "$disable_log" ] && return
+	if printf '%s\n' "* $*"; then
+		return
+	else
+		echo "printf failed"
+		exit 9
+	fi
+} # => log ()
+
+# clean up
+clean_up () {
+	if [ "$no_delete" ]; then
+		log "saved final state.."
+	else
+		if [ "$EASYRSA_NIX" ]; then
+			[ "$keep_eut" ] || rm -f "$utest_bin"
+			[ "$keep_sc" ] || rm -f "$sc_bin"
+			[ "$keep_ssl" ] || rm -f "$ssl_bin"
+		fi
+	fi
+} # => clean_up ()
+
+# curl download and openssl hash
+# wing it ..
+curl_it () {
+	#log "BEGIN: curl_it"
+	if [ "$#" -eq 2 ]; then
+		file="$1"
+		hash="$2"
+	else
+		log "> Usage: <file> <hash>"
+		return 1
+	fi
+
+	if [ "$enable_curl" ]; then
+		: # ok
+	else
+		log "> curl disabled"
+		return 0
+	fi
+
+	# valid target
+	case "$file" in
+	easyrsa-unit-tests.sh)
+		unset -v require_hash
+	;;
+	shellcheck|openssl)
+		require_hash=1
+	;;
+	*)
+		log "> invalid target: $file"
+		return 1
+	esac
+
+	# download
+	if [ "$enable_curl" ]; then
+		log "> download: ${gh_url}/${file}"
+		curl -SO "${gh_url}/${file}" || \
+			log "> download failed: ${file}"
+	else
+		log "> curl disabled"
+	fi
+
+	# hash download
+	if [ "${require_hash}" ]; then
+		if [ -e "${file}" ]; then
+			log "> hash ${file}"
+			temp_hash="$(openssl sha256 "${file}")"
+			log "temp_hash: $temp_hash"
+			log "hash     : $hash"
+			if [ "$temp_hash" = "$hash" ]; then
+				: # OK - hash is good
+			else
+				log "> hash failed: ${file}"
+				return 1
+			fi
+		else
+			log "> file missing: ${file}"
+			return 1
+		fi
+	else
+		if [ -e "${file}" ]; then
+			: # ok - file is here
+		else
+			log "> file missing: ${file}"
+			return 1
+		fi
+	fi
+} # => curl_it ()
+
+################################################################################
+
+# RUN unit test
+run_unit_test ()
+{
+	if [ "${utest_bin_ok}" ] && [ "${ssl_bin_ok}" ]; then
+
+		# Start unit tests
+		log ">>> BEGIN unit tests:"
+
+		if [ "${dry_run}" ]; then
+			log "<<dry-run>> sh ${utest_bin} ${verb}"
+			estat=1
+		else
+			log ">>>>>>: sh ${utest_bin} ${verb}"
+			sh "${utest_bin}" "${verb}"
+
+			#if sh "${utest_bin}" "${verb}" -v; then
+			#	estat=0
+			#else
+			#	estat=1
+			#fi
+
+			# TODO: dispose of 'estat' garbage
+			estat=1 # This is a bug and an error .. fix it.
+		fi
+
+		log "<<< END unit tests:"
+
+	else
+		log "unit-test abandoned"
+		estat=1
+	fi
+} # => run_unit_test ()
+
+########################################
+
+## DOWNLOAD unit-test
+download_unit_test () {
+	# if not present then download unit-test 
+	target_file="${utest_file}"
+	target_hash="${utest_hash}"
+	if [ "$enable_unit_test" ]; then
+		if [ -e "${ERSA_UT}/${target_file}" ]; then
+			keep_eut=1
+			[ -x "${ERSA_UT}/${target_file}" ] || \
+				chmod +x "${ERSA_UT}/${target_file}"
+			# version check
+			if "${ERSA_UT}/${target_file}" version; then
+				utest_bin="${ERSA_UT}/${target_file}"
+				utest_bin_ok=1
+			else
+				log "version check failed: ${ERSA_UT}/${target_file}"
+			fi
+		else
+			# download and basic check
+			log "curl_it ${target_file}"
+			if curl_it "${target_file}" "${target_hash}"; then
+				[ -x "${ERSA_UT}/${target_file}" ] || \
+					chmod +x "${ERSA_UT}/${target_file}"
+				# functional check - version check
+				if "${ERSA_UT}/${target_file}" version; then
+					utest_bin="${ERSA_UT}/${target_file}"
+					utest_bin_ok=1
+				else
+					log "version check failed: ${target_file}"
+				fi
+			else
+				log "curl_it ${target_file} - failed"
+			fi
+		fi
+		[ "$utest_bin_ok" ] || log "undefined: utest_bin_ok"
+		log "setup unit-test - ok"
+	else
+		log "unit-test disabled"
+	fi # => shellcheck
+}
+## DOWNLOAD unit-test
+
+################################################################################
+
+## USE shellcheck
+
+# Run shellcheck
+run_shellcheck () {
+	if [ "$enable_shellcheck" ] && [ "$sc_bin_ok" ] && [ "$EASYRSA_NIX" ]; then
+		if [ -e easyrsa3/easyrsa ]; then
+			if "${sc_bin}" -s sh -S warning -x easyrsa3/easyrsa; then
+				log "shellcheck completed - ok"
+			else
+				log "shellcheck completed - *easyrsa* FAILED"
+			fi
+		else
+			log "easyrsa binary not present, not using shellcheck"
+		fi
+	else
+		log "shellcheck abandoned"
+	fi
+}
+## USE shellcheck
+
+########################################
+
+## DOWNLOAD shellcheck
+download_shellcheck () {
+	# if not present then download shellcheck
+	target_file="${sc_file}"
+	target_hash="${sc_hash}"
+	if [ "$enable_shellcheck" ] && [ "$EASYRSA_NIX" ]; then
+		log "setup shellcheck"
+		if [ -e "${ERSA_UT}/${target_file}" ]; then
+			keep_sc=1
+			[ -x "${ERSA_UT}/${target_file}" ] || \
+				chmod +x "${ERSA_UT}/${target_file}"
+			"${ERSA_UT}/${target_file}" -V || \
+				log "version check failed: ${ERSA_UT}/${target_file}"
+			sc_bin="${ERSA_UT}/${target_file}"
+			sc_bin_ok=1
+		else
+			# download and basic check
+			log "curl_it ${target_file}"
+			if curl_it "${target_file}" "${target_hash}"; then
+				log "curl_it ${target_file} - ok"
+				[ -x "${ERSA_UT}/${target_file}" ] || \
+					chmod +x "${ERSA_UT}/${target_file}"
+				# functional check
+				if "${ERSA_UT}/${target_file}" -V; then
+					sc_bin="${ERSA_UT}/${target_file}"
+					sc_bin_ok=1
+				else
+					log "version check failed: ${ERSA_UT}/${target_file}"
+				fi
+
+			else
+				log "curl_it ${target_file} - failed"
+			fi
+		fi
+	fi
+
+	## DOWNLOAD shellcheck
+}
+
+################################################################################
+
+## DOWNLOAD openssl-3
+download_opensslv3 () {
+	# if not present then download and then use openssl3
+	target_file="${ssl_file}"
+	target_hash="${ssl_hash}"
+	if [ "$enable_openssl3" ] && [ "$EASYRSA_NIX" ]; then
+		if [ -e "${ERSA_UT}/${target_file}" ]; then
+			keep_ssl=1
+			[ -x "${ERSA_UT}/${target_file}" ] || \
+				chmod +x "${ERSA_UT}/${target_file}"
+			# version check 'openssl version'
+			"${ERSA_UT}/${target_file}" version || \
+				log "version check failed: ${ERSA_UT}/${target_file}"
+			ssl_bin="${ERSA_UT}/${target_file}"
+			ssl_bin_ok=1
+		else
+			# download and basic check
+			log "curl_it ${target_file}"
+			if curl_it "${target_file}" "${target_hash}"; then
+				log "curl_it ${target_file} - ok"
+				[ -x "${ERSA_UT}/${target_file}" ] || \
+					chmod +x "${ERSA_UT}/${target_file}"
+				# functional check - version check 'openssl version'
+				if "${ERSA_UT}/${target_file}" version; then
+					ssl_bin="${ERSA_UT}/${target_file}"
+					ssl_bin_ok=1
+					# Set up Easy-RSA Unit-Test for OpenSSL-v3
+					export EASYRSA_OPENSSL="${ssl_bin}"
+				else
+					log "version check failed: ${ERSA_UT}/${target_file}"
+				fi
+			else
+				log "curl_it ${target_file} - failed"
+			fi
+		fi
+
+		log "setup openssl3 - hey hokey-dokey-lopey"
+			log "OpenSSL-v3 ENabled"
+
+	else
+		if [ "$EASYRSA_NIX" ]; then
+			log "System SSL enabled"
+			ssl_bin="openssl"
+			ssl_bin_ok=1
+		else
+			log "Windows, no OpenSSL-v3"
+		fi
+	fi
+} # => ## DOWNLOAD openssl-3
+
+################################################################################
+
+unset -v disable_log verb enable_unit_test enable_shellcheck enable_openssl3 \
+		keep_sc keep_ssl keep_eut no_delete
+
+# Set by default
+enable_unit_test=1
+enable_curl=1
 
 while [ -n "$1" ]; do
 	case "$1" in
-	-v)		verb='-v' ;;
-	-vv)	verb='-vv' ;;
-	-scoff)	unset -v enable_shellcheck ;;
-	*)		verb='-v'
+	--no-log)			disable_log=1 ;;
+	'')					verb='-v' ;;
+	-v)					verb='-v' ;;
+	-vv)				verb='-vv' ;;
+	-sc)				enable_shellcheck=1 ;;
+	-o3)				enable_openssl3=1 ;;
+	-dr)				dry_run=1 ;;
+	-nt|--no-test)		unset -v enable_unit_test ;;
+	-nc|--no-curl)		unset -v enable_curl ;;
+	-nd|--no-delete)	no_delete=1 ;;
+	*)
+		log "Unknown option: $1"
+		exit 9
 	esac
 	shift
 done
 
-github_url='https://raw.githubusercontent.com'
+log "Easy-RSA Unit Tests:"
 
-# disable 'shellcheck' in favour of 'openssl3'
-unset -v enable_shellcheck
-if [ "$enable_shellcheck" ]; then
+# Layout
+ERSA_UT="${PWD}"
 
-if [ -e "shellcheck" ] && [ "$EASYRSA_NIX" ]; then
-	chmod +x shellcheck
-	./shellcheck -V
-	if [ -e easyrsa3/easyrsa ]; then
-		./shellcheck -s sh -S warning -x easyrsa3/easyrsa
-		echo "* shellcheck completed *"
-	else
-		echo "* easyrsa binary not present, using path, no shellcheck"
-	fi
-elif [ "$EASYRSA_NIX" ]; then
-	github_target='OpenVPN/easyrsa-unit-tests/master/shellcheck'
-	curl -f -O "${github_url}/${github_target}" || {
-		echo "shellcheck download failed."
-		exit 9
-		}
-	chmod +x shellcheck
-	./shellcheck -V
-	if [ -e easyrsa3/easyrsa ]; then
-		./shellcheck -s sh -S warning -x easyrsa3/easyrsa
-		echo "* shellcheck completed *"
-	else
-		echo "* easyrsa binary not present, using path, no shellcheck"
-	fi
-	rm -f ./shellcheck
-fi
+# Sources
+gh_url='https://raw.githubusercontent.com/OpenVPN/easyrsa-unit-tests/master'
 
-else
-	# shellcheck is disabled
-	:
-fi
+utest_file='easyrsa-unit-tests.sh'
+unset -v utest_bin utest_bin_ok
+utest_hash='no-hash'
 
+sc_file='shellcheck'
+unset -v sc_bin sc_bin_ok
+sc_hash='SHA256(shellcheck)= f4bce23c11c3919c1b20bcb0f206f6b44c44e26f2bc95f8aa708716095fa0651'
 
-estat=0
+ssl_file='openssl'
+unset -v ssl_bin ssl_bin_ok
+ssl_hash='SHA256(openssl)= bc4a5882bad4f51e6d04c25877e1e85ad86f14c5f6e078dd9c02f9d38f8791be'
 
-if [ -e "easyrsa-unit-tests.sh" ]; then
+# Here we go ..
 
+# allow shellcheck to fail
+download_shellcheck
+run_shellcheck
 
-	if : ; then
+# if this fails then fly system ssl
+download_opensslv3
 
+# The test which matters!
+download_unit_test
+run_unit_test
 
+clean_up
 
-# sh easyrsa-unit-tests.sh "$verb"; then
+################################################################################
 
-
-
-		if [ "$EASYRSA_NIX" ] && [ "$EASYRSA_BY_TINCANTECH" ]; then
-
-
-			# two tests in one: x509-alt and ossl-3
-			# Not without --x509-alt, waiting for merge
-
-			# openssl v3
-			if [ ! -e ./openssl ]; then
-				github_target='OpenVPN/easyrsa-unit-tests/master/openssl'
-				curl -SO "${github_url}/${github_target}" ||
-					printf '%s\n' "openssl download failed."
-			fi
-
-			chmod +x openssl
-			./openssl version
-			export EASYRSA_OPENSSL="${PWD}/openssl"
-			printf '%s\n' "* exported EASYRSA_OPENSSL:" "  ${PWD}/openssl" "  $EASYRSA_OPENSSL"
-			sh easyrsa-unit-tests.sh "$verb" || estat=2
-			#rm ./openssl
-		fi
-	else
-		estat=1
-	fi
-else
-	github_target='OpenVPN/easyrsa-unit-tests/master/easyrsa-unit-tests.sh'
-	curl -O "${github_url}/${github_target}"
-	[ -e "easyrsa-unit-tests.sh" ] || { echo "Unit-test download failed."; exit 9; }
-
-
-	if [ "$EASYRSA_NIX" ] && [ "$EASYRSA_BY_TINCANTECH" ]; then
-
-
-		# two tests in one: x509-alt and ossl-3
-		# Not without --x509-alt, waiting for merge
-
-		# openssl v3
-		if [ ! -e ./openssl ]; then
-			github_target='OpenVPN/easyrsa-unit-tests/master/openssl'
-			curl -SO "${github_url}/${github_target}" ||
-				printf '%s\n' "openssl download failed."
-		fi
-
-		chmod +x openssl
-		./openssl version
-		export EASYRSA_OPENSSL="${PWD}/openssl"
-		printf '%s\n' "* exported EASYRSA_OPENSSL:" "  ${PWD}/openssl" "  $EASYRSA_OPENSSL"
-		sh easyrsa-unit-tests.sh "$verb" || estat=2
-		#rm ./openssl
-	fi
-
-	if sh easyrsa-unit-tests.sh "$verb"; then
-		: # ok
-	else
-		estat=1
-	fi
-	rm -f easyrsa-unit-tests.sh
-fi
-
-echo "estat: $estat"
+log "estat: $estat ${dry_run:+<<dry run>>}"
 exit $estat
+
+# vim: no
+
