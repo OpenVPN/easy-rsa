@@ -105,26 +105,20 @@ run_unit_test ()
 
 		# Start unit tests
 		log ">>> BEGIN unit tests:"
-
 		if [ "${dry_run}" ]; then
 			log "<<dry-run>> sh ${utest_bin} ${verb}"
 			estat=1
 		else
 			log ">>>>>>: sh ${utest_bin} ${verb}"
-			sh "${utest_bin}" "${verb}"
-
-			#if sh "${utest_bin}" "${verb}" -v; then
-			#	estat=0
-			#else
-			#	estat=1
-			#fi
-
-			# TODO: dispose of 'estat' garbage
-			estat=1 # This is a bug and an error .. fix it.
+			if sh "${utest_bin}" "${verb}"; then
+				log "OK"
+				estat=0
+			else
+				log "FAIL"
+				estat=1
+			fi
 		fi
-
 		log "<<< END unit tests:"
-
 	else
 		log "unit-test abandoned"
 		estat=1
