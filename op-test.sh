@@ -74,8 +74,8 @@ curl_it () {
 		if [ -e "${file}" ]; then
 			log "> hash ${file}"
 			temp_hash="$(openssl sha256 "${file}")"
-			log "temp_hash: $temp_hash"
-			log "hash     : $hash"
+			#log "temp_hash: $temp_hash"
+			#log "hash     : $hash"
 			if [ "$temp_hash" = "$hash" ]; then
 				: # OK - hash is good
 			else
