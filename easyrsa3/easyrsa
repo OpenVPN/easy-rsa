@@ -2064,7 +2064,8 @@ vars_setup() {
 		if [ -z "$want_init_pki" ]; then
 
 			# Clear flags - This is the preferred order to find:
-			unset -v e_pki_vars e_easy_vars e_pwd_vars e_prog_vars found_vars
+			unset -v e_pki_vars e_easy_vars e_pwd_vars e_prog_vars \
+					found_vars vars_in_pki
 
 			# PKI location, if present:
 			{ [ -e "$pki_vars" ] && e_pki_vars=1; } || unset -v pki_vars
@@ -2106,8 +2107,7 @@ Priority should be given to your PKI vars file:
 			[ "$easy_vars" ] && vars="$easy_vars"
 			[ "$prog_vars" ] && vars="$prog_vars"
 			# Prioritise vars_in_pki
-			unset -v vars_in_pki && \
-				[ "$pki_vars" ] && vars="$pki_vars" && vars_in_pki=1
+			[ "$pki_vars" ] && vars="$pki_vars" && vars_in_pki=1
 		fi
 
 		# If $EASYRSA_NO_VARS is defined (not blank) then do not use vars
@@ -2123,12 +2123,17 @@ file. Storing sensitive information in the configuration file is not
 recommended - please remove it from there before continuing.
 "
 				fi
-				if [ "$vars_in_pki" ] && grep -q "'" "$vars"; then
-					warn "
+
+				# Sanitize vars further but ONLY if it is in PKI folder
+				if [ "$vars_in_pki" ]; then
+					# Warning: Single quote
+					if grep -q "'" "$vars"; then
+						warn "
 Single quote (') has been found in the configuration file.
 This character is not supported in the configuration file.
 Sourcing the vars file will probably fail ..
 "
+					fi
 				fi
 
 				# shellcheck disable=SC2034 # EASYRSA_CALLER appears unused.
