@@ -2136,10 +2136,11 @@ Sourcing the vars file will probably fail ..
 				# shellcheck disable=1090 # can't follow non-constant source. vars
 				. "$vars"
 				notice "Note: using Easy-RSA configuration from: $vars"
+				[ "$vars_in_pki" ] || \
+					warn "Move your vars file to your PKI folder, where it is safe!"
 			else
 				# $vars remains undefined .. no vars found
-				# Warning already issued!
-				: # ok
+				warn "No vars file found! Please create one in your PKI folder."
 			fi
 		else
 			# EASYRSA_NO_VARS is defined or want_init_pki, no vars is required.
