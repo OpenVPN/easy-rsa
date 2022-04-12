@@ -331,6 +331,7 @@ Type the word '$value' to continue, or any other input to abort."
 	printf %s "  $prompt"
 	#shellcheck disable=SC2162
 	read input
+	printf '\n'
 	[ "$input" = "$value" ] && return
 	notice "Aborting without confirmation."
 	exit 9
@@ -591,13 +592,14 @@ and initialize a fresh PKI here."
 		die "init-pki failed to create safe SSL conf: $EASYRSA_SAFE_CONF"
 	fi
 
-	notice "\
-init-pki complete; you may now create a CA or requests.
-Your newly created PKI dir is:
-* $EASYRSA_PKI"
+	notice "
 
-	notice "* Easy-RSA 'vars' file has now been moved to your PKI above."
-	return 0
+  init-pki complete; you may now create a CA or requests.
+
+  Your newly created PKI dir is:
+  * $EASYRSA_PKI
+
+  IMPORTANT: Easy-RSA 'vars' file has now been moved to your PKI above."
 } # => init_pki()
 
 # Copy data-files from various sources
