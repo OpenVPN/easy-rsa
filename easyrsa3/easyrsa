@@ -249,7 +249,7 @@ Certificate & Request options: (these impact cert/req field values)
                      ./easyrsa help altname
 --use-algo=ALG  : crypto alg to use: choose rsa (default), ec or ed
 --curve=NAME    : for elliptic curve, sets the named curve to use
---copy-ext      : Copy included request X509 extensions (namely subjAltName
+--copy-ext      : Copy included request X509 extensions (namely subjAltName)
 
 Organizational DN options: (only used with the 'org' DN mode)
   (values may be blank for org DN options)
@@ -2102,18 +2102,12 @@ Priority should be given to your PKI vars file:
 			esac
 
 			# If a SINGLE vars file is found then assign $vars
-			if [ "$found_vars" ] && [ "$e_pki_vars" ]; then
-				vars="${pki_vars}"
-			# Final warnings
-			elif  [ -z "$found_vars" ]; then
-				vars=
-				warn "No vars file found! Please create one in your PKI folder."
-			else
-				# This can only be one:
-				vars="${easy_vars}${pwd_vars}${prog_vars}"
-				[ -e "$vars" ] || die "undefined state, vars: $vars"
-				warn "Move your vars file to your PKI folder, where it is safe!"
-			fi
+			[ "$pwd_vars" ] && vars="$pwd_vars"
+			[ "$easy_vars" ] && vars="$easy_vars"
+			[ "$prog_vars" ] && vars="$prog_vars"
+			# Prioritise vars_in_pki
+			unset -v vars_in_pki && \
+				[ "$pki_vars" ] && vars="$pki_vars" && vars_in_pki=1
 		fi
 
 		# If $EASYRSA_NO_VARS is defined (not blank) then do not use vars
@@ -2121,12 +2115,22 @@ Priority should be given to your PKI vars file:
 		if [ -z "$EASYRSA_NO_VARS" ] && [ -z "$want_init_pki" ]; then
 			# If a vars file was located then source it
 			if [ "$vars" ]; then
+				# Sanitize vars
 				if grep -Eq 'EASYRSA_PASSIN|EASYRSA_PASSOUT' "$vars"; then
 					die "
 Variable EASYRSA_PASSIN or EASYRSA_PASSOUT has been found in the configuration
 file. Storing sensitive information in the configuration file is not
-recommended - please remove it from there before continuing."
+recommended - please remove it from there before continuing.
+"
 				fi
+				if [ "$vars_in_pki" ] && grep -q "'" "$vars"; then
+					warn "
+Single quote (') has been found in the configuration file.
+This character is not supported in the configuration file.
+Sourcing the vars file will probably fail ..
+"
+				fi
+
 				# shellcheck disable=SC2034 # EASYRSA_CALLER appears unused.
 				EASYRSA_CALLER=1
 				# shellcheck disable=1090 # can't follow non-constant source. vars
