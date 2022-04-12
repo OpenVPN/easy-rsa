@@ -362,22 +362,18 @@ easyrsa_openssl() {
 	openssl_command="$1"; shift
 
 	case "$openssl_command" in
-		makesafeconf) has_config=true ;;
-		ca|req|srp|ts) has_config=true ;;
-		*) has_config=false
+		makesafeconf) has_config=1 ;;
+		ca|req|srp|ts) has_config=1 ;;
+		*) unset -v has_config
 	esac
 
 	# OpenSSL 1x genpkey does not support -config - Not as documented:
 	# https://www.openssl.org/docs/manmaster/man1/openssl-genpkey.html
 	if [ "$osslv_major" = 3 ] && [ "$openssl_command" = genpkey ]; then
-		has_config=true
+		has_config=1
 	fi
 
-	case "$has_config" in
-	false)
-		"$EASYRSA_OPENSSL" "$openssl_command" "$@" || return
-	;;
-	true)
+	if [ "$has_config" ]; then
 		# Make LibreSSL safe config file from OpenSSL config file
 		easyrsa_openssl_conf="$(easyrsa_mktemp)" || \
 			die "easyrsa_openssl - Failed to create temporary file"
@@ -411,9 +407,10 @@ easyrsa_openssl() {
 			"$EASYRSA_OPENSSL" "$openssl_command" \
 				-config "$easyrsa_openssl_conf" "$@" || return
 		fi
-	;;
-	*) die "Undefined state: has_config is $has_config"
-	esac
+	else
+		# Exec SSL without -config temp-file
+		"$EASYRSA_OPENSSL" "$openssl_command" "$@" || return
+	fi
 } # => easyrsa_openssl
 
 # Verify supplied curve exists and generate curve file if needed
