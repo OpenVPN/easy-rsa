@@ -340,16 +340,21 @@ Type the word '$value' to continue, or any other input to abort."
 } # => confirm()
 
 # mktemp wrapper
+# 'easyrsa_mktemp' MUST be used with care to catch errors
 easyrsa_mktemp() {
-	[ -n "$EASYRSA_TEMP_DIR_session" ] || die "EASYRSA_TEMP_DIR_session not initialized!"
-	[ -d "$EASYRSA_TEMP_DIR_session" ] || mkdir -p "$EASYRSA_TEMP_DIR_session" ||
-		die "Could not create temporary directory '$EASYRSA_TEMP_DIR_session'. Permission or concurrency problem?"
-	[ -d "$EASYRSA_TEMP_DIR_session" ] || die "Temporary directory '$EASYRSA_TEMP_DIR_session' does not exist"
+	[ -n "$EASYRSA_TEMP_DIR_session" ] || return
 
-	tempfile="$EASYRSA_TEMP_DIR_session/tmp.$("$EASYRSA_OPENSSL" rand -hex 3)" || return
+	# Forget any error here
+	mkdir -p "$EASYRSA_TEMP_DIR_session" || :
+
+	tempfile="$EASYRSA_TEMP_DIR_session/tmp.$(
+			easyrsa_openssl rand -hex 4
+			)" || return
+
+	# Catch error here
+	[ ! -e "$tempfile" ] || return
 	printf "" > "$tempfile" || return
-	
-	echo "$tempfile"
+	printf '%s\n' "$tempfile"
 } # => easyrsa_mktemp
 
 # remove temp files and do terminal cleanups
@@ -364,7 +369,7 @@ cleanup() {
 } # => cleanup()
 
 # Easy-RSA meta-wrapper for SSL
-easyrsa_openssl() {
+easyrsa_openssl () {
 	openssl_command="$1"; shift
 
 	case "$openssl_command" in
@@ -417,7 +422,7 @@ easyrsa_openssl() {
 		# Exec SSL without -config temp-file
 		"$EASYRSA_OPENSSL" "$openssl_command" "$@" || return
 	fi
-} # => easyrsa_openssl
+} # => easyrsa_openssl ()
 
 # Verify supplied curve exists and Always generate curve file
 verify_curve_ec () {
@@ -428,7 +433,7 @@ $EASYRSA_EC_DIR"
 
 	# Check that the required ecparams file exists
 	out="${EASYRSA_EC_DIR}/${EASYRSA_CURVE}.pem"
-	if "$EASYRSA_OPENSSL" ecparam -name "$EASYRSA_CURVE" -out "$out" 1>/dev/null
+	if easyrsa_openssl ecparam -name "$EASYRSA_CURVE" -out "$out" 1>/dev/null
 	then
 		return 0
 	fi
@@ -2242,11 +2247,15 @@ Sourcing the vars file will probably fail .."
 	#
 	# Also, integrate a partial 'init-pki' by using 'install_data_to_pki()'
 	#
+	# If EASYRSA_TEMP_DIR_session is not set then
 	if [ -z "$EASYRSA_TEMP_DIR_session" ]; then
+		# Temp dir session
+		session="tmp-$(
+			easyrsa_openssl rand -hex 4
+			)"
+		EASYRSA_TEMP_DIR_session="${EASYRSA_TEMP_DIR}/${session}"
+
 		if [ -d "$EASYRSA_TEMP_DIR" ]; then
-			EASYRSA_TEMP_DIR_session="$(
-					mktemp -du "$EASYRSA_TEMP_DIR/easy-rsa-$$.XXXXXX"
-				)"
 
 			#TODO: This should be removed.  Not really suitable for packaging.
 			#set_var EASYRSA_EXT_DIR		"$EASYRSA/x509-types"
@@ -2269,14 +2278,8 @@ Sourcing the vars file will probably fail .."
 
 		else
 			# If the directory does not exist then we have not run init-pki
-			if mkdir -p "$EASYRSA_TEMP_DIR"; then
-				EASYRSA_TEMP_DIR_session="$(
-					mktemp -du "$EASYRSA_TEMP_DIR/easy-rsa-$$.XXXXXX"
-					)"
-				rm -rf "$EASYRSA_TEMP_DIR"
-			else
-				die "Cannot create $EASYRSA_TEMP_DIR (permission?)"
-			fi
+			# The temp-dir is Always created by 'install_data_to_pki'
+			: # ok
 		fi
 	fi
 
