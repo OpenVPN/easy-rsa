@@ -20,6 +20,7 @@ clean_up () {
 	if [ "$no_delete" ]; then
 		log "saved final state.."
 	else
+		log "op-test: clean_up"
 		if [ "$EASYRSA_NIX" ]; then
 			[ "$keep_eut" ] || rm -f "$utest_bin"
 			[ "$keep_sc" ] || rm -f "$sc_bin"
@@ -181,7 +182,7 @@ download_unit_test () {
 # Run shellcheck
 run_shellcheck () {
 	if [ "$enable_shellcheck" ] && [ "$sc_bin_ok" ] && [ "$EASYRSA_NIX" ]; then
-		# shellcheck easyrsa3/easyrsa
+		# shell-check easyrsa3/easyrsa
 		if [ -e easyrsa3/easyrsa ]; then
 			if "${sc_bin}" -s sh -S warning -x easyrsa3/easyrsa; then
 				log "shellcheck easyrsa3/easyrsa completed - ok"
@@ -192,7 +193,7 @@ run_shellcheck () {
 			log "easyrsa binary not present, not using shellcheck"
 		fi
 
-		# shellcheck easyrsa-unit-tests.sh
+		# shell-check easyrsa-unit-tests.sh
 		if [ -e easyrsa-unit-tests.sh ]; then
 			if "${sc_bin}" -s sh -S warning -x easyrsa-unit-tests.sh; then
 				log "shellcheck easyrsa-unit-tests.sh completed - ok"
@@ -239,7 +240,7 @@ download_shellcheck () {
 				else
 					log "version check failed: ${ERSA_UT}/${target_file}"
 				fi
-
+				log "shellcheck enabled"
 			else
 				log "curl_it ${target_file} - failed"
 			fi
@@ -307,12 +308,24 @@ download_opensslv3 () {
 
 ################################################################################
 
+	# Register clean_up on EXIT
+	#trap "exited 0" 0
+	# When SIGHUP, SIGINT, SIGQUIT, SIGABRT and SIGTERM,
+	# explicitly exit to signal EXIT (non-bash shells)
+	trap "clean_up" 1
+	trap "clean_up" 2
+	trap "clean_up" 3
+	trap "clean_up" 6
+	trap "clean_up" 15
+
+
 unset -v disable_log verb enable_unit_test enable_shellcheck enable_openssl3 \
 		keep_sc keep_ssl keep_eut no_delete
 
 # Set by default
 enable_unit_test=1
 enable_curl=1
+EASYRSA_NIX=1
 
 while [ -n "$1" ]; do
 	case "$1" in
@@ -326,6 +339,7 @@ while [ -n "$1" ]; do
 	-nt|--no-test)		unset -v enable_unit_test ;;
 	-nc|--no-curl)		unset -v enable_curl ;;
 	-nd|--no-delete)	no_delete=1 ;;
+	-w|--windows)		export EASYRSA_WIN=1; unset -v EASYRSA_NIX ;;
 	*)
 		log "Unknown option: $1"
 		exit 9
@@ -362,6 +376,7 @@ download_unit_test
 run_shellcheck
 run_unit_test
 
+# No trap required..
 clean_up
 
 ################################################################################

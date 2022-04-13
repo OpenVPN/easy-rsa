@@ -300,7 +300,9 @@ warn() {
 notice() {
 	[ "$EASYRSA_SILENT" ] && return
 	[ "$EASYRSA_BATCH" ] && return
-	print "* Notice: $1"
+	print "* Notice:
+$1
+"
 } # => notice()
 
 # yes/no case-insensitive match (operates on stdin pipe)
@@ -2087,7 +2089,7 @@ vars_setup() {
 			0)
 				unset -v found_vars
 			;;
-			1) : ;; #ok
+			1) : ;; # ok
 			*)
 				[ "$e_pki_vars" ] && print "Found: $pki_vars"
 				[ "$e_easy_vars" ] && print "Found: $easy_vars"
@@ -2156,7 +2158,7 @@ Sourcing the vars file will probably fail ..
 	# Set defaults, preferring existing env-vars if present
 	set_var EASYRSA					"$PWD"
 	set_var EASYRSA_OPENSSL			openssl
-	set_var EASYRSA_PKI				"$PWD/pki"
+	set_var EASYRSA_PKI				"$EASYRSA/pki"
 	set_var EASYRSA_DN				cn_only
 	set_var EASYRSA_REQ_COUNTRY		"US"
 	set_var EASYRSA_REQ_PROVINCE	"California"
@@ -2237,6 +2239,22 @@ Sourcing the vars file will probably fail ..
 			fi
 		fi
 	fi
+
+	# Detect Windows
+	case "$OS" in
+		'') unset -v EASYRSA_WIN ;;
+		*) EASYRSA_WIN="$OS"
+	esac
+
+	# Detect Windows git/bash
+	case "${EXEPATH##*\\}" in
+		Git)
+			EASYRSA_WIN_GIT_BASH=Git-bash
+			[ -e /usr/bin/openssl ] && set_var EASYRSA_OPENSSL /usr/bin/openssl
+		;;
+		'') unset -v EASYRSA_WIN_GIT_BASH ;;
+		*) EASYRSA_WIN_GIT_BASH="$EXEPATH"
+	esac
 } # vars_setup()
 
 # variable assignment by indirection when undefined; merely exports
@@ -2956,22 +2974,6 @@ cmd="$1"
 case "$cmd" in
 init-pki|clean-all) want_init_pki=1 ;;
 *) unset -v want_init_pki
-esac
-
-# Detect Windows
-case "$OS" in
-	'') unset -v EASYRSA_WIN ;;
-	*) EASYRSA_WIN="$OS"
-esac
-
-# Detect Windows git/bash
-case "${EXEPATH##*\\}" in
-	Git)
-		EASYRSA_WIN_GIT_BASH=Git-bash
-		[ -e /usr/bin/openssl ] && set_var EASYRSA_OPENSSL /usr/bin/openssl
-	;;
-	'') unset -v EASYRSA_WIN_GIT_BASH ;;
-	*) EASYRSA_WIN_GIT_BASH="$EXEPATH"
 esac
 
 # Intelligent env-var detection and auto-loading:
