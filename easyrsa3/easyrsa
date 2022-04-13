@@ -805,6 +805,7 @@ current CA keypair. If you intended to start a new CA, run init-pki first."
 
 	out_key_tmp="$(easyrsa_mktemp)" || die "Failed to create temporary file"
 	out_file_tmp="$(easyrsa_mktemp)" || die "Failed to create temporary file"
+
 	# Get password from user if necessary
 	if [ -z "$nopass" ] && {
 		[ -z "$EASYRSA_PASSOUT" ] || [ -z "$EASYRSA_PASSIN" ]
@@ -1201,7 +1202,7 @@ File Path: $req_in"
 
 	# Display the request subject in an easy-to-read format
 	# Confirm the user wishes to sign this request
-	confirm "Confirm request details: " "yes" "
+	confirm "Confirm request details: " "yes" "\
 You are about to sign the following certificate.
 Please check over the details shown below for accuracy. Note that this request
 has not been cryptographically verified. Please be sure it came from a trusted
@@ -2180,7 +2181,7 @@ Sourcing the vars file will probably fail .."
 				EASYRSA_CALLER=1
 				# shellcheck disable=1090 # can't follow non-constant source. vars
 				. "$vars"
-				notice "Note: using Easy-RSA configuration from: $vars"
+				notice "Using Easy-RSA configuration from: $vars"
 				[ "$vars_in_pki" ] || \
 					warn "Move your vars file to your PKI folder, where it is safe!"
 			else
@@ -2894,14 +2895,15 @@ return 0
 
 print_version()
 {
-		cat <<HERE
+	ssl_version="$("${EASYRSA_OPENSSL:-openssl}" version)"
+		cat << VERSION_TEXT
 EasyRSA Version Information
 Version:     ~VER~
 Generated:   ~DATE~
-SSL Lib:     $($EASYRSA_OPENSSL version)
+SSL Lib:     $ssl_version
 Git Commit:  ~GITHEAD~
 Source Repo: https://github.com/OpenVPN/easy-rsa
-HERE
+VERSION_TEXT
 		exit 0
 } # => print_version ()
 
@@ -2993,7 +2995,9 @@ while :; do
 $EASYRSA_EXTRA_EXTS
 subjectAltName = $val" ;;
 	--version)
-		print_version
+		shift "$#"
+		set -- "$@" "version"
+		break
 		;;
 	*)
 		break ;;
@@ -3010,8 +3014,13 @@ done
 # Set cmd now because vars_setup needs to know if this is init-pki
 cmd="$1"
 [ -n "$1" ] && shift # scrape off command
+
+# This avoids unnecessary warnings and notices
+# want_init_pki can probably be renamed to something more apt
 case "$cmd" in
 init-pki|clean-all) want_init_pki=1 ;;
+""|help|-h|--help|--usage) want_init_pki=1 ;;
+version) want_init_pki=1 ;;
 *) unset -v want_init_pki
 esac
 
