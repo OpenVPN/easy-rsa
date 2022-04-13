@@ -441,10 +441,10 @@ $out"
 }
 
 # Verify if Edward Curve exists
-verify_curve_ed() {
-	easyrsa_openssl genpkey -algorithm "$EASYRSA_CURVE" > /dev/null && return 0
-	die "Edward Curve $EASYRSA_CURVE not found."
-}
+verify_curve_ed () {
+	easyrsa_openssl genpkey -algorithm "$EASYRSA_CURVE" > /dev/null \
+		|| die "Edward Curve $EASYRSA_CURVE not found."
+} # => verify_curve_ed ()
 
 verify_ssl_lib () {
 	# Verify EASYRSA_OPENSSL command gives expected output
