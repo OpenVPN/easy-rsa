@@ -461,7 +461,7 @@ verify_ssl_lib () {
 					*) die "Unsupported SSL library: $osslv_major"
 				esac
 				notice "Using SSL: $EASYRSA_OPENSSL $val" ;;
-			*) die "
+			*) die "\
 Missing or invalid OpenSSL
 Expected to find openssl command at: $EASYRSA_OPENSSL" ;;
 		esac
@@ -469,7 +469,7 @@ Expected to find openssl command at: $EASYRSA_OPENSSL" ;;
 	EASYRSA_SSL_OK=1
 
 	# Verify EASYRSA_SSL_CONF file exists
-	[ -f "$EASYRSA_SSL_CONF" ] || die "
+	[ -f "$EASYRSA_SSL_CONF" ] || die "\
 The OpenSSL config file cannot be found.
 Expected location: $EASYRSA_SSL_CONF"
 } # => verify_ssl_lib ()
@@ -497,14 +497,15 @@ $help_note"
 
 	# verify ssl lib
 	verify_ssl_lib
+	unset -v help_note
 } # => verify_pki_init()
 
 # Verify core CA files present
 verify_ca_init() {
-	help_note="Run without commands for usage and command help."
-
 	# First check the PKI has been initialized
 	verify_pki_init
+
+	help_note="Run without commands for usage and command help."
 
 	# Verify expected files are present. Allow files to be regular files
 	# (or symlinks), but also pipes, for flexibility with ca.key
@@ -530,8 +531,8 @@ $help_note"
 	done
 
 	# explicitly return success for callers
+	unset -v help_note
 	return 0
-
 } # => verify_ca_init()
 
 # init-pki backend:
@@ -549,7 +550,7 @@ init_pki() {
 
 	# If EASYRSA_PKI exists, confirm before we rm -rf (skipped with EASYRSA_BATCH)
 	if [ -e "$EASYRSA_PKI" ]; then
-		confirm "Confirm removal: " "yes" "
+		confirm "Confirm removal: " "yes" "\
 WARNING!!!
 
 You are about to remove the EASYRSA_PKI at:
@@ -594,7 +595,7 @@ and initialize a fresh PKI here."
 		die "init-pki failed to create safe SSL conf: $EASYRSA_SAFE_CONF"
 	fi
 
-	notice "
+	notice "\
 
   init-pki complete; you may now create a CA or requests.
 
@@ -1008,18 +1009,20 @@ current CA keypair. If you intended to start a new CA, run init-pki first."
 	[ -f "$out_key_pass_tmp" ] && rm "$out_key_pass_tmp"
 
 	# Success messages
+	[ "$EASYRSA_SILENT" ] || print # Separate Notice below
 	if [ -n "$sub_ca" ]; then
 		notice "\
+
 NOTE: Your intermediate CA request is at $out_file
 and now must be sent to your parent CA for signing. Place your resulting cert
-at $EASYRSA_PKI/ca.crt prior to signing operations.
-"
+at $EASYRSA_PKI/ca.crt prior to signing operations."
 	else	notice "\
+
 CA creation complete and you may now import and sign cert requests.
 Your new CA certificate file for publishing is at:
-$out_file
-"
+$out_file"
 	fi
+
 	return 0
 } # => build_ca()
 
@@ -1042,9 +1045,11 @@ gen_dh() {
 
 	"$EASYRSA_OPENSSL" dhparam -out "$out_file" "$EASYRSA_KEY_SIZE" || \
 		die "Failed to build DH params"
+
+	[ "$EASYRSA_SILENT" ] || print # Separate Notice below
 	notice "\
-DH parameters of size $EASYRSA_KEY_SIZE created at $out_file
-"
+
+DH parameters of size $EASYRSA_KEY_SIZE created at $out_file"
 	return 0
 } # => gen_dh()
 
@@ -1136,11 +1141,13 @@ $EASYRSA_EXTRA_EXTS"
 			|| die "Failed to generate request"
 	mv "$key_out_tmp" "$key_out"
 	mv "$req_out_tmp" "$req_out"
+
 	notice "\
+
 Keypair and certificate request completed. Your files are:
 req: $req_out
-key: $key_out
-"
+key: $key_out"
+
 	return 0
 } # => gen_req()
 
@@ -1267,9 +1274,13 @@ $ext_tmp"
 
 	mv "$crt_out_tmp" "$crt_out"
 	rm -f "$ext_tmp"
+
+	[ "$EASYRSA_SILENT" ] || print # Separate Notice below
+	unset -v EASYRSA_BATCH # This is why batch mode should not silence output
 	notice "\
-Certificate created at: $crt_out
-"
+
+Certificate created at: $crt_out"
+
 	return 0
 } # => sign_req()
 
@@ -1387,12 +1398,14 @@ Failed to revoke certificate: revocation command failed."
 	# move revoked files so we can reissue certificates with the same name
 	move_revoked "$1"
 
+	[ "$EASYRSA_SILENT" ] || print # Separate Notice below
 	notice "\
+
 IMPORTANT!!!
 
 Revocation was successful. You must run gen-crl and upload a CRL to your
-infrastructure in order to prevent the revoked cert from being accepted.
-"	# => notice end
+infrastructure in order to prevent the revoked cert from being accepted."
+
 	return 0
 } #= revoke()
 
@@ -1578,12 +1591,14 @@ subjectAltName = $san"
 	build_full $cert_type "$1" $opts || die "\
 Failed to renew certificate: renew command failed."
 
+	[ "$EASYRSA_SILENT" ] || print # Separate Notice below
 	notice "\
+
 IMPORTANT!!!
 
 Renew was successful.
-You may want to revoke the old certificate once the new one has been deployed.
-"	# => notice end
+You may want to revoke the old certificate once the new one has been deployed."
+
 	return 0
 } #= renew()
 
@@ -1678,14 +1693,16 @@ gen_crl() {
 	# shellcheck disable=SC2086 # Ignore unquoted variables
 	easyrsa_openssl ca -utf8 -gencrl -out "$out_file_tmp" \
 		${EASYRSA_PASSIN:+-passin "$EASYRSA_PASSIN"} || die "\
-CRL Generation failed.
-"
+CRL Generation failed."
+
 	mv "$out_file_tmp" "$out_file"
 
+	[ "$EASYRSA_SILENT" ] || print # Separate Notice below
 	notice "\
+
 An updated CRL has been created.
-CRL file: $out_file
-"
+CRL file: $out_file"
+
 	return 0
 } # => gen_crl()
 
@@ -1715,9 +1732,10 @@ Existing file at: $out_req"
 	cp "$in_req" "$out_req"
 
 	notice "\
+
 The request has been successfully imported with a short name of: $short_name
-You may now use this name to perform signing operations on this request.
-"
+You may now use this name to perform signing operations on this request."
+
 	return 0
 } # => import_req()
 
@@ -1817,9 +1835,10 @@ Export of p8 failed: see above for related openssl errors."
 esac
 
 	notice "\
+
 Successful export of $pkcs_type file. Your exported file is at the following
-location: $pkcs_out
-"
+location: $pkcs_out"
+
 	return 0
 } # => export_pkcs()
 
@@ -1869,6 +1888,7 @@ error messages."
 	mv "$out_key_tmp" "$file" || die "\
 Failed to change the private key passphrase. See above for error messages."
 
+	[ "$EASYRSA_SILENT" ] || print # Separate Notice below
 	notice "Key passphrase successfully changed"
 
 	return 0
@@ -1881,6 +1901,7 @@ update_db() {
 	easyrsa_openssl ca -utf8 -updatedb \
 		${EASYRSA_PASSIN:+-passin "$EASYRSA_PASSIN"} || die "\
 Failed to perform update-db: see above for related openssl errors."
+
 	return 0
 } # => update_db()
 
@@ -1911,7 +1932,6 @@ display_dn() {
 		print "X509v3 Subject Alternative Name:"
 		print "    $san"
 	fi
-
 } # => display_dn()
 
 # generate default SAN from req/X509, passed by full pathname
@@ -1980,16 +2000,18 @@ Run easyrsa without commands for usage help."
 No such $type file with a basename of '$name' is present.
 Expected to find this file at:
 $in_file"
+
 	# shellcheck disable=SC2086 # Ignore unquoted variables
 	verify_file $format "$in_file" || die "\
 This file is not a valid $type file:
 $in_file"
 
 	notice "\
-Showing $type details for '$name'.
-This file is stored at:
-$in_file
-"
+
+  Showing $type details for '$name'.
+  This file is stored at:
+  * $in_file"
+
 	# shellcheck disable=SC2086 # Ignore unquoted variables
 	easyrsa_openssl $format -in "$in_file" -noout -text\
 		-nameopt multiline $opts || die "\
@@ -2023,11 +2045,11 @@ $in_file"
 This file is not a valid $type file:
 $in_file"
 
-	notice "
+	notice "\
+
   Showing $type details for 'ca'.
   This file is stored at:
-  $in_file
-"
+  * $in_file"
 
 	# shellcheck disable=SC2086 # Ignore unquoted variables
 	easyrsa_openssl $format -in "$in_file" -noout -text\
@@ -2116,10 +2138,10 @@ vars_setup() {
 				[ "$e_easy_vars" ] && print "Found: $easy_vars"
 				[ "$e_pwd_vars" ] && print "Found: $pwd_vars"
 				[ "$e_prog_vars" ] && print "Found: $prog_vars"
-				die "Conflicting 'vars' files found.
+				die "\
+Conflicting 'vars' files found.
 
 Priority should be given to your PKI vars file:
-
 * $expected_pki_vars
 "
 			esac
@@ -2142,8 +2164,7 @@ Priority should be given to your PKI vars file:
 					die "\
 Variable EASYRSA_PASSIN or EASYRSA_PASSOUT has been found in the configuration
 file. Storing sensitive information in the configuration file is not
-recommended - please remove it from there before continuing.
-"
+recommended - please remove it from there before continuing."
 				fi
 
 				# Sanitize vars further but ONLY if it is in PKI folder
@@ -2153,8 +2174,7 @@ recommended - please remove it from there before continuing.
 						warn "\
 Single quote (') has been found in the configuration file.
 This character is not supported in the configuration file.
-Sourcing the vars file will probably fail ..
-"
+Sourcing the vars file will probably fail .."
 					fi
 				fi
 
