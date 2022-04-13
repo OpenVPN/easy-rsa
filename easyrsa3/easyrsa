@@ -292,7 +292,7 @@ warn() {
 	[ "$EASYRSA_SILENT" ] && return
 	print "* WARNING:
 
-  $1
+$1
 " 1>&2
 } # => warn()
 
@@ -768,7 +768,7 @@ build_ca() {
 	out_key="$EASYRSA_PKI/private/ca.key"
 	if [ -z "$sub_ca" ]; then
 		out_file="$EASYRSA_PKI/ca.crt"
-		opts="$opts -x509 -days $EASYRSA_CA_EXPIRE "
+		opts="$opts -x509 -days $EASYRSA_CA_EXPIRE"
 	fi
 
 	# Test for existing CA, and complain if already present
@@ -796,7 +796,7 @@ current CA keypair. If you intended to start a new CA, run init-pki first."
 	done
 	printf "" > "$EASYRSA_PKI/index.txt" || die "$err_file"
 	printf "" > "$EASYRSA_PKI/index.txt.attr" || die "$err_file"
-	print "01" > "$EASYRSA_PKI/serial" || die "$err_file"
+	printf '%s\n' "01" > "$EASYRSA_PKI/serial" || die "$err_file"
 
 	# Default CN only when not in global EASYRSA_BATCH mode:
 	# shellcheck disable=SC2015
@@ -856,7 +856,7 @@ current CA keypair. If you intended to start a new CA, run init-pki first."
 	# * shellcheck SC2086 # Ignore unquoted variables
 	#   The "correct" solution is to not need unquoted substitutions ..
 	#
-	# shellcheck disable=SC2086 # Ignore unquoted variables
+	# ##shellcheck disable=SC2086 # Ignore unquoted variables
 	case "$osslv_major" in # => BEGIN SSL lib version
 
 	# BEGIN SSL V3
@@ -867,7 +867,8 @@ current CA keypair. If you intended to start a new CA, run init-pki first."
 		if [ -z "$nopass" ]; then
 			crypto_opts="$crypto"
 			if [ -z "$EASYRSA_PASSOUT" ]; then
-				crypto_opts="$crypto_opts -pass file:$out_key_pass_tmp"
+				#crypto_opts="$crypto_opts -pass file:$out_key_pass_tmp"
+				: # ok
 			fi
 		fi
 
@@ -877,24 +878,31 @@ current CA keypair. If you intended to start a new CA, run init-pki first."
 		rsa)
 			# OpenSSL v3: 'genrsa' is deprecate, use 'genpkey'
 			easyrsa_openssl genpkey -algorithm "$EASYRSA_ALGO" \
-				-out "$out_key_tmp" ${crypto_opts} \
+				-out "$out_key_tmp" \
 				-pkeyopt rsa_keygen_bits:"$EASYRSA_ALGO_PARAMS" \
-				${EASYRSA_PASSOUT:+-pass "$EASYRSA_PASSOUT"} || \
-					die "Failed create CA private key"
+				${crypto_opts:+ "$crypto_opts"} \
+				${EASYRSA_PASSOUT:+ -pass "$EASYRSA_PASSOUT"} \
+				${out_key_pass_tmp:+ -pass file:"$out_key_pass_tmp"} \
+					|| die "Failed create CA private key"
 		;;
 		ec)
 			easyrsa_openssl genpkey -paramfile "$EASYRSA_ALGO_PARAMS" \
-				-out "$out_key_tmp" ${crypto_opts} \
-				${EASYRSA_PASSOUT:+-pass "$EASYRSA_PASSOUT"} || \
-					die "Failed create CA private key"
+				-out "$out_key_tmp" \
+				${crypto_opts:+ "$crypto_opts"} \
+				${EASYRSA_PASSOUT:+-pass "$EASYRSA_PASSOUT"} \
+				${out_key_pass_tmp:+ -pass file:"$out_key_pass_tmp"} \
+					|| die "Failed create CA private key"
 		;;
 		ed)
 			case "$EASYRSA_CURVE" in
 			[eE][dD]25519|[eE][dD]448)
 				easyrsa_openssl genpkey -algorithm "$EASYRSA_CURVE" \
-					-out "$out_key_tmp" ${crypto_opts} \
-					${EASYRSA_PASSOUT:+-pass "$EASYRSA_PASSOUT"} || \
-						die "Failed create CA private key" ;;
+					-out "$out_key_tmp" \
+					${crypto_opts:+ "$crypto_opts"} \
+					${EASYRSA_PASSOUT:+ -pass "$EASYRSA_PASSOUT"} \
+					${out_key_pass_tmp:+ -pass file:"$out_key_pass_tmp"} \
+						|| die "Failed create CA private key"
+			;;
 			*)	die "Unknown curve: $EASYRSA_CURVE"
 			esac
 		;;
@@ -906,17 +914,20 @@ current CA keypair. If you intended to start a new CA, run init-pki first."
 		# 'req' requires '-passin'
 		crypto_opts=""
 		if [ -z "$nopass" ] && [ -z "$EASYRSA_PASSIN" ]; then
-			crypto_opts="-passin file:$out_key_pass_tmp"
+			#crypto_opts="-passin file:$out_key_pass_tmp"
+			: # ok
 		else
 			crypto_opts="$no_password"
 		fi
 
 		# create the CA keypair:
-		easyrsa_openssl req -utf8 -new -key "$out_key_tmp" \
-			-out "$out_file_tmp" ${opts} ${crypto_opts} \
-			${EASYRSA_CA_EXTRA_EXTS} \
-			${EASYRSA_PASSIN:+-passin "$EASYRSA_PASSIN"} || \
-				die "Failed to build the CA"
+		easyrsa_openssl req -utf8 -new \
+			-key "$out_key_tmp" -keyout "$out_key_tmp" -out "$out_file_tmp" \
+			$opts $EASYRSA_CA_EXTRA_EXTS \
+			${crypto_opts:+ "$crypto_opts"} \
+			${EASYRSA_PASSIN:+ -passin "$EASYRSA_PASSIN"} \
+			${out_key_pass_tmp:+ -passin file:"$out_key_pass_tmp"} \
+				|| die "Failed to build the CA"
 	;;
 	# END SSL V3
 
@@ -927,35 +938,43 @@ current CA keypair. If you intended to start a new CA, run init-pki first."
 		if [ -z "$nopass" ]; then
 			crypto_opts="$crypto"
 			if [ -z "$EASYRSA_PASSOUT" ]; then
-				if [ "ed" = "$EASYRSA_ALGO" ]; then
-					crypto_opts="$crypto_opts -pass file:$out_key_pass_tmp"
-				else
-					crypto_opts="$crypto_opts -passout file:$out_key_pass_tmp"
-				fi
+				#if [ "ed" = "$EASYRSA_ALGO" ]; then
+				#	crypto_opts="$crypto_opts -pass file:$out_key_pass_tmp"
+				#else
+				#	crypto_opts="$crypto_opts -passout file:$out_key_pass_tmp"
+				#fi
+				: # ok
 			fi
 		fi
 
 		# create the CA key
 		case "$EASYRSA_ALGO" in
 		rsa)
-			"$EASYRSA_OPENSSL" genrsa -out "$out_key_tmp" $crypto_opts \
-				${EASYRSA_PASSOUT:+-passout "$EASYRSA_PASSOUT"} \
-				"$EASYRSA_ALGO_PARAMS" || \
-					die "Failed create CA private key"
+			"$EASYRSA_OPENSSL" genrsa -out "$out_key_tmp" \
+				${crypto_opts:+ "$crypto_opts"} \
+				${EASYRSA_PASSOUT:+ -passout "$EASYRSA_PASSOUT"} \
+				${out_key_pass_tmp:+ -passout file:"$out_key_pass_tmp"} \
+				"$EASYRSA_ALGO_PARAMS" \
+					|| die "Failed create CA private key"
 		;;
 		ec)
 			"$EASYRSA_OPENSSL" ecparam -in "$EASYRSA_ALGO_PARAMS" -genkey | \
-				"$EASYRSA_OPENSSL" ec -out "$out_key_tmp" $crypto_opts \
-					${EASYRSA_PASSOUT:+-passout "$EASYRSA_PASSOUT"} || \
-						die "Failed create CA private key"
+				"$EASYRSA_OPENSSL" ec -out "$out_key_tmp" \
+					${crypto_opts:+ "$crypto_opts"} \
+					${EASYRSA_PASSOUT:+ -passout "$EASYRSA_PASSOUT"} \
+					${out_key_pass_tmp:+ -passout file:"$out_key_pass_tmp"} \
+						|| die "Failed create CA private key"
 		;;
 		ed)
 			case "$EASYRSA_CURVE" in
 			[eE][dD]25519|[eE][dD]448)
 				"$EASYRSA_OPENSSL" genpkey -algorithm "$EASYRSA_CURVE" \
-					-out "$out_key_tmp" $crypto_opts \
-					${EASYRSA_PASSOUT:+-pass "$EASYRSA_PASSOUT"} || \
-						die "Failed create CA private key" ;;
+					-out "$out_key_tmp" \
+					${crypto_opts:+ "$crypto_opts"} \
+					${EASYRSA_PASSOUT:+ -pass "$EASYRSA_PASSOUT"} \
+					${out_key_pass_tmp:+ -pass file:"$out_key_pass_tmp"} \
+						|| die "Failed create CA private key"
+			;;
 			*)	die "Unknown curve: $EASYRSA_CURVE"
 			esac
 		;;
@@ -965,16 +984,18 @@ current CA keypair. If you intended to start a new CA, run init-pki first."
 		# create the CA keypair:
 		crypto_opts=""
 		if [ -z "$nopass" ] && [ -z "$EASYRSA_PASSIN" ]; then
-			crypto_opts="-passin file:$out_key_pass_tmp"
+			#crypto_opts="-passin file:$out_key_pass_tmp"
+			: # ok
 		else
 			crypto_opts="$no_password"
-
 		fi
 
-		easyrsa_openssl req -utf8 -new -key "$out_key_tmp" \
-			-keyout "$out_key_tmp" -out "$out_file_tmp" $crypto_opts $opts \
-			${EASYRSA_CA_EXTRA_EXTS} \
-			${EASYRSA_PASSIN:+-passin "$EASYRSA_PASSIN"} \
+		easyrsa_openssl req -utf8 -new \
+			-key "$out_key_tmp" -keyout "$out_key_tmp" -out "$out_file_tmp" \
+			$opts $EASYRSA_CA_EXTRA_EXTS \
+			${crypto_opts:+ "$crypto_opts"} \
+			${EASYRSA_PASSIN:+ -passin "$EASYRSA_PASSIN"} \
+			${out_key_pass_tmp:+ -passin file:"$out_key_pass_tmp"} \
 				|| die "Failed to build the CA"
 	;;
 	# END SSL V1
@@ -2118,7 +2139,7 @@ Priority should be given to your PKI vars file:
 			if [ "$vars" ]; then
 				# Sanitize vars
 				if grep -Eq 'EASYRSA_PASSIN|EASYRSA_PASSOUT' "$vars"; then
-					die "
+					die "\
 Variable EASYRSA_PASSIN or EASYRSA_PASSOUT has been found in the configuration
 file. Storing sensitive information in the configuration file is not
 recommended - please remove it from there before continuing.
@@ -2129,7 +2150,7 @@ recommended - please remove it from there before continuing.
 				if [ "$vars_in_pki" ]; then
 					# Warning: Single quote
 					if grep -q "'" "$vars"; then
-						warn "
+						warn "\
 Single quote (') has been found in the configuration file.
 This character is not supported in the configuration file.
 Sourcing the vars file will probably fail ..
