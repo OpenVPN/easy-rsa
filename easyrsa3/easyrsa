@@ -355,6 +355,9 @@ easyrsa_mktemp() {
 # remove temp files and do terminal cleanups
 cleanup() {
 	[ -z "$EASYRSA_TEMP_DIR_session" ] || rm -rf "$EASYRSA_TEMP_DIR_session"
+	[ -n "${EASYRSA_EC_DIR%/*}" ] && [ -d "$EASYRSA_EC_DIR" ] && \
+		rm -rf "$EASYRSA_EC_DIR"
+
 	# shellcheck disable=SC3040
 	(stty echo 2>/dev/null) || { (set -o echo 2>/dev/null) && set -o echo; }
 	[ "$EASYRSA_SILENT" ] || echo "" # just to get a clean line
@@ -416,29 +419,26 @@ easyrsa_openssl() {
 	fi
 } # => easyrsa_openssl
 
-# Verify supplied curve exists and generate curve file if needed
-verify_curve_ec() {
-	if ! "$EASYRSA_OPENSSL" ecparam -name "$EASYRSA_CURVE" > /dev/null; then
-		die "\
-Curve $EASYRSA_CURVE not found. Run openssl ecparam -list_curves to show a
-list of supported curves."
-	fi
-
+# Verify supplied curve exists and Always generate curve file
+verify_curve_ec () {
 	# Check that the ecparams dir exists
 	[ -d "$EASYRSA_EC_DIR" ] || mkdir "$EASYRSA_EC_DIR" || die "\
 Failed creating ecparams dir (permissions?) at:
 $EASYRSA_EC_DIR"
 
 	# Check that the required ecparams file exists
-	out="$EASYRSA_EC_DIR/${EASYRSA_CURVE}.pem"
-	[ -f "$out" ] && return 0
-	"$EASYRSA_OPENSSL" ecparam -name "$EASYRSA_CURVE" -out "$out" || die "\
+	out="${EASYRSA_EC_DIR}/${EASYRSA_CURVE}.pem"
+	if "$EASYRSA_OPENSSL" ecparam -name "$EASYRSA_CURVE" -out "$out" 1>/dev/null
+	then
+		return 0
+	fi
+
+	# Clean up failure
+	rm -rf "$EASYRSA_EC_DIR"
+	die "\
 Failed to generate ecparam file (permissions?) when writing to:
 $out"
-
-	# Explicitly return success for caller
-	return 0
-}
+} # => verify_curve_ec ()
 
 # Verify if Edward Curve exists
 verify_curve_ed () {
