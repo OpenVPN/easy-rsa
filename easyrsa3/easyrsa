@@ -339,18 +339,44 @@ Type the word '$value' to continue, or any other input to abort."
 	exit 9
 } # => confirm()
 
-# mktemp wrapper
-easyrsa_mktemp() {
-	[ -n "$EASYRSA_TEMP_DIR_session" ] || die "EASYRSA_TEMP_DIR_session not initialized!"
-	[ -d "$EASYRSA_TEMP_DIR_session" ] || mkdir -p "$EASYRSA_TEMP_DIR_session" ||
-		die "Could not create temporary directory '$EASYRSA_TEMP_DIR_session'. Permission or concurrency problem?"
-	[ -d "$EASYRSA_TEMP_DIR_session" ] || die "Temporary directory '$EASYRSA_TEMP_DIR_session' does not exist"
+# Create session directory atomically or fail
+secure_session() {
+	# temporary directory must exist
+	[ -n "$EASYRSA_TEMP_DIR" ] || return
+	[ -d "$EASYRSA_TEMP_DIR" ] || return
 
-	tempfile="$EASYRSA_TEMP_DIR_session/tmp.$("$EASYRSA_OPENSSL" rand -hex 3)" || return
-	printf "" > "$tempfile" || return
-	
-	echo "$tempfile"
-} # => easyrsa_mktemp
+	for i in 1 2 3; do
+		session="$(easyrsa_openssl rand -hex 4)"
+		EASYRSA_TEMP_DIR_session="${EASYRSA_TEMP_DIR}/${session}"
+		mkdir "$EASYRSA_TEMP_DIR_session" || continue
+		return
+	done
+	return 1
+} # => secure_session()
+
+# Create tempfile atomically or fail
+easyrsa_mktemp() {
+	# session directory must exist
+	[ -n "$EASYRSA_TEMP_DIR_session" ] || return
+	[ -d "$EASYRSA_TEMP_DIR_session" ] || return
+
+	for i in 1 2 3; do
+		rand="$(easyrsa_openssl rand -hex 4)" || return
+
+		shotfile="${EASYRSA_TEMP_DIR_session}/shot.$rand"
+		if [ -e "$shotfile" ]; then
+			continue
+		else
+			printf "" > "$shotfile" || return
+		fi
+
+		tempfile="${EASYRSA_TEMP_DIR_session}/temp.$rand"
+		mv "$shotfile" "$tempfile" || continue
+		printf '%s\n' "$tempfile"
+		return
+	done
+	return 1
+} # => easyrsa_mktemp()
 
 # remove temp files and do terminal cleanups
 cleanup() {
@@ -420,7 +446,7 @@ easyrsa_openssl() {
 } # => easyrsa_openssl()
 
 # Verify supplied curve exists and Always generate curve file
-verify_curve_ec () {
+verify_curve_ec() {
 	# Check that the ecparams dir exists
 	[ -d "$EASYRSA_EC_DIR" ] || mkdir "$EASYRSA_EC_DIR" || die "\
 Failed creating ecparams dir (permissions?) at:
@@ -701,6 +727,9 @@ install_data_to_pki () {
 			cp -f "${EASYRSA_PKI}/${vars_file_example}" \
 				"${EASYRSA_PKI}/${vars_file}" || return
 		fi
+
+		# Initialise temporary session for easyrsa_openssl makesafeconf
+		secure_session || return
 	;;
 	vars-setup)
 		shift ;; # ok
@@ -709,6 +738,7 @@ install_data_to_pki () {
 	*)
 		die "install_data_to_pki - unknown context: $1"
 	esac
+
 
 	# Check PKI is updated - Omit unnecessary checks
 	#[ -e "${EASYRSA_PKI}/${vars_file}" ] || return
@@ -2242,11 +2272,12 @@ Sourcing the vars file will probably fail .."
 	#
 	# Also, integrate a partial 'init-pki' by using 'install_data_to_pki()'
 	#
-	if [ -z "$EASYRSA_TEMP_DIR_session" ]; then
+	# If EASYRSA_TEMP_DIR_session is not set then
+	if [ -d "$EASYRSA_PKI" ]; then
+		# Temp dir session
+		secure_session || die "Temporary directory secure-session failed."
+
 		if [ -d "$EASYRSA_TEMP_DIR" ]; then
-			EASYRSA_TEMP_DIR_session="$(
-					mktemp -du "$EASYRSA_TEMP_DIR/easy-rsa-$$.XXXXXX"
-				)"
 
 			#TODO: This should be removed.  Not really suitable for packaging.
 			#set_var EASYRSA_EXT_DIR		"$EASYRSA/x509-types"
@@ -2269,14 +2300,8 @@ Sourcing the vars file will probably fail .."
 
 		else
 			# If the directory does not exist then we have not run init-pki
-			if mkdir -p "$EASYRSA_TEMP_DIR"; then
-				EASYRSA_TEMP_DIR_session="$(
-					mktemp -du "$EASYRSA_TEMP_DIR/easy-rsa-$$.XXXXXX"
-					)"
-				rm -rf "$EASYRSA_TEMP_DIR"
-			else
-				die "Cannot create $EASYRSA_TEMP_DIR (permission?)"
-			fi
+			# The temp-dir is Always created by 'install_data_to_pki'
+			: # ok
 		fi
 	fi
 
