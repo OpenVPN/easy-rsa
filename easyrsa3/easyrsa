@@ -417,7 +417,7 @@ easyrsa_openssl() {
 		# Exec SSL without -config temp-file
 		"$EASYRSA_OPENSSL" "$openssl_command" "$@" || return
 	fi
-} # => easyrsa_openssl
+} # => easyrsa_openssl()
 
 # Verify supplied curve exists and Always generate curve file
 verify_curve_ec () {
@@ -428,7 +428,7 @@ $EASYRSA_EC_DIR"
 
 	# Check that the required ecparams file exists
 	out="${EASYRSA_EC_DIR}/${EASYRSA_CURVE}.pem"
-	if "$EASYRSA_OPENSSL" ecparam -name "$EASYRSA_CURVE" -out "$out" 1>/dev/null
+	if easyrsa_openssl ecparam -name "$EASYRSA_CURVE" -out "$out" 1>/dev/null
 	then
 		return 0
 	fi
@@ -438,15 +438,15 @@ $EASYRSA_EC_DIR"
 	die "\
 Failed to generate ecparam file (permissions?) when writing to:
 $out"
-} # => verify_curve_ec ()
+} # => verify_curve_ec()
 
 # Verify if Edward Curve exists
-verify_curve_ed () {
+verify_curve_ed() {
 	easyrsa_openssl genpkey -algorithm "$EASYRSA_CURVE" > /dev/null \
 		|| die "Edward Curve $EASYRSA_CURVE not found."
-} # => verify_curve_ed ()
+} # => verify_curve_ed()
 
-verify_ssl_lib () {
+verify_ssl_lib() {
 	# Verify EASYRSA_OPENSSL command gives expected output
 	if [ -z "$EASYRSA_SSL_OK" ]; then
 		val="$("$EASYRSA_OPENSSL" version)"
@@ -472,7 +472,7 @@ Expected to find openssl command at: $EASYRSA_OPENSSL" ;;
 	[ -f "$EASYRSA_SSL_CONF" ] || die "\
 The OpenSSL config file cannot be found.
 Expected location: $EASYRSA_SSL_CONF"
-} # => verify_ssl_lib ()
+} # => verify_ssl_lib()
 
 # Basic sanity-check of PKI init and complain if missing
 verify_pki_init() {
