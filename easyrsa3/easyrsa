@@ -281,8 +281,8 @@ Easy-RSA error:
 
 $1" 1>&2
 
-	[ "$EASYRSA_WIN" ] && print "$EASYRSA_WIN"
-	[ "$EASYRSA_WIN_GIT_BASH" ] && print "$EASYRSA_WIN_GIT_BASH"
+	print "
+Host: $host_out"
 
 	exit "${2:-1}"
 } # => die()
@@ -384,8 +384,12 @@ cleanup() {
 	[ -n "${EASYRSA_EC_DIR%/*}" ] && [ -d "$EASYRSA_EC_DIR" ] && \
 		rm -rf "$EASYRSA_EC_DIR"
 
-	# shellcheck disable=SC3040
-	(stty echo 2>/dev/null) || { (set -o echo 2>/dev/null) && set -o echo; }
+	# shellcheck disable=SC3040 # In POSIX sh, set option [name] is undefined
+	case "$easyrsa_host_os" in
+	nix) stty echo ;;
+	win) set -o echo ;;
+	*) warn "Host OS undefined."
+	esac
 	[ "$EASYRSA_SILENT" ] || echo "" # just to get a clean line
 } # => cleanup()
 
@@ -2305,21 +2309,33 @@ Sourcing the vars file will probably fail .."
 		fi
 	fi
 
-	# Detect Windows
-	case "$OS" in
-		'') unset -v EASYRSA_WIN ;;
-		*) EASYRSA_WIN="$OS"
-	esac
+	# Identify host OS
+	unset -v easyrsa_host_os easyrsa_host_test easyrsa_win_git_bash
 
-	# Detect Windows git/bash
-	case "${EXEPATH##*\\}" in
-		Git)
-			EASYRSA_WIN_GIT_BASH=Git-bash
+	# Detect Windows
+	easyrsa_host_test="${OS}"
+
+	# shellcheck disable=SC2016 # expansion inside '' blah
+	easyrsa_ksh='@(#)MIRBSD KSH R39-w32-beta14 $Date: 2013/06/28 21:28:57 $'
+	[ "${KSH_VERSION}" = "${easyrsa_ksh}" ] && easyrsa_host_test="${easyrsa_ksh}"
+	unset -v easyrsa_ksh
+
+	# If not Windows then nix
+	if [ "${easyrsa_host_test}" ]; then
+		easyrsa_host_os=win
+		easyrsa_host_os_version="${easyrsa_host_test}"
+		# Detect Windows git/bash
+		if [ "${EXEPATH}" ]; then
+			easyrsa_win_git_bash="${EXEPATH}"
 			[ -e /usr/bin/openssl ] && set_var EASYRSA_OPENSSL /usr/bin/openssl
-		;;
-		'') unset -v EASYRSA_WIN_GIT_BASH ;;
-		*) EASYRSA_WIN_GIT_BASH="$EXEPATH"
-	esac
+		fi
+	else
+		easyrsa_host_os=nix
+		easyrsa_host_os_version="$(uname)"
+	fi
+	host_out="$easyrsa_host_os | $easyrsa_host_os_version"
+	host_out="${host_out}${easyrsa_win_git_bash:+ | "$easyrsa_win_git_bash"}"
+	unset -v easyrsa_host_test
 } # vars_setup()
 
 # variable assignment by indirection when undefined; merely exports
