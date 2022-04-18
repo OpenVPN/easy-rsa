@@ -347,7 +347,8 @@ secure_session() {
 
 	# temporary directory must exist
 	[ -n "$EASYRSA_TEMP_DIR" ] || return
-	[ -d "$EASYRSA_TEMP_DIR" ] || return
+	[ -d "$EASYRSA_TEMP_DIR" ] || die "\
+Non-existant temporary directory: $EASYRSA_TEMP_DIR"
 
 	for i in 1 2 3; do
 		session="$(easyrsa_openssl rand -hex 4)"
@@ -741,7 +742,7 @@ install_data_to_pki () {
 			# Only init-pki can inherit a previous session when deleting a PKI
 			# Only init-pki is allowed to create a new session
 			# 'init-pki soft' does not delete the old session, delete it now
-			[ -d "$EASYRSA_TEMP_DIR_session" ] && rm -rf "$EASYRSA_TEMP_DIR_session" ]
+			[ -d "$EASYRSA_TEMP_DIR_session" ] && rm -rf "$EASYRSA_TEMP_DIR_session"
 			unset -v EASYRSA_TEMP_DIR_session
 		fi
 
