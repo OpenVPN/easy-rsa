@@ -341,6 +341,9 @@ Type the word '$value' to continue, or any other input to abort."
 
 # Create session directory atomically or fail
 secure_session() {
+	# Session is already defined
+	[ "$EASYRSA_TEMP_DIR_session" ] && die "session overload"
+
 	# temporary directory must exist
 	[ -n "$EASYRSA_TEMP_DIR" ] || return
 	[ -d "$EASYRSA_TEMP_DIR" ] || return
@@ -732,8 +735,17 @@ install_data_to_pki () {
 				"${EASYRSA_PKI}/${vars_file}" || return
 		fi
 
-		# Initialise temporary session for easyrsa_openssl makesafeconf
-		secure_session || return
+		# if session is already defined
+		if [ "$EASYRSA_TEMP_DIR_session" ]; then
+			# Only init-pki can inherit a previous session when deleting a PKI
+			# Only init-pki is allowed to create a new session
+			# 'init-pki soft' does not delete the old session, delete it now
+			[ -d "$EASYRSA_TEMP_DIR_session" ] && rm -rf "$EASYRSA_TEMP_DIR_session" ]
+			unset -v EASYRSA_TEMP_DIR_session
+		fi
+
+		# Initialise new temporary session for easyrsa_openssl makesafeconf
+		secure_session || die "install_data_to_pki - secure_session"
 	;;
 	vars-setup)
 		shift ;; # ok
@@ -742,7 +754,6 @@ install_data_to_pki () {
 	*)
 		die "install_data_to_pki - unknown context: $1"
 	esac
-
 
 	# Check PKI is updated - Omit unnecessary checks
 	#[ -e "${EASYRSA_PKI}/${vars_file}" ] || return
