@@ -1607,7 +1607,7 @@ Renewal not allowed."
 		sed -n "/X509v3 Extended Key Usage:/{n;s/^ *//g;p;}"
 		)
 
-	case $cert_ext_key_usage in
+	case "$cert_ext_key_usage" in
 		"TLS Web Client Authentication")
 			cert_type=client
 			;;
