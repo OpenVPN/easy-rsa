@@ -957,6 +957,7 @@ current CA keypair. If you intended to start a new CA, run init-pki first."
 			die "Unknown algorithm: $EASYRSA_ALGO"
 		esac
 
+		# Apply password or not
 		# Private key encryption password or use no_password
 		# 'req' requires '-passin'
 		crypto_opts=""
@@ -968,6 +969,10 @@ current CA keypair. If you intended to start a new CA, run init-pki first."
 		fi
 
 		# create the CA keypair:
+		# It is not suitable to quote $opts and $EASYRSA_EXTRA_EXTS
+		# because then they are passed to SSL as a single option
+		# with spaces, which is not the intended use.
+		# shellcheck disable=SC2086 # Double quote to prevent ..
 		easyrsa_openssl req -utf8 -new \
 			-key "$out_key_tmp" -keyout "$out_key_tmp" -out "$out_file_tmp" \
 			$opts $EASYRSA_EXTRA_EXTS \
@@ -1028,7 +1033,7 @@ current CA keypair. If you intended to start a new CA, run init-pki first."
 		*)	die "Unknown algorithm: $EASYRSA_ALGO"
 		esac
 
-		# create the CA keypair:
+		# Apply password or not
 		crypto_opts=""
 		if [ -z "$nopass" ] && [ -z "$EASYRSA_PASSIN" ]; then
 			#crypto_opts="-passin file:$out_key_pass_tmp"
@@ -1037,6 +1042,11 @@ current CA keypair. If you intended to start a new CA, run init-pki first."
 			crypto_opts="$no_password"
 		fi
 
+		# create the CA keypair:
+		# It is not suitable to quote $opts and $EASYRSA_EXTRA_EXTS
+		# because then they are passed to SSL as a single option
+		# with spaces, which is not the intended use.
+		# shellcheck disable=SC2086 # Double quote to prevent ..
 		easyrsa_openssl req -utf8 -new \
 			-key "$out_key_tmp" -keyout "$out_key_tmp" -out "$out_file_tmp" \
 			$opts $EASYRSA_EXTRA_EXTS \
