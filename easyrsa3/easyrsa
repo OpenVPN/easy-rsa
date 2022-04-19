@@ -310,7 +310,7 @@ $1
 # Returns 0 when input contains yes, 1 for no, 2 for no match
 # If both strings are present, returns 1; first matching line returns.
 awk_yesno() {
-	#shellcheck disable=SC2016
+	# shellcheck disable=SC2016 # vars don't expand in single quotes
 	awkscript='
 BEGIN {IGNORECASE=1; r=2}
 {       if(match($0,"no")) {r=1; exit}
@@ -332,7 +332,7 @@ $msg
 
 Type the word '$value' to continue, or any other input to abort."
 	printf %s "  $prompt"
-	#shellcheck disable=SC2162
+	# shellcheck disable=SC2162 # read without -r will mangle backslashes
 	read input
 	printf '\n'
 	[ "$input" = "$value" ] && return
@@ -775,6 +775,8 @@ install_data_to_pki () {
 # Disable terminal echo, if possible, otherwise warn
 hide_read_pass()
 {
+	# 3040 - In POSIX sh, set option [name] is undefined
+	# 3045 - In POSIX sh, some-command-with-flag is undefined
 	# shellcheck disable=SC3040,SC3045
 	if stty -echo 2>/dev/null; then
 		read -r "$@"
@@ -847,6 +849,7 @@ current CA keypair. If you intended to start a new CA, run init-pki first."
 	printf '%s\n' "01" > "$EASYRSA_PKI/serial" || die "$err_file"
 
 	# Default CN only when not in global EASYRSA_BATCH mode:
+	# 2015 - Note that A && B || C is not if-then-else. C may run when A is true
 	# shellcheck disable=SC2015
 	[ "$EASYRSA_BATCH" ] && opts="$opts -batch" || export EASYRSA_REQ_CN="Easy-RSA CA"
 
@@ -866,7 +869,7 @@ current CA keypair. If you intended to start a new CA, run init-pki first."
 		printf "Re-Enter New CA Key Passphrase: "
 		hide_read_pass kpass2
 		echo
-		# shellcheck disable=2154
+		# shellcheck disable=2154 # var is referenced but not assigned
 		if [ "$kpass" = "$kpass2" ];
 		then
 			printf "%s" "$kpass" > "$out_key_pass_tmp"
@@ -876,7 +879,7 @@ current CA keypair. If you intended to start a new CA, run init-pki first."
 	fi
 
 	# Insert x509-types COMMON and 'ca'
-	# shellcheck disable=SC2016
+	# shellcheck disable=SC2016 # vars don't expand in single quote
 	awkscript='
 {if ( match($0, "^#%X509_TYPES%") )
 	{ while ( getline<"/dev/stdin" ) {print} next }
@@ -899,11 +902,6 @@ current CA keypair. If you intended to start a new CA, run init-pki first."
 	fi
 
 	# Choose SSL Library version (1, 2(LibreSSL) or 3) and build CA
-	#
-	# * shellcheck SC2086 # Ignore unquoted variables
-	#   The "correct" solution is to not need unquoted substitutions ..
-	#
-	# ##shellcheck disable=SC2086 # Ignore unquoted variables
 	case "$osslv_major" in # => BEGIN SSL lib version
 
 	# BEGIN SSL V3
@@ -1157,7 +1155,7 @@ Continuing with key generation will replace this key."
 req_extensions = req_extra
 [ req_extra ]
 $EASYRSA_EXTRA_EXTS"
-		#shellcheck disable=SC2016
+		# shellcheck disable=SC2016 # vars don't expand in single quote
 		awkscript='
 {if ( match($0, "^#%EXTRA_EXTS%") )
 	{ while ( getline<"/dev/stdin" ) {print} next }
@@ -1375,7 +1373,7 @@ Matching file found at: "
 
 	# create request
 	EASYRSA_REQ_CN="$name"
-	#shellcheck disable=SC2086 # Ignore unquoted variables
+	# shellcheck disable=SC2086 # Ignore unquoted variables
 	gen_req "$name" batch $req_opts
 
 	# Sign it
@@ -1744,7 +1742,6 @@ gen_crl() {
 	out_file="$EASYRSA_PKI/crl.pem"
 	out_file_tmp="$(easyrsa_mktemp)" || die "Failed to create temporary file"
 
-	# shellcheck disable=SC2086 # Ignore unquoted variables
 	easyrsa_openssl ca -utf8 -gencrl -out "$out_file_tmp" \
 		${EASYRSA_PASSIN:+-passin "$EASYRSA_PASSIN"} || die "\
 CRL Generation failed."
@@ -1864,7 +1861,6 @@ Export of p12 failed: see above for related openssl errors."
 		pkcs_out="$EASYRSA_PKI/issued/$short_name.p7b"
 
 		# export the p7:
-		# shellcheck disable=SC2086 # Ignore unquoted variables
 		easyrsa_openssl crl2pkcs7 -nocrl -certfile "$crt_in" \
 			-out "$pkcs_out" \
 			${pkcs_certfile_path:+-certfile "$pkcs_certfile_path"} \
@@ -1996,7 +1992,8 @@ default_server_san() {
 		awk -F'=' '/^  *CN=/{print $2}'
 		)
 	echo "$cn" | grep -E -q '^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$'
-	#shellcheck disable=SC2181
+	# Check exit code directly with e.g. if mycmd;, not indirectly with $?.
+	# shellcheck disable=SC2181
 	if [ $? -eq 0 ]; then
 		print "subjectAltName = IP:$cn"
 	else
