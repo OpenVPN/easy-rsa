@@ -680,6 +680,9 @@ install_data_to_pki () {
 #
 # Copying 'vars' to the PKI is complicated, code is included but DISABLED.
 
+	context="$1"
+	shift
+
 	# Set required sources
 	vars_file='vars'
 	vars_file_example='vars.example'
@@ -735,9 +738,8 @@ install_data_to_pki () {
 	fi
 
 	# If this is init-pki then create PKI/vars from PKI/example
-	case "$1" in
+	case "$context" in
 	init-pki)
-		shift
 		if [ -e "${EASYRSA_PKI}/${vars_file_example}" ] && \
 			[ ! -e "${EASYRSA_PKI}/${vars_file}" ]
 		then
@@ -758,11 +760,22 @@ install_data_to_pki () {
 		secure_session || die "install_data_to_pki - secure_session"
 	;;
 	vars-setup)
-		shift ;; # ok
+		if [ "$found_vars" ]; then
+			: # ok - Do not make a PKI/vars if another vars exists
+		else
+			if [ -e "${EASYRSA_PKI}/${vars_file_example}" ] && \
+				[ ! -e "${EASYRSA_PKI}/${vars_file}" ]
+			then
+				# This is allowed to fail because it should not be necessary
+				cp -n "${EASYRSA_PKI}/${vars_file_example}" \
+					"${EASYRSA_PKI}/${vars_file}" || :
+			fi
+		fi
+	;;
 	'')
 		die "install_data_to_pki - unspecified context" ;;
 	*)
-		die "install_data_to_pki - unknown context: $1"
+		die "install_data_to_pki - unknown context: $context"
 	esac
 
 	# Check PKI is updated - Omit unnecessary checks
