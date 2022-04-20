@@ -835,7 +835,6 @@ build_ca() {
 	[ "$EASYRSA_ALGO" = "ec" ] && verify_curve_ec
 	[ "$EASYRSA_ALGO" = "ed" ] && verify_curve_ed
 
-	out_file="$EASYRSA_PKI/ca.crt"
 	out_key="$EASYRSA_PKI/private/ca.key"
 	# setup for an intermediate CA
 	if [ "$sub_ca" ]; then
@@ -843,6 +842,7 @@ build_ca() {
 		out_file="$EASYRSA_PKI/reqs/ca.req"
 	else
 		# Gerate a certificate
+		out_file="$EASYRSA_PKI/ca.crt"
 		date_stamp=1
 		x509=1
 	fi
@@ -2041,7 +2041,6 @@ vars_setup() {
 	prog_file="$0"
 	# Removed for basic sanity - To re-enable provide a REASON
 	#prog_file2="$(which -- "$prog_file" 2>/dev/null)" && prog_file="$prog_file2"
-	# Removed for breaking New Windows - To re-enable provide a SOLUTION
 	#prog_file2="$(readlink -f "$prog_file" 2>/dev/null)" && prog_file="$prog_file2"
 	prog_dir="${prog_file%/*}"
 
@@ -2121,12 +2120,15 @@ Priority should be given to your PKI vars file:
 			[ "$easy_vars" ] && vars="$easy_vars"
 			[ "$prog_vars" ] && vars="$prog_vars"
 			# Prioritise vars_in_pki
-			[ "$pki_vars" ] && vars="$pki_vars" && vars_in_pki=1
+			[ "$pki_vars" ] && vars="$pki_vars"
 		fi
 
 		# If $EASYRSA_NO_VARS is defined (not blank) then do not use vars
 		# if $want_init_pki then do not use vars
-		if [ -z "$EASYRSA_NO_VARS" ] && [ -z "$want_init_pki" ]; then
+		if [ "$EASYRSA_NO_VARS" ] || [ "$want_init_pki" ]; then
+			# EASYRSA_NO_VARS is defined or want_init_pki, no vars is required.
+			: # ok
+		else
 			# If a vars file was located then source it
 			if [ "$vars" ]; then
 				# Sanitize vars
@@ -2138,7 +2140,7 @@ recommended - please remove it from there before continuing."
 				fi
 
 				# Sanitize vars further but ONLY if it is in PKI folder
-				if [ "$vars_in_pki" ]; then
+				if [ "$pki_vars" ]; then
 					# Warning: Single quote
 					if grep -q "'" "$vars"; then
 						warn "\
@@ -2157,11 +2159,8 @@ Sourcing the vars file will probably fail .."
 					warn "Move your vars file to your PKI folder, where it is safe!"
 			else
 				# $vars remains undefined .. no vars found
-				warn "No vars file found! Please create one in your PKI folder."
+				: # ok
 			fi
-		else
-			# EASYRSA_NO_VARS is defined or want_init_pki, no vars is required.
-			: # ok
 		fi
 	# END: Find vars
 	fi
@@ -2242,8 +2241,9 @@ Sourcing the vars file will probably fail .."
 	#
 	# Also, integrate a partial 'init-pki' by using 'install_data_to_pki()'
 	#
-	# If EASYRSA_TEMP_DIR_session is not set then
+	# If EASYRSA_PKI directory exists then
 	if [ -d "$EASYRSA_PKI" ]; then
+
 		# Temp dir session
 		secure_session || die "Temporary directory secure-session failed."
 
