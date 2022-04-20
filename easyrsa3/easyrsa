@@ -444,11 +444,19 @@ easyrsa_openssl() {
 			mv "$easyrsa_openssl_conf" "$EASYRSA_SAFE_CONF" || \
 				die "easyrsa_openssl - makesafeconf failed"
 		else
+			# Verbose log
+			[ "$EASYRSA_VERBOSE" ] && printf '%s\n' \
+				"$EASYRSA_OPENSSL $openssl_command -config $easyrsa_openssl_conf $*"
+
 			# Exec SSL with -config temp-file
 			"$EASYRSA_OPENSSL" "$openssl_command" \
 				-config "$easyrsa_openssl_conf" "$@" || return
 		fi
 	else
+		# Verbose log
+		[ "$EASYRSA_VERBOSE" ] && [ ! "$openssl_command" = rand ] \
+			&& printf '%s\n' "$EASYRSA_OPENSSL $openssl_command $*"
+
 		# Exec SSL without -config temp-file
 		"$EASYRSA_OPENSSL" "$openssl_command" "$@" || return
 	fi
@@ -765,6 +773,8 @@ install_data_to_pki () {
 
 	# EASYRSA_EXT_DIR must be found! No exceptions!
 	# The shellcheck warning 2015 is valid, however, this code works correctly.
+	# Note that A && B || C is not if-then-else. C may run when A is true
+	# shellcheck disable=SC2015
 	[ -n "$EASYRSA_EXT_DIR" ] && [ -e "$EASYRSA_EXT_DIR" ] || \
 		die "x509-types folder cannot be found"
 
@@ -795,16 +805,15 @@ hide_read_pass()
 
 # build-ca backend:
 build_ca() {
-	opts=""
-	sub_ca=""
-	nopass=""
-	crypto="-aes256"
+	cipher="-aes256"
+	digest="-sha256"
+	unset -v nopass sub_ca ssl_batch date_stamp x509
 	while [ -n "$1" ]; do
 		case "$1" in
 			intca) sub_ca=1 ;;
 			subca) sub_ca=1 ;;
 			nopass) nopass=1 ;;
-			*) warn "Ignoring unknown command option: '$1'" ;;
+			*) warn "Ignoring unknown command option: '$1'"
 		esac
 		shift
 	done
@@ -813,12 +822,23 @@ build_ca() {
 	[ "$EASYRSA_ALGO" = "ec" ] && verify_curve_ec
 	[ "$EASYRSA_ALGO" = "ed" ] && verify_curve_ed
 
-	# setup for the simpler intermediate CA situation and overwrite with root-CA if needed:
-	out_file="$EASYRSA_PKI/reqs/ca.req"
+	out_file="$EASYRSA_PKI/ca.crt"
 	out_key="$EASYRSA_PKI/private/ca.key"
-	if [ -z "$sub_ca" ]; then
-		out_file="$EASYRSA_PKI/ca.crt"
-		opts="$opts -x509 -days $EASYRSA_CA_EXPIRE"
+	# setup for an intermediate CA
+	if [ "$sub_ca" ]; then
+		# Gerate a CSR
+		out_file="$EASYRSA_PKI/reqs/ca.req"
+	else
+		# Gerate a certificate
+		date_stamp=1
+		x509=1
+	fi
+
+	# If encrypted then create the CA key using AES256 cipher
+	if [ "$nopass" ]; then
+		unset -v cipher
+	else
+		unset -v no_password
 	fi
 
 	# Test for existing CA, and complain if already present
@@ -849,9 +869,8 @@ current CA keypair. If you intended to start a new CA, run init-pki first."
 	printf '%s\n' "01" > "$EASYRSA_PKI/serial" || die "$err_file"
 
 	# Default CN only when not in global EASYRSA_BATCH mode:
-	# 2015 - Note that A && B || C is not if-then-else. C may run when A is true
-	# shellcheck disable=SC2015
-	[ "$EASYRSA_BATCH" ] && opts="$opts -batch" || export EASYRSA_REQ_CN="Easy-RSA CA"
+	[ "$EASYRSA_BATCH" ] && ssl_batch=1
+	[ "$EASYRSA_REQ_CN" = ChangeMe ] && export EASYRSA_REQ_CN="Easy-RSA CA"
 
 	out_key_tmp="$(easyrsa_mktemp)" || die "Failed to create temporary file"
 	out_file_tmp="$(easyrsa_mktemp)" || die "Failed to create temporary file"
@@ -870,62 +889,45 @@ current CA keypair. If you intended to start a new CA, run init-pki first."
 		hide_read_pass kpass2
 		echo
 		# shellcheck disable=2154 # var is referenced but not assigned
-		if [ "$kpass" = "$kpass2" ];
-		then
+		if [ "$kpass" = "$kpass2" ]; then
 			printf "%s" "$kpass" > "$out_key_pass_tmp"
 		else
 			die "Passphrases do not match."
 		fi
 	fi
 
-	# Insert x509-types COMMON and 'ca'
+	# Insert x509-types COMMON and 'ca' and EASYRSA_EXTRA_EXTS, if defined.
 	# shellcheck disable=SC2016 # vars don't expand in single quote
 	awkscript='
-{if ( match($0, "^#%X509_TYPES%") )
+{if ( match($0, "^#%CA_X509_TYPES_EXTRA_EXTS%") )
 	{ while ( getline<"/dev/stdin" ) {print} next }
  {print}
 }'
 
 	conf_tmp="$(easyrsa_mktemp)" || die "Failed to create temporary file"
-	cat "${EASYRSA_EXT_DIR}/ca" "${EASYRSA_EXT_DIR}/COMMON" | \
+	{
+		cat "$EASYRSA_EXT_DIR/ca" "$EASYRSA_EXT_DIR/COMMON"
+		[ "$EASYRSA_EXTRA_EXTS" ] && print "$EASYRSA_EXTRA_EXTS"
+	} | \
 		awk "$awkscript" "$EASYRSA_SSL_CONF" \
 		> "$conf_tmp" \
-		|| die "Copying SSL config to temp file failed"
+			|| die "Copying X509_TYPES to config file failed"
 	# Use this new SSL config for the rest of this function
 	EASYRSA_SSL_CONF="$conf_tmp"
 
-	# When EASYRSA_EXTRA_EXTS is defined, pass it as-is to SSL -addext
-	if [ -n "$EASYRSA_EXTRA_EXTS" ]; then
-		# example: "-addext foo,a:b -addext bah,c:d -addext baz e:f,g"
-		[ "${EASYRSA_EXTRA_EXTS%% *}" = '-addext' ] || \
-			die "EASYRSA_EXTRA_EXTS: $EASYRSA_EXTRA_EXTS"
-	fi
-
 	# Choose SSL Library version (1, 2(LibreSSL) or 3) and build CA
-	case "$osslv_major" in # => BEGIN SSL lib version
+	case "$osslv_major" in
 
-	# BEGIN SSL V3
-	3)
-		# If encrypted then create the CA key using AES256 cipher ($crypto)
-		# 'genpkey' requires '-pass'
-		crypto_opts=""
-		if [ -z "$nopass" ]; then
-			crypto_opts="$crypto"
-			if [ -z "$EASYRSA_PASSOUT" ]; then
-				#crypto_opts="$crypto_opts -pass file:$out_key_pass_tmp"
-				: # ok
-			fi
-		fi
-
-		# Generate CA Key - OpenSSL v3 'genpkey' is not compatible
-		# with easyrsa $opts and $no_password, do NOT use them here
+	# Version agnostic CA generation
+	# The only remaining option which is version dependent is -nodes/-noenc
+	1|2|3)
+		# Generate CA Key
 		case "$EASYRSA_ALGO" in
 		rsa)
-			# OpenSSL v3: 'genrsa' is deprecate, use 'genpkey'
 			easyrsa_openssl genpkey -algorithm "$EASYRSA_ALGO" \
-				-out "$out_key_tmp" \
 				-pkeyopt rsa_keygen_bits:"$EASYRSA_ALGO_PARAMS" \
-				${crypto_opts:+ "$crypto_opts"} \
+				-out "$out_key_tmp" \
+				${cipher+ "$cipher"} \
 				${EASYRSA_PASSOUT:+ -pass "$EASYRSA_PASSOUT"} \
 				${out_key_pass_tmp:+ -pass file:"$out_key_pass_tmp"} \
 					|| die "Failed create CA private key"
@@ -933,130 +935,38 @@ current CA keypair. If you intended to start a new CA, run init-pki first."
 		ec)
 			easyrsa_openssl genpkey -paramfile "$EASYRSA_ALGO_PARAMS" \
 				-out "$out_key_tmp" \
-				${crypto_opts:+ "$crypto_opts"} \
-				${EASYRSA_PASSOUT:+-pass "$EASYRSA_PASSOUT"} \
+				${cipher+ "$cipher"} \
+				${EASYRSA_PASSOUT:+ -pass "$EASYRSA_PASSOUT"} \
 				${out_key_pass_tmp:+ -pass file:"$out_key_pass_tmp"} \
 					|| die "Failed create CA private key"
 		;;
 		ed)
-			case "$EASYRSA_CURVE" in
-			[eE][dD]25519|[eE][dD]448)
-				easyrsa_openssl genpkey -algorithm "$EASYRSA_CURVE" \
-					-out "$out_key_tmp" \
-					${crypto_opts:+ "$crypto_opts"} \
-					${EASYRSA_PASSOUT:+ -pass "$EASYRSA_PASSOUT"} \
-					${out_key_pass_tmp:+ -pass file:"$out_key_pass_tmp"} \
-						|| die "Failed create CA private key"
-			;;
-			*)	die "Unknown curve: $EASYRSA_CURVE"
-			esac
-		;;
-		*)
-			die "Unknown algorithm: $EASYRSA_ALGO"
-		esac
-
-		# Apply password or not
-		# Private key encryption password or use no_password
-		# 'req' requires '-passin'
-		crypto_opts=""
-		if [ -z "$nopass" ] && [ -z "$EASYRSA_PASSIN" ]; then
-			#crypto_opts="-passin file:$out_key_pass_tmp"
-			: # ok
-		else
-			crypto_opts="$no_password"
-		fi
-
-		# create the CA keypair:
-		# It is not suitable to quote $opts and $EASYRSA_EXTRA_EXTS
-		# because then they are passed to SSL as a single option
-		# with spaces, which is not the intended use.
-		# shellcheck disable=SC2086 # Double quote to prevent ..
-		easyrsa_openssl req -utf8 -new \
-			-key "$out_key_tmp" -keyout "$out_key_tmp" -out "$out_file_tmp" \
-			$opts $EASYRSA_EXTRA_EXTS \
-			${crypto_opts:+ "$crypto_opts"} \
-			${EASYRSA_PASSIN:+ -passin "$EASYRSA_PASSIN"} \
-			${out_key_pass_tmp:+ -passin file:"$out_key_pass_tmp"} \
-				|| die "Failed to build the CA"
-	;;
-	# END SSL V3
-
-	# BEGIN SSL V1 - Includes LibreSSL 2.x
-	1|2)
-		# If encrypted then create the CA key using AES256 cipher ($crypto)
-		crypto_opts=""
-		if [ -z "$nopass" ]; then
-			crypto_opts="$crypto"
-			if [ -z "$EASYRSA_PASSOUT" ]; then
-				#if [ "ed" = "$EASYRSA_ALGO" ]; then
-				#	crypto_opts="$crypto_opts -pass file:$out_key_pass_tmp"
-				#else
-				#	crypto_opts="$crypto_opts -passout file:$out_key_pass_tmp"
-				#fi
-				: # ok
-			fi
-		fi
-
-		# create the CA key
-		case "$EASYRSA_ALGO" in
-		rsa)
-			"$EASYRSA_OPENSSL" genrsa -out "$out_key_tmp" \
-				${crypto_opts:+ "$crypto_opts"} \
-				${EASYRSA_PASSOUT:+ -passout "$EASYRSA_PASSOUT"} \
-				${out_key_pass_tmp:+ -passout file:"$out_key_pass_tmp"} \
-				"$EASYRSA_ALGO_PARAMS" \
+			easyrsa_openssl genpkey -algorithm "$EASYRSA_CURVE" \
+				-out "$out_key_tmp" \
+				${cipher+ "$cipher"} \
+				${EASYRSA_PASSOUT:+ -pass "$EASYRSA_PASSOUT"} \
+				${out_key_pass_tmp:+ -pass file:"$out_key_pass_tmp"} \
 					|| die "Failed create CA private key"
-		;;
-		ec)
-			"$EASYRSA_OPENSSL" ecparam -in "$EASYRSA_ALGO_PARAMS" -genkey | \
-				"$EASYRSA_OPENSSL" ec -out "$out_key_tmp" \
-					${crypto_opts:+ "$crypto_opts"} \
-					${EASYRSA_PASSOUT:+ -passout "$EASYRSA_PASSOUT"} \
-					${out_key_pass_tmp:+ -passout file:"$out_key_pass_tmp"} \
-						|| die "Failed create CA private key"
-		;;
-		ed)
-			case "$EASYRSA_CURVE" in
-			[eE][dD]25519|[eE][dD]448)
-				"$EASYRSA_OPENSSL" genpkey -algorithm "$EASYRSA_CURVE" \
-					-out "$out_key_tmp" \
-					${crypto_opts:+ "$crypto_opts"} \
-					${EASYRSA_PASSOUT:+ -pass "$EASYRSA_PASSOUT"} \
-					${out_key_pass_tmp:+ -pass file:"$out_key_pass_tmp"} \
-						|| die "Failed create CA private key"
-			;;
-			*)	die "Unknown curve: $EASYRSA_CURVE"
-			esac
 		;;
 		*)	die "Unknown algorithm: $EASYRSA_ALGO"
 		esac
 
-		# Apply password or not
-		crypto_opts=""
-		if [ -z "$nopass" ] && [ -z "$EASYRSA_PASSIN" ]; then
-			#crypto_opts="-passin file:$out_key_pass_tmp"
-			: # ok
-		else
-			crypto_opts="$no_password"
-		fi
-
-		# create the CA keypair:
-		# It is not suitable to quote $opts and $EASYRSA_EXTRA_EXTS
-		# because then they are passed to SSL as a single option
-		# with spaces, which is not the intended use.
+		# Generate the CA keypair:
 		# shellcheck disable=SC2086 # Double quote to prevent ..
 		easyrsa_openssl req -utf8 -new \
-			-key "$out_key_tmp" -keyout "$out_key_tmp" -out "$out_file_tmp" \
-			$opts $EASYRSA_EXTRA_EXTS \
-			${crypto_opts:+ "$crypto_opts"} \
+			-key "$out_key_tmp" -keyout "$out_key_tmp" \
+			-out "$out_file_tmp" \
+			${ssl_batch+ -batch} \
+			${x509+ -x509} \
+			${date_stamp+ -days "$EASYRSA_CA_EXPIRE"} \
+			"$digest" \
+			${no_password+ "$no_password"} \
 			${EASYRSA_PASSIN:+ -passin "$EASYRSA_PASSIN"} \
 			${out_key_pass_tmp:+ -passin file:"$out_key_pass_tmp"} \
 				|| die "Failed to build the CA"
 	;;
-	# END SSL V1
-
 	*)	die "build-ca ssl lib: $osslv_major"
-	esac # => END SSL lib version
+	esac
 
 	mv "$out_key_tmp" "$out_key"
 	mv "$out_file_tmp" "$out_file"
@@ -1076,8 +986,6 @@ CA creation complete and you may now import and sign cert requests.
 Your new CA certificate file for publishing is at:
 $out_file"
 	fi
-
-	return 0
 } # => build_ca()
 
 # gen-dh backend:
@@ -3038,6 +2946,9 @@ while :; do
 		empty_ok=1
 		export EASYRSA_SILENT=1
 		export EASYRSA_BATCH=1 ;;
+	--verbose)
+		empty_ok=1
+		export EASYRSA_VERBOSE=1 ;;
 	--passin)
 		export EASYRSA_PASSIN="$val";;
 	--passout)
