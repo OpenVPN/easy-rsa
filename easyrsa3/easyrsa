@@ -2153,6 +2153,35 @@ Sourcing the vars file will probably fail .."
 	# END: Find vars
 	fi
 
+	# Identify host OS
+	unset -v easyrsa_host_os easyrsa_host_test easyrsa_win_git_bash
+
+	# Detect Windows
+	easyrsa_host_test="${OS}"
+
+	# shellcheck disable=SC2016 # expansion inside '' blah
+	easyrsa_ksh='@(#)MIRBSD KSH R39-w32-beta14 $Date: 2013/06/28 21:28:57 $'
+	[ "${KSH_VERSION}" = "${easyrsa_ksh}" ] && easyrsa_host_test="${easyrsa_ksh}"
+	unset -v easyrsa_ksh
+
+	# If not Windows then nix
+	if [ "${easyrsa_host_test}" ]; then
+		easyrsa_host_os=win
+		easyrsa_host_os_version="${easyrsa_host_test}"
+		# Detect Windows git/bash
+		if [ "${EXEPATH}" ]; then
+			easyrsa_win_git_bash="${EXEPATH}"
+			# If found then set openssl NOW!
+			[ -e /usr/bin/openssl ] && set_var EASYRSA_OPENSSL /usr/bin/openssl
+		fi
+	else
+		easyrsa_host_os=nix
+		easyrsa_host_os_version="$(uname)"
+	fi
+	host_out="$easyrsa_host_os | $easyrsa_host_os_version"
+	host_out="${host_out}${easyrsa_win_git_bash:+ | "$easyrsa_win_git_bash"}"
+	unset -v easyrsa_host_test
+
 	# Set defaults, preferring existing env-vars if present
 	set_var EASYRSA					"$PWD"
 	set_var EASYRSA_OPENSSL			openssl
@@ -2232,34 +2261,6 @@ Sourcing the vars file will probably fail .."
 			: # ok
 		fi
 	fi
-
-	# Identify host OS
-	unset -v easyrsa_host_os easyrsa_host_test easyrsa_win_git_bash
-
-	# Detect Windows
-	easyrsa_host_test="${OS}"
-
-	# shellcheck disable=SC2016 # expansion inside '' blah
-	easyrsa_ksh='@(#)MIRBSD KSH R39-w32-beta14 $Date: 2013/06/28 21:28:57 $'
-	[ "${KSH_VERSION}" = "${easyrsa_ksh}" ] && easyrsa_host_test="${easyrsa_ksh}"
-	unset -v easyrsa_ksh
-
-	# If not Windows then nix
-	if [ "${easyrsa_host_test}" ]; then
-		easyrsa_host_os=win
-		easyrsa_host_os_version="${easyrsa_host_test}"
-		# Detect Windows git/bash
-		if [ "${EXEPATH}" ]; then
-			easyrsa_win_git_bash="${EXEPATH}"
-			[ -e /usr/bin/openssl ] && set_var EASYRSA_OPENSSL /usr/bin/openssl
-		fi
-	else
-		easyrsa_host_os=nix
-		easyrsa_host_os_version="$(uname)"
-	fi
-	host_out="$easyrsa_host_os | $easyrsa_host_os_version"
-	host_out="${host_out}${easyrsa_win_git_bash:+ | "$easyrsa_win_git_bash"}"
-	unset -v easyrsa_host_test
 } # vars_setup()
 
 # variable assignment by indirection when undefined; merely exports
