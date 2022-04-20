@@ -2981,6 +2981,16 @@ subjectAltName = $val" ;;
 	shift
 done
 
+# Register cleanup on EXIT
+trap "cleanup" EXIT
+# When SIGHUP, SIGINT, SIGQUIT, SIGABRT and SIGTERM,
+# explicitly exit to signal EXIT (non-bash shells)
+trap "exit 1" 1
+trap "exit 2" 2
+trap "exit 3" 3
+trap "exit 6" 6
+trap "exit 14" 15
+
 # Set cmd now because vars_setup needs to know if this is init-pki
 cmd="$1"
 [ -n "$1" ] && shift # scrape off command
@@ -2996,16 +3006,6 @@ esac
 
 # Intelligent env-var detection and auto-loading:
 vars_setup
-
-# Register cleanup on EXIT
-trap "cleanup" EXIT
-# When SIGHUP, SIGINT, SIGQUIT, SIGABRT and SIGTERM,
-# explicitly exit to signal EXIT (non-bash shells)
-trap "exit 1" 1
-trap "exit 2" 2
-trap "exit 3" 3
-trap "exit 6" 6
-trap "exit 14" 15
 
 # determine how we were called, then hand off to the function responsible
 case "$cmd" in
