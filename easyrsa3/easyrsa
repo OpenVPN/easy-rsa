@@ -2078,7 +2078,7 @@ vars_setup() {
 
 			# Clear flags - This is the preferred order to find:
 			unset -v e_pki_vars e_easy_vars e_pwd_vars e_prog_vars \
-					found_vars vars_in_pki
+					found_vars
 
 			# PKI location, if present:
 			{ [ -e "$pki_vars" ] && e_pki_vars=1; } || unset -v pki_vars
@@ -2119,18 +2119,19 @@ Priority should be given to your PKI vars file:
 			[ "$pwd_vars" ] && vars="$pwd_vars"
 			[ "$easy_vars" ] && vars="$easy_vars"
 			[ "$prog_vars" ] && vars="$prog_vars"
-			# Prioritise vars_in_pki
 			[ "$pki_vars" ] && vars="$pki_vars"
 		fi
 
 		# If $EASYRSA_NO_VARS is defined (not blank) then do not use vars
-		# if $want_init_pki then do not use vars
+		# if $want_init_pki then no vars is required.
 		if [ "$EASYRSA_NO_VARS" ] || [ "$want_init_pki" ]; then
-			# EASYRSA_NO_VARS is defined or want_init_pki, no vars is required.
 			: # ok
 		else
 			# If a vars file was located then source it
-			if [ "$vars" ]; then
+			if [ -z "$vars" ]; then
+				# $vars remains undefined .. no vars found
+				: # ok
+			else
 				# Sanitize vars
 				if grep -Eq 'EASYRSA_PASSIN|EASYRSA_PASSOUT' "$vars"; then
 					die "\
@@ -2140,7 +2141,7 @@ recommended - please remove it from there before continuing."
 				fi
 
 				# Sanitize vars further but ONLY if it is in PKI folder
-				if [ "$pki_vars" ]; then
+				if [ "$vars_in_pki" ]; then
 					# Warning: Single quote
 					if grep -q "'" "$vars"; then
 						warn "\
@@ -2155,11 +2156,8 @@ Sourcing the vars file will probably fail .."
 				# shellcheck disable=1090 # can't follow non-constant source. vars
 				. "$vars"
 				notice "Using Easy-RSA configuration from: $vars"
-				[ "$vars_in_pki" ] || \
+				[ "$pki_vars" ] || \
 					warn "Move your vars file to your PKI folder, where it is safe!"
-			else
-				# $vars remains undefined .. no vars found
-				: # ok
 			fi
 		fi
 	# END: Find vars
