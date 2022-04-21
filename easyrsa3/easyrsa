@@ -2141,7 +2141,7 @@ recommended - please remove it from there before continuing."
 				fi
 
 				# Sanitize vars further but ONLY if it is in PKI folder
-				if [ "$vars_in_pki" ]; then
+				if [ "$pki_vars" ]; then
 					# Warning: Single quote
 					if grep -q "'" "$vars"; then
 						warn "\
