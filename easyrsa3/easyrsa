@@ -1711,7 +1711,7 @@ You may now use this name to perform signing operations on this request."
 	return 0
 } # => import_req()
 
-# export pkcs#12 or pkcs#7
+# export pkcs12 pkcs7 pkcs8
 export_pkcs() {
 	pkcs_type="$1"
 	shift
@@ -1769,7 +1769,6 @@ Missing key expected at: $key_in"
 		fi
 
 		# export the p12:
-		# shellcheck disable=SC2086 # Ignore unquoted variables
 		easyrsa_openssl pkcs12 -in "$crt_in" -inkey "$key_in" -export \
 			-out "$pkcs_out" \
 			${nokeys:+ -nokeys} \
@@ -1797,9 +1796,8 @@ Export of p7 failed: see above for related openssl errors."
 		fi
 
 		# export the p8:
-		# shellcheck disable=SC2086 # Ignore unquoted variables
 		easyrsa_openssl pkcs8 -in "$key_in" -topk8 \
-			-out "$pkcs_out" $pkcs_opts \
+			-out "$pkcs_out" \
 			${EASYRSA_PASSIN:+ -passin "$EASYRSA_PASSIN"} \
 			${EASYRSA_PASSOUT:+ -passout "$EASYRSA_PASSOUT"} || die "\
 Export of p8 failed: see above for related openssl errors."
@@ -1886,6 +1884,7 @@ Failed to perform update-db: see above for related openssl errors."
 	return 0
 } # => update_db()
 
+# Display subjectAltName
 display_san() {
 	format="$1" path="$2"
 
@@ -1982,7 +1981,6 @@ No such $type file with a basename of '$name' is present.
 Expected to find this file at:
 $in_file"
 
-	# shellcheck disable=SC2086 # Ignore unquoted variables
 	verify_file "$format" "$in_file" || die "\
 This file is not a valid $type file:
 $in_file"
