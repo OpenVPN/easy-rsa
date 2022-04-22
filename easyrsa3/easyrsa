@@ -444,18 +444,29 @@ easyrsa_openssl() {
 			mv "$easyrsa_openssl_conf" "$EASYRSA_SAFE_CONF" || \
 				die "easyrsa_openssl - makesafeconf failed"
 		else
-			# Verbose log
-			[ "$EASYRSA_VERBOSE" ] && printf '%s\n' \
-				"$EASYRSA_OPENSSL $openssl_command -config $easyrsa_openssl_conf $*"
+			# !!!
+			# this debug CANNOT be used in automated testing
+			# to function correctly easyrsa_openssl()
+			# must ONLY output SSL layer output
+			# debug log
+			if [ "$EASYRSA_DEBUG" ]; then
+				printf '%s%s\n' "$EASYRSA_OPENSSL $openssl_command" \
+					"-config $easyrsa_openssl_conf $*"
+			fi
 
 			# Exec SSL with -config temp-file
 			"$EASYRSA_OPENSSL" "$openssl_command" \
 				-config "$easyrsa_openssl_conf" "$@" || return
 		fi
 	else
-		# Verbose log
-		[ "$EASYRSA_VERBOSE" ] && [ ! "$openssl_command" = rand ] \
-			&& printf '%s\n' "$EASYRSA_OPENSSL $openssl_command $*"
+		# !!!
+		# this debug CANNOT be used in automated testing
+		# to function correctly easyrsa_openssl()
+		# must ONLY output SSL layer output
+		# debug log
+		if [ "$EASYRSA_DEBUG" ] && [ ! "$openssl_command" = rand ]; then
+			printf '%s\n' "$EASYRSA_OPENSSL $openssl_command $*"
+		fi
 
 		# Exec SSL without -config temp-file
 		"$EASYRSA_OPENSSL" "$openssl_command" "$@" || return
@@ -2965,9 +2976,6 @@ while :; do
 		empty_ok=1
 		export EASYRSA_SILENT=1
 		export EASYRSA_BATCH=1 ;;
-	--verbose)
-		empty_ok=1
-		export EASYRSA_VERBOSE=1 ;;
 	--passin)
 		export EASYRSA_PASSIN="$val";;
 	--passout)
