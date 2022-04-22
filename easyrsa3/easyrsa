@@ -1992,10 +1992,10 @@ OpenSSL failure to process the input"
 # Prints CA cert details in a readable format
 show_ca() {
 	# opts support
-	opts="-certopt no_pubkey,no_sigdump"
+	out_opts="no_pubkey,no_sigdump"
 	while [ -n "$1" ]; do
 		case "$1" in
-			full) opts= ;;
+			full) out_opts= ;;
 			*) warn "Ignoring unknown command option: '$1'" ;;
 		esac
 		shift
@@ -2011,7 +2011,7 @@ No such $type file with a basename of '$name' is present.
 Expected to find this file at:
 $in_file"
 
-	verify_file $format "$in_file" || die "\
+	verify_file "$format" "$in_file" || die "\
 This file is not a valid $type file:
 $in_file"
 
@@ -2021,9 +2021,8 @@ $in_file"
   This file is stored at:
   * $in_file"
 
-	# shellcheck disable=SC2086 # Ignore unquoted variables
-	easyrsa_openssl $format -in "$in_file" -noout -text\
-		-nameopt multiline $opts || die "\
+	easyrsa_openssl "$format" -in "$in_file" -noout -text\
+		-nameopt multiline -certopt "$out_opts" || die "\
 OpenSSL failure to process the input"
 } # => show_ca()
 
