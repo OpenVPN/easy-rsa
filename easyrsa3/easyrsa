@@ -1829,15 +1829,23 @@ See help output for usage details."
 
 	# parse command options
 	shift 2
-	crypto="-aes256"
+	cipher="-aes256"
+	unset nopass
 	while [ -n "$1" ]; do
 		case "$1" in
-			nopass)	crypto="" ;;
+			nopass)	nopass=1 ;;
 			file)	file="$raw_file" ;;
 			*)	warn "Ignoring unknown command option: '$1'" ;;
 		esac
 		shift
 	done
+
+	# If nopass then do not encrypt else encrypt with password.
+	if [ "$nopass" ]; then
+		unset -v cipher
+	else
+		unset -v no_password
+	fi
 
 	[ -f "$file" ] || die "\
 Missing private key: expected to find the private key component at:
@@ -1849,10 +1857,11 @@ ${crypto:+You will then enter a new PEM passphrase for this key.$NL}"
 
 	# Set password
 	out_key_tmp="$(easyrsa_mktemp)" || die "Failed to create temporary file"
-	# shellcheck disable=SC2086 # Ignore unquoted variables
-	easyrsa_openssl "$key_type" -in "$file" -out "$out_key_tmp" $crypto \
-		${EASYRSA_PASSIN:+-passin "$EASYRSA_PASSIN"} \
-		${EASYRSA_PASSOUT:+-passout "$EASYRSA_PASSOUT"} || die "\
+	easyrsa_openssl "$key_type" -in "$file" -out "$out_key_tmp" \
+		${cipher:+ "$cipher"} \
+		${no_password:+ "$no_password"} \
+		${EASYRSA_PASSIN:+ -passin "$EASYRSA_PASSIN"} \
+		${EASYRSA_PASSOUT:+ -passout "$EASYRSA_PASSOUT"} || die "\
 Failed to change the private key passphrase. See above for possible openssl
 error messages."
 
@@ -1983,7 +1992,6 @@ $in_file"
   This file is stored at:
   * $in_file"
 
-	# shellcheck disable=SC2086 # Ignore unquoted variables
 	easyrsa_openssl "$format" -in "$in_file" -noout -text \
 		-nameopt multiline "$type_opts" "$out_opts" || die "\
 OpenSSL failure to process the input"
