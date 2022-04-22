@@ -1941,11 +1941,12 @@ Run easyrsa without commands for usage help."
 	shift 2
 
 	# opts support
-	opts="-${type}opt no_pubkey,no_sigdump"
+	type_opts="-${type}opt"
+	out_opts="no_pubkey,no_sigdump"
 	while [ -n "$1" ]; do
 		case "$1" in
 			full)
-				opts=""
+				out_opts=
 				;;
 			*)
 				warn "Ignoring unknown command option: '$1'"
@@ -1972,7 +1973,7 @@ Expected to find this file at:
 $in_file"
 
 	# shellcheck disable=SC2086 # Ignore unquoted variables
-	verify_file $format "$in_file" || die "\
+	verify_file "$format" "$in_file" || die "\
 This file is not a valid $type file:
 $in_file"
 
@@ -1983,8 +1984,8 @@ $in_file"
   * $in_file"
 
 	# shellcheck disable=SC2086 # Ignore unquoted variables
-	easyrsa_openssl $format -in "$in_file" -noout -text\
-		-nameopt multiline $opts || die "\
+	easyrsa_openssl "$format" -in "$in_file" -noout -text \
+		-nameopt multiline "$type_opts" "$out_opts" || die "\
 OpenSSL failure to process the input"
 } # => show()
 
