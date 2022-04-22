@@ -1785,8 +1785,7 @@ Export of p12 failed: see above for related openssl errors."
 		easyrsa_openssl crl2pkcs7 -nocrl -certfile "$crt_in" \
 			-out "$pkcs_out" \
 			${pkcs_certfile_path:+-certfile "$pkcs_certfile_path"} \
-			${EASYRSA_PASSIN:+-passin "$EASYRSA_PASSIN"} \
-			${EASYRSA_PASSOUT:+-passout "$EASYRSA_PASSOUT"} || die "\
+				|| die "\
 Export of p7 failed: see above for related openssl errors."
 	;;
 	p8)
