@@ -205,7 +205,7 @@ cmd_help() {
 		"")
 			usage ;;
 		*) text="
-  Unknown command: '$1' (try without commands for a list of commands)" ;;
+  Unknown command: '$1' (try without commands for a list of commands)"
 	esac
 
 	# display the help text
@@ -391,9 +391,9 @@ cleanup() {
 
 	# shellcheck disable=SC3040 # In POSIX sh, set option [name] is undefined
 	case "$easyrsa_host_os" in
-	nix) stty echo ;;
-	win) set -o echo ;;
-	*) warn "Host OS undefined."
+		nix) stty echo ;;
+		win) set -o echo ;;
+		*) warn "Host OS undefined."
 	esac
 	[ "$EASYRSA_SILENT" ] || echo "" # just to get a clean line
 } # => cleanup()
@@ -517,7 +517,7 @@ verify_ssl_lib() {
 				notice "Using SSL: $EASYRSA_OPENSSL $val" ;;
 			*) die "\
 Missing or invalid OpenSSL
-Expected to find openssl command at: $EASYRSA_OPENSSL" ;;
+Expected to find openssl command at: $EASYRSA_OPENSSL"
 		esac
 	fi
 	EASYRSA_SSL_OK=1
@@ -597,7 +597,7 @@ init_pki() {
 		case "$1" in
 			hard-reset|hard) reset="hard" ;;
 			soft-reset|soft) reset="soft" ;;
-			*) warn "Ignoring unknown command option: '$1'" ;;
+			*) warn "Ignoring unknown command option: '$1'"
 		esac
 		shift
 	done
@@ -627,7 +627,7 @@ and initialize a fresh PKI here."
 		# More modes could be added here, e.g. only remove
 		# issued certs (and clean database), but keep CA intact.
 		*)
-			die "Removal of PKI dir failed. Unknown reset type."
+			die "Removal of PKI dir failed. Unknown reset type: $reset"
 		esac
 	fi
 
@@ -1063,7 +1063,7 @@ Run easyrsa without commands for usage and commands."
 			nopass) opts="$opts $no_password" ;;
 			# batch flag supports internal callers needing silent operation
 			batch) openssl_batch=1 ;;
-			*) warn "Ignoring unknown command option: '$1'" ;;
+			*) warn "Ignoring unknown command option: '$1'"
 		esac
 		shift
 	done
@@ -1156,7 +1156,7 @@ sign_req() {
 			check_serial="$("$EASYRSA_OPENSSL" ca -config "$EASYRSA_SSL_CONF" -status "$serial" 2>&1)"
 			case "$check_serial" in
 				*"not present in db"*) break ;;
-				*) continue ;;
+				*) continue
 			esac
 		done
 	fi
@@ -1216,10 +1216,11 @@ $(display_dn req "$req_in")
 			[ -n "$EASYRSA_NS_COMMENT" ] && \
 				print "nsComment = \"$EASYRSA_NS_COMMENT\""
 			case "$crt_type" in
-				serverClient)	print "nsCertType = serverClient" ;;
-				server)		print "nsCertType = server" ;;
-				client)		print "nsCertType = client" ;;
-				ca)		print "nsCertType = sslCA" ;;
+				serverClient) print "nsCertType = serverClient" ;;
+				server) print "nsCertType = server" ;;
+				client) print "nsCertType = client" ;;
+				ca) print "nsCertType = sslCA" ;;
+				*) die "Unknown certificate type: $crt_type"
 			esac
 		fi
 
@@ -1289,7 +1290,7 @@ Run easyrsa without commands for usage and commands."
 		case "$1" in
 			nopass) req_opts="$req_opts nopass" ;;
 			inline) EASYRSA_INLINE=1 ;;
-			*) warn "Ignoring unknown command option: '$1'" ;;
+			*) warn "Ignoring unknown command option: '$1'"
 		esac
 		shift
 	done
@@ -1524,7 +1525,6 @@ at: $crt_in"
 		# This works on Windows, too, since uname doesn't exist and this is catch-all
 		expire_date=$(date -d "$expire_date" +%s)
 		allow_renew_date=$(date -d "+${EASYRSA_CERT_RENEW}day" +%s)
-	;;
 	esac
 
 	[ "$expire_date" -lt "$allow_renew_date" ] || die "\
@@ -1549,6 +1549,7 @@ Renewal not allowed."
 		"TLS Web Server Authentication, TLS Web Client Authentication")
 			cert_type=serverClient
 			;;
+		*) die "Unknown key usage: $cert_ext_key_usage"
 	esac
 
 	# Use SAN from --subject-alt-name if set else use SAN from old cert
@@ -1748,7 +1749,7 @@ Run easyrsa without commands for usage and command help."
 			noca) want_ca="" ;;
 			nokey) want_key="" ;;
 			nopass) want_pass="" ;;
-			*) warn "Ignoring unknown command option: '$1'" ;;
+			*) warn "Ignoring unknown command option: '$1'"
 		esac
 		shift
 	done
@@ -1812,8 +1813,9 @@ Export of p7 failed: see above for related openssl errors."
 			${EASYRSA_PASSIN:+ -passin "$EASYRSA_PASSIN"} \
 			${EASYRSA_PASSOUT:+ -passout "$EASYRSA_PASSOUT"} || die "\
 Export of p8 failed: see above for related openssl errors."
-      ;;
-esac
+	;;
+	*) die "Unknown PKCS type: $pkcs_type"
+	esac
 
 	notice "\
 
@@ -1843,9 +1845,9 @@ See help output for usage details."
 	unset nopass
 	while [ -n "$1" ]; do
 		case "$1" in
-			nopass)	nopass=1 ;;
-			file)	file="$raw_file" ;;
-			*)	warn "Ignoring unknown command option: '$1'" ;;
+			nopass) nopass=1 ;;
+			file) file="$raw_file" ;;
+			*) warn "Ignoring unknown command option: '$1'"
 		esac
 		shift
 	done
@@ -1965,12 +1967,8 @@ Run easyrsa without commands for usage help."
 	out_opts="no_pubkey,no_sigdump"
 	while [ -n "$1" ]; do
 		case "$1" in
-			full)
-				out_opts=
-				;;
-			*)
-				warn "Ignoring unknown command option: '$1'"
-				;;
+			full) out_opts= ;;
+			*) warn "Ignoring unknown command option: '$1'"
 		esac
 		shift
 	done
@@ -2015,7 +2013,7 @@ show_ca() {
 	while [ -n "$1" ]; do
 		case "$1" in
 			full) out_opts= ;;
-			*) warn "Ignoring unknown command option: '$1'" ;;
+			*) warn "Ignoring unknown command option: '$1'"
 		esac
 		shift
 	done
@@ -2116,16 +2114,14 @@ vars_setup() {
 
 			# If found_vars greater than 1 then output user info and exit
 			case "$found_vars" in
-			0)
-				unset -v found_vars
-			;;
-			1) : ;; # ok
-			*)
-				[ "$e_pki_vars" ] && print "Found: $pki_vars"
-				[ "$e_easy_vars" ] && print "Found: $easy_vars"
-				[ "$e_pwd_vars" ] && print "Found: $pwd_vars"
-				[ "$e_prog_vars" ] && print "Found: $prog_vars"
-				die "\
+				0) unset -v found_vars ;;
+				1) : ;; # ok
+				*)
+					[ "$e_pki_vars" ] && print "Found: $pki_vars"
+					[ "$e_easy_vars" ] && print "Found: $easy_vars"
+					[ "$e_pwd_vars" ] && print "Found: $pwd_vars"
+					[ "$e_prog_vars" ] && print "Found: $prog_vars"
+					die "\
 Conflicting 'vars' files found.
 
 Priority should be given to your PKI vars file:
@@ -2240,10 +2236,10 @@ Sourcing the vars file will probably fail .."
 
 	# EASYRSA_ALGO_PARAMS must be set depending on selected algo
 	case "$EASYRSA_ALGO" in
-	ec)		EASYRSA_ALGO_PARAMS="$EASYRSA_EC_DIR/${EASYRSA_CURVE}.pem" ;;
-	rsa)	EASYRSA_ALGO_PARAMS="${EASYRSA_KEY_SIZE}" ;;
-	ed)		: ;; # ok
-	*)		die "Alg '$EASYRSA_ALGO' is invalid: must be 'rsa', 'ec' or 'ed' "
+		rsa) EASYRSA_ALGO_PARAMS="${EASYRSA_KEY_SIZE}" ;;
+		ec) EASYRSA_ALGO_PARAMS="$EASYRSA_EC_DIR/${EASYRSA_CURVE}.pem" ;;
+		ed) : ;; # ok
+		*) die "Alg '$EASYRSA_ALGO' is invalid: must be 'rsa', 'ec' or 'ed' "
 	esac
 
 	# Assign value to $EASYRSA_TEMP_DIR_session
@@ -2997,7 +2993,7 @@ subjectAltName = $val" ;;
 		break
 		;;
 	*)
-		break ;;
+		break
 	esac
 
 	# fatal error when no value was provided
@@ -3025,10 +3021,10 @@ cmd="$1"
 # This avoids unnecessary warnings and notices
 # want_init_pki can probably be renamed to something more apt
 case "$cmd" in
-init-pki|clean-all) want_init_pki=1 ;;
-""|help|-h|--help|--usage) want_init_pki=1 ;;
-version) want_init_pki=1 ;;
-*) unset -v want_init_pki
+	init-pki|clean-all) want_init_pki=1 ;;
+	""|help|-h|--help|--usage) want_init_pki=1 ;;
+	version) want_init_pki=1 ;;
+	*) unset -v want_init_pki
 esac
 
 # Intelligent env-var detection and auto-loading:
@@ -3111,7 +3107,6 @@ case "$cmd" in
 		;;
 	*)
 		die "Unknown command '$cmd'. Run without commands for usage help."
-		;;
 esac
 
 # vim: ft=sh nu ai sw=8 ts=8 noet
