@@ -138,7 +138,6 @@ download_unit_test () {
 	target_hash="${utest_hash}"
 	if [ "$enable_unit_test" ]; then
 		if [ -e "${ERSA_UT}/${target_file}" ]; then
-			keep_eut=1
 			[ -x "${ERSA_UT}/${target_file}" ] || \
 				chmod +x "${ERSA_UT}/${target_file}"
 			# version check
@@ -160,6 +159,7 @@ download_unit_test () {
 					utest_bin="${ERSA_UT}/${target_file}"
 					utest_bin_ok=1
 					export ERSA_UTEST_CURL_TARGET=online
+					unset -v keep_eut
 				else
 					log "version check failed: ${target_file}"
 				fi
@@ -219,7 +219,6 @@ download_shellcheck () {
 	if [ "$enable_shellcheck" ] && [ "$EASYRSA_NIX" ]; then
 		log "setup shellcheck"
 		if [ -e "${ERSA_UT}/${target_file}" ]; then
-			keep_sc=1
 			[ -x "${ERSA_UT}/${target_file}" ] || \
 				chmod +x "${ERSA_UT}/${target_file}"
 			"${ERSA_UT}/${target_file}" -V || \
@@ -237,6 +236,7 @@ download_shellcheck () {
 				if "${ERSA_UT}/${target_file}" -V; then
 					sc_bin="${ERSA_UT}/${target_file}"
 					sc_bin_ok=1
+					unset -v keep_sc
 				else
 					log "version check failed: ${ERSA_UT}/${target_file}"
 				fi
@@ -259,7 +259,6 @@ download_opensslv3 () {
 	target_hash="${ssl_hash}"
 	if [ "$enable_openssl3" ] && [ "$EASYRSA_NIX" ]; then
 		if [ -e "${ERSA_UT}/${target_file}" ]; then
-			keep_ssl=1
 			[ -x "${ERSA_UT}/${target_file}" ] || \
 				chmod +x "${ERSA_UT}/${target_file}"
 			# version check 'openssl version'
@@ -280,6 +279,7 @@ download_opensslv3 () {
 				if "${ERSA_UT}/${target_file}" version; then
 					ssl_bin="${ERSA_UT}/${target_file}"
 					ssl_bin_ok=1
+					unset -v keep_ssl
 					# Set up Easy-RSA Unit-Test for OpenSSL-v3
 					export EASYRSA_OPENSSL="${ssl_bin}"
 				else
@@ -319,8 +319,12 @@ download_opensslv3 () {
 	trap "clean_up" 15
 
 
-unset -v disable_log verb enable_unit_test enable_shellcheck enable_openssl3 \
-		keep_sc keep_ssl keep_eut no_delete
+unset -v disable_log verb no_delete \
+		enable_unit_test enable_shellcheck enable_openssl3
+
+keep_sc=1
+keep_ssl=1
+keep_eut=1
 
 # Set by default
 enable_unit_test=1
