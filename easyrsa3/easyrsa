@@ -450,7 +450,7 @@ easyrsa_openssl() {
 			# must ONLY output SSL layer output
 			# debug log
 			if [ "$EASYRSA_DEBUG" ]; then
-				printf '%s%s\n' "$EASYRSA_OPENSSL $openssl_command" \
+				printf '%s %s\n' "$EASYRSA_OPENSSL $openssl_command" \
 					"-config $easyrsa_openssl_conf $*"
 			fi
 
@@ -1153,7 +1153,10 @@ sign_req() {
 		for i in 1 2 3 4 5; do
 			"$EASYRSA_OPENSSL" rand -hex -out "$EASYRSA_PKI/serial" 16
 			serial="$(cat "$EASYRSA_PKI/serial")"
-			check_serial="$("$EASYRSA_OPENSSL" ca -config "$EASYRSA_SSL_CONF" -status "$serial" 2>&1)"
+			check_serial="$(
+				"$EASYRSA_OPENSSL" ca -config "$EASYRSA_SSL_CONF" \
+					-status "$serial" 2>&1
+				)"
 			case "$check_serial" in
 				*"not present in db"*) break ;;
 				*) continue
