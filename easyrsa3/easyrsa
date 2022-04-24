@@ -1519,15 +1519,11 @@ Unable to renew as no certificate was found. Certificate was expected
 at: $crt_in"
 
 	# Check if old cert is expired or expires within 30
-	# - NOT using: shellcheck disable=SC2086 # Ignore unquoted variables
-	# - The "correct" solution is to not need unquoted substitutions ..
 	cert_expire_date="$(
 		easyrsa_openssl x509 -in "$crt_in" -noout -enddate |
 		sed 's/^notAfter=//'
 		)"
 
-	# - NOT using: shellcheck disable=SC2086 # Ignore unquoted variables
-	# - The "correct" solution is to not need unquoted substitutions ..
 	case "$easyrsa_uname" in
 	"Darwin"|*"BSD")
 		expire_date="$(date -j -f '%b %d %T %Y %Z' "$cert_expire_date" +%s)"
@@ -1555,8 +1551,6 @@ Certificate expires in more than $EASYRSA_CERT_RENEW days.
 Renewal not allowed."
 
 	# Extract certificate usage from old cert
-	# - NOT using: shellcheck disable=SC2086 # Ignore unquoted variables
-	# - The "correct" solution is to not need unquoted substitutions ..
 	cert_ext_key_usage="$(
 		easyrsa_openssl x509 -in "$crt_in" -noout -text |
 		sed -n "/X509v3 Extended Key Usage:/{n;s/^ *//g;p;}"
@@ -1576,11 +1570,9 @@ Renewal not allowed."
 	esac
 
 	# Use SAN from --subject-alt-name if set else use SAN from old cert
-	# - NOT using: shellcheck disable=SC2086 # Ignore unquoted variables
-	# - The "correct" solution is to not need unquoted substitutions ..
-	# How did this ever get in ?
-	echo "$EASYRSA_EXTRA_EXTS" | grep -q subjectAltName || \
-	{
+	if echo "$EASYRSA_EXTRA_EXTS" | grep -q subjectAltName; then
+		: # ok - Use current subjectAltName
+	else
 		san="$(
 			easyrsa_openssl x509 -in "$crt_in" -noout -text |
 			sed -n "/X509v3 Subject Alternative Name:/{n;s/IP Address:/IP:/;s/ //g;p;}"
@@ -1589,14 +1581,13 @@ Renewal not allowed."
 		[ -n "$san" ] && export EASYRSA_EXTRA_EXTS="\
 $EASYRSA_EXTRA_EXTS
 subjectAltName = $san"
-	}
+	fi
 
 	# move renewed files so we can reissue certificate with the same name
 	# FIXME: Modify revoke() to also work on the renewed certs subdir
 	move_renewed "$1"
 
 	# renew certificate
-	# shellcheck disable=SC2086 # Ignore unquoted variables
 	build_full "$cert_type" "$1" "$opt_nopass" || die "\
 Failed to renew certificate: renew command failed."
 
