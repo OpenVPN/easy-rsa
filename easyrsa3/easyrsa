@@ -163,9 +163,9 @@ cmd_help() {
   export-p12 <filename_base> [ cmd-opts ]
       Export a PKCS#12 file with the keypair specified by <filename_base>"
 			opts="
-        noca     - do not include the ca.crt file in the PKCS12 output
-        nokey    - do not include the private key in the PKCS12 output
-        usealias - use <filename_base> as friendly name" ;;
+        noca  - do not include the ca.crt file in the PKCS12 output
+        nokey - do not include the private key in the PKCS12 output
+        usefn - use <filename_base> as friendly name" ;;
 		export-p7) text="
   export-p7 <filename_base> [ cmd-opts ]
       Export a PKCS#7 file with the pubkey specified by <filename_base>"
@@ -1764,7 +1764,7 @@ Run easyrsa without commands for usage and command help."
 			noca) want_ca="" ;;
 			nokey) want_key="" ;;
 			nopass) want_pass="" ;;
-			usealias) pkcs_friendly_name=$short_name ;;
+			usefn) pkcs_friendly_name=$short_name ;;
 			*) warn "Ignoring unknown command option: '$1'"
 		esac
 		shift
