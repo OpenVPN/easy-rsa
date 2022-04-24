@@ -771,23 +771,20 @@ install_data_to_pki () {
 	# If this is init-pki then create PKI/vars from PKI/example
 	case "$context" in
 	init-pki)
-		if [ -e "${EASYRSA_PKI}/${vars_file_example}" ] && \
-			[ ! -e "${EASYRSA_PKI}/${vars_file}" ]
-		then
-			cp -f "${EASYRSA_PKI}/${vars_file_example}" \
-				"${EASYRSA_PKI}/${vars_file}" || return
+		if [ -e "${EASYRSA_PKI}/${vars_file_example}" ]; then
+			[ -e "${EASYRSA_PKI}/${vars_file}" ] || \
+				cp "${EASYRSA_PKI}/${vars_file_example}" \
+					"${EASYRSA_PKI}/${vars_file}" || :
 		fi
 	;;
 	vars-setup)
 		if [ "$found_vars" ]; then
 			: # ok - Do not make a PKI/vars if another vars exists
 		else
-			if [ -e "${EASYRSA_PKI}/${vars_file_example}" ] && \
-				[ ! -e "${EASYRSA_PKI}/${vars_file}" ]
-			then
-				# This is allowed to fail because it should not be necessary
-				cp -n "${EASYRSA_PKI}/${vars_file_example}" \
-					"${EASYRSA_PKI}/${vars_file}" || :
+			if [ -e "${EASYRSA_PKI}/${vars_file_example}" ]; then
+				[ -e "${EASYRSA_PKI}/${vars_file}" ] || \
+					cp "${EASYRSA_PKI}/${vars_file_example}" \
+						"${EASYRSA_PKI}/${vars_file}" || :
 			fi
 		fi
 	;;
@@ -1499,9 +1496,10 @@ Error: didn't find a file base name as the first argument.
 Run easyrsa without commands for usage and command help."
 	crt_in="$EASYRSA_PKI/issued/$1.crt"
 
-	opts=""
+	# Append 'nopass'
+	opt_nopass=""
 	if [ "$2" ]; then
-		opts="$2"
+		opt_nopass="$2"
 	fi
 
 	verify_file x509 "$crt_in" || die "\
@@ -1523,22 +1521,33 @@ at: $crt_in"
 	# Check if old cert is expired or expires within 30
 	# - NOT using: shellcheck disable=SC2086 # Ignore unquoted variables
 	# - The "correct" solution is to not need unquoted substitutions ..
-	expire_date=$(
+	cert_expire_date="$(
 		easyrsa_openssl x509 -in "$crt_in" -noout -enddate |
 		sed 's/^notAfter=//'
-		)
+		)"
 
 	# - NOT using: shellcheck disable=SC2086 # Ignore unquoted variables
 	# - The "correct" solution is to not need unquoted substitutions ..
-	case $(uname 2>/dev/null) in
+	case "$easyrsa_uname" in
 	"Darwin"|*"BSD")
-		expire_date=$(date -j -f '%b %d %T %Y %Z' "$expire_date" +%s)
-		allow_renew_date=$(($(date -j +%s) + 24*60*60*EASYRSA_CERT_RENEW))
+		expire_date="$(date -j -f '%b %d %T %Y %Z' "$cert_expire_date" +%s)"
+		allow_renew_date="$(( $(date -j +%s) + 86400 * EASYRSA_CERT_RENEW ))"
 	;;
 	*)
-		# This works on Windows, too, since uname doesn't exist and this is catch-all
-		expire_date=$(date -d "$expire_date" +%s)
-		allow_renew_date=$(date -d "+${EASYRSA_CERT_RENEW}day" +%s)
+		# Linux and Windows
+		if expire_date="$(date -d "$cert_expire_date" +%s)"
+		then
+			allow_renew_date="$(date -d "+${EASYRSA_CERT_RENEW}day" +%s)"
+
+		# Alpine Linux and busybox
+		elif expire_date="$(date -D "%b %e %H:%M:%S %Y" -d "$cert_expire_date" +%s)"
+		then
+			allow_renew_date="$(( $(date +%s) + 86400 * EASYRSA_CERT_RENEW ))"
+
+		# Something else
+		else
+			die "Date failed"
+		fi
 	esac
 
 	[ "$expire_date" -lt "$allow_renew_date" ] || die "\
@@ -1548,10 +1557,10 @@ Renewal not allowed."
 	# Extract certificate usage from old cert
 	# - NOT using: shellcheck disable=SC2086 # Ignore unquoted variables
 	# - The "correct" solution is to not need unquoted substitutions ..
-	cert_ext_key_usage=$(
+	cert_ext_key_usage="$(
 		easyrsa_openssl x509 -in "$crt_in" -noout -text |
 		sed -n "/X509v3 Extended Key Usage:/{n;s/^ *//g;p;}"
-		)
+		)"
 
 	case "$cert_ext_key_usage" in
 		"TLS Web Client Authentication")
@@ -1572,10 +1581,11 @@ Renewal not allowed."
 	# How did this ever get in ?
 	echo "$EASYRSA_EXTRA_EXTS" | grep -q subjectAltName || \
 	{
-		san=$(
+		san="$(
 			easyrsa_openssl x509 -in "$crt_in" -noout -text |
 			sed -n "/X509v3 Subject Alternative Name:/{n;s/IP Address:/IP:/;s/ //g;p;}"
-			)
+			)"
+
 		[ -n "$san" ] && export EASYRSA_EXTRA_EXTS="\
 $EASYRSA_EXTRA_EXTS
 subjectAltName = $san"
@@ -1587,7 +1597,7 @@ subjectAltName = $san"
 
 	# renew certificate
 	# shellcheck disable=SC2086 # Ignore unquoted variables
-	build_full $cert_type "$1" $opts || die "\
+	build_full "$cert_type" "$1" "$opt_nopass" || die "\
 Failed to renew certificate: renew command failed."
 
 	[ "$EASYRSA_SILENT" ] || print # Separate Notice below
@@ -2195,29 +2205,32 @@ Sourcing the vars file will probably fail .."
 	unset -v easyrsa_host_os easyrsa_host_test easyrsa_win_git_bash
 
 	# Detect Windows
-	easyrsa_host_test="${OS}"
+	[ "${OS}" ] && easyrsa_host_test="${OS}"
 
 	# shellcheck disable=SC2016 # expansion inside '' blah
 	easyrsa_ksh='@(#)MIRBSD KSH R39-w32-beta14 $Date: 2013/06/28 21:28:57 $'
 	[ "${KSH_VERSION}" = "${easyrsa_ksh}" ] && easyrsa_host_test="${easyrsa_ksh}"
-	unset -v easyrsa_ksh
+	#unset -v easyrsa_ksh
 
 	# If not Windows then nix
 	if [ "${easyrsa_host_test}" ]; then
 		easyrsa_host_os=win
-		easyrsa_host_os_version="${easyrsa_host_test}"
+		easyrsa_uname="${easyrsa_host_test}"
+		easyrsa_shell="$easyrsa_ksh"
 		# Detect Windows git/bash
 		if [ "${EXEPATH}" ]; then
+			easyrsa_shell="$SHELL (Git)"
 			easyrsa_win_git_bash="${EXEPATH}"
 			# If found then set openssl NOW!
 			[ -e /usr/bin/openssl ] && set_var EASYRSA_OPENSSL /usr/bin/openssl
 		fi
 	else
 		easyrsa_host_os=nix
-		easyrsa_host_os_version="$(uname)"
+		easyrsa_uname="$(uname 2>/dev/null)"
+		easyrsa_shell="$SHELL"
 	fi
-	host_out="$easyrsa_host_os | $easyrsa_host_os_version"
-	host_out="${host_out}${easyrsa_win_git_bash:+ | "$easyrsa_win_git_bash"}"
+	host_out="$easyrsa_host_os | $easyrsa_uname | $easyrsa_shell"
+	host_out="${host_out}${easyrsa_win_git_bash+ | "$easyrsa_win_git_bash"}"
 	unset -v easyrsa_host_test
 
 	# Set defaults, preferring existing env-vars if present
