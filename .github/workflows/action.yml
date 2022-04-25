@@ -21,7 +21,7 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      #EASYRSA_BY_TINCANTECH: 1
+      EASYRSA_BY_TINCANTECH: 1
       EASYRSA_REMOTE_CI: 1
       EASYRSA_NIX: 1
       TERM: xterm-256color
@@ -33,7 +33,7 @@ jobs:
 
       # Runs a single command using the runners shell
       - name: operational test
-        run: sh op-test.sh -v
+        run: sh op-test.sh -v -sc -o3
 
       # Runs a set of commands using the runners shell
       # - name: Run a multi-line script

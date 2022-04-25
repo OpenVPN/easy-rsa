@@ -128,8 +128,8 @@ keyUsage = cRLSign, keyCertSign
 # nsCertType omitted by default. Let's try to let the deprecated stuff die.
 # nsCertType = sslCA
 
-# A placeholder to handle the $X509_TYPES:
-#%X509_TYPES%	# Do NOT remove or change this line as $X509_TYPES demands it
+# A placeholder to handle the $X509_TYPES and CA extra extensions $EXTRA_EXTS:
+#%CA_X509_TYPES_EXTRA_EXTS%	# Do NOT remove or change this line as $X509_TYPES and EXTRA_EXTS demands it
 
 # CRL extensions.
 [ crl_ext ]

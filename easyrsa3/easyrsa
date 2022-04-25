@@ -165,7 +165,8 @@ cmd_help() {
       Export a PKCS#12 file with the keypair specified by <filename_base>"
 			opts="
         noca  - do not include the ca.crt file in the PKCS12 output
-        nokey - do not include the private key in the PKCS12 output" ;;
+        nokey - do not include the private key in the PKCS12 output
+        usefn - use <filename_base> as friendly name" ;;
 		export-p7) text="
   export-p7 <filename_base> [ cmd-opts ]
       Export a PKCS#7 file with the pubkey specified by <filename_base>"
@@ -211,7 +212,7 @@ cmd_help() {
 		"")
 			usage ;;
 		*) text="
-  Unknown command: '$1' (try without commands for a list of commands)" ;;
+  Unknown command: '$1' (try without commands for a list of commands)"
 	esac
 
 	# display the help text
@@ -238,7 +239,8 @@ General options:
 
 --passin=ARG    : set -passin ARG for openssl
 --passout=ARG   : set -passout ARG for openssl
---pki-dir=DIR   : declares the PKI directory
+--pki-dir=DIR   : declare the PKI directory
+--tmp-dir=DIR   : declare the temporary directory
 --ssl-conf=FILE : define a specific OpenSSL config file for Easy-RSA to use
 --vars=FILE     : define a specific 'vars' file to use for Easy-RSA config
 --version       : prints EasyRSA version and build information, then exits
@@ -255,7 +257,7 @@ Certificate & Request options: (these impact cert/req field values)
                      ./easyrsa help altname
 --use-algo=ALG  : crypto alg to use: choose rsa (default), ec or ed
 --curve=NAME    : for elliptic curve, sets the named curve to use
---copy-ext      : Copy included request X509 extensions (namely subjAltName
+--copy-ext      : Copy included request X509 extensions (namely subjAltName)
 
 Organizational DN options: (only used with the 'org' DN mode)
   (values may be blank for org DN options)
@@ -286,30 +288,38 @@ die() {
 Easy-RSA error:
 
 $1" 1>&2
+
+	print "
+Host: $host_out
+${EASYRSA_DEBUG+
+*** Disable EASYRSA_DEBUG mode ***}"
+
 	exit "${2:-1}"
 } # => die()
 
 # non-fatal warning output
 warn() {
 	[ "$EASYRSA_SILENT" ] && return
-	print "* Warning:
+	print "* WARNING:
 
-$1" 1>&2
+$1
+" 1>&2
 } # => warn()
 
 # informational notices to stdout
 notice() {
 	[ "$EASYRSA_SILENT" ] && return
 	[ "$EASYRSA_BATCH" ] && return
-	print "
-$1"
+	print "* Notice:
+$1
+"
 } # => notice()
 
 # yes/no case-insensitive match (operates on stdin pipe)
 # Returns 0 when input contains yes, 1 for no, 2 for no match
 # If both strings are present, returns 1; first matching line returns.
 awk_yesno() {
-	#shellcheck disable=SC2016
+	# shellcheck disable=SC2016 # vars don't expand in single quotes
 	awkscript='
 BEGIN {IGNORECASE=1; r=2}
 {       if(match($0,"no")) {r=1; exit}
@@ -331,177 +341,229 @@ $msg
 
 Type the word '$value' to continue, or any other input to abort."
 	printf %s "  $prompt"
-	#shellcheck disable=SC2162
+	# shellcheck disable=SC2162 # read without -r will mangle backslashes
 	read input
+	printf '\n'
 	[ "$input" = "$value" ] && return
 	notice "Aborting without confirmation."
 	exit 9
 } # => confirm()
 
-# mktemp wrapper
-easyrsa_mktemp() {
-	[ -n "$EASYRSA_TEMP_DIR_session" ] || die "EASYRSA_TEMP_DIR_session not initialized!"
-	[ -d "$EASYRSA_TEMP_DIR_session" ] || mkdir -p "$EASYRSA_TEMP_DIR_session" ||
-		die "Could not create temporary directory '$EASYRSA_TEMP_DIR_session'. Permission or concurrency problem?"
-	[ -d "$EASYRSA_TEMP_DIR_session" ] || die "Temporary directory '$EASYRSA_TEMP_DIR_session' does not exist"
+# Create session directory atomically or fail
+secure_session() {
+	# Session is already defined
+	[ "$EASYRSA_TEMP_DIR_session" ] && die "session overload"
 
-	tempfile="$EASYRSA_TEMP_DIR_session/tmp.$($EASYRSA_OPENSSL rand -hex 3)" || return
-	printf "" > "$tempfile" || return
-	
-	echo "$tempfile"
-} # => easyrsa_mktemp
+	# temporary directory must exist
+	[ -n "$EASYRSA_TEMP_DIR" ] || return
+	[ -d "$EASYRSA_TEMP_DIR" ] || die "\
+Non-existant temporary directory: $EASYRSA_TEMP_DIR"
+
+	for i in 1 2 3; do
+		session="$(easyrsa_openssl rand -hex 4)"
+		EASYRSA_TEMP_DIR_session="${EASYRSA_TEMP_DIR}/${session}"
+		mkdir "$EASYRSA_TEMP_DIR_session" || continue
+		return
+	done
+	return 1
+} # => secure_session()
+
+# Create tempfile atomically or fail
+easyrsa_mktemp() {
+	# session directory must exist
+	[ -n "$EASYRSA_TEMP_DIR_session" ] || return
+	[ -d "$EASYRSA_TEMP_DIR_session" ] || return
+
+	for i in 1 2 3; do
+		rand="$(easyrsa_openssl rand -hex 4)" || return
+
+		shotfile="${EASYRSA_TEMP_DIR_session}/shot.$rand"
+		if [ -e "$shotfile" ]; then
+			continue
+		else
+			printf "" > "$shotfile" || return
+		fi
+
+		tempfile="${EASYRSA_TEMP_DIR_session}/temp.$rand"
+		mv "$shotfile" "$tempfile" || continue
+		printf '%s\n' "$tempfile"
+		return
+	done
+	return 1
+} # => easyrsa_mktemp()
 
 # remove temp files and do terminal cleanups
 cleanup() {
 	[ -z "$EASYRSA_TEMP_DIR_session" ] || rm -rf "$EASYRSA_TEMP_DIR_session"
-	# shellcheck disable=SC3040
-	(stty echo 2>/dev/null) || { (set -o echo 2>/dev/null) && set -o echo; }
-	echo "" # just to get a clean line
+	[ -n "${EASYRSA_EC_DIR%/*}" ] && [ -d "$EASYRSA_EC_DIR" ] && \
+		rm -rf "$EASYRSA_EC_DIR"
+
+	# shellcheck disable=SC3040 # In POSIX sh, set option [name] is undefined
+	case "$easyrsa_host_os" in
+		nix) stty echo ;;
+		win) set -o echo ;;
+		*) warn "Host OS undefined."
+	esac
+	[ "$EASYRSA_SILENT" ] || echo "" # just to get a clean line
 } # => cleanup()
 
+# Easy-RSA meta-wrapper for SSL
 easyrsa_openssl() {
-	openssl_command=$1; shift
+	openssl_command="$1"; shift
 
-	case $openssl_command in
-		makesafeconf) has_config=true;;
-		ca|req|srp|ts) has_config=true;;
-		*) has_config=false;;
+	case "$openssl_command" in
+		makesafeconf) has_config=1 ;;
+		ca|req|srp|ts) has_config=1 ;;
+		*) unset -v has_config
 	esac
 
-	case "$osslv_major" in
-	3)
-		case $openssl_command in
-		genpkey) has_config=true;;
-		*) : ;; # ok
-		esac
-	;;
-	1|2)	: ;; # ok - LibreSSL 2.x
-	'')	: ;; # Unset then this is init-pki
-	*)	die "Unsupported openssl version: $osslv_major"
-	esac
-
-	if ! $has_config; then
-		"$EASYRSA_OPENSSL" "$openssl_command" "$@"
-		return
+	# OpenSSL 1x genpkey does not support -config - Not as documented:
+	# https://www.openssl.org/docs/manmaster/man1/openssl-genpkey.html
+	if [ "$osslv_major" = 3 ] && [ "$openssl_command" = genpkey ]; then
+		has_config=1
 	fi
 
-	easyrsa_openssl_conf=$(easyrsa_mktemp) || die "Failed to create temporary file"
-	easyrsa_extra_exts=
-	if [ -n "$EASYRSA_EXTRA_EXTS" ]; then
-		easyrsa_extra_exts=$(easyrsa_mktemp) || die "Failed to create temporary file"
-		cat >"$easyrsa_extra_exts" <<-EOF
-			req_extensions = req_extra
-			[ req_extra ]
-			$EASYRSA_EXTRA_EXTS
-		EOF
-	fi
+	if [ "$has_config" ]; then
+		# Make LibreSSL safe config file from OpenSSL config file
 
-	# Make LibreSSL safe config file from OpenSSL config file
-	sed \
-		-e "s\`ENV::EASYRSA\`EASYRSA\`g" \
-		-e "s\`\$dir\`$EASYRSA_PKI\`g" \
-		-e "s\`\$EASYRSA_PKI\`$EASYRSA_PKI\`g" \
-		-e "s\`\$EASYRSA_CERT_EXPIRE\`$EASYRSA_CERT_EXPIRE\`g" \
-		-e "s\`\$EASYRSA_CRL_DAYS\`$EASYRSA_CRL_DAYS\`g" \
-		-e "s\`\$EASYRSA_DIGEST\`$EASYRSA_DIGEST\`g" \
-		-e "s\`\$EASYRSA_KEY_SIZE\`$EASYRSA_KEY_SIZE\`g" \
-		-e "s\`\$EASYRSA_DIGEST\`$EASYRSA_DIGEST\`g" \
-		-e "s\`\$EASYRSA_DN\`$EASYRSA_DN\`g" \
-		-e "s\`\$EASYRSA_REQ_COUNTRY\`$EASYRSA_REQ_COUNTRY\`g" \
-		-e "s\`\$EASYRSA_REQ_PROVINCE\`$EASYRSA_REQ_PROVINCE\`g" \
-		-e "s\`\$EASYRSA_REQ_CITY\`$EASYRSA_REQ_CITY\`g" \
-		-e "s\`\$EASYRSA_REQ_ORG\`$EASYRSA_REQ_ORG\`g" \
-		-e "s\`\$EASYRSA_REQ_OU\`$EASYRSA_REQ_OU\`g" \
-		-e "s\`\$EASYRSA_REQ_CN\`$EASYRSA_REQ_CN\`g" \
-		-e "s\`\$EASYRSA_REQ_EMAIL\`$EASYRSA_REQ_EMAIL\`g" \
-		${EASYRSA_EXTRA_EXTS:+-e "/^#%EXTRA_EXTS%/r $easyrsa_extra_exts"} \
-		"$EASYRSA_SSL_CONF" > "$easyrsa_openssl_conf" ||
-		die "Failed to update $easyrsa_openssl_conf"
+		# Do not use easyrsa_mktemp() for init-pki
+		if [ "$want_init_pki" ]; then
+			# for init-pki $EASYRSA_SAFE_CONF is always set in the PKI, use it.
+			easyrsa_openssl_conf="${EASYRSA_SAFE_CONF}.init-tmp"
+		else
+			easyrsa_openssl_conf="$(easyrsa_mktemp)" || \
+				die "easyrsa_openssl - Failed to create temporary file"
+		fi
 
-	if [ "$openssl_command" = "makesafeconf" ]; then
-		cp "$easyrsa_openssl_conf" "$EASYRSA_SAFE_CONF"
-		err=$?
+		# OpenSSL does not need a safe config, skip this stage
+		if [ "$no_safe_ssl_conf" ]; then
+			cp -f "$EASYRSA_SSL_CONF" "$easyrsa_openssl_conf" || \
+				die "easyrsa_openssl - Failed to make temporary config"
+
+		else
+			sed \
+				-e "s\`ENV::EASYRSA\`EASYRSA\`g" \
+				-e "s\`\$dir\`$EASYRSA_PKI\`g" \
+				-e "s\`\$EASYRSA_PKI\`$EASYRSA_PKI\`g" \
+				-e "s\`\$EASYRSA_CERT_EXPIRE\`$EASYRSA_CERT_EXPIRE\`g" \
+				-e "s\`\$EASYRSA_CRL_DAYS\`$EASYRSA_CRL_DAYS\`g" \
+				-e "s\`\$EASYRSA_DIGEST\`$EASYRSA_DIGEST\`g" \
+				-e "s\`\$EASYRSA_KEY_SIZE\`$EASYRSA_KEY_SIZE\`g" \
+				-e "s\`\$EASYRSA_DIGEST\`$EASYRSA_DIGEST\`g" \
+				-e "s\`\$EASYRSA_DN\`$EASYRSA_DN\`g" \
+				-e "s\`\$EASYRSA_REQ_COUNTRY\`$EASYRSA_REQ_COUNTRY\`g" \
+				-e "s\`\$EASYRSA_REQ_PROVINCE\`$EASYRSA_REQ_PROVINCE\`g" \
+				-e "s\`\$EASYRSA_REQ_CITY\`$EASYRSA_REQ_CITY\`g" \
+				-e "s\`\$EASYRSA_REQ_ORG\`$EASYRSA_REQ_ORG\`g" \
+				-e "s\`\$EASYRSA_REQ_OU\`$EASYRSA_REQ_OU\`g" \
+				-e "s\`\$EASYRSA_REQ_CN\`$EASYRSA_REQ_CN\`g" \
+				-e "s\`\$EASYRSA_REQ_EMAIL\`$EASYRSA_REQ_EMAIL\`g" \
+				"$EASYRSA_SSL_CONF" > "$easyrsa_openssl_conf" || \
+					die "easyrsa_openssl - Failed to make temporary config"
+		fi
+
+		if [ "$openssl_command" = "makesafeconf" ]; then
+			# move temp file to safessl-easyrsa.cnf
+			mv "$easyrsa_openssl_conf" "$EASYRSA_SAFE_CONF" || \
+				die "easyrsa_openssl - makesafeconf failed"
+		else
+			# !!!
+			# this debug CANNOT be used in automated testing
+			# to function correctly easyrsa_openssl()
+			# must ONLY output SSL layer output
+			# debug log
+			if [ "$EASYRSA_DEBUG" ]; then
+				printf '%s %s\n' "$EASYRSA_OPENSSL $openssl_command" \
+					"-config $easyrsa_openssl_conf $*"
+			fi
+
+			# Exec SSL with -config temp-file
+			"$EASYRSA_OPENSSL" "$openssl_command" \
+				-config "$easyrsa_openssl_conf" "$@" || return
+		fi
 	else
-		"$EASYRSA_OPENSSL" "$openssl_command" -config "$easyrsa_openssl_conf" "$@"
-		err=$?
+		# !!!
+		# this debug CANNOT be used in automated testing
+		# to function correctly easyrsa_openssl()
+		# must ONLY output SSL layer output
+		# debug log
+		if [ "$EASYRSA_DEBUG" ] && [ ! "$openssl_command" = rand ]; then
+			printf '%s\n' "$EASYRSA_OPENSSL $openssl_command $*"
+		fi
+
+		# Exec SSL without -config temp-file
+		"$EASYRSA_OPENSSL" "$openssl_command" "$@" || return
 	fi
+} # => easyrsa_openssl()
 
-	rm -f "$easyrsa_openssl_conf"
-	rm -f "$easyrsa_extra_exts"
-	return $err
-} # => easyrsa_openssl
-
-vars_source_check() {
-	# Check for defined EASYRSA_PKI
-	[ -n "$EASYRSA_PKI" ] || die "\
-EASYRSA_PKI env-var undefined"
-} # => vars_source_check()
-
-# Verify supplied curve exists and generate curve file if needed
+# Verify supplied curve exists and Always generate curve file
 verify_curve_ec() {
-	if ! "$EASYRSA_OPENSSL" ecparam -name "$EASYRSA_CURVE" > /dev/null; then
-		die "\
-Curve $EASYRSA_CURVE not found. Run openssl ecparam -list_curves to show a
-list of supported curves."
-	fi
-
 	# Check that the ecparams dir exists
 	[ -d "$EASYRSA_EC_DIR" ] || mkdir "$EASYRSA_EC_DIR" || die "\
 Failed creating ecparams dir (permissions?) at:
 $EASYRSA_EC_DIR"
 
 	# Check that the required ecparams file exists
-	out="$EASYRSA_EC_DIR/${EASYRSA_CURVE}.pem"
-	[ -f "$out" ] && return 0
-	"$EASYRSA_OPENSSL" ecparam -name "$EASYRSA_CURVE" -out "$out" || die "\
+	out="${EASYRSA_EC_DIR}/${EASYRSA_CURVE}.pem"
+	if easyrsa_openssl ecparam -name "$EASYRSA_CURVE" -out "$out" 1>/dev/null
+	then
+		return 0
+	fi
+
+	# Clean up failure
+	rm -rf "$EASYRSA_EC_DIR"
+	die "\
 Failed to generate ecparam file (permissions?) when writing to:
 $out"
-
-	# Explicitly return success for caller
-	return 0
-}
+} # => verify_curve_ec()
 
 # Verify if Edward Curve exists
 verify_curve_ed() {
-	easyrsa_openssl genpkey -algorithm "$EASYRSA_CURVE" > /dev/null && return 0
-	die "Edward Curve $EASYRSA_CURVE not found."
-}
+	easyrsa_openssl genpkey -algorithm "$EASYRSA_CURVE" > /dev/null \
+		|| die "Edward Curve $EASYRSA_CURVE not found."
+} # => verify_curve_ed()
 
-verify_ssl_lib () {
-	# Verify EASYRSA_OPENSSL command gives expected output
+# Verify the SSL library is functional and establish version dependencies
+verify_ssl_lib() {
 	if [ -z "$EASYRSA_SSL_OK" ]; then
 		val="$("$EASYRSA_OPENSSL" version)"
 		case "${val%% *}" in
-			OpenSSL|LibreSSL)
-				osslv_major="${val#* }"
-				osslv_major="${osslv_major%%.*}"
-				case "$osslv_major" in
-					1) no_password='-nodes' ;;
-					2) no_password='-nodes' ;; # LibreSSL Only
-					3) no_password='-noenc' ;;
-					*) die "Unsupported SSL library: $osslv_major"
-				esac
-				print "\
-Using SSL: $EASYRSA_OPENSSL $("$EASYRSA_OPENSSL" version)" ;;
+			# OpenSSL does not require a safe config-file
+			OpenSSL) no_safe_ssl_conf=1 ;;
+			LibreSSL) : ;; # ok
 			*) die "\
 Missing or invalid OpenSSL
-Expected to find openssl command at: $EASYRSA_OPENSSL" ;;
+Expected to find openssl command at: $EASYRSA_OPENSSL"
 		esac
 	fi
+
+	# Set SSL version dependent $no_password option
+	osslv_major="${val#* }"
+	osslv_major="${osslv_major%%.*}"
+	case "$osslv_major" in
+		1) no_password='-nodes' ;;
+		2) no_password='-nodes' ;; # LibreSSL Only
+		3) no_password='-noenc' ;;
+		*) die "Unsupported SSL library: $osslv_major"
+	esac
+	notice "Using SSL: $EASYRSA_OPENSSL $val"
 	EASYRSA_SSL_OK=1
 
 	# Verify EASYRSA_SSL_CONF file exists
 	[ -f "$EASYRSA_SSL_CONF" ] || die "\
 The OpenSSL config file cannot be found.
 Expected location: $EASYRSA_SSL_CONF"
-} # => verify_ssl_lib ()
+} # => verify_ssl_lib()
 
 # Basic sanity-check of PKI init and complain if missing
 verify_pki_init() {
 	help_note="Run easyrsa without commands for usage and command help."
 
+	# Check for defined EASYRSA_PKI
+	[ -n "$EASYRSA_PKI" ] || die "\
+EASYRSA_PKI env-var undefined"
+
 	# check that the pki dir exists
-	vars_source_check
 	[ -d "$EASYRSA_PKI" ] || die "\
 EASYRSA_PKI does not exist (perhaps you need to run init-pki)?
 Expected to find the EASYRSA_PKI at: $EASYRSA_PKI
@@ -516,14 +578,15 @@ $help_note"
 
 	# verify ssl lib
 	verify_ssl_lib
+	unset -v help_note
 } # => verify_pki_init()
 
 # Verify core CA files present
 verify_ca_init() {
-	help_note="Run without commands for usage and command help."
-
 	# First check the PKI has been initialized
 	verify_pki_init
+
+	help_note="Run without commands for usage and command help."
 
 	# Verify expected files are present. Allow files to be regular files
 	# (or symlinks), but also pipes, for flexibility with ca.key
@@ -549,8 +612,8 @@ $help_note"
 	done
 
 	# explicitly return success for callers
+	unset -v help_note
 	return 0
-
 } # => verify_ca_init()
 
 # init-pki backend:
@@ -561,14 +624,14 @@ init_pki() {
 		case "$1" in
 			hard-reset|hard) reset="hard" ;;
 			soft-reset|soft) reset="soft" ;;
-			*) warn "Ignoring unknown command option: '$1'" ;;
+			*) warn "Ignoring unknown command option: '$1'"
 		esac
 		shift
 	done
 
 	# If EASYRSA_PKI exists, confirm before we rm -rf (skipped with EASYRSA_BATCH)
 	if [ -e "$EASYRSA_PKI" ]; then
-		confirm "Confirm removal: " "yes" "
+		confirm "Confirm removal: " "yes" "\
 WARNING!!!
 
 You are about to remove the EASYRSA_PKI at:
@@ -591,7 +654,7 @@ and initialize a fresh PKI here."
 		# More modes could be added here, e.g. only remove
 		# issued certs (and clean database), but keep CA intact.
 		*)
-			die "Removal of PKI dir failed. Unknown reset type."
+			die "Removal of PKI dir failed. Unknown reset type: $reset"
 		esac
 	fi
 
@@ -614,12 +677,13 @@ and initialize a fresh PKI here."
 	fi
 
 	notice "\
-init-pki complete; you may now create a CA or requests.
-Your newly created PKI dir is:
-* $EASYRSA_PKI"
 
-	notice "* Easy-RSA 'vars' file has now been moved to your PKI above."
-	return 0
+  init-pki complete; you may now create a CA or requests.
+
+  Your newly created PKI dir is:
+  * $EASYRSA_PKI
+
+  IMPORTANT: Easy-RSA 'vars' file has now been moved to your PKI above."
 } # => init_pki()
 
 # Copy data-files from various sources
@@ -653,6 +717,9 @@ install_data_to_pki () {
 # priority over './vars'. But it will not be updated if './vars' is changed.
 #
 # Copying 'vars' to the PKI is complicated, code is included but DISABLED.
+
+	context="$1"
+	shift
 
 	# Set required sources
 	vars_file='vars'
@@ -709,22 +776,29 @@ install_data_to_pki () {
 	fi
 
 	# If this is init-pki then create PKI/vars from PKI/example
-	case "$1" in
+	case "$context" in
 	init-pki)
-		shift
-		if [ -e "${EASYRSA_PKI}/${vars_file_example}" ] && \
-			[ ! -e "${EASYRSA_PKI}/${vars_file}" ]
-		then
-			cp -f "${EASYRSA_PKI}/${vars_file_example}" \
-				"${EASYRSA_PKI}/${vars_file}" || return
+		if [ -e "${EASYRSA_PKI}/${vars_file_example}" ]; then
+			[ -e "${EASYRSA_PKI}/${vars_file}" ] || \
+				cp "${EASYRSA_PKI}/${vars_file_example}" \
+					"${EASYRSA_PKI}/${vars_file}" || :
 		fi
 	;;
 	vars-setup)
-		shift ;; # ok
+		if [ "$found_vars" ]; then
+			: # ok - Do not make a PKI/vars if another vars exists
+		else
+			if [ -e "${EASYRSA_PKI}/${vars_file_example}" ]; then
+				[ -e "${EASYRSA_PKI}/${vars_file}" ] || \
+					cp "${EASYRSA_PKI}/${vars_file_example}" \
+						"${EASYRSA_PKI}/${vars_file}" || :
+			fi
+		fi
+	;;
 	'')
 		die "install_data_to_pki - unspecified context" ;;
 	*)
-		die "install_data_to_pki - unknown context: $1"
+		die "install_data_to_pki - unknown context: $context"
 	esac
 
 	# Check PKI is updated - Omit unnecessary checks
@@ -735,6 +809,8 @@ install_data_to_pki () {
 
 	# EASYRSA_EXT_DIR must be found! No exceptions!
 	# The shellcheck warning 2015 is valid, however, this code works correctly.
+	# Note that A && B || C is not if-then-else. C may run when A is true
+	# shellcheck disable=SC2015
 	[ -n "$EASYRSA_EXT_DIR" ] && [ -e "$EASYRSA_EXT_DIR" ] || \
 		die "x509-types folder cannot be found"
 
@@ -745,6 +821,8 @@ install_data_to_pki () {
 # Disable terminal echo, if possible, otherwise warn
 hide_read_pass()
 {
+	# 3040 - In POSIX sh, set option [name] is undefined
+	# 3045 - In POSIX sh, some-command-with-flag is undefined
 	# shellcheck disable=SC3040,SC3045
 	if stty -echo 2>/dev/null; then
 		read -r "$@"
@@ -763,16 +841,15 @@ hide_read_pass()
 
 # build-ca backend:
 build_ca() {
-	opts=""
-	sub_ca=""
-	nopass=""
-	crypto="-aes256"
+	cipher="-aes256"
+	digest="-sha256"
+	unset -v nopass sub_ca ssl_batch date_stamp x509
 	while [ -n "$1" ]; do
 		case "$1" in
 			intca) sub_ca=1 ;;
 			subca) sub_ca=1 ;;
 			nopass) nopass=1 ;;
-			*) warn "Ignoring unknown command option: '$1'" ;;
+			*) warn "Ignoring unknown command option: '$1'"
 		esac
 		shift
 	done
@@ -781,12 +858,23 @@ build_ca() {
 	[ "$EASYRSA_ALGO" = "ec" ] && verify_curve_ec
 	[ "$EASYRSA_ALGO" = "ed" ] && verify_curve_ed
 
-	# setup for the simpler intermediate CA situation and overwrite with root-CA if needed:
-	out_file="$EASYRSA_PKI/reqs/ca.req"
 	out_key="$EASYRSA_PKI/private/ca.key"
-	if [ -z "$sub_ca" ]; then
+	# setup for an intermediate CA
+	if [ "$sub_ca" ]; then
+		# Gerate a CSR
+		out_file="$EASYRSA_PKI/reqs/ca.req"
+	else
+		# Gerate a certificate
 		out_file="$EASYRSA_PKI/ca.crt"
-		opts="$opts -x509 -days $EASYRSA_CA_EXPIRE "
+		date_stamp=1
+		x509=1
+	fi
+
+	# If encrypted then create the CA key using AES256 cipher
+	if [ "$nopass" ]; then
+		unset -v cipher
+	else
+		unset -v no_password
 	fi
 
 	# Test for existing CA, and complain if already present
@@ -814,14 +902,15 @@ current CA keypair. If you intended to start a new CA, run init-pki first."
 	done
 	printf "" > "$EASYRSA_PKI/index.txt" || die "$err_file"
 	printf "" > "$EASYRSA_PKI/index.txt.attr" || die "$err_file"
-	print "01" > "$EASYRSA_PKI/serial" || die "$err_file"
+	printf '%s\n' "01" > "$EASYRSA_PKI/serial" || die "$err_file"
 
 	# Default CN only when not in global EASYRSA_BATCH mode:
-	# shellcheck disable=SC2015
-	[ "$EASYRSA_BATCH" ] && opts="$opts -batch" || export EASYRSA_REQ_CN="Easy-RSA CA"
+	[ "$EASYRSA_BATCH" ] && ssl_batch=1
+	[ "$EASYRSA_REQ_CN" = ChangeMe ] && export EASYRSA_REQ_CN="Easy-RSA CA"
 
 	out_key_tmp="$(easyrsa_mktemp)" || die "Failed to create temporary file"
 	out_file_tmp="$(easyrsa_mktemp)" || die "Failed to create temporary file"
+
 	# Get password from user if necessary
 	if [ -z "$nopass" ] && {
 		[ -z "$EASYRSA_PASSOUT" ] || [ -z "$EASYRSA_PASSIN" ]
@@ -835,189 +924,104 @@ current CA keypair. If you intended to start a new CA, run init-pki first."
 		printf "Re-Enter New CA Key Passphrase: "
 		hide_read_pass kpass2
 		echo
-		# shellcheck disable=2154
-		if [ "$kpass" = "$kpass2" ];
-		then
+		# shellcheck disable=2154 # var is referenced but not assigned
+		if [ "$kpass" = "$kpass2" ]; then
 			printf "%s" "$kpass" > "$out_key_pass_tmp"
 		else
 			die "Passphrases do not match."
 		fi
 	fi
 
-	# Insert x509-types COMMON and 'ca'
-	# shellcheck disable=SC2016
+	# Insert x509-types COMMON and 'ca' and EASYRSA_EXTRA_EXTS, if defined.
+	# shellcheck disable=SC2016 # vars don't expand in single quote
 	awkscript='
-{if ( match($0, "^#%X509_TYPES%") )
+{if ( match($0, "^#%CA_X509_TYPES_EXTRA_EXTS%") )
 	{ while ( getline<"/dev/stdin" ) {print} next }
  {print}
 }'
 
 	conf_tmp="$(easyrsa_mktemp)" || die "Failed to create temporary file"
-	cat "${EASYRSA_EXT_DIR}/ca" "${EASYRSA_EXT_DIR}/COMMON" | \
+	{
+		cat "$EASYRSA_EXT_DIR/ca" "$EASYRSA_EXT_DIR/COMMON"
+		[ "$EASYRSA_EXTRA_EXTS" ] && print "$EASYRSA_EXTRA_EXTS"
+	} | \
 		awk "$awkscript" "$EASYRSA_SSL_CONF" \
 		> "$conf_tmp" \
-		|| die "Copying SSL config to temp file failed"
+			|| die "Copying X509_TYPES to config file failed"
 	# Use this new SSL config for the rest of this function
 	EASYRSA_SSL_CONF="$conf_tmp"
 
-	# When EASYRSA_EXTRA_EXTS is defined, pass it as-is to SSL -addext
-	if [ -n "$EASYRSA_EXTRA_EXTS" ]; then
-		# example: "-addext foo,a:b -addext bah,c:d -addext baz e:f,g"
-		[ "${EASYRSA_EXTRA_EXTS%% *}" = '-addext' ] || \
-			die "EASYRSA_EXTRA_EXTS: $EASYRSA_EXTRA_EXTS"
-		EASYRSA_CA_EXTRA_EXTS="$EASYRSA_EXTRA_EXTS"
-		unset -v EASYRSA_EXTRA_EXTS
-	fi
-
 	# Choose SSL Library version (1, 2(LibreSSL) or 3) and build CA
-	#
-	# * shellcheck SC2086 # Ignore unquoted variables
-	#   The "correct" solution is to not need unquoted substitutions ..
-	#
-	# shellcheck disable=SC2086 # Ignore unquoted variables
-	case "$osslv_major" in # => BEGIN SSL lib version
+	case "$osslv_major" in
 
-	# BEGIN SSL V3
-	3)
-		# If encrypted then create the CA key using AES256 cipher ($crypto)
-		# 'genpkey' requires '-pass'
-		crypto_opts=""
-		if [ -z "$nopass" ]; then
-			crypto_opts="$crypto"
-			if [ -z "$EASYRSA_PASSOUT" ]; then
-				crypto_opts="$crypto_opts -pass file:$out_key_pass_tmp"
-			fi
-		fi
-
-		# Generate CA Key - OpenSSL v3 'genpkey' is not compatible
-		# with easyrsa $opts and $no_password, do NOT use them here
+	# Version agnostic CA generation
+	# The only remaining option which is version dependent is -nodes/-noenc
+	1|2|3)
+		# Generate CA Key
 		case "$EASYRSA_ALGO" in
 		rsa)
-			# OpenSSL v3: 'genrsa' is deprecate, use 'genpkey'
 			easyrsa_openssl genpkey -algorithm "$EASYRSA_ALGO" \
-				-out "$out_key_tmp" ${crypto_opts} \
 				-pkeyopt rsa_keygen_bits:"$EASYRSA_ALGO_PARAMS" \
-				${EASYRSA_PASSOUT:+-pass "$EASYRSA_PASSOUT"} || \
-					die "Failed create CA private key"
+				-out "$out_key_tmp" \
+				${cipher+ "$cipher"} \
+				${EASYRSA_PASSOUT:+ -pass "$EASYRSA_PASSOUT"} \
+				${out_key_pass_tmp:+ -pass file:"$out_key_pass_tmp"} \
+					|| die "Failed create CA private key"
 		;;
 		ec)
 			easyrsa_openssl genpkey -paramfile "$EASYRSA_ALGO_PARAMS" \
-				-out "$out_key_tmp" ${crypto_opts} \
-				${EASYRSA_PASSOUT:+-pass "$EASYRSA_PASSOUT"} || \
-					die "Failed create CA private key"
+				-out "$out_key_tmp" \
+				${cipher+ "$cipher"} \
+				${EASYRSA_PASSOUT:+ -pass "$EASYRSA_PASSOUT"} \
+				${out_key_pass_tmp:+ -pass file:"$out_key_pass_tmp"} \
+					|| die "Failed create CA private key"
 		;;
 		ed)
-			case "$EASYRSA_CURVE" in
-			[eE][dD]25519|[eE][dD]448)
-				easyrsa_openssl genpkey -algorithm "$EASYRSA_CURVE" \
-					-out "$out_key_tmp" ${crypto_opts} \
-					${EASYRSA_PASSOUT:+-pass "$EASYRSA_PASSOUT"} || \
-						die "Failed create CA private key" ;;
-			*)	die "Unknown curve: $EASYRSA_CURVE"
-			esac
-		;;
-		*)
-			die "Unknown algorithm: $EASYRSA_ALGO"
-		esac
-
-		# Private key encryption password or use no_password
-		# 'req' requires '-passin'
-		crypto_opts=""
-		if [ -z "$nopass" ] && [ -z "$EASYRSA_PASSIN" ]; then
-			crypto_opts="-passin file:$out_key_pass_tmp"
-		else
-			crypto_opts="$no_password"
-		fi
-
-		# create the CA keypair:
-		easyrsa_openssl req -utf8 -new -key "$out_key_tmp" \
-			-out "$out_file_tmp" ${opts} ${crypto_opts} \
-			${EASYRSA_CA_EXTRA_EXTS} \
-			${EASYRSA_PASSIN:+-passin "$EASYRSA_PASSIN"} || \
-				die "Failed to build the CA"
-	;;
-	# END SSL V3
-
-	# BEGIN SSL V1 - Includes LibreSSL 2.x
-	1|2)
-		# If encrypted then create the CA key using AES256 cipher ($crypto)
-		crypto_opts=""
-		if [ -z "$nopass" ]; then
-			crypto_opts="$crypto"
-			if [ -z "$EASYRSA_PASSOUT" ]; then
-				if [ "ed" = "$EASYRSA_ALGO" ]; then
-					crypto_opts="$crypto_opts -pass file:$out_key_pass_tmp"
-				else
-					crypto_opts="$crypto_opts -passout file:$out_key_pass_tmp"
-				fi
-			fi
-		fi
-
-		# create the CA key
-		case "$EASYRSA_ALGO" in
-		rsa)
-			"$EASYRSA_OPENSSL" genrsa -out "$out_key_tmp" $crypto_opts \
-				${EASYRSA_PASSOUT:+-passout "$EASYRSA_PASSOUT"} \
-				"$EASYRSA_ALGO_PARAMS" || \
-					die "Failed create CA private key"
-		;;
-		ec)
-			"$EASYRSA_OPENSSL" ecparam -in "$EASYRSA_ALGO_PARAMS" -genkey | \
-				"$EASYRSA_OPENSSL" ec -out "$out_key_tmp" $crypto_opts \
-					${EASYRSA_PASSOUT:+-passout "$EASYRSA_PASSOUT"} || \
-						die "Failed create CA private key"
-		;;
-		ed)
-			case "$EASYRSA_CURVE" in
-			[eE][dD]25519|[eE][dD]448)
-				"$EASYRSA_OPENSSL" genpkey -algorithm "$EASYRSA_CURVE" \
-					-out "$out_key_tmp" $crypto_opts \
-					${EASYRSA_PASSOUT:+-pass "$EASYRSA_PASSOUT"} || \
-						die "Failed create CA private key" ;;
-			*)	die "Unknown curve: $EASYRSA_CURVE"
-			esac
+			easyrsa_openssl genpkey -algorithm "$EASYRSA_CURVE" \
+				-out "$out_key_tmp" \
+				${cipher+ "$cipher"} \
+				${EASYRSA_PASSOUT:+ -pass "$EASYRSA_PASSOUT"} \
+				${out_key_pass_tmp:+ -pass file:"$out_key_pass_tmp"} \
+					|| die "Failed create CA private key"
 		;;
 		*)	die "Unknown algorithm: $EASYRSA_ALGO"
 		esac
 
-		# create the CA keypair:
-		crypto_opts=""
-		if [ -z "$nopass" ] && [ -z "$EASYRSA_PASSIN" ]; then
-			crypto_opts="-passin file:$out_key_pass_tmp"
-		else
-			crypto_opts="$no_password"
-
-		fi
-
-		easyrsa_openssl req -utf8 -new -key "$out_key_tmp" \
-			-keyout "$out_key_tmp" -out "$out_file_tmp" $crypto_opts $opts \
-			${EASYRSA_CA_EXTRA_EXTS} \
-			${EASYRSA_PASSIN:+-passin "$EASYRSA_PASSIN"} \
+		# Generate the CA keypair:
+		# shellcheck disable=SC2086 # Double quote to prevent ..
+		easyrsa_openssl req -utf8 -new \
+			-key "$out_key_tmp" -keyout "$out_key_tmp" \
+			-out "$out_file_tmp" \
+			${ssl_batch+ -batch} \
+			${x509+ -x509} \
+			${date_stamp+ -days "$EASYRSA_CA_EXPIRE"} \
+			"$digest" \
+			${no_password+ "$no_password"} \
+			${EASYRSA_PASSIN:+ -passin "$EASYRSA_PASSIN"} \
+			${out_key_pass_tmp:+ -passin file:"$out_key_pass_tmp"} \
 				|| die "Failed to build the CA"
 	;;
-	# END SSL V1
-
 	*)	die "build-ca ssl lib: $osslv_major"
-	esac # => END SSL lib version
+	esac
 
 	mv "$out_key_tmp" "$out_key"
 	mv "$out_file_tmp" "$out_file"
 	[ -f "$out_key_pass_tmp" ] && rm "$out_key_pass_tmp"
 
 	# Success messages
+	[ "$EASYRSA_SILENT" ] || print # Separate Notice below
 	if [ -n "$sub_ca" ]; then
 		notice "\
+
 NOTE: Your intermediate CA request is at $out_file
 and now must be sent to your parent CA for signing. Place your resulting cert
-at $EASYRSA_PKI/ca.crt prior to signing operations.
-"
+at $EASYRSA_PKI/ca.crt prior to signing operations."
 	else	notice "\
+
 CA creation complete and you may now import and sign cert requests.
 Your new CA certificate file for publishing is at:
-$out_file
-"
+$out_file"
 	fi
-	return 0
 } # => build_ca()
 
 # gen-dh backend:
@@ -1039,9 +1043,11 @@ gen_dh() {
 
 	"$EASYRSA_OPENSSL" dhparam -out "$out_file" "$EASYRSA_KEY_SIZE" || \
 		die "Failed to build DH params"
+
+	[ "$EASYRSA_SILENT" ] || print # Separate Notice below
 	notice "\
-DH parameters of size $EASYRSA_KEY_SIZE created at $out_file
-"
+
+DH parameters of size $EASYRSA_KEY_SIZE created at $out_file"
 	return 0
 } # => gen_dh()
 
@@ -1069,7 +1075,7 @@ Run easyrsa without commands for usage and commands."
 			nopass) opts="$opts $no_password" ;;
 			# batch flag supports internal callers needing silent operation
 			batch) openssl_batch=1 ;;
-			*) warn "Ignoring unknown command option: '$1'" ;;
+			*) warn "Ignoring unknown command option: '$1'"
 		esac
 		shift
 	done
@@ -1093,7 +1099,7 @@ Continuing with key generation will replace this key."
 req_extensions = req_extra
 [ req_extra ]
 $EASYRSA_EXTRA_EXTS"
-		#shellcheck disable=SC2016
+		# shellcheck disable=SC2016 # vars don't expand in single quote
 		awkscript='
 {if ( match($0, "^#%EXTRA_EXTS%") )
 	{ while ( getline<"/dev/stdin" ) {print} next }
@@ -1133,11 +1139,13 @@ $EASYRSA_EXTRA_EXTS"
 			|| die "Failed to generate request"
 	mv "$key_out_tmp" "$key_out"
 	mv "$req_out_tmp" "$req_out"
+
 	notice "\
+
 Keypair and certificate request completed. Your files are:
 req: $req_out
-key: $key_out
-"
+key: $key_out"
+
 	return 0
 } # => gen_req()
 
@@ -1157,10 +1165,16 @@ sign_req() {
 		for i in 1 2 3 4 5; do
 			"$EASYRSA_OPENSSL" rand -hex -out "$EASYRSA_PKI/serial" 16
 			serial="$(cat "$EASYRSA_PKI/serial")"
-			check_serial="$("$EASYRSA_OPENSSL" ca -config "$EASYRSA_SSL_CONF" -status "$serial" 2>&1)"
+
+			# Calls LibreSSL directly with a broken config and still works
+			check_serial="$(
+				"$EASYRSA_OPENSSL" ca -config "$EASYRSA_SSL_CONF" \
+					-status "$serial" 2>&1
+				)"
+
 			case "$check_serial" in
 				*"not present in db"*) break ;;
-				*) continue ;;
+				*) continue
 			esac
 		done
 	fi
@@ -1191,7 +1205,7 @@ File Path: $req_in"
 
 	# Display the request subject in an easy-to-read format
 	# Confirm the user wishes to sign this request
-	confirm "Confirm request details: " "yes" "
+	confirm "Confirm request details: " "yes" "\
 You are about to sign the following certificate.
 Please check over the details shown below for accuracy. Note that this request
 has not been cryptographically verified. Please be sure it came from a trusted
@@ -1220,10 +1234,11 @@ $(display_dn req "$req_in")
 			[ -n "$EASYRSA_NS_COMMENT" ] && \
 				print "nsComment = \"$EASYRSA_NS_COMMENT\""
 			case "$crt_type" in
-				serverClient)	print "nsCertType = serverClient" ;;
-				server)		print "nsCertType = server" ;;
-				client)		print "nsCertType = client" ;;
-				ca)		print "nsCertType = sslCA" ;;
+				serverClient) print "nsCertType = serverClient" ;;
+				server) print "nsCertType = server" ;;
+				client) print "nsCertType = client" ;;
+				ca) print "nsCertType = sslCA" ;;
+				*) die "Unknown certificate type: $crt_type"
 			esac
 		fi
 
@@ -1247,9 +1262,7 @@ $(display_dn req "$req_in")
 		fi
 
 		# Add any advanced extensions supplied by env-var:
-		[ -n "$EASYRSA_EXTRA_EXTS" ] && print "$EASYRSA_EXTRA_EXTS"
-
-		: # needed to keep die from inheriting the above test
+		[ -z "$EASYRSA_EXTRA_EXTS" ] || print "$EASYRSA_EXTRA_EXTS"
 	} > "$ext_tmp" || die "\
 Failed to create temp extension file (bad permissions?) at:
 $ext_tmp"
@@ -1264,9 +1277,13 @@ $ext_tmp"
 
 	mv "$crt_out_tmp" "$crt_out"
 	rm -f "$ext_tmp"
+
+	[ "$EASYRSA_SILENT" ] || print # Separate Notice below
+	unset -v EASYRSA_BATCH # This is why batch mode should not silence output
 	notice "\
-Certificate created at: $crt_out
-"
+
+Certificate created at: $crt_out"
+
 	return 0
 } # => sign_req()
 
@@ -1291,7 +1308,7 @@ Run easyrsa without commands for usage and commands."
 		case "$1" in
 			nopass) req_opts="$req_opts nopass" ;;
 			inline) EASYRSA_INLINE=1 ;;
-			*) warn "Ignoring unknown command option: '$1'" ;;
+			*) warn "Ignoring unknown command option: '$1'"
 		esac
 		shift
 	done
@@ -1307,7 +1324,7 @@ Matching file found at: "
 
 	# create request
 	EASYRSA_REQ_CN="$name"
-	#shellcheck disable=SC2086 # Ignore unquoted variables
+	# shellcheck disable=SC2086 # Ignore unquoted variables
 	gen_req "$name" batch $req_opts
 
 	# Sign it
@@ -1384,12 +1401,14 @@ Failed to revoke certificate: revocation command failed."
 	# move revoked files so we can reissue certificates with the same name
 	move_revoked "$1"
 
+	[ "$EASYRSA_SILENT" ] || print # Separate Notice below
 	notice "\
+
 IMPORTANT!!!
 
 Revocation was successful. You must run gen-crl and upload a CRL to your
-infrastructure in order to prevent the revoked cert from being accepted.
-"	# => notice end
+infrastructure in order to prevent the revoked cert from being accepted."
+
 	return 0
 } #= revoke()
 
@@ -1484,9 +1503,13 @@ Error: didn't find a file base name as the first argument.
 Run easyrsa without commands for usage and command help."
 	crt_in="$EASYRSA_PKI/issued/$1.crt"
 
-	opts=""
+	# Upgrade CA index.txt.attr - unique_subject = no
+	up23_upgrade_ca || die "Failed to upgrade CA to support renewal."
+
+	# Append 'nopass'
+	opt_nopass=""
 	if [ "$2" ]; then
-		opts="$2"
+		opt_nopass="$2"
 	fi
 
 	verify_file x509 "$crt_in" || die "\
@@ -1506,25 +1529,31 @@ Unable to renew as no certificate was found. Certificate was expected
 at: $crt_in"
 
 	# Check if old cert is expired or expires within 30
-	# - NOT using: shellcheck disable=SC2086 # Ignore unquoted variables
-	# - The "correct" solution is to not need unquoted substitutions ..
-	expire_date=$(
+	cert_expire_date="$(
 		easyrsa_openssl x509 -in "$crt_in" -noout -enddate |
 		sed 's/^notAfter=//'
-		)
+		)"
 
-	# - NOT using: shellcheck disable=SC2086 # Ignore unquoted variables
-	# - The "correct" solution is to not need unquoted substitutions ..
-	case $(uname 2>/dev/null) in
+	case "$easyrsa_uname" in
 	"Darwin"|*"BSD")
-		expire_date=$(date -j -f '%b %d %T %Y %Z' "$expire_date" +%s)
-		allow_renew_date=$(($(date -j +%s) + 24*60*60*EASYRSA_CERT_RENEW))
+		expire_date="$(date -j -f '%b %d %T %Y %Z' "$cert_expire_date" +%s)"
+		allow_renew_date="$(( $(date -j +%s) + 86400 * EASYRSA_CERT_RENEW ))"
 	;;
 	*)
-		# This works on Windows, too, since uname doesn't exist and this is catch-all
-		expire_date=$(date -d "$expire_date" +%s)
-		allow_renew_date=$(date -d "+${EASYRSA_CERT_RENEW}day" +%s)
-	;;
+		# Linux and Windows
+		if expire_date="$(date -d "$cert_expire_date" +%s)"
+		then
+			allow_renew_date="$(date -d "+${EASYRSA_CERT_RENEW}day" +%s)"
+
+		# Alpine Linux and busybox
+		elif expire_date="$(date -D "%b %e %H:%M:%S %Y" -d "$cert_expire_date" +%s)"
+		then
+			allow_renew_date="$(( $(date +%s) + 86400 * EASYRSA_CERT_RENEW ))"
+
+		# Something else
+		else
+			die "Date failed"
+		fi
 	esac
 
 	[ "$expire_date" -lt "$allow_renew_date" ] || die "\
@@ -1532,14 +1561,12 @@ Certificate expires in more than $EASYRSA_CERT_RENEW days.
 Renewal not allowed."
 
 	# Extract certificate usage from old cert
-	# - NOT using: shellcheck disable=SC2086 # Ignore unquoted variables
-	# - The "correct" solution is to not need unquoted substitutions ..
-	cert_ext_key_usage=$(
+	cert_ext_key_usage="$(
 		easyrsa_openssl x509 -in "$crt_in" -noout -text |
 		sed -n "/X509v3 Extended Key Usage:/{n;s/^ *//g;p;}"
-		)
+		)"
 
-	case $cert_ext_key_usage in
+	case "$cert_ext_key_usage" in
 		"TLS Web Client Authentication")
 			cert_type=client
 			;;
@@ -1549,38 +1576,39 @@ Renewal not allowed."
 		"TLS Web Server Authentication, TLS Web Client Authentication")
 			cert_type=serverClient
 			;;
+		*) die "Unknown key usage: $cert_ext_key_usage"
 	esac
 
 	# Use SAN from --subject-alt-name if set else use SAN from old cert
-	# - NOT using: shellcheck disable=SC2086 # Ignore unquoted variables
-	# - The "correct" solution is to not need unquoted substitutions ..
-	# How did this ever get in ?
-	echo "$EASYRSA_EXTRA_EXTS" | grep -q subjectAltName || \
-	{
-		san=$(
+	if echo "$EASYRSA_EXTRA_EXTS" | grep -q subjectAltName; then
+		: # ok - Use current subjectAltName
+	else
+		san="$(
 			easyrsa_openssl x509 -in "$crt_in" -noout -text |
 			sed -n "/X509v3 Subject Alternative Name:/{n;s/IP Address:/IP:/;s/ //g;p;}"
-			)
+			)"
+
 		[ -n "$san" ] && export EASYRSA_EXTRA_EXTS="\
 $EASYRSA_EXTRA_EXTS
 subjectAltName = $san"
-	}
+	fi
 
 	# move renewed files so we can reissue certificate with the same name
 	# FIXME: Modify revoke() to also work on the renewed certs subdir
 	move_renewed "$1"
 
 	# renew certificate
-	# shellcheck disable=SC2086 # Ignore unquoted variables
-	build_full $cert_type "$1" $opts || die "\
+	build_full "$cert_type" "$1" "$opt_nopass" || die "\
 Failed to renew certificate: renew command failed."
 
+	[ "$EASYRSA_SILENT" ] || print # Separate Notice below
 	notice "\
+
 IMPORTANT!!!
 
 Renew was successful.
-You may want to revoke the old certificate once the new one has been deployed.
-"	# => notice end
+You may want to revoke the old certificate once the new one has been deployed."
+
 	return 0
 } #= renew()
 
@@ -1672,17 +1700,18 @@ gen_crl() {
 	out_file="$EASYRSA_PKI/crl.pem"
 	out_file_tmp="$(easyrsa_mktemp)" || die "Failed to create temporary file"
 
-	# shellcheck disable=SC2086 # Ignore unquoted variables
 	easyrsa_openssl ca -utf8 -gencrl -out "$out_file_tmp" \
 		${EASYRSA_PASSIN:+-passin "$EASYRSA_PASSIN"} || die "\
-CRL Generation failed.
-"
+CRL Generation failed."
+
 	mv "$out_file_tmp" "$out_file"
 
+	[ "$EASYRSA_SILENT" ] || print # Separate Notice below
 	notice "\
+
 An updated CRL has been created.
-CRL file: $out_file
-"
+CRL file: $out_file"
+
 	return 0
 } # => gen_crl()
 
@@ -1712,9 +1741,10 @@ Existing file at: $out_req"
 	cp "$in_req" "$out_req"
 
 	notice "\
+
 The request has been successfully imported with a short name of: $short_name
-You may now use this name to perform signing operations on this request.
-"
+You may now use this name to perform signing operations on this request."
+
 	return 0
 } # => import_req()
 
@@ -1744,12 +1774,12 @@ Run easyrsa without commands for usage and command help."
 			noca) want_ca="" ;;
 			nokey) want_key="" ;;
 			nopass) want_pass="" ;;
-			*) warn "Ignoring unknown command option: '$1'" ;;
+			usefn) pkcs_friendly_name=$short_name ;;
+			*) warn "Ignoring unknown command option: '$1'"
 		esac
 		shift
 	done
 
-	pkcs_opts=
 	pkcs_certfile_path=
 	if [ "$want_ca" ]; then
 		verify_file x509 "$crt_ca" || die "\
@@ -1773,42 +1803,42 @@ Unable to export p12 for short name '$short_name' without the key
 (if you want a p12 without the private key, use nokey option.)
 Missing key expected at: $key_in"
 		else
-			pkcs_opts="-nokeys"
+			nokeys=1
 		fi
 
 		# export the p12:
-		# shellcheck disable=SC2086 # Ignore unquoted variables
 		easyrsa_openssl pkcs12 -in "$crt_in" -inkey "$key_in" -export \
-			-out "$pkcs_out" $pkcs_opts \
-			${pkcs_certfile_path:+-certfile "$pkcs_certfile_path"} \
-			${EASYRSA_PASSIN:+-passin "$EASYRSA_PASSIN"} \
-			${EASYRSA_PASSOUT:+-passout "$EASYRSA_PASSOUT"} || die "\
+			-out "$pkcs_out" \
+			${nokeys:+ -nokeys} \
+			${pkcs_friendly_name:+ -name "$pkcs_friendly_name"} \
+			${pkcs_certfile_path:+ -certfile "$pkcs_certfile_path"} \
+			${EASYRSA_PASSIN:+ -passin "$EASYRSA_PASSIN"} \
+			${EASYRSA_PASSOUT:+ -passout "$EASYRSA_PASSOUT"} || die "\
 Export of p12 failed: see above for related openssl errors."
 	;;
 	p7)
 		pkcs_out="$EASYRSA_PKI/issued/$short_name.p7b"
 
 		# export the p7:
-		# shellcheck disable=SC2086 # Ignore unquoted variables
 		easyrsa_openssl crl2pkcs7 -nocrl -certfile "$crt_in" \
 			-out "$pkcs_out" \
-			${pkcs_certfile_path:+-certfile "$pkcs_certfile_path"} \
-			${EASYRSA_PASSIN:+-passin "$EASYRSA_PASSIN"} \
-			${EASYRSA_PASSOUT:+-passout "$EASYRSA_PASSOUT"} || die "\
+			${pkcs_certfile_path:+ -certfile "$pkcs_certfile_path"} \
+				|| die "\
 Export of p7 failed: see above for related openssl errors."
 	;;
 	p8)
-		if [ -z "$want_pass" ]; then
-			pkcs_opts="-nocrypt"
-		fi
 		pkcs_out="$EASYRSA_PKI/private/$short_name.p8"
 
+		if [ -z "$want_pass" ]; then
+			EASYRSA_PASSIN=pass:
+			EASYRSA_PASSOUT=pass:
+		fi
+
 		# export the p8:
-		# shellcheck disable=SC2086 # Ignore unquoted variables
 		easyrsa_openssl pkcs8 -in "$key_in" -topk8 \
-			-out "$pkcs_out" $pkcs_opts \
-			${EASYRSA_PASSIN:+-passin "$EASYRSA_PASSIN"} \
-			${EASYRSA_PASSOUT:+-passout "$EASYRSA_PASSOUT"} || die "\
+			-out "$pkcs_out" \
+			${EASYRSA_PASSIN:+ -passin "$EASYRSA_PASSIN"} \
+			${EASYRSA_PASSOUT:+ -passout "$EASYRSA_PASSOUT"} || die "\
 Export of p8 failed: see above for related openssl errors."
       ;;
 	p1)
@@ -1823,12 +1853,14 @@ Export of p8 failed: see above for related openssl errors."
 			-out "$pkcs_out" ${EASYRSA_PASSIN:+-passin "$EASYRSA_PASSIN"} ${EASYRSA_PASSOUT:+-passout "$EASYRSA_PASSOUT"} || die "\
 Export of p1 failed: see above for related openssl errors."
 	;;
-esac
+	*) die "Unknown PKCS type: $pkcs_type"
+	esac
 
 	notice "\
+
 Successful export of $pkcs_type file. Your exported file is at the following
-location: $pkcs_out
-"
+location: $pkcs_out"
+
 	return 0
 } # => export_pkcs()
 
@@ -1848,15 +1880,23 @@ See help output for usage details."
 
 	# parse command options
 	shift 2
-	crypto="-aes256"
+	cipher="-aes256"
+	unset nopass
 	while [ -n "$1" ]; do
 		case "$1" in
-			nopass)	crypto="" ;;
-			file)	file="$raw_file" ;;
-			*)	warn "Ignoring unknown command option: '$1'" ;;
+			nopass) nopass=1 ;;
+			file) file="$raw_file" ;;
+			*) warn "Ignoring unknown command option: '$1'"
 		esac
 		shift
 	done
+
+	# If nopass then do not encrypt else encrypt with password.
+	if [ "$nopass" ]; then
+		unset -v cipher
+	else
+		unset -v no_password
+	fi
 
 	[ -f "$file" ] || die "\
 Missing private key: expected to find the private key component at:
@@ -1868,16 +1908,18 @@ ${crypto:+You will then enter a new PEM passphrase for this key.$NL}"
 
 	# Set password
 	out_key_tmp="$(easyrsa_mktemp)" || die "Failed to create temporary file"
-	# shellcheck disable=SC2086 # Ignore unquoted variables
-	easyrsa_openssl "$key_type" -in "$file" -out "$out_key_tmp" $crypto \
-		${EASYRSA_PASSIN:+-passin "$EASYRSA_PASSIN"} \
-		${EASYRSA_PASSOUT:+-passout "$EASYRSA_PASSOUT"} || die "\
+	easyrsa_openssl "$key_type" -in "$file" -out "$out_key_tmp" \
+		${cipher:+ "$cipher"} \
+		${no_password:+ "$no_password"} \
+		${EASYRSA_PASSIN:+ -passin "$EASYRSA_PASSIN"} \
+		${EASYRSA_PASSOUT:+ -passout "$EASYRSA_PASSOUT"} || die "\
 Failed to change the private key passphrase. See above for possible openssl
 error messages."
 
 	mv "$out_key_tmp" "$file" || die "\
 Failed to change the private key passphrase. See above for error messages."
 
+	[ "$EASYRSA_SILENT" ] || print # Separate Notice below
 	notice "Key passphrase successfully changed"
 
 	return 0
@@ -1890,9 +1932,11 @@ update_db() {
 	easyrsa_openssl ca -utf8 -updatedb \
 		${EASYRSA_PASSIN:+-passin "$EASYRSA_PASSIN"} || die "\
 Failed to perform update-db: see above for related openssl errors."
+
 	return 0
 } # => update_db()
 
+# Display subjectAltName
 display_san() {
 	format="$1" path="$2"
 
@@ -1900,39 +1944,37 @@ display_san() {
 		print "$(echo "$EASYRSA_EXTRA_EXTS" | grep subjectAltName |
 			sed 's/^\s*subjectAltName\s*=\s*//')"
 	else
-		san=$(
+		san="$(
 		x509v3san="X509v3 Subject Alternative Name:"
 		"$EASYRSA_OPENSSL" "$format" -in "$path" -noout -text |
 			sed -n "/${x509v3san}/{n;s/ //g;s/IPAddress:/IP:/g;s/RegisteredID/RID/;p;}"
-			)
+			)"
 
 		[ -n "$san" ] && print "$san"
 	fi
-}
+} # => display_san()
 
 # display cert DN info on a req/X509, passed by full pathname
 display_dn() {
 	format="$1" path="$2"
 	print "$("$EASYRSA_OPENSSL" "$format" -in "$path" -noout -subject -nameopt multiline)"
-	san=$(display_san "$1" "$2")
+	san="$(display_san "$1" "$2")"
 	if [ -n "$san" ]; then
 		print ""
 		print "X509v3 Subject Alternative Name:"
 		print "    $san"
 	fi
-
 } # => display_dn()
 
 # generate default SAN from req/X509, passed by full pathname
 default_server_san() {
 	path="$1"
-	cn=$(
+	cn="$(
 		easyrsa_openssl req -in "$path" -noout -subject -nameopt sep_multiline |
 		awk -F'=' '/^  *CN=/{print $2}'
-		)
-	echo "$cn" | grep -E -q '^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$'
-	#shellcheck disable=SC2181
-	if [ $? -eq 0 ]; then
+		)"
+
+	if echo "$cn" | grep -E -q '^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$'; then
 		print "subjectAltName = IP:$cn"
 	else
 		print "subjectAltName = DNS:$cn"
@@ -1960,15 +2002,12 @@ Run easyrsa without commands for usage help."
 	shift 2
 
 	# opts support
-	opts="-${type}opt no_pubkey,no_sigdump"
+	type_opts="-${type}opt"
+	out_opts="no_pubkey,no_sigdump"
 	while [ -n "$1" ]; do
 		case "$1" in
-			full)
-				opts=""
-				;;
-			*)
-				warn "Ignoring unknown command option: '$1'"
-				;;
+			full) out_opts= ;;
+			*) warn "Ignoring unknown command option: '$1'"
 		esac
 		shift
 	done
@@ -1989,19 +2028,19 @@ Run easyrsa without commands for usage help."
 No such $type file with a basename of '$name' is present.
 Expected to find this file at:
 $in_file"
-	# shellcheck disable=SC2086 # Ignore unquoted variables
-	verify_file $format "$in_file" || die "\
+
+	verify_file "$format" "$in_file" || die "\
 This file is not a valid $type file:
 $in_file"
 
 	notice "\
-Showing $type details for '$name'.
-This file is stored at:
-$in_file
-"
-	# shellcheck disable=SC2086 # Ignore unquoted variables
-	easyrsa_openssl $format -in "$in_file" -noout -text\
-		-nameopt multiline $opts || die "\
+
+  Showing $type details for '$name'.
+  This file is stored at:
+  * $in_file"
+
+	easyrsa_openssl "$format" -in "$in_file" -noout -text \
+		-nameopt multiline "$type_opts" "$out_opts" || die "\
 OpenSSL failure to process the input"
 } # => show()
 
@@ -2009,11 +2048,11 @@ OpenSSL failure to process the input"
 # Prints CA cert details in a readable format
 show_ca() {
 	# opts support
-	opts="-certopt no_pubkey,no_sigdump"
+	out_opts="no_pubkey,no_sigdump"
 	while [ -n "$1" ]; do
 		case "$1" in
-			full) opts= ;;
-			*) warn "Ignoring unknown command option: '$1'" ;;
+			full) out_opts= ;;
+			*) warn "Ignoring unknown command option: '$1'"
 		esac
 		shift
 	done
@@ -2028,19 +2067,18 @@ No such $type file with a basename of '$name' is present.
 Expected to find this file at:
 $in_file"
 
-	verify_file $format "$in_file" || die "\
+	verify_file "$format" "$in_file" || die "\
 This file is not a valid $type file:
 $in_file"
 
 	notice "\
-Showing $type details for 'ca'.
-This file is stored at:
-$in_file
-"
 
-	# shellcheck disable=SC2086 # Ignore unquoted variables
-	easyrsa_openssl $format -in "$in_file" -noout -text\
-		-nameopt multiline $opts || die "\
+  Showing $type details for 'ca'.
+  This file is stored at:
+  * $in_file"
+
+	easyrsa_openssl "$format" -in "$in_file" -noout -text\
+		-nameopt multiline -certopt "$out_opts" || die "\
 OpenSSL failure to process the input"
 } # => show_ca()
 
@@ -2058,21 +2096,23 @@ vars_setup() {
 	prog_file="$0"
 	# Removed for basic sanity - To re-enable provide a REASON
 	#prog_file2="$(which -- "$prog_file" 2>/dev/null)" && prog_file="$prog_file2"
-	# Removed for breaking New Windows - To re-enable provide a SOLUTION
 	#prog_file2="$(readlink -f "$prog_file" 2>/dev/null)" && prog_file="$prog_file2"
 	prog_dir="${prog_file%/*}"
 
 	# Program dir vars - This location is least wanted.
 	prog_vars="${prog_dir}/vars"
+
 	# set up PKI path vars - Top preference
 	pki_vars="${EASYRSA_PKI:-$PWD/pki}/vars"
-	keep_pki_vars="$pki_vars"
+	expected_pki_vars="$pki_vars"
+
 	# Some other place vars, out of scope.
 	if [ "$EASYRSA" ]; then
 		easy_vars="${EASYRSA}/vars"
 	else
 		unset -v easy_vars
 	fi
+
 	# vars of last resort - Eventually this file must be removed from EasyRSA
 	pwd_vars="$PWD/vars"
 
@@ -2090,47 +2130,43 @@ vars_setup() {
 	else
 		# if NOT $want_init_pki
 		if [ -z "$want_init_pki" ]; then
+
+			# Clear flags - This is the preferred order to find:
+			unset -v e_pki_vars e_easy_vars e_pwd_vars e_prog_vars \
+					found_vars
+
 			# PKI location, if present:
-			[ -e "$pki_vars" ] || unset -v pki_vars
-			# program location:
-			[ -e "$prog_vars" ] || unset -v prog_vars
+			{ [ -e "$pki_vars" ] && e_pki_vars=1; } || unset -v pki_vars
+
 			# EASYRSA, if defined:
-			[ -e "$easy_vars" ] || unset -v easy_vars
-			# vars of last resort - Eventually this file must be removed from EasyRSA
-			[ -e "$pwd_vars" ] || unset -v pwd_vars
+			{ [ -e "$easy_vars" ] && e_easy_vars=1; } || unset -v easy_vars
+
+			# Eventually the file below must be removed from EasyRSA
+			# vars of last resort
+			{ [ -e "$pwd_vars" ] && e_pwd_vars=1; } || unset -v pwd_vars
+
+			# program location:
+			{ [ -e "$prog_vars" ] && e_prog_vars=1; } || unset -v prog_vars
 
 			# Allow only one vars to be found, No exceptions!
-			too_many_vars=
-			if [ "$pki_vars" ]; then
-				if [ "$pwd_vars" ] || [ "$easy_vars" ] || [ "$prog_vars" ]; then
-					too_many_vars=1
-				fi
-			elif [ "$prog_vars" ]; then
-				if [ "$pwd_vars" ] || [ "$easy_vars" ]; then
-					too_many_vars=1
-				fi
-			elif [ "$easy_vars" ]; then
-				if [ "$pwd_vars" ]; then
-					too_many_vars=1
-				fi
-			elif [ "$pwd_vars" ]; then
-				warn "Move your vars file to your PKI folder, where it is safe!"
-			else
-				warn "No vars file found! Please create one in your PKI folder."
-			fi
+			found_vars="$((e_pki_vars + e_easy_vars + e_pwd_vars + e_prog_vars))"
 
-			# If too_many_vars then output user info and exit
-			if [ "$too_many_vars" ]; then
-				[ "$pki_vars" ] && print "Found: $pki_vars"
-				[ "$prog_vars" ] && print "Found: $prog_vars"
-				[ "$easy_vars" ] && print "Found: $easy_vars"
-				[ "$pwd_vars" ] && print "Found: $pwd_vars"
-				die "Conflicting 'vars' files found.
+			# If found_vars greater than 1 then output user info and exit
+			case "$found_vars" in
+				0) unset -v found_vars ;;
+				1) : ;; # ok
+				*)
+					[ "$e_pki_vars" ] && print "Found: $pki_vars"
+					[ "$e_easy_vars" ] && print "Found: $easy_vars"
+					[ "$e_pwd_vars" ] && print "Found: $pwd_vars"
+					[ "$e_prog_vars" ] && print "Found: $prog_vars"
+					die "\
+Conflicting 'vars' files found.
 
 Priority should be given to your PKI vars file:
-* $keep_pki_vars
+* $expected_pki_vars
 "
-			fi
+			esac
 
 			# If a SINGLE vars file is found then assign $vars
 			[ "$pwd_vars" ] && vars="$pwd_vars"
@@ -2140,41 +2176,82 @@ Priority should be given to your PKI vars file:
 		fi
 
 		# If $EASYRSA_NO_VARS is defined (not blank) then do not use vars
-		# if $want_init_pki then do not use vars
-		if [ -z "$EASYRSA_NO_VARS" ] && [ -z "$want_init_pki" ]; then
+		# if $want_init_pki then no vars is required.
+		if [ "$EASYRSA_NO_VARS" ] || [ "$want_init_pki" ]; then
+			: # ok
+		else
 			# If a vars file was located then source it
-			if [ "$vars" ]; then
+			if [ -z "$vars" ]; then
+				# $vars remains undefined .. no vars found
+				: # ok
+			else
+				# Sanitize vars
 				if grep -Eq 'EASYRSA_PASSIN|EASYRSA_PASSOUT' "$vars"; then
 					die "\
-Variable EASYRSA_PASSIN or EASYRSA_PASSOUT has been found in the configuration \
-file. Storing sensitive information in the configuration file is not \
+Variable EASYRSA_PASSIN or EASYRSA_PASSOUT has been found in the configuration
+file. Storing sensitive information in the configuration file is not
 recommended - please remove it from there before continuing."
 				fi
+
+				# Sanitize vars further but ONLY if it is in PKI folder
+				if [ "$pki_vars" ]; then
+					# Warning: Single quote
+					if grep -q "'" "$vars"; then
+						warn "\
+Single quote (') has been found in the configuration file.
+This character is not supported in the configuration file.
+Sourcing the vars file will probably fail .."
+					fi
+				fi
+
 				# shellcheck disable=SC2034 # EASYRSA_CALLER appears unused.
 				EASYRSA_CALLER=1
 				# shellcheck disable=1090 # can't follow non-constant source. vars
 				. "$vars"
-				notice "\
-Note: using Easy-RSA configuration from: $vars"
-			else
-				# $vars remains undefined .. no vars found
-				[ "$want_init_pki" ] || warn "  No vars file defined!
-
-Expected to find 'vars' file:
-* $keep_pki_vars
-"
+				notice "Using Easy-RSA configuration from: $vars"
+				[ "$pki_vars" ] || \
+					warn "Move your vars file to your PKI folder, where it is safe!"
 			fi
-		else
-			# EASYRSA_NO_VARS is defined or want_init_pki, no vars is required.
-			: # ok
 		fi
 	# END: Find vars
 	fi
 
+	# Identify host OS
+	unset -v easyrsa_host_os easyrsa_host_test easyrsa_win_git_bash
+
+	# Detect Windows
+	[ "${OS}" ] && easyrsa_host_test="${OS}"
+
+	# shellcheck disable=SC2016 # expansion inside '' blah
+	easyrsa_ksh='@(#)MIRBSD KSH R39-w32-beta14 $Date: 2013/06/28 21:28:57 $'
+	[ "${KSH_VERSION}" = "${easyrsa_ksh}" ] && easyrsa_host_test="${easyrsa_ksh}"
+	#unset -v easyrsa_ksh
+
+	# If not Windows then nix
+	if [ "${easyrsa_host_test}" ]; then
+		easyrsa_host_os=win
+		easyrsa_uname="${easyrsa_host_test}"
+		easyrsa_shell="$easyrsa_ksh"
+		# Detect Windows git/bash
+		if [ "${EXEPATH}" ]; then
+			easyrsa_shell="$SHELL (Git)"
+			easyrsa_win_git_bash="${EXEPATH}"
+			# If found then set openssl NOW!
+			[ -e /usr/bin/openssl ] && set_var EASYRSA_OPENSSL /usr/bin/openssl
+		fi
+	else
+		easyrsa_host_os=nix
+		easyrsa_uname="$(uname 2>/dev/null)"
+		easyrsa_shell="$SHELL"
+	fi
+	host_out="$easyrsa_host_os | $easyrsa_uname | $easyrsa_shell"
+	host_out="${host_out}${easyrsa_win_git_bash+ | "$easyrsa_win_git_bash"}"
+	unset -v easyrsa_host_test
+
 	# Set defaults, preferring existing env-vars if present
 	set_var EASYRSA					"$PWD"
 	set_var EASYRSA_OPENSSL			openssl
-	set_var EASYRSA_PKI				"$PWD/pki"
+	set_var EASYRSA_PKI				"$EASYRSA/pki"
 	set_var EASYRSA_DN				cn_only
 	set_var EASYRSA_REQ_COUNTRY		"US"
 	set_var EASYRSA_REQ_PROVINCE	"California"
@@ -2195,16 +2272,19 @@ Expected to find 'vars' file:
 	set_var EASYRSA_TEMP_DIR		"$EASYRSA_PKI"
 	set_var EASYRSA_REQ_CN			ChangeMe
 	set_var EASYRSA_DIGEST			sha256
+
 	set_var EASYRSA_SSL_CONF		"$EASYRSA_PKI/openssl-easyrsa.cnf"
 	set_var EASYRSA_SAFE_CONF		"$EASYRSA_PKI/safessl-easyrsa.cnf"
+	set_var OPENSSL_CONF			"$EASYRSA_SAFE_CONF"
+
 	set_var EASYRSA_KDC_REALM		"CHANGEME.EXAMPLE.COM"
 
 	# EASYRSA_ALGO_PARAMS must be set depending on selected algo
 	case "$EASYRSA_ALGO" in
-	ec)		EASYRSA_ALGO_PARAMS="$EASYRSA_EC_DIR/${EASYRSA_CURVE}.pem" ;;
-	rsa)	EASYRSA_ALGO_PARAMS="${EASYRSA_KEY_SIZE}" ;;
-	ed)		: ;; # ok
-	*)		die "Alg '$EASYRSA_ALGO' is invalid: must be 'rsa', 'ec' or 'ed' "
+		rsa) EASYRSA_ALGO_PARAMS="${EASYRSA_KEY_SIZE}" ;;
+		ec) EASYRSA_ALGO_PARAMS="$EASYRSA_EC_DIR/${EASYRSA_CURVE}.pem" ;;
+		ed) : ;; # ok
+		*) die "Alg '$EASYRSA_ALGO' is invalid: must be 'rsa', 'ec' or 'ed' "
 	esac
 
 	# Assign value to $EASYRSA_TEMP_DIR_session
@@ -2218,11 +2298,13 @@ Expected to find 'vars' file:
 	#
 	# Also, integrate a partial 'init-pki' by using 'install_data_to_pki()'
 	#
-	if [ -z "$EASYRSA_TEMP_DIR_session" ]; then
+	# If EASYRSA_PKI directory exists then
+	if [ -d "$EASYRSA_PKI" ]; then
+
+		# Temp dir session
+		secure_session || die "Temporary directory secure-session failed."
+
 		if [ -d "$EASYRSA_TEMP_DIR" ]; then
-			EASYRSA_TEMP_DIR_session="$(
-					mktemp -du "$EASYRSA_TEMP_DIR/easy-rsa-$$.XXXXXX"
-				)"
 
 			#TODO: This should be removed.  Not really suitable for packaging.
 			#set_var EASYRSA_EXT_DIR		"$EASYRSA/x509-types"
@@ -2243,25 +2325,10 @@ Expected to find 'vars' file:
 				die "Failed to find Safe-SSL config file."
 			fi
 
-			# Upgrade to 306: Create $EASYRSA_SSL_CONF if it does not exist
-			# but only if $EASYRSA_PKI exists.
-			if [ -d "$EASYRSA_PKI" ] && [ -e "$EASYRSA/openssl-easyrsa.cnf" ] && \
-				[ ! -e "$EASYRSA_SSL_CONF" ]
-			then
-				cp "$EASYRSA/openssl-easyrsa.cnf" "$EASYRSA_SSL_CONF"
-				easyrsa_openssl makesafeconf
-			fi
-
 		else
 			# If the directory does not exist then we have not run init-pki
-			if mkdir -p "$EASYRSA_TEMP_DIR"; then
-				EASYRSA_TEMP_DIR_session="$(
-					mktemp -du "$EASYRSA_TEMP_DIR/easy-rsa-$$.XXXXXX"
-					)"
-				rm -rf "$EASYRSA_TEMP_DIR"
-			else
-				die "Cannot create $EASYRSA_TEMP_DIR (permission?)"
-			fi
+			# The temp-dir is Always created by 'install_data_to_pki'
+			: # ok
 		fi
 	fi
 } # vars_setup()
@@ -2275,6 +2342,7 @@ set_var() {
 	value="$*"
 	eval "export $var=\"\${$var-$value}\""
 } #=> set_var()
+
 
 
 ############################################################################
@@ -2863,14 +2931,15 @@ return 0
 
 print_version()
 {
-		cat <<HERE
+	ssl_version="$("${EASYRSA_OPENSSL:-openssl}" version)"
+		cat << VERSION_TEXT
 EasyRSA Version Information
 Version:     ~VER~
 Generated:   ~DATE~
-SSL Lib:     $($EASYRSA_OPENSSL version)
+SSL Lib:     $ssl_version
 Git Commit:  ~GITHEAD~
 Source Repo: https://github.com/OpenVPN/easy-rsa
-HERE
+VERSION_TEXT
 		exit 0
 } # => print_version ()
 
@@ -2899,6 +2968,8 @@ while :; do
 		;;
 	--pki-dir)
 		export EASYRSA_PKI="$val" ;;
+	--tmp-dir)
+		export EASYRSA_TEMP_DIR="$val" ;;
 	--ssl-conf)
 		export EASYRSA_SSL_CONF="$val" ;;
 	--use-algo)
@@ -2962,10 +3033,12 @@ while :; do
 $EASYRSA_EXTRA_EXTS
 subjectAltName = $val" ;;
 	--version)
-		print_version
+		shift "$#"
+		set -- "$@" "version"
+		break
 		;;
 	*)
-		break ;;
+		break
 	esac
 
 	# fatal error when no value was provided
@@ -2975,17 +3048,6 @@ subjectAltName = $val" ;;
 
 	shift
 done
-
-# Set cmd now because vars_setup needs to know if this is init-pki
-cmd="$1"
-[ -n "$1" ] && shift # scrape off command
-case "$cmd" in
-init-pki|clean-all) want_init_pki=1 ;;
-*) unset -v want_init_pki
-esac
-
-# Intelligent env-var detection and auto-loading:
-vars_setup
 
 # Register cleanup on EXIT
 trap "cleanup" EXIT
@@ -2997,9 +3059,21 @@ trap "exit 3" 3
 trap "exit 6" 6
 trap "exit 14" 15
 
-# Upgrade: EasyRSA v2.x to EasyRSA v3.x
-# Upgrade: EasyRSA < v3.0.6 to v3.0.6+
-#up23_manage_upgrade_23
+# Set cmd now because vars_setup needs to know if this is init-pki
+cmd="$1"
+[ -n "$1" ] && shift # scrape off command
+
+# This avoids unnecessary warnings and notices
+# want_init_pki can probably be renamed to something more apt
+case "$cmd" in
+	init-pki|clean-all) want_init_pki=1 ;;
+	""|help|-h|--help|--usage) want_init_pki=1 ;;
+	version) want_init_pki=1 ;;
+	*) unset -v want_init_pki
+esac
+
+# Intelligent env-var detection and auto-loading:
+vars_setup
 
 # determine how we were called, then hand off to the function responsible
 case "$cmd" in
@@ -3081,7 +3155,6 @@ case "$cmd" in
 		;;
 	*)
 		die "Unknown command '$cmd'. Run without commands for usage help."
-		;;
 esac
 
 # vim: ft=sh nu ai sw=8 ts=8 noet
