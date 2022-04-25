@@ -41,6 +41,7 @@ Here is the list of commands available with a short syntax reminder. Use the
   show-req <filename_base> [ cmd-opts ]
   show-cert <filename_base> [ cmd-opts ]
   show-ca [ cmd-opts ]
+  show-crl
   import-req <request_file_path> <short_basename>
   export-p1 <filename_base> [ cmd-opts ]
   export-p7 <filename_base> [ cmd-opts ]
@@ -150,6 +151,11 @@ cmd_help() {
       Human-readable output is shown."
 			opts="
         full    - show full cert info, including pubkey/sig data" ;;
+		show-crl) text="
+  show-crl
+      Shows details of the current certificate revocation list (CRL)
+
+      Human-readable output is shown." ;;
 		import-req) text="
   import-req <request_file_path> <short_basename>
       Import a certificate request from a file
@@ -2018,6 +2024,7 @@ Run easyrsa without commands for usage help."
 	# opts support
 	type_opts="-${type}opt"
 	out_opts="no_pubkey,no_sigdump"
+	name_opts=multiline
 	while [ -n "$1" ]; do
 		case "$1" in
 			full) out_opts= ;;
@@ -2026,16 +2033,26 @@ Run easyrsa without commands for usage help."
 		shift
 	done
 
-	# Determine cert/req type
-	if [ "$type" = "cert" ]; then
+	# Determine cert/req type (v2)
+	case "$type" in
+	cert)
 		verify_ca_init
 		in_file="$EASYRSA_PKI/issued/${name}.crt"
 		format="x509"
-	else
+	;;
+	req)
 		verify_pki_init
 		in_file="$EASYRSA_PKI/reqs/${name}.req"
 		format="req"
-	fi
+	;;
+	crl)
+		verify_ca_init
+		in_file="$EASYRSA_PKI/${name}.pem"
+		format="crl"
+		unset type_opts out_opts name_opts
+	;;
+	*) die "Unrecognised type: $type"
+	esac
 
 	# Verify file exists and is of the correct type
 	[ -f "$in_file" ] || die "\
@@ -2054,7 +2071,9 @@ $in_file"
   * $in_file"
 
 	easyrsa_openssl "$format" -in "$in_file" -noout -text \
-		-nameopt multiline "$type_opts" "$out_opts" || die "\
+		${type_opts+ "$type_opts" "$out_opts"} \
+		${name_opts+ -nameopt "$name_opts"} \
+			|| die "\
 OpenSSL failure to process the input"
 } # => show()
 
@@ -3153,6 +3172,9 @@ case "$cmd" in
 		;;
 	show-cert)
 		show cert "$@"
+		;;
+	show-crl)
+		show crl crl
 		;;
 	show-ca)
 		show_ca "$@"
