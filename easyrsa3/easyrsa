@@ -42,6 +42,7 @@ Here is the list of commands available with a short syntax reminder. Use the
   show-cert <filename_base> [ cmd-opts ]
   show-ca [ cmd-opts ]
   import-req <request_file_path> <short_basename>
+  export-p1 <filename_base> [ cmd-opts ]
   export-p7 <filename_base> [ cmd-opts ]
   export-p8 <filename_base> [ cmd-opts ]
   export-p12 <filename_base> [ cmd-opts ]
@@ -175,7 +176,12 @@ cmd_help() {
   export-p8 <filename_base> [ cmd-opts ]
       Export a PKCS#8 file with the private key specified by <filename_base>"
 			opts="
-        noca  - do not include the ca.crt file in the PKCS7 output" ;;
+	nopass - use or expect unencrypted private key" ;;
+		export-p1) text="
+  export-p1 <filename_base> [ cmd-opts ]
+	  Export a PKCS#1 (RSA format) file with the pubkey specified by <filename_base>"
+			opts="
+	nopass - use no password and leave the key unencrypted" ;;
 		set-rsa-pass|set-ec-pass) text="
   set-rsa-pass <filename_base> [ cmd-opts ]
   set-ec-pass <filename_base> [ cmd-opts ]
@@ -1742,7 +1748,7 @@ You may now use this name to perform signing operations on this request."
 	return 0
 } # => import_req()
 
-# export pkcs12 pkcs7 pkcs8
+# export pkcs#12, pkcs#7, pkcs#8 or pkcs#1
 export_pkcs() {
 	pkcs_type="$1"
 	shift
@@ -1834,6 +1840,18 @@ Export of p7 failed: see above for related openssl errors."
 			${EASYRSA_PASSIN:+ -passin "$EASYRSA_PASSIN"} \
 			${EASYRSA_PASSOUT:+ -passout "$EASYRSA_PASSOUT"} || die "\
 Export of p8 failed: see above for related openssl errors."
+      ;;
+	p1)
+		pkcs_out="$EASYRSA_PKI/private/$short_name.p1"
+		if [ -z "$want_pass" ]; then
+			opts="-aes256"
+		fi
+
+		# export the p1:
+		# shellcheck disable=SC2086
+		easyrsa_openssl rsa -in "$key_in" $opts \
+			-out "$pkcs_out" ${EASYRSA_PASSIN:+-passin "$EASYRSA_PASSIN"} ${EASYRSA_PASSOUT:+-passout "$EASYRSA_PASSOUT"} || die "\
+Export of p1 failed: see above for related openssl errors."
 	;;
 	*) die "Unknown PKCS type: $pkcs_type"
 	esac
@@ -3103,6 +3121,9 @@ case "$cmd" in
 		;;
 	export-p8)
 		export_pkcs p8 "$@"
+		;;
+	export-p1)
+		export_pkcs p1 "$@"
 		;;
 	set-rsa-pass)
 		set_pass rsa "$@"
