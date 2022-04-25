@@ -164,24 +164,24 @@ cmd_help() {
   export-p12 <filename_base> [ cmd-opts ]
       Export a PKCS#12 file with the keypair specified by <filename_base>"
 			opts="
-        noca  - do not include the ca.crt file in the PKCS12 output
-        nokey - do not include the private key in the PKCS12 output
-        usefn - use <filename_base> as friendly name" ;;
+        noca   - do not include the ca.crt file in the PKCS12 output
+        nokey  - do not include the private key in the PKCS12 output
+        usefn  - use <filename_base> as friendly name" ;;
 		export-p7) text="
   export-p7 <filename_base> [ cmd-opts ]
       Export a PKCS#7 file with the pubkey specified by <filename_base>"
 			opts="
-        noca  - do not include the ca.crt file in the PKCS7 output" ;;
+        noca   - do not include the ca.crt file in the PKCS7 output" ;;
 		export-p8) text="
   export-p8 <filename_base> [ cmd-opts ]
       Export a PKCS#8 file with the private key specified by <filename_base>"
 			opts="
-	nopass - use or expect unencrypted private key" ;;
+        nopass - do not encrypt the private key (default is encrypted)" ;;
 		export-p1) text="
   export-p1 <filename_base> [ cmd-opts ]
-	  Export a PKCS#1 (RSA format) file with the pubkey specified by <filename_base>"
+      Export a PKCS#1 (RSA format) file with the pubkey specified by <filename_base>"
 			opts="
-	nopass - use no password and leave the key unencrypted" ;;
+        nopass - do not encrypt the private key (default is encrypted)" ;;
 		set-rsa-pass|set-ec-pass) text="
   set-rsa-pass <filename_base> [ cmd-opts ]
   set-ec-pass <filename_base> [ cmd-opts ]
@@ -1766,6 +1766,7 @@ Run easyrsa without commands for usage and command help."
 	verify_pki_init
 
 	# opts support
+	cipher=-aes256
 	want_ca=1
 	want_key=1
 	want_pass=1
@@ -1774,7 +1775,7 @@ Run easyrsa without commands for usage and command help."
 			noca) want_ca="" ;;
 			nokey) want_key="" ;;
 			nopass) want_pass="" ;;
-			usefn) pkcs_friendly_name=$short_name ;;
+			usefn) pkcs_friendly_name="$short_name" ;;
 			*) warn "Ignoring unknown command option: '$1'"
 		esac
 		shift
@@ -1813,8 +1814,8 @@ Missing key expected at: $key_in"
 			${pkcs_friendly_name:+ -name "$pkcs_friendly_name"} \
 			${pkcs_certfile_path:+ -certfile "$pkcs_certfile_path"} \
 			${EASYRSA_PASSIN:+ -passin "$EASYRSA_PASSIN"} \
-			${EASYRSA_PASSOUT:+ -passout "$EASYRSA_PASSOUT"} || die "\
-Export of p12 failed: see above for related openssl errors."
+			${EASYRSA_PASSOUT:+ -passout "$EASYRSA_PASSOUT"} \
+				|| die "Failed to export PKCS#12"
 	;;
 	p7)
 		pkcs_out="$EASYRSA_PKI/issued/$short_name.p7b"
@@ -1823,8 +1824,7 @@ Export of p12 failed: see above for related openssl errors."
 		easyrsa_openssl crl2pkcs7 -nocrl -certfile "$crt_in" \
 			-out "$pkcs_out" \
 			${pkcs_certfile_path:+ -certfile "$pkcs_certfile_path"} \
-				|| die "\
-Export of p7 failed: see above for related openssl errors."
+				|| die "Failed to export PKCS#7"
 	;;
 	p8)
 		pkcs_out="$EASYRSA_PKI/private/$short_name.p8"
@@ -1838,20 +1838,23 @@ Export of p7 failed: see above for related openssl errors."
 		easyrsa_openssl pkcs8 -in "$key_in" -topk8 \
 			-out "$pkcs_out" \
 			${EASYRSA_PASSIN:+ -passin "$EASYRSA_PASSIN"} \
-			${EASYRSA_PASSOUT:+ -passout "$EASYRSA_PASSOUT"} || die "\
-Export of p8 failed: see above for related openssl errors."
+			${EASYRSA_PASSOUT:+ -passout "$EASYRSA_PASSOUT"} \
+				|| die "Failed to export PKCS#8"
       ;;
 	p1)
 		pkcs_out="$EASYRSA_PKI/private/$short_name.p1"
+
 		if [ -z "$want_pass" ]; then
-			opts="-aes256"
+			cipher=""
 		fi
 
 		# export the p1:
-		# shellcheck disable=SC2086
-		easyrsa_openssl rsa -in "$key_in" $opts \
-			-out "$pkcs_out" ${EASYRSA_PASSIN:+-passin "$EASYRSA_PASSIN"} ${EASYRSA_PASSOUT:+-passout "$EASYRSA_PASSOUT"} || die "\
-Export of p1 failed: see above for related openssl errors."
+		easyrsa_openssl rsa -in "$key_in" \
+			-out "$pkcs_out" \
+			${cipher:+ "$cipher"} \
+			${EASYRSA_PASSIN:+ -passin "$EASYRSA_PASSIN"} \
+			${EASYRSA_PASSOUT:+ -passout "$EASYRSA_PASSOUT"} \
+				|| die "Failed to export PKCS#1"
 	;;
 	*) die "Unknown PKCS type: $pkcs_type"
 	esac
