@@ -72,8 +72,8 @@ cmd_help() {
   init-pki [ cmd-opts ]
       Removes & re-initializes the PKI dir for a clean PKI"
 			opts="
-        hard-reset  - Recursively deletes the PKI directory if it exists.
-        soft-reset  - Keeps the vars file and the PKI directory itself intact." ;;
+        hard-reset - Recursively deletes the PKI directory if it exists.
+        soft-reset - Keeps the vars file and the PKI directory itself intact." ;;
 		build-ca) text="
   build-ca [ cmd-opts ]
       Creates a new CA"
@@ -142,14 +142,14 @@ cmd_help() {
       Human-readable output is shown, including any requested cert options when
       showing a request."
 			opts="
-          full   - show full req/cert info, including pubkey/sig data" ;;
+        full    - show full req/cert info, including pubkey/sig data" ;;
 		show-ca) text="
   show-ca [ cmd-opts ]
       Shows details of the CA cert
 
       Human-readable output is shown."
 			opts="
-          full   - show full cert info, including pubkey/sig data" ;;
+        full    - show full cert info, including pubkey/sig data" ;;
 		import-req) text="
   import-req <request_file_path> <short_basename>
       Import a certificate request from a file
@@ -164,31 +164,31 @@ cmd_help() {
   export-p12 <filename_base> [ cmd-opts ]
       Export a PKCS#12 file with the keypair specified by <filename_base>"
 			opts="
-        noca   - do not include the ca.crt file in the PKCS12 output
-        nokey  - do not include the private key in the PKCS12 output
-        usefn  - use <filename_base> as friendly name" ;;
+        noca    - do not include the ca.crt file in the PKCS12 output
+        nokey   - do not include the private key in the PKCS12 output
+        usefn   - use <filename_base> as friendly name" ;;
 		export-p7) text="
   export-p7 <filename_base> [ cmd-opts ]
       Export a PKCS#7 file with the pubkey specified by <filename_base>"
 			opts="
-        noca   - do not include the ca.crt file in the PKCS7 output" ;;
+        noca    - do not include the ca.crt file in the PKCS7 output" ;;
 		export-p8) text="
   export-p8 <filename_base> [ cmd-opts ]
       Export a PKCS#8 file with the private key specified by <filename_base>"
 			opts="
-        nopass - do not encrypt the private key (default is encrypted)" ;;
+        nopass  - do not encrypt the private key (default is encrypted)" ;;
 		export-p1) text="
   export-p1 <filename_base> [ cmd-opts ]
       Export a PKCS#1 (RSA format) file with the pubkey specified by <filename_base>"
 			opts="
-        nopass - do not encrypt the private key (default is encrypted)" ;;
+        nopass  - do not encrypt the private key (default is encrypted)" ;;
 		set-rsa-pass|set-ec-pass) text="
   set-rsa-pass <filename_base> [ cmd-opts ]
   set-ec-pass <filename_base> [ cmd-opts ]
       Set a new passphrase on an RSA or EC key for the listed <filename_base>."
 			opts="
-        nopass - use no password and leave the key unencrypted
-        file   - (advanced) treat the file as a raw path, not a short-name" ;;
+        nopass  - use no password and leave the key unencrypted
+        file    - (advanced) treat the file as a raw path, not a short-name" ;;
 		upgrade) text="
   upgrade <type>
       Upgrade EasyRSA PKI and/or CA. <type> must be one of:
