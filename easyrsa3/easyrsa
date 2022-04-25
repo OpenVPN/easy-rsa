@@ -360,8 +360,11 @@ secure_session() {
 Non-existant temporary directory: $EASYRSA_TEMP_DIR"
 
 	for i in 1 2 3; do
-		session="$(easyrsa_openssl rand -hex 4)"
-		EASYRSA_TEMP_DIR_session="${EASYRSA_TEMP_DIR}/${session}"
+		# Always use openssl directly for rand
+		rand="$("$EASYRSA_OPENSSL" rand -hex 4)" \
+			|| die "secure_session - rand $rand"
+
+		EASYRSA_TEMP_DIR_session="${EASYRSA_TEMP_DIR}/${rand}"
 		mkdir "$EASYRSA_TEMP_DIR_session" || continue
 		return
 	done
@@ -375,18 +378,20 @@ easyrsa_mktemp() {
 	[ -d "$EASYRSA_TEMP_DIR_session" ] || return
 
 	for i in 1 2 3; do
-		rand="$(easyrsa_openssl rand -hex 4)" || return
+		# Always use openssl directly for rand
+		rand="$("$EASYRSA_OPENSSL" rand -hex 4)" \
+			|| die "easyrsa_mktemp - rand: $rand"
 
 		shotfile="${EASYRSA_TEMP_DIR_session}/shot.$rand"
 		if [ -e "$shotfile" ]; then
 			continue
 		else
-			printf "" > "$shotfile" || return
+			printf "" > "$shotfile" || continue
 		fi
 
 		tempfile="${EASYRSA_TEMP_DIR_session}/temp.$rand"
 		mv "$shotfile" "$tempfile" || continue
-		printf '%s\n' "$tempfile"
+		printf '%s\n' "$tempfile" || die "easyrsa_mktemp - write temp"
 		return
 	done
 	return 1
@@ -411,7 +416,9 @@ cleanup() {
 easyrsa_openssl() {
 	openssl_command="$1"; shift
 
+	# Do not allow 'rand' here because it interferes with EASYRSA_DEBUG
 	case "$openssl_command" in
+		rand) die "easyrsa_openssl: Illegal SSL command: rand" ;;
 		makesafeconf) has_config=1 ;;
 		ca|req|srp|ts) has_config=1 ;;
 		*) unset -v has_config
@@ -471,28 +478,29 @@ easyrsa_openssl() {
 			# this debug CANNOT be used in automated testing
 			# to function correctly easyrsa_openssl()
 			# must ONLY output SSL layer output
-			# debug log
-			if [ "$EASYRSA_DEBUG" ]; then
-				printf '%s %s\n' "$EASYRSA_OPENSSL $openssl_command" \
-					"-config $easyrsa_openssl_conf $*"
-			fi
+			# debug log on
+			if [ "$EASYRSA_DEBUG" ]; then set -x; fi
 
 			# Exec SSL with -config temp-file
 			"$EASYRSA_OPENSSL" "$openssl_command" \
 				-config "$easyrsa_openssl_conf" "$@" || return
+
+			# debug log off
+			if [ "$EASYRSA_DEBUG" ]; then set +x; fi
 		fi
 	else
 		# !!!
 		# this debug CANNOT be used in automated testing
 		# to function correctly easyrsa_openssl()
 		# must ONLY output SSL layer output
-		# debug log
-		if [ "$EASYRSA_DEBUG" ] && [ ! "$openssl_command" = rand ]; then
-			printf '%s\n' "$EASYRSA_OPENSSL $openssl_command $*"
-		fi
+		# debug log on
+		if [ "$EASYRSA_DEBUG" ]; then set -x; fi
 
 		# Exec SSL without -config temp-file
 		"$EASYRSA_OPENSSL" "$openssl_command" "$@" || return
+
+		# debug log off
+		if [ "$EASYRSA_DEBUG" ]; then set +x; fi
 	fi
 } # => easyrsa_openssl()
 
@@ -908,8 +916,8 @@ current CA keypair. If you intended to start a new CA, run init-pki first."
 	[ "$EASYRSA_BATCH" ] && ssl_batch=1
 	[ "$EASYRSA_REQ_CN" = ChangeMe ] && export EASYRSA_REQ_CN="Easy-RSA CA"
 
-	out_key_tmp="$(easyrsa_mktemp)" || die "Failed to create temporary file"
-	out_file_tmp="$(easyrsa_mktemp)" || die "Failed to create temporary file"
+	out_key_tmp="$(easyrsa_mktemp)" || die "Failed to create temp-key file"
+	out_file_tmp="$(easyrsa_mktemp)" || die "Failed to create temp-cert file"
 
 	# Get password from user if necessary
 	if [ -z "$nopass" ] && {
@@ -1163,7 +1171,10 @@ sign_req() {
 		serial=""
 		check_serial=""
 		for i in 1 2 3 4 5; do
-			"$EASYRSA_OPENSSL" rand -hex -out "$EASYRSA_PKI/serial" 16
+			# Always use openssl directly for rand
+			"$EASYRSA_OPENSSL" rand -hex -out "$EASYRSA_PKI/serial" 16 \
+				|| die "sign_req - rand"
+
 			serial="$(cat "$EASYRSA_PKI/serial")"
 
 			# Calls LibreSSL directly with a broken config and still works
