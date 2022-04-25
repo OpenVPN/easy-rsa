@@ -448,12 +448,9 @@ easyrsa_openssl() {
 				die "easyrsa_openssl - Failed to create temporary file"
 		fi
 
-		# OpenSSL does not need a safe config, skip this stage
-		if [ "$no_safe_ssl_conf" ]; then
-			cp -f "$EASYRSA_SSL_CONF" "$easyrsa_openssl_conf" || \
-				die "easyrsa_openssl - Failed to make temporary config"
-
-		else
+		# OpenSSL does not require a safe config, so skip to the copy
+		if [ "$require_safe_ssl_conf" ]; then
+			# Make a safe SSL config file
 			sed \
 				-e "s\`ENV::EASYRSA\`EASYRSA\`g" \
 				-e "s\`\$dir\`$EASYRSA_PKI\`g" \
@@ -473,6 +470,10 @@ easyrsa_openssl() {
 				-e "s\`\$EASYRSA_REQ_EMAIL\`$EASYRSA_REQ_EMAIL\`g" \
 				"$EASYRSA_SSL_CONF" > "$easyrsa_openssl_conf" || \
 					die "easyrsa_openssl - Failed to make temporary config"
+		else
+			# Do NOT Make a safe SSL config file
+			cp -f "$EASYRSA_SSL_CONF" "$easyrsa_openssl_conf" || \
+				die "easyrsa_openssl - Failed to copy temporary config"
 		fi
 
 		if [ "$openssl_command" = "makesafeconf" ]; then
@@ -543,25 +544,25 @@ verify_ssl_lib() {
 		val="$("$EASYRSA_OPENSSL" version)"
 		case "${val%% *}" in
 			# OpenSSL does not require a safe config-file
-			OpenSSL) no_safe_ssl_conf=1 ;;
-			LibreSSL) : ;; # ok
+			OpenSSL) unset -v require_safe_ssl_conf ;;
+			LibreSSL) require_safe_ssl_conf=1 ;;
 			*) die "\
 Missing or invalid OpenSSL
 Expected to find openssl command at: $EASYRSA_OPENSSL"
 		esac
-	fi
 
-	# Set SSL version dependent $no_password option
-	osslv_major="${val#* }"
-	osslv_major="${osslv_major%%.*}"
-	case "$osslv_major" in
-		1) no_password='-nodes' ;;
-		2) no_password='-nodes' ;; # LibreSSL Only
-		3) no_password='-noenc' ;;
-		*) die "Unsupported SSL library: $osslv_major"
-	esac
-	notice "Using SSL: $EASYRSA_OPENSSL $val"
-	EASYRSA_SSL_OK=1
+		# Set SSL version dependent $no_password option
+		osslv_major="${val#* }"
+		osslv_major="${osslv_major%%.*}"
+		case "$osslv_major" in
+			1) no_password='-nodes' ;;
+			2) no_password='-nodes' ;; # LibreSSL Only
+			3) no_password='-noenc' ;;
+			*) die "Unsupported SSL library: $osslv_major"
+		esac
+		notice "Using SSL: $EASYRSA_OPENSSL $val"
+		EASYRSA_SSL_OK=1
+	fi
 
 	# Verify EASYRSA_SSL_CONF file exists
 	[ -f "$EASYRSA_SSL_CONF" ] || die "\
