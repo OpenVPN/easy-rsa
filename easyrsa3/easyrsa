@@ -1076,7 +1076,8 @@ Run easyrsa without commands for usage and commands."
 	req_out="$EASYRSA_PKI/reqs/$1.req"
 
 	# Set the request commonName
-	EASYRSA_REQ_CN="$1"
+	[ "$EASYRSA_REQ_CN" != ChangeMe ] || unset -v EASYRSA_REQ_CN
+	set_var EASYRSA_REQ_CN "$1"
 	shift
 
 	# Require SSL Lib version for 'nopass' -> $no_password
@@ -1341,7 +1342,8 @@ Matching file found at: "
 	[ -f "$crt_out" ] && die "Certificate $err_exists $crt_out"
 
 	# create request
-	EASYRSA_REQ_CN="$name"
+	[ "$EASYRSA_REQ_CN" != ChangeMe ] || unset -v EASYRSA_REQ_CN
+	set_var EASYRSA_REQ_CN "$name"
 	# shellcheck disable=SC2086 # Ignore unquoted variables
 	gen_req "$name" batch $req_opts
 
@@ -1353,15 +1355,15 @@ Matching file found at: "
 
 	# inline it
 	if [ "$EASYRSA_INLINE" ]; then
-		inline_creds
+		inline_creds "$name"
 	fi
 } # => build_full()
 
 # Create inline credentials file for this node
 inline_creds ()
 {
-	[ -f "$EASYRSA_PKI/$EASYRSA_REQ_CN.creds" ] \
-	&& die "Inline file exists: $EASYRSA_PKI/$EASYRSA_REQ_CN.creds"
+	inline_file_out="${EASYRSA_PKI}/${1}.creds"
+	[ -f "$inline_file_out" ] && die "Inline file exists: $inline_file_out"
 	{
 		printf "%s\n" "# $crt_type: $EASYRSA_REQ_CN"
 		printf "%s\n" ""
@@ -1377,7 +1379,7 @@ inline_creds ()
 		cat "$key_out"
 		printf "%s\n" "</key>"
 		printf "%s\n" ""
-	} > "$EASYRSA_PKI/$EASYRSA_REQ_CN.creds"
+	} > "$inline_file_out"
 } # => inline_creds ()
 
 # revoke backend
