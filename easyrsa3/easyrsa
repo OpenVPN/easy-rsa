@@ -1812,6 +1812,13 @@ Missing file expected at: $crt_ca"
 Unable to export $pkcs_type for short name '$short_name' without the certificate.
 Missing cert expected at: $crt_in"
 
+	# For 'nopass' PKCS requires an explicit empty password 'pass:'
+	if [ -z "$want_pass" ]; then
+		EASYRSA_PASSIN=pass:
+		EASYRSA_PASSOUT=pass:
+		unset -v cipher # pkcs#1 only
+	fi
+
 	case "$pkcs_type" in
 	p12)
 		pkcs_out="$EASYRSA_PKI/private/$short_name.p12"
@@ -1825,18 +1832,12 @@ Missing key expected at: $key_in"
 			nokeys=1
 		fi
 
-		# For 'nopass' pkcs12 requires an explicit empty password 'pass: '
-		if [ -z "$want_pass" ]; then
-			EASYRSA_PASSIN=pass:
-			EASYRSA_PASSOUT=pass:
-		fi
-
 		# export the p12:
 		easyrsa_openssl pkcs12 -in "$crt_in" -inkey "$key_in" -export \
 			-out "$pkcs_out" \
 			${nokeys:+ -nokeys} \
-			${pkcs_friendly_name:+ -name "$pkcs_friendly_name"} \
 			${pkcs_certfile_path:+ -certfile "$pkcs_certfile_path"} \
+			${pkcs_friendly_name:+ -name "$pkcs_friendly_name"} \
 			${EASYRSA_PASSIN:+ -passin "$EASYRSA_PASSIN"} \
 			${EASYRSA_PASSOUT:+ -passout "$EASYRSA_PASSOUT"} \
 				|| die "Failed to export PKCS#12"
@@ -1853,11 +1854,6 @@ Missing key expected at: $key_in"
 	p8)
 		pkcs_out="$EASYRSA_PKI/private/$short_name.p8"
 
-		if [ -z "$want_pass" ]; then
-			EASYRSA_PASSIN=pass:
-			EASYRSA_PASSOUT=pass:
-		fi
-
 		# export the p8:
 		easyrsa_openssl pkcs8 -in "$key_in" -topk8 \
 			-out "$pkcs_out" \
@@ -1867,10 +1863,6 @@ Missing key expected at: $key_in"
       ;;
 	p1)
 		pkcs_out="$EASYRSA_PKI/private/$short_name.p1"
-
-		if [ -z "$want_pass" ]; then
-			cipher=""
-		fi
 
 		# export the p1:
 		easyrsa_openssl rsa -in "$key_in" \
