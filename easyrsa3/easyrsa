@@ -1825,6 +1825,12 @@ Missing key expected at: $key_in"
 			nokeys=1
 		fi
 
+		# For 'nopass' pkcs12 requires an explicit empty password 'pass: '
+		if [ -z "$want_pass" ]; then
+			EASYRSA_PASSIN=pass:
+			EASYRSA_PASSOUT=pass:
+		fi
+
 		# export the p12:
 		easyrsa_openssl pkcs12 -in "$crt_in" -inkey "$key_in" -export \
 			-out "$pkcs_out" \
