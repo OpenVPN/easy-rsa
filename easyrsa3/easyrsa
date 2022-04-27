@@ -1416,14 +1416,13 @@ Run easyrsa without commands for usage and command help."
 		shift
 
 		case "$crl_reason" in
-			unspecified | \
-			keyCompromise |\
-			CACompromise | \
-			affiliationChanged | \
-			superseded | \
-			cessationOfOperation | \
-			certificateHold ) : # ok
-			;;
+			unspecified) : ;;
+			keyCompromise) : ;;
+			CACompromise) : ;;
+			affiliationChanged) : ;;
+			superseded) : ;;
+			cessationOfOperation) : ;;
+			certificateHold) : ;;
 			*) die "Illegal reason: $crl_reason"
 		esac
 	else
@@ -1811,14 +1810,13 @@ Run easyrsa without commands for usage and command help."
 		shift
 
 		case "$crl_reason" in
-			unspecified | \
-			keyCompromise |\
-			CACompromise | \
-			affiliationChanged | \
-			superseded | \
-			cessationOfOperation | \
-			certificateHold ) : # ok
-			;;
+			unspecified) : ;;
+			keyCompromise) : ;;
+			CACompromise) : ;;
+			affiliationChanged) : ;;
+			superseded) : ;;
+			cessationOfOperation) : ;;
+			certificateHold) : ;;
 			*) die "Illegal reason: $crl_reason"
 		esac
 	else
