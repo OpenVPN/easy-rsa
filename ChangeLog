@@ -1,6 +1,8 @@
 Easy-RSA 3 ChangeLog
 
 3.1.0 (TBD)
+   * Fix revoking a renewed certificate (Original PR #394)
+     Follow-up commit: ef22701878bb10df567d60f2ac50dce52a82c9ee
    * Introduce 'show-crl' (d1993892178c5219f4a38d50db3b53d1a972b36c)
    * Support Windows-Git 'version of bash' (#533)
    * Disallow use of single quote (') in vars file, Warning (#530)

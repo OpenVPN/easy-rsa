@@ -1820,7 +1820,7 @@ at: $crt_in"
 Please confirm you wish to revoke the renewed certificate with serial $1 and the following subject:
 
 $(display_dn x509 "$crt_in")
-"
+"	# => confirm end
 
 	# Verify certificate
 	verify_file x509 "$crt_in" || die "\
