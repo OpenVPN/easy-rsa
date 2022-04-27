@@ -2357,7 +2357,7 @@ Sourcing the vars file will probably fail .."
 	# Also, integrate a partial 'init-pki' by using 'install_data_to_pki()'
 	#
 	# If EASYRSA_PKI directory exists then
-	if [ -d "$EASYRSA_PKI" ]; then
+	if  [ ! "$want_init_pki" ] && [ -d "$EASYRSA_PKI" ]; then
 
 		# Temp dir session
 		secure_session || die "Temporary directory secure-session failed."
