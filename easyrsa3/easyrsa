@@ -1393,12 +1393,12 @@ inline_creds ()
 
 # revoke backend
 revoke() {
-	verify_ca_init
-
 	# pull filename base:
 	[ "$1" ] || die "\
 Error: didn't find a file base name as the first argument.
 Run easyrsa without commands for usage and command help."
+
+	verify_ca_init
 
 	# Assign file_name_base and dust off!
 	file_name_base="$1"
@@ -1440,13 +1440,6 @@ Run easyrsa without commands for usage and command help."
 Unable to revoke as no certificate was found. Certificate was expected
 at: $crt_in"
 
-	# confirm operation by displaying DN:
-	confirm "Continue with revocation: " "yes" "
-Please confirm you wish to revoke the certificate with the following subject:
-
-$(display_dn x509 "$crt_in")
-"	# => confirm end
-
 	# Verify certificate
 	verify_file x509 "$crt_in" || die "\
 Unable to revoke as the input file is not a valid certificate. Unexpected
@@ -1466,6 +1459,24 @@ Unexpected input in file: $req_in"
 	cert_serial="${cert_serial##*=}"
 	duplicate_crt_by_serial="$EASYRSA_PKI/certs_by_serial/$cert_serial.pem"
 
+	# Set out_dir
+	out_dir="$EASYRSA_PKI/revoked"
+	crt_out="$out_dir/certs_by_serial/$cert_serial.crt"
+	key_out="$out_dir/private_by_serial/$cert_serial.key"
+	req_out="$out_dir/reqs_by_serial/$cert_serial.req"
+
+	# NEVER over-write a revoked cert, serial number must be unique
+	[ -e "$crt_out" ] && die "revoked exists: $crt_out"
+	[ -e "$key_out" ] && die "revoked exists: $key_out"
+	[ -e "$req_out" ] && die "revoked exists: $req_out"
+
+	# confirm operation by displaying DN:
+	confirm "Continue with revocation: " "yes" "
+Please confirm you wish to revoke the certificate with the following subject:
+
+$(display_dn x509 "$crt_in")
+"	# => confirm end
+
 	# Revoke certificate
 	easyrsa_openssl ca -utf8 -revoke "$crt_in" \
 		${crl_reason+ -crl_reason "$crl_reason"} \
@@ -1473,7 +1484,7 @@ Unexpected input in file: $req_in"
 			|| die "Failed to revoke certificate: revocation command failed."
 
 	# move revoked files so we can reissue certificates with the same name
-	move_revoked
+	revoke_move
 
 	[ "$EASYRSA_SILENT" ] || print # Separate Notice below
 	notice "\
@@ -1487,20 +1498,9 @@ infrastructure in order to prevent the revoked cert from being accepted."
 } #= revoke()
 
 # move-revoked
-# moves revoked certificates to an alternative folder
+# moves revoked certificates to the 'revoked' folder
 # allows reissuing certificates with the same name
-move_revoked() {
-	# Set out_dir
-	out_dir="$EASYRSA_PKI/revoked"
-	crt_out="$out_dir/certs_by_serial/$cert_serial.crt"
-	key_out="$out_dir/private_by_serial/$cert_serial.key"
-	req_out="$out_dir/reqs_by_serial/$cert_serial.req"
-
-	# NEVER over-write a revoked cert, serial number must be unique
-	[ -e "$crt_out" ] && die "revoked exists: $crt_out"
-	[ -e "$key_out" ] && die "revoked exists: $key_out"
-	[ -e "$req_out" ] && die "revoked exists: $req_out"
-
+revoke_move() {
 	# make sure revoked dirs exist
 	if [ ! -d "$out_dir" ]; then
 		mkdir -p "$out_dir" || die "Failed to mkdir: $out_dir"
@@ -1527,10 +1527,13 @@ move_revoked() {
 	# move any pkcs files
 	for pkcs in p12 p7b p8 p1; do
 		if [ -e "$in_dir/issued/$file_name_base.$pkcs" ]; then
+			# issued
 			mv "$in_dir/issued/$file_name_base.$pkcs" \
 				"$out_dir/certs_by_serial/$cert_serial.$pkcs" \
 					|| die "Failed to move: $file_name_base.$pkcs"
+
 		elif [ -e "$in_dir/private/$file_name_base.$pkcs" ]; then
+			# private
 			mv "$in_dir/private/$file_name_base.$pkcs" \
 				"$out_dir/private_by_serial/$cert_serial.$pkcs" \
 					|| die "Failed to move: $file_name_base.$pkcs"
@@ -1554,12 +1557,12 @@ move_revoked() {
 
 # renew backend
 renew() {
-	verify_ca_init
-
 	# pull filename base:
 	[ "$1" ] || die "\
 Error: didn't find a file base name as the first argument.
 Run easyrsa without commands for usage and command help."
+
+	verify_ca_init
 
 	# Assign file_name_base and dust off!
 	file_name_base="$1"
@@ -1591,13 +1594,6 @@ Run easyrsa without commands for usage and command help."
 Unable to renew as no certificate was found. Certificate was expected
 at: $crt_in"
 
-	# confirm operation by displaying DN:
-	confirm "Continue with renew: " "yes" "
-Please confirm you wish to renew the certificate with the following subject:
-
-$(display_dn x509 "$crt_in")
-"	# => confirm end
-
 	# Verify certificate
 	verify_file x509 "$crt_in" || die "\
 Unable to renew as the input file is not a valid certificate. Unexpected
@@ -1616,6 +1612,21 @@ Unexpected input in file: $req_in"
 	# remove the serial= part -> we only need the XXXX part
 	cert_serial="${cert_serial##*=}"
 	duplicate_crt_by_serial="$EASYRSA_PKI/certs_by_serial/$cert_serial.pem"
+
+	# Set out_dir
+	out_dir="$EASYRSA_PKI/renewed"
+	crt_out="$out_dir/issued/$file_name_base.crt"
+	key_out="$out_dir/private/$file_name_base.key"
+	req_out="$out_dir/reqs/$file_name_base.req"
+
+	# NEVER over-write a renewed cert, revoke it first
+	deny_msg="\
+Cannot renew this certificate because a conflicting file exists.
+*"
+	[ -e "$crt_out" ] && die "$deny_msg certificate: $crt_out"
+	[ -e "$key_out" ] && die "$deny_msg private key: $key_out"
+	[ -e "$req_out" ] && die "$deny_msg request    : $req_out"
+	unset -v deny_msg
 
 	# Check if old cert is expired or expires within 30
 	cert_expire_date="$(
@@ -1673,8 +1684,8 @@ Renewal not allowed."
 		: # ok - Use current subjectAltName
 	else
 		san="$(
-			easyrsa_openssl x509 -in "$crt_in" -noout -text |
-			sed -n "/X509v3 Subject Alternative Name:/{n;s/IP Address:/IP:/;s/ //g;p;}"
+			easyrsa_openssl x509 -in "$crt_in" -noout -text | sed -n \
+			"/X509v3 Subject Alternative Name:/{n;s/IP Address:/IP:/;s/ //g;p;}"
 			)"
 
 		[ -n "$san" ] && export EASYRSA_EXTRA_EXTS="\
@@ -1682,8 +1693,15 @@ $EASYRSA_EXTRA_EXTS
 subjectAltName = $san"
 	fi
 
+	# confirm operation by displaying DN:
+	confirm "Continue with renew: " "yes" "
+Please confirm you wish to renew the certificate with the following subject:
+
+$(display_dn x509 "$crt_in")
+"	# => confirm end
+
 	# move renewed files so we can reissue certificate with the same name
-	move_renewed
+	renew_move
 
 	# renew certificate
 	build_full "$cert_type" "$file_name_base" "$opt_nopass" || die "\
@@ -1701,20 +1719,9 @@ You may want to revoke the old certificate once the new one has been deployed."
 } #= renew()
 
 # move-renewed
-# moves renewed certificates to an alternative folder
+# moves renewed certificates to the 'renewed' folder
 # allows reissuing certificates with the same name
-move_renewed() {
-	# Set out_dir
-	out_dir="$EASYRSA_PKI/renewed"
-	crt_out="$out_dir/issued/$file_name_base.crt"
-	key_out="$out_dir/private/$file_name_base.key"
-	req_out="$out_dir/reqs/$file_name_base.req"
-
-	# NEVER over-write a renewed cert, revoke it first
-	[ -e "$crt_out" ] && die "renewed exists: $crt_out"
-	[ -e "$key_out" ] && die "renewed exists: $key_out"
-	[ -e "$req_out" ] && die "renewed exists: $req_out"
-
+renew_move() {
 	# make sure renewed dirs exist
 	if [ ! -d "$out_dir" ]; then
 		mkdir -p "$out_dir" || die "Failed to mkdir: $out_dir"
@@ -1741,10 +1748,12 @@ move_renewed() {
 	# move any pkcs files
 	for pkcs in p12 p7b p8 p1; do
 		if [ -e "$in_dir/issued/$file_name_base.$pkcs" ]; then
+			# issued
 			mv "$in_dir/issued/$file_name_base.$pkcs" \
 				"$out_dir/issued/$file_name_base.$pkcs" \
 					|| die "Failed to move: $file_name_base.$pkcs"
 		elif [ -e "$in_dir/private/$file_name_base.$pkcs" ]; then
+			# private
 			mv "$in_dir/private/$file_name_base.$pkcs" \
 				"$out_dir/private/$file_name_base.$pkcs" \
 					|| die "Failed to move: $file_name_base.$pkcs"
@@ -1768,12 +1777,12 @@ move_renewed() {
 
 # revoke-renewed backend
 revoke_renewed() {
-	verify_ca_init
-
 	# pull filename base:
 	[ "$1" ] || die "\
 Error: didn't find a file base name as the first argument.
 Run easyrsa without commands for usage and command help."
+
+	verify_ca_init
 
 	# Assign file_name_base and dust off!
 	file_name_base="$1"
@@ -1812,27 +1821,20 @@ Run easyrsa without commands for usage and command help."
 
 	# referenced cert must exist:
 	[ -f "$crt_in" ] || die "\
-Unable to revoke as no renewed certificate was found. Certificate was expected
-at: $crt_in"
-
-	# confirm operation by displaying DN:
-	confirm "Continue with revocation: " "yes" "
-Please confirm you wish to revoke the renewed certificate with serial $1 and the following subject:
-
-$(display_dn x509 "$crt_in")
-"	# => confirm end
+Unable to revoke as no renewed certificate was found.
+Certificate was expected at: $crt_in"
 
 	# Verify certificate
 	verify_file x509 "$crt_in" || die "\
-Unable to revoke as the certificate serial does not match an old one of a valid renewed certificate. Unexpected
-certificate in file: $crt_in"
+Unable to revoke as the input file is not a valid certificate. Unexpected
+input in file: $crt_in"
 
 	# Verify request
 	if [ -e "$req_in" ]
 	then
 		verify_file req "$req_in" || die "\
-Unable to move renewed then revoked request. The file is not a valid request. Unexpected
-input in file: $req_in"
+Unable to move request. The file is not a valid request.
+Unexpected input in file: $req_in"
 	fi
 
 	# get the serial number of the certificate -> serial=XXXX
@@ -1841,14 +1843,33 @@ input in file: $req_in"
 	# remove the serial= part -> we only need the XXXX part
 	cert_serial="${cert_serial##*=}"
 
-	# shellcheck disable=SC2086
+	# output
+	out_dir="$EASYRSA_PKI/revoked"
+	crt_out="$out_dir/certs_by_serial/$cert_serial.crt"
+	key_out="$out_dir/private_by_serial/$cert_serial.key"
+	req_out="$out_dir/reqs_by_serial/$cert_serial.req"
+
+	# NEVER over-write a revoked cert, serial number must be unique
+	[ -e "$crt_out" ] && die "revoked exists: $crt_out"
+	[ -e "$key_out" ] && die "revoked exists: $key_out"
+	[ -e "$req_out" ] && die "revoked exists: $req_out"
+
+	# confirm operation by displaying DN:
+	confirm "  Continue with revocation: " "yes" "
+  Please confirm you wish to revoke the renewed certificate
+  with serial $1 and the following subject:
+
+  $(display_dn x509 "$crt_in")
+"	# => confirm end
+
+	# Revoke the old (already renewed) certificate
 	easyrsa_openssl ca -utf8 -revoke "$crt_in" \
 		${crl_reason:+ -crl_reason "$crl_reason"} \
 		${EASYRSA_PASSIN:+ -passin "$EASYRSA_PASSIN"} \
 			|| die "Failed to revoke renewed certificate: revocation command failed."
 
 	# move revoked files
-	move_renewed_revoked
+	revoke_renewed_move
 
 	notice "\
 IMPORTANT!!!
@@ -1861,22 +1882,11 @@ infrastructure in order to prevent the revoked renewed cert from being accepted.
 } #= revoke_renewed()
 
 # move-renewed-revoked
-# moves renewed then revoked certificates to an alternative folder
-move_renewed_revoked() {
-	# output
-	out_dir="$EASYRSA_PKI/revoked"
-	crt_out="$out_dir/certs_by_serial/$cert_serial.crt"
-	key_out="$out_dir/private_by_serial/$cert_serial.key"
-	req_out="$out_dir/reqs_by_serial/$cert_serial.req"
-
-	# NEVER over-write a revoked cert, serial number must be unique
-	[ -e "$crt_out" ] && die "revoked exists: $crt_out"
-	[ -e "$key_out" ] && die "revoked exists: $key_out"
-	[ -e "$req_out" ] && die "revoked exists: $req_out"
-
+# moves renewed then revoked certificates to the 'revoked' folder
+revoke_renewed_move() {
 	# make sure revoked dirs exist
 	if [ ! -d "$out_dir" ]; then
-		mkdir -p "$out_dir" || die "move_renewed_revoked - Failed to mkdir: $out_dir"
+		mkdir -p "$out_dir" || die "Failed to mkdir: $out_dir"
 	fi
 	for target in certs_by_serial private_by_serial reqs_by_serial; do
 		[ -d "$out_dir/$target" ] && continue
@@ -1900,10 +1910,12 @@ move_renewed_revoked() {
 	# move any pkcs files
 	for pkcs in p12 p7b p8 p1; do
 		if [ -e "$in_dir/issued/$file_name_base.$pkcs" ]; then
+			# issued
 			mv "$in_dir/issued/$file_name_base.$pkcs" \
 				"$out_dir/certs_by_serial/$cert_serial.$pkcs" \
 					|| die "Failed to move: $file_name_base.$pkcs"
 		elif [ -e "$in_dir/private/$file_name_base.$pkcs" ]; then
+			# private
 			mv "$in_dir/private/$file_name_base.$pkcs" \
 				"$out_dir/private_by_serial/$cert_serial.$pkcs" \
 					|| die "Failed to move: $file_name_base.$pkcs"
