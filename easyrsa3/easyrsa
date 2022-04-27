@@ -1466,15 +1466,22 @@ Unexpected input in file: $req_in"
 	req_out="$out_dir/reqs_by_serial/$cert_serial.req"
 
 	# NEVER over-write a revoked cert, serial number must be unique
-	[ -e "$crt_out" ] && die "revoked exists: $crt_out"
-	[ -e "$key_out" ] && die "revoked exists: $key_out"
-	[ -e "$req_out" ] && die "revoked exists: $req_out"
+	deny_msg="\
+Cannot revoke this certificate because a conflicting file exists.
+*"
+	[ -e "$crt_out" ] && die "$deny_msg certificate: $crt_out"
+	[ -e "$key_out" ] && die "$deny_msg private key: $key_out"
+	[ -e "$req_out" ] && die "$deny_msg request    : $req_out"
+	unset -v deny_msg
 
 	# confirm operation by displaying DN:
-	confirm "Continue with revocation: " "yes" "
-Please confirm you wish to revoke the certificate with the following subject:
+	confirm "  Continue with revocation: " "yes" "\
+  Please confirm you wish to revoke the certificate
+  with the following subject:
 
-$(display_dn x509 "$crt_in")
+  $(display_dn x509 "$crt_in")
+
+  serial-number: $cert_serial
 "	# => confirm end
 
 	# Revoke certificate
@@ -1694,10 +1701,13 @@ subjectAltName = $san"
 	fi
 
 	# confirm operation by displaying DN:
-	confirm "Continue with renew: " "yes" "
-Please confirm you wish to renew the certificate with the following subject:
+	confirm "  Continue with renewal: " "yes" "\
+  Please confirm you wish to renew the certificate
+  with the following subject:
 
-$(display_dn x509 "$crt_in")
+  $(display_dn x509 "$crt_in")
+
+  serial-number: $cert_serial
 "	# => confirm end
 
 	# move renewed files so we can reissue certificate with the same name
@@ -1752,6 +1762,7 @@ renew_move() {
 			mv "$in_dir/issued/$file_name_base.$pkcs" \
 				"$out_dir/issued/$file_name_base.$pkcs" \
 					|| die "Failed to move: $file_name_base.$pkcs"
+
 		elif [ -e "$in_dir/private/$file_name_base.$pkcs" ]; then
 			# private
 			mv "$in_dir/private/$file_name_base.$pkcs" \
@@ -1850,16 +1861,22 @@ Unexpected input in file: $req_in"
 	req_out="$out_dir/reqs_by_serial/$cert_serial.req"
 
 	# NEVER over-write a revoked cert, serial number must be unique
-	[ -e "$crt_out" ] && die "revoked exists: $crt_out"
-	[ -e "$key_out" ] && die "revoked exists: $key_out"
-	[ -e "$req_out" ] && die "revoked exists: $req_out"
+	deny_msg="\
+Cannot revoke this certificate because a conflicting file exists.
+*"
+	[ -e "$crt_out" ] && die "$deny_msg certificate: $crt_out"
+	[ -e "$key_out" ] && die "$deny_msg private key: $key_out"
+	[ -e "$req_out" ] && die "$deny_msg request    : $req_out"
+	unset -v deny_msg
 
 	# confirm operation by displaying DN:
-	confirm "  Continue with revocation: " "yes" "
+	confirm "  Continue with revocation: " "yes" "\
   Please confirm you wish to revoke the renewed certificate
-  with serial $1 and the following subject:
+  with the following subject:
 
   $(display_dn x509 "$crt_in")
+
+  serial-number: $cert_serial
 "	# => confirm end
 
 	# Revoke the old (already renewed) certificate
@@ -1914,6 +1931,7 @@ revoke_renewed_move() {
 			mv "$in_dir/issued/$file_name_base.$pkcs" \
 				"$out_dir/certs_by_serial/$cert_serial.$pkcs" \
 					|| die "Failed to move: $file_name_base.$pkcs"
+
 		elif [ -e "$in_dir/private/$file_name_base.$pkcs" ]; then
 			# private
 			mv "$in_dir/private/$file_name_base.$pkcs" \
