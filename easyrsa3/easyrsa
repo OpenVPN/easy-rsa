@@ -1385,19 +1385,44 @@ revoke() {
 	verify_ca_init
 
 	# pull filename base:
-	[ -n "$1" ] || die "\
+	[ "$1" ] || die "\
 Error: didn't find a file base name as the first argument.
 Run easyrsa without commands for usage and command help."
-	crt_in="$EASYRSA_PKI/issued/$1.crt"
 
-	opts=""
-	if [ "$2" ]; then
-		opts="$opts -crl_reason $2"
+	# Assign file_name_base and dust off!
+	file_name_base="$1"
+	shift
+	crt_in="$EASYRSA_PKI/issued/$file_name_base.crt"
+
+	# Assign possible "crl_reason"
+	if [ "$1" ]; then
+		crl_reason="$1"
+		shift
+
+		case "$crl_reason" in
+			unspecified | \
+			keyCompromise |\
+			CACompromise | \
+			affiliationChanged | \
+			superseded | \
+			cessationOfOperation | \
+			certificateHold ) : # ok
+			;;
+			*) die "Illegal reason: $crl_reason"
+		esac
+	else
+		unset -v crl_reason
 	fi
 
-	verify_file x509 "$crt_in" || die "\
-Unable to revoke as the input file is not a valid certificate. Unexpected
-input in file: $crt_in"
+	# Enforce syntax
+	if [ "$1" ]; then
+		die "Syntax error: $1"
+	fi
+
+	# referenced cert must exist:
+	[ -f "$crt_in" ] || die "\
+Unable to revoke as no certificate was found. Certificate was expected
+at: $crt_in"
 
 	# confirm operation by displaying DN:
 	confirm "Continue with revocation: " "yes" "
@@ -1406,18 +1431,19 @@ Please confirm you wish to revoke the certificate with the following subject:
 $(display_dn x509 "$crt_in")
 "	# => confirm end
 
-	# referenced cert must exist:
-	[ -f "$crt_in" ] || die "\
-Unable to revoke as no certificate was found. Certificate was expected
-at: $crt_in"
+	# Verify certificate
+	verify_file x509 "$crt_in" || die "\
+Unable to revoke as the input file is not a valid certificate. Unexpected
+input in file: $crt_in"
 
-	# shellcheck disable=SC2086 # Ignore unquoted variables
-	easyrsa_openssl ca -utf8 -revoke "$crt_in" $opts \
-		${EASYRSA_PASSIN:+-passin "$EASYRSA_PASSIN"} || die "\
-Failed to revoke certificate: revocation command failed."
+	# Revoke certificate
+	easyrsa_openssl ca -utf8 -revoke "$crt_in" \
+		${crl_reason+ -crl_reason "$crl_reason"} \
+		${EASYRSA_PASSIN:+ -passin "$EASYRSA_PASSIN"} \
+			|| die "Failed to revoke certificate: revocation command failed."
 
 	# move revoked files so we can reissue certificates with the same name
-	move_revoked "$1"
+	move_revoked "$file_name_base"
 
 	[ "$EASYRSA_SILENT" ] || print # Separate Notice below
 	notice "\
