@@ -123,7 +123,7 @@ cmd_help() {
         cessationOfOperation
         certificateHold";;
 		revoke-renewed) text="
-  revoke-renewed <certificate_serial> [reason]
+  revoke-renewed <filename_base> [reason]
       Revoke a renewed certificate specified by its old certificate_serial, with an optional
       revocation reason that is one of:
         unspecified
