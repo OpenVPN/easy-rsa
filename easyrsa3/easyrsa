@@ -453,7 +453,7 @@ easyrsa_openssl() {
 		# Make LibreSSL safe config file from OpenSSL config file
 
 		# Do not use easyrsa_mktemp() for init-pki
-		if [ "$want_init_pki" ]; then
+		if [ "$no_pki_required" ]; then
 			# for init-pki $EASYRSA_SAFE_CONF is always set in the PKI, use it.
 			easyrsa_openssl_conf="${EASYRSA_SAFE_CONF}.init-tmp"
 		else
@@ -2394,8 +2394,8 @@ vars_setup() {
 
 	# Otherwise, find vars 'the new way' followed by 'the old way' ..
 	else
-		# if NOT $want_init_pki
-		if [ -z "$want_init_pki" ]; then
+		# if PKI is required
+		if [ -z "$no_pki_required" ]; then
 
 			# Clear flags - This is the preferred order to find:
 			unset -v e_pki_vars e_easy_vars e_pwd_vars e_prog_vars \
@@ -2442,8 +2442,8 @@ Priority should be given to your PKI vars file:
 		fi
 
 		# If $EASYRSA_NO_VARS is defined (not blank) then do not use vars
-		# if $want_init_pki then no vars is required.
-		if [ "$EASYRSA_NO_VARS" ] || [ "$want_init_pki" ]; then
+		# if $no_pki_required then no vars is required.
+		if [ "$EASYRSA_NO_VARS" ] || [ "$no_pki_required" ]; then
 			: # ok
 		else
 			# If a vars file was located then source it
@@ -2565,7 +2565,7 @@ Sourcing the vars file will probably fail .."
 	# Also, integrate a partial 'init-pki' by using 'install_data_to_pki()'
 	#
 	# If EASYRSA_PKI directory exists then
-	if  [ ! "$want_init_pki" ] && [ -d "$EASYRSA_PKI" ]; then
+	if  [ ! "$no_pki_required" ] && [ -d "$EASYRSA_PKI" ]; then
 
 		# Temp dir session
 		secure_session || die "Temporary directory secure-session failed."
@@ -3330,12 +3330,11 @@ cmd="$1"
 [ -n "$1" ] && shift # scrape off command
 
 # This avoids unnecessary warnings and notices
-# want_init_pki can probably be renamed to something more apt
 case "$cmd" in
-	init-pki|clean-all) want_init_pki=1 ;;
-	""|help|-h|--help|--usage) want_init_pki=1 ;;
-	version) want_init_pki=1 ;;
-	*) unset -v want_init_pki
+	init-pki|clean-all) no_pki_required=1 ;;
+	""|help|-h|--help|--usage) no_pki_required=1 ;;
+	version) no_pki_required=1 ;;
+	*) unset -v no_pki_required
 esac
 
 # Intelligent env-var detection and auto-loading:
