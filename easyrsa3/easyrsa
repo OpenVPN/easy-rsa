@@ -2351,6 +2351,52 @@ $in_file"
 OpenSSL failure to process the input"
 } # => show_ca()
 
+# set_var is not known by shellcheck, therefore:
+# Fake declare known variables for shellcheck
+# Use these options without this function:
+# -o all -e 2250,2244,2248 easyrsa
+satisfy_shellcheck() {
+	die "Security feature enabled!"
+	# Add more as/if required
+
+	# Enable the heredoc for a peek
+#cat << SC2154
+	EASYRSA=
+	EASYRSA_OPENSSL=
+	EASYRSA_PKI=
+	EASYRSA_DN=
+	EASYRSA_REQ_COUNTRY=
+	EASYRSA_REQ_PROVINCE=
+	EASYRSA_REQ_CITY=
+	EASYRSA_REQ_ORG=
+	EASYRSA_REQ_EMAIL=
+	EASYRSA_REQ_OU=
+	EASYRSA_ALGO=
+	EASYRSA_KEY_SIZE=
+	EASYRSA_CURVE=
+	EASYRSA_EC_DIR=
+	EASYRSA_CA_EXPIRE=
+	EASYRSA_CERT_EXPIRE=
+	EASYRSA_CERT_RENEW=
+	EASYRSA_CRL_DAYS=
+	EASYRSA_NS_SUPPORT=
+	EASYRSA_NS_COMMENT=
+	EASYRSA_TEMP_DIR=
+	EASYRSA_REQ_CN=
+	EASYRSA_DIGEST=
+
+	EASYRSA_SSL_CONF=
+	EASYRSA_SAFE_CONF=
+	OPENSSL_CONF=
+
+	#EASYRSA_KDC_REALM=
+
+	EASYRSA_RAND_SN=
+	KSH_VERSION=
+#SC2154
+
+} # => satisfy_shellcheck()
+
 # Identify host OS
 detect_host() {
 	unset -v easyrsa_host_os easyrsa_host_test easyrsa_win_git_bash
@@ -2694,6 +2740,7 @@ up23_verify_new_pki ()
 	up23_verbose "  Initial dirs & files are in a workable state."
 } #=> up23_verify_new_pki ()
 
+# shellcheck disable=SC2154
 up23_verify_current_pki ()
 {
 	up23_verbose "> Verify CURRENT PKI vars .."
@@ -2719,6 +2766,7 @@ up23_verify_current_pki ()
 	up23_verbose "  Current CURRENT PKI vars uses PKI in: $KEY_DIR"
 } #=> up23_verify_current_pki ()
 
+# shellcheck disable=SC2154
 up23_verify_current_ca ()
 {
 	up23_verbose "> Find CA .."
@@ -2936,6 +2984,7 @@ up23_move_easyrsa2_programs ()
 	up23_verbose "  Easyrsa2 programs successfully moved to: $EASYRSA_SAFE_PKI"
 } #=> up23_move_easyrsa2_programs ()
 
+# shellcheck disable=SC2154
 up23_build_v3_vars ()
 {
 	up23_verbose "> Build v3 vars file .."
@@ -3000,6 +3049,7 @@ up23_build_v3_vars ()
 	up23_verbose "  New v3 vars file created in: $EASYRSA_TARGET_VARSFILE"
 } #=> up23_build_v3_vars ()
 
+# shellcheck disable=SC2154
 up23_do_upgrade_23 ()
 {
 	up23_verbose "============================================================================"
