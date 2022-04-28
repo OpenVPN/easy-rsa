@@ -381,7 +381,7 @@ Non-existant temporary directory: $EASYRSA_TEMP_DIR"
 	for i in 1 2 3; do
 		# Always use openssl directly for rand
 		rand="$("$EASYRSA_OPENSSL" rand -hex 4)" \
-			|| die "secure_session - rand $rand"
+			|| die "secure_session - rand '$rand'"
 
 		EASYRSA_TEMP_DIR_session="${EASYRSA_TEMP_DIR}/${rand}"
 		mkdir "$EASYRSA_TEMP_DIR_session" || continue
@@ -399,7 +399,7 @@ easyrsa_mktemp() {
 	for i in 1 2 3; do
 		# Always use openssl directly for rand
 		rand="$("$EASYRSA_OPENSSL" rand -hex 4)" \
-			|| die "easyrsa_mktemp - rand: $rand"
+			|| die "easyrsa_mktemp - rand '$rand'"
 
 		shotfile="${EASYRSA_TEMP_DIR_session}/shot.$rand"
 		if [ -e "$shotfile" ]; then
@@ -2577,6 +2577,14 @@ Failed to source the vars file, remove any unsupported characters."
 	# If EASYRSA_PKI directory exists then
 	if  [ ! "$no_pki_required" ] && [ -d "$EASYRSA_PKI" ]; then
 
+		# Make a safe SSL config for LibreSSL
+		# sub-shell out, to change running variables, only the file is required
+		(
+			no_pki_required=1
+			require_safe_ssl_conf=1
+			easyrsa_openssl makesafeconf
+		) || die "Failed to create safe ssl conf (vars_setup)"
+
 		# Temp dir session
 		secure_session || die "Temporary directory secure-session failed."
 
@@ -2590,7 +2598,7 @@ Failed to source the vars file, remove any unsupported characters."
 			# This will find x509-types and export EASYRSA_EXT_DIR or die.
 			# Other errors only require warning.
 			install_data_to_pki vars-setup || \
-				warn "Failed to install new required data-dir to PKI. (setup)"
+				warn "Failed to install new required data-dir to PKI. (vars_setup)"
 
 			# EASYRSA_SAFE_CONF is output by 'install_data_to_pki()'
 			# via 'easyrsa_openssl() makesafeconf' above.
