@@ -2351,6 +2351,40 @@ $in_file"
 OpenSSL failure to process the input"
 } # => show_ca()
 
+# Identify host OS
+detect_host() {
+	unset -v easyrsa_host_os easyrsa_host_test easyrsa_win_git_bash
+
+	# Detect Windows
+	[ "${OS}" ] && easyrsa_host_test="${OS}"
+
+	# shellcheck disable=SC2016 # expansion inside '' blah
+	easyrsa_ksh='@(#)MIRBSD KSH R39-w32-beta14 $Date: 2013/06/28 21:28:57 $'
+	[ "${KSH_VERSION}" = "${easyrsa_ksh}" ] && easyrsa_host_test="${easyrsa_ksh}"
+	unset -v easyrsa_ksh
+
+	# If not Windows then nix
+	if [ "${easyrsa_host_test}" ]; then
+		easyrsa_host_os=win
+		easyrsa_uname="${easyrsa_host_test}"
+		easyrsa_shell="$SHELL"
+		# Detect Windows git/bash
+		if [ "${EXEPATH}" ]; then
+			easyrsa_shell="$SHELL (Git)"
+			easyrsa_win_git_bash="${EXEPATH}"
+			# If found then set openssl NOW!
+			[ -e /usr/bin/openssl ] && set_var EASYRSA_OPENSSL /usr/bin/openssl
+		fi
+	else
+		easyrsa_host_os=nix
+		easyrsa_uname="$(uname 2>/dev/null)"
+		easyrsa_shell="$SHELL"
+	fi
+	host_out="$easyrsa_host_os | $easyrsa_uname | $easyrsa_shell"
+	host_out="${host_out}${easyrsa_win_git_bash+ | "$easyrsa_win_git_bash"}"
+	unset -v easyrsa_host_test
+} # => detect_host()
+
 # vars setup
 # Here sourcing of 'vars' if present occurs. If not present, defaults are used
 # to support running without a sourced config format
@@ -2484,38 +2518,6 @@ Sourcing the vars file will probably fail .."
 		fi
 	# END: Find vars
 	fi
-
-	# Identify host OS
-	unset -v easyrsa_host_os easyrsa_host_test easyrsa_win_git_bash
-
-	# Detect Windows
-	[ "${OS}" ] && easyrsa_host_test="${OS}"
-
-	# shellcheck disable=SC2016 # expansion inside '' blah
-	easyrsa_ksh='@(#)MIRBSD KSH R39-w32-beta14 $Date: 2013/06/28 21:28:57 $'
-	[ "${KSH_VERSION}" = "${easyrsa_ksh}" ] && easyrsa_host_test="${easyrsa_ksh}"
-	unset -v easyrsa_ksh
-
-	# If not Windows then nix
-	if [ "${easyrsa_host_test}" ]; then
-		easyrsa_host_os=win
-		easyrsa_uname="${easyrsa_host_test}"
-		easyrsa_shell="$SHELL"
-		# Detect Windows git/bash
-		if [ "${EXEPATH}" ]; then
-			easyrsa_shell="$SHELL (Git)"
-			easyrsa_win_git_bash="${EXEPATH}"
-			# If found then set openssl NOW!
-			[ -e /usr/bin/openssl ] && set_var EASYRSA_OPENSSL /usr/bin/openssl
-		fi
-	else
-		easyrsa_host_os=nix
-		easyrsa_uname="$(uname 2>/dev/null)"
-		easyrsa_shell="$SHELL"
-	fi
-	host_out="$easyrsa_host_os | $easyrsa_uname | $easyrsa_shell"
-	host_out="${host_out}${easyrsa_win_git_bash+ | "$easyrsa_win_git_bash"}"
-	unset -v easyrsa_host_test
 
 	# Set defaults, preferring existing env-vars if present
 	set_var EASYRSA					"$PWD"
@@ -3339,6 +3341,9 @@ case "$cmd" in
 	version) no_pki_required=1 ;;
 	*) unset -v no_pki_required
 esac
+
+# Get host details
+detect_host
 
 # Intelligent env-var detection and auto-loading:
 vars_setup
