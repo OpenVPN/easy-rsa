@@ -545,10 +545,10 @@ Failed to generate ecparam file (permissions?) when writing to:
 $out"
 } # => verify_curve_ec()
 
-# Verify if Edward Curve exists
+# Verify if Edwards Curve exists
 verify_curve_ed() {
 	easyrsa_openssl genpkey -algorithm "$EASYRSA_CURVE" > /dev/null \
-		|| die "Edward Curve $EASYRSA_CURVE not found."
+		|| die "Edwards Curve $EASYRSA_CURVE not found."
 } # => verify_curve_ed()
 
 # Verify the SSL library is functional and establish version dependencies
@@ -1095,13 +1095,13 @@ Run easyrsa without commands for usage and commands."
 	verify_pki_init
 
 	# function opts support
-	opts=
+	unset -v text nopass ssl_batch
 	while [ -n "$1" ]; do
 		case "$1" in
-			text) opts="$opts -text" ;;
-			nopass) opts="$opts $no_password" ;;
+			text) text=1 ;;
+			nopass) nopass=1 ;;
 			# batch flag supports internal callers needing silent operation
-			batch) openssl_batch=1 ;;
+			batch) ssl_batch=1 ;;
 			*) warn "Ignoring unknown command option: '$1'"
 		esac
 		shift
@@ -1146,8 +1146,8 @@ $EASYRSA_EXTRA_EXTS"
 	req_out_tmp="$(easyrsa_mktemp)" || die "Failed to create temporary file"
 
 	# Set SSL non-interactive mode, otherwise allow full user interaction
-	if [ "$EASYRSA_BATCH" ] || [ "$openssl_batch" ]; then
-		opts="$opts -batch"
+	if [ "$EASYRSA_BATCH" ] || [ "$ssl_batch" ]; then
+		ssl_batch=1
 	fi
 
 	# Set Edwards curve name or elliptic curve parameters file
@@ -1159,10 +1159,12 @@ $EASYRSA_EXTRA_EXTS"
 	fi
 
 	# Generate request
-	# shellcheck disable=SC2086 # Ignore unquoted variables
 	easyrsa_openssl req -utf8 -new -newkey "$algo_opts" \
-		-keyout "$key_out_tmp" -out "$req_out_tmp" $opts \
-		${EASYRSA_PASSOUT:+-passout "$EASYRSA_PASSOUT"} \
+		-keyout "$key_out_tmp" -out "$req_out_tmp" \
+		${nopass+ "$no_password"} \
+		${text+ -text} \
+		${ssl_batch+ -batch} \
+		${EASYRSA_PASSOUT:+ -passout "$EASYRSA_PASSOUT"} \
 			|| die "Failed to generate request"
 	mv "$key_out_tmp" "$key_out"
 	mv "$req_out_tmp" "$req_out"
