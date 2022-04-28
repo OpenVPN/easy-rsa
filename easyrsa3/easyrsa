@@ -1362,15 +1362,20 @@ Matching file found at: "
 
 	# inline it
 	if [ "$EASYRSA_INLINE" ]; then
-		inline_creds
+		inline_file="$EASYRSA_PKI/$EASYRSA_REQ_CN.creds"
+		if [ -f "$inline_file" ]; then
+			warn "Inline file exists not over-writing: $inline_file"
+		else
+		inline_creds || die "Failed to write inline file: $inline_file"
+		notice "\
+Inline file created: $inline_file"
+		fi
 	fi
 } # => build_full()
 
 # Create inline credentials file for this node
 inline_creds ()
 {
-	[ -f "$EASYRSA_PKI/$EASYRSA_REQ_CN.creds" ] \
-	&& die "Inline file exists: $EASYRSA_PKI/$EASYRSA_REQ_CN.creds"
 	{
 		printf "%s\n" "# $crt_type: $EASYRSA_REQ_CN"
 		printf "%s\n" ""
@@ -1386,7 +1391,7 @@ inline_creds ()
 		cat "$key_out"
 		printf "%s\n" "</key>"
 		printf "%s\n" ""
-	} > "$EASYRSA_PKI/$EASYRSA_REQ_CN.creds"
+	} > "$inline_file"
 } # => inline_creds ()
 
 # revoke backend
