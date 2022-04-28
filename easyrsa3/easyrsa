@@ -34,7 +34,7 @@ Here is the list of commands available with a short syntax reminder. Use the
   build-client-full <filename_base> [ cmd-opts ]
   build-server-full <filename_base> [ cmd-opts ]
   revoke <filename_base> [cmd-opts]
-  revoke-renewed <certificate_serial> [cmd-opts]
+  revoke-renewed <filename_base> [cmd-opts]
   renew <filename_base> [cmd-opts]
   build-serverClient-full <filename_base> [ cmd-opts ]
   gen-crl
@@ -124,7 +124,7 @@ cmd_help() {
         certificateHold";;
 		revoke-renewed) text="
   revoke-renewed <filename_base> [reason]
-      Revoke a renewed certificate specified by its old certificate_serial, with an optional
+      Revoke a renewed certificate specified by the filename_base, with an optional
       revocation reason that is one of:
         unspecified
         keyCompromise
@@ -182,6 +182,7 @@ cmd_help() {
   export-p12 <filename_base> [ cmd-opts ]
       Export a PKCS#12 file with the keypair specified by <filename_base>"
 			opts="
+        nopass  - use no password and leave the key unencrypted
         noca    - do not include the ca.crt file in the PKCS12 output
         nokey   - do not include the private key in the PKCS12 output
         usefn   - use <filename_base> as friendly name" ;;
@@ -289,7 +290,7 @@ Organizational DN options: (only used with the 'org' DN mode)
 
 Deprecated features:
 
---ns-cert=YESNO       : yes or no to including deprecated NS extensions
+--ns-cert=YES/NO      : yes or no to including deprecated NS extensions
 --ns-comment=COMMENT  : NS comment to include (value may be blank)
 "
 } # => opt_usage()
