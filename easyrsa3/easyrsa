@@ -3242,7 +3242,13 @@ while :; do
 	# Separate option from value:
 	opt="${1%%=*}"
 	val="${1#*=}"
-	empty_ok="" # Empty values are not allowed unless excepted
+
+	# Empty values are not allowed unless expected
+	unset -v is_empty empty_ok
+	# eg: '--batch'
+	[ "$opt" = "$val" ] && is_empty=1
+	# eg: '--pki-dir='
+	[ "$val" ] || is_empty=1
 
 	case "$opt" in
 	--days)
@@ -3326,8 +3332,8 @@ subjectAltName = $val" ;;
 	esac
 
 	# fatal error when no value was provided
-	if [ ! $empty_ok ] && { [ "$val" = "$1" ] || [ -z "$val" ]; }; then
-		die "Missing value to option: $opt"
+	if [ "$is_empty" ]; then
+		[ "$empty_ok" ] || die "Missing value to option: $opt"
 	fi
 
 	shift
