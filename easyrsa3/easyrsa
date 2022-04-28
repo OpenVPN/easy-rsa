@@ -1722,8 +1722,9 @@ Failed to renew certificate: renew command failed."
 
 IMPORTANT!!!
 
-Renew was successful.
-You may want to revoke the old certificate once the new one has been deployed."
+Renew was successful:
+  To revoke the old certificate once the new one has been deployed,
+  use: 'easyrsa revoke-renewed $file_name_base'"
 
 	return 0
 } #= renew()
@@ -1887,7 +1888,9 @@ Cannot revoke this certificate because a conflicting file exists.
 	# move revoked files
 	revoke_renewed_move
 
+	[ "$EASYRSA_SILENT" ] || print # Separate Notice below
 	notice "\
+
 IMPORTANT!!!
 
 Revocation was successful. You must run gen-crl and upload a CRL to your
