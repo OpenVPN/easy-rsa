@@ -532,8 +532,8 @@ Failed creating ecparams dir (permissions?) at:
 $EASYRSA_EC_DIR"
 
 	# Check that the required ecparams file exists
-	out="${EASYRSA_EC_DIR}/${EASYRSA_CURVE}.pem"
-	if easyrsa_openssl ecparam -name "$EASYRSA_CURVE" -out "$out" 1>/dev/null
+	if easyrsa_openssl ecparam -name "$EASYRSA_CURVE" \
+		-out "$EASYRSA_ALGO_PARAMS" 1>/dev/null
 	then
 		return 0
 	fi
