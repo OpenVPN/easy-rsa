@@ -2499,18 +2499,23 @@ recommended - please remove it from there before continuing."
 				# Sanitize vars further but ONLY if it is in PKI folder
 				if [ "$pki_vars" ]; then
 					# Warning: Single quote
-					if grep -q "'" "$vars"; then
+					if grep '^[[:blank:]]*set_var[[:blank:]]\+.*' "$vars" | \
+						grep -q -e '&' -e "'" -e '`' -e '\$' -e '#' ; then
 						warn "\
-Single quote (') has been found in the configuration file.
-This character is not supported in the configuration file.
-Sourcing the vars file will probably fail .."
+Unsupported  characters are present in the vars file.
+These characters are not supported: (') (&) (\`) (\$) (#)
+Sourcing the vars file and building certificates will probably fail .."
 					fi
 				fi
 
 				# shellcheck disable=SC2034 # EASYRSA_CALLER appears unused.
 				EASYRSA_CALLER=1
 				# shellcheck disable=1090 # can't follow non-constant source. vars
-				. "$vars"
+				( . "$vars" 2>/dev/null ) || die "\
+Failed to source the vars file, remove any unsupported characters."
+
+				# shellcheck disable=1090 # can't follow non-constant source. vars
+				. "$vars" 2>/dev/null
 				notice "Using Easy-RSA configuration from: $vars"
 				[ "$pki_vars" ] || \
 					warn "Move your vars file to your PKI folder, where it is safe!"
