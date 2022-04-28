@@ -472,7 +472,6 @@ easyrsa_openssl() {
 				-e "s\`\$EASYRSA_CRL_DAYS\`$EASYRSA_CRL_DAYS\`g" \
 				-e "s\`\$EASYRSA_DIGEST\`$EASYRSA_DIGEST\`g" \
 				-e "s\`\$EASYRSA_KEY_SIZE\`$EASYRSA_KEY_SIZE\`g" \
-				-e "s\`\$EASYRSA_DIGEST\`$EASYRSA_DIGEST\`g" \
 				-e "s\`\$EASYRSA_DN\`$EASYRSA_DN\`g" \
 				-e "s\`\$EASYRSA_REQ_COUNTRY\`$EASYRSA_REQ_COUNTRY\`g" \
 				-e "s\`\$EASYRSA_REQ_PROVINCE\`$EASYRSA_REQ_PROVINCE\`g" \
@@ -870,7 +869,6 @@ hide_read_pass()
 # build-ca backend:
 build_ca() {
 	cipher="-aes256"
-	digest="-sha256"
 	unset -v nopass sub_ca ssl_batch date_stamp x509
 	while [ -n "$1" ]; do
 		case "$1" in
@@ -1022,7 +1020,7 @@ current CA keypair. If you intended to start a new CA, run init-pki first."
 			${ssl_batch+ -batch} \
 			${x509+ -x509} \
 			${date_stamp+ -days "$EASYRSA_CA_EXPIRE"} \
-			"$digest" \
+			${EASYRSA_DIGEST+ -"$EASYRSA_DIGEST"} \
 			${no_password+ "$no_password"} \
 			${EASYRSA_PASSIN:+ -passin "$EASYRSA_PASSIN"} \
 			${out_key_pass_tmp:+ -passin file:"$out_key_pass_tmp"} \
@@ -2023,6 +2021,7 @@ Run easyrsa without commands for usage and command help."
 	want_ca=1
 	want_key=1
 	want_pass=1
+	unset -v pkcs_friendly_name
 	while [ -n "$1" ]; do
 		case "$1" in
 			noca) want_ca="" ;;
@@ -2492,13 +2491,13 @@ Sourcing the vars file will probably fail .."
 	# shellcheck disable=SC2016 # expansion inside '' blah
 	easyrsa_ksh='@(#)MIRBSD KSH R39-w32-beta14 $Date: 2013/06/28 21:28:57 $'
 	[ "${KSH_VERSION}" = "${easyrsa_ksh}" ] && easyrsa_host_test="${easyrsa_ksh}"
-	#unset -v easyrsa_ksh
+	unset -v easyrsa_ksh
 
 	# If not Windows then nix
 	if [ "${easyrsa_host_test}" ]; then
 		easyrsa_host_os=win
 		easyrsa_uname="${easyrsa_host_test}"
-		easyrsa_shell="$easyrsa_ksh"
+		easyrsa_shell="$SHELL"
 		# Detect Windows git/bash
 		if [ "${EXEPATH}" ]; then
 			easyrsa_shell="$SHELL (Git)"
