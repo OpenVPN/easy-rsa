@@ -542,7 +542,7 @@ $EASYRSA_EC_DIR"
 	rm -rf "$EASYRSA_EC_DIR"
 	die "\
 Failed to generate ecparam file (permissions?) when writing to:
-$out"
+$EASYRSA_ALGO_PARAMS"
 } # => verify_curve_ec()
 
 # Verify if Edwards Curve exists
@@ -1181,7 +1181,6 @@ key: $key_out"
 # common signing backend
 sign_req() {
 	crt_type="$1"
-	opts=""
 	req_in="$EASYRSA_PKI/reqs/$2.req"
 	crt_out="$EASYRSA_PKI/issued/$2.crt"
 
@@ -1301,9 +1300,8 @@ $ext_tmp"
 
 	# sign request
 	crt_out_tmp="$(easyrsa_mktemp)" || die "Failed to create temporary file"
-	# shellcheck disable=SC2086 # Ignore unquoted variables
 	easyrsa_openssl ca -utf8 -in "$req_in" -out "$crt_out_tmp" \
-		-extfile "$ext_tmp" -days "$EASYRSA_CERT_EXPIRE" -batch $opts \
+		-extfile "$ext_tmp" -days "$EASYRSA_CERT_EXPIRE" -batch \
 		${EASYRSA_PASSIN:+-passin "$EASYRSA_PASSIN"} \
 			|| die "signing failed (openssl output above may have more detail)"
 
