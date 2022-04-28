@@ -1311,7 +1311,6 @@ $ext_tmp"
 	[ "$EASYRSA_SILENT" ] || print # Separate Notice below
 	unset -v EASYRSA_BATCH # This is why batch mode should not silence output
 	notice "\
-
 Certificate created at: $crt_out"
 
 	return 0
@@ -1333,10 +1332,9 @@ Run easyrsa without commands for usage and commands."
 	shift 2
 
 	# function opts support
-	req_opts=
 	while [ -n "$1" ]; do
 		case "$1" in
-			nopass) req_opts="$req_opts nopass" ;;
+			nopass) nopass=1 ;;
 			inline) EASYRSA_INLINE=1 ;;
 			*) warn "Ignoring unknown command option: '$1'"
 		esac
@@ -1354,8 +1352,7 @@ Matching file found at: "
 
 	# create request
 	EASYRSA_REQ_CN="$name"
-	# shellcheck disable=SC2086 # Ignore unquoted variables
-	gen_req "$name" batch $req_opts
+	gen_req "$name" batch ${nopass+ nopass}
 
 	# Sign it
 	( sign_req "$crt_type" "$name" batch ) || {
