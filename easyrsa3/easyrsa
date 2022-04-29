@@ -43,6 +43,7 @@ Here is the list of commands available with a short syntax reminder. Use the
   show-cert <filename_base> [ cmd-opts ]
   show-ca [ cmd-opts ]
   show-crl
+  verify <filename_base>
   import-req <request_file_path> <short_basename>
   export-p1 <filename_base> [ cmd-opts ]
   export-p7 <filename_base> [ cmd-opts ]
@@ -168,6 +169,9 @@ cmd_help() {
       Shows details of the current certificate revocation list (CRL)
 
       Human-readable output is shown." ;;
+		verify) text="
+  verify <filename_base>
+      Verify certificate against CA" ;;
 		import-req) text="
   import-req <request_file_path> <short_basename>
       Import a certificate request from a file
@@ -2255,6 +2259,39 @@ default_server_san() {
 	fi
 } # => default_server_san()
 
+# Verify certificate against CA
+verify_cert() {
+	# pull filename base:
+	[ "$1" ] || die "\
+Error: didn't find a file base name as the first argument.
+Run easyrsa without commands for usage and command help."
+
+	verify_ca_init
+
+	# Assign file_name_base and dust off!
+	file_name_base="$1"
+	shift
+
+	in_dir="$EASYRSA_PKI"
+	ca_crt="$in_dir/ca.crt"
+	crt_in="$in_dir/issued/$file_name_base.crt"
+
+	# Test and show SSL out
+	if easyrsa_openssl verify -CAfile "$ca_crt" "$crt_in"; then
+		[ "$EASYRSA_SILENT" ] || print # Separate Notice below
+		notice "\
+  Certificate name:   $file_name_base
+  Verfication status: GOOD"
+		exit 0
+	fi
+
+	[ "$EASYRSA_SILENT" ] || print # Separate Notice below
+	warn "\
+  Certificate name:   $file_name_base
+  Verfication status: FAILED"
+	exit 1
+} # => verify_cert()
+
 # verify a file seems to be a valid req/X509
 verify_file() {
 	format="$1"
@@ -3512,6 +3549,9 @@ case "$cmd" in
 		;;
 	show-ca)
 		show_ca "$@"
+		;;
+	verify)
+		verify_cert "$@"
 		;;
 	upgrade)
 		up23_manage_upgrade_23 "$@"
