@@ -21,6 +21,9 @@ RANDFILE	= $dir/.rand		# private random number file
 
 x509_extensions	= basic_exts		# The extensions to add to the cert
 
+# A placeholder to handle the --copy-ext feature:
+#%COPY_EXTS%	# Do NOT remove or change this line as --copy-ext support requires it
+
 # This allows a V2 CRL. Ancient browsers don't like it, but anything Easy-RSA
 # is designed for will. In return, we get the Issuer attached to CRLs.
 crl_extensions	= crl_ext
