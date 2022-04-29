@@ -272,8 +272,9 @@ Certificate & Request options: (these impact cert/req field values)
 --keysize=#     : size in bits of keypair to generate
 --req-cn=NAME   : default CN to use
 --subca-len=#   : path length of signed intermediate CA certs; must be >= 0 if used
---subject-alt-name : Add a subjectAltName. For more info and syntax, see:
-                     ./easyrsa help altname
+--subject-alt-name
+--san           : Add a subjectAltName.
+                : For more info and syntax, see: 'easyrsa help altname'
 --use-algo=ALG  : crypto alg to use: choose rsa (default), ec or ed
 --curve=NAME    : for elliptic curve, sets the named curve to use
 --copy-ext      : Copy included request X509 extensions (namely subjAltName)
@@ -1271,27 +1272,27 @@ $(display_dn req "$req_in")
 			esac
 		fi
 
-		# If type is server and no subjectAltName was requested,
-		# add one to the extensions file
-		if [ "$crt_type" = 'server' ] || [ "$crt_type" = 'serverClient' ];
-		then
-			echo "$EASYRSA_EXTRA_EXTS" | grep -q subjectAltName
-			if echo "$EASYRSA_EXTRA_EXTS" | grep -q subjectAltName; then
-				: #ok
-			else
-				san=$(display_san req "$req_in")
-
-				if [ -n "$san" ];
-				then
+		# Add user SAN from --subject-alt-name
+		if [ "$user_san_true" ]; then
+			print "$EASYRSA_EXTRA_EXTS"
+		else
+			# or default server SAN
+			# If type is server and no subjectAltName was requested,
+			# add one to the extensions file
+			if [ "$crt_type" = 'server' ] || [ "$crt_type" = 'serverClient' ];
+			then
+				# req san or default server SAN
+				san="$(display_san req "$req_in")"
+				if [ "$san" ]; then
 					print "subjectAltName = $san"
 				else
 					default_server_san "$req_in"
 				fi
 			fi
+			# or externally set EASYRSA_EXTRA_EXTS
+			# Add any advanced extensions supplied by env-var:
+			[ -z "$EASYRSA_EXTRA_EXTS" ] || print "$EASYRSA_EXTRA_EXTS"
 		fi
-
-		# Add any advanced extensions supplied by env-var:
-		[ -z "$EASYRSA_EXTRA_EXTS" ] || print "$EASYRSA_EXTRA_EXTS"
 	} > "$ext_tmp" || die "\
 Failed to create temp extension file (bad permissions?) at:
 $ext_tmp"
@@ -3287,6 +3288,9 @@ NL='
 # Be secure with a restrictive umask
 [ -z "$EASYRSA_NO_UMASK" ] && umask "${EASYRSA_UMASK:-077}"
 
+# Initialisation requirements
+unset -v user_san_true
+
 # Parse options
 while :; do
 	# Separate option from value:
@@ -3368,7 +3372,8 @@ while :; do
 	--copy-ext)
 		empty_ok=1
 		export EASYRSA_CP_EXT=1 ;;
-	--subject-alt-name)
+	--subject-alt-name|--san)
+		user_san_true=1
 		export EASYRSA_EXTRA_EXTS="\
 $EASYRSA_EXTRA_EXTS
 subjectAltName = $val" ;;
