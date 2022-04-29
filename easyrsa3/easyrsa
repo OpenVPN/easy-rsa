@@ -110,6 +110,8 @@ cmd_help() {
       This mode uses the <filename_base> as the X509 CN."
 			opts="
         nopass  - do not encrypt the private key (default is encrypted)
+        nodatetime - generate certificate with start and end date
+                     of 01 January 00:00:00 changing year only
         inline  - create an inline credentials file for this node" ;;
 		revoke) text="
   revoke <filename_base> [reason]
@@ -1182,6 +1184,8 @@ sign_req() {
 	crt_type="$1"
 	req_in="$EASYRSA_PKI/reqs/$2.req"
 	crt_out="$EASYRSA_PKI/issued/$2.crt"
+	start_date=$(date "+%Y")"0101000000Z"
+	end_date=$(date "+%Y" -d "$EASYRSA_CERT_EXPIRE day")"0101000000Z"
 
 	# Randomize Serial number
 	if [ "$EASYRSA_RAND_SN" != "no" ];
@@ -1317,6 +1321,7 @@ $ext_tmp"
 	# sign request
 	crt_out_tmp="$(easyrsa_mktemp)" || die "Failed to create temporary file"
 	easyrsa_openssl ca -utf8 -in "$req_in" -out "$crt_out_tmp" \
+		$([ "$4" = "nodatetime" ] && echo "-startdate" "$start_date" "-enddate" "$end_date") \
 		-extfile "$ext_tmp" -days "$EASYRSA_CERT_EXPIRE" -batch \
 		${EASYRSA_PASSIN:+-passin "$EASYRSA_PASSIN"} \
 			|| die "signing failed (openssl output above may have more detail)"
@@ -1351,6 +1356,7 @@ Run easyrsa without commands for usage and commands."
 	while [ -n "$1" ]; do
 		case "$1" in
 			nopass) nopass=1 ;;
+			nodatetime) nodatetime=1 ;;
 			inline) EASYRSA_INLINE=1 ;;
 			*) warn "Ignoring unknown command option: '$1'"
 		esac
@@ -1371,7 +1377,7 @@ Matching file found at: "
 	gen_req "$name" batch ${nopass+ nopass}
 
 	# Sign it
-	( sign_req "$crt_type" "$name" batch ) || {
+	( sign_req "$crt_type" "$name" batch ${nodatetime+ nodatetime} ) || {
 		rm -f "$req_out" "$key_out"
 		die "Failed to sign '$name'"
 	}
