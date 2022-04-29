@@ -1246,14 +1246,31 @@ Request subject, to be signed as a $crt_type certificate for $EASYRSA_CERT_EXPIR
 $(display_dn req "$req_in")
 "	# => confirm end
 
+	# When EASYRSA_CP_EXT is defined, adjust openssl's [default_ca] section:
+	if [ -n "$EASYRSA_CP_EXT" ]; then
+		# Setup & insert the copy_extensions data keyed by a magic line
+		copy_exts="copy_extensions = copy"
+		# shellcheck disable=SC2016 # vars don't expand in single quote
+		awkscript='
+{if ( match($0, "^#%COPY_EXTS%") )
+	{ while ( getline<"/dev/stdin" ) {print} next }
+ {print}
+}'
+		conf_tmp="$(easyrsa_mktemp)" || die "Failed to create temporary file"
+		print "$copy_exts" | \
+			awk "$awkscript" "$EASYRSA_SSL_CONF" \
+			> "$conf_tmp" \
+			|| die "Copying SSL config to temp file failed"
+		# Use this new SSL config for the rest of this function
+		EASYRSA_SSL_CONF="$conf_tmp"
+	fi
+
 	# Generate the extensions file for this cert:
 	ext_tmp="$(easyrsa_mktemp)" || die "Failed to create temporary file"
 	{
 		# Append first any COMMON file (if present) then the cert-type extensions
 		cat "$EASYRSA_EXT_DIR/COMMON"
 		cat "$EASYRSA_EXT_DIR/$crt_type"
-		# copy req extensions
-		[ "$EASYRSA_CP_EXT" ] && print "copy_extensions = copy"
 
 		# Support a dynamic CA path length when present:
 		[ "$crt_type" = "ca" ] && [ -n "$EASYRSA_SUBCA_LEN" ] && \
