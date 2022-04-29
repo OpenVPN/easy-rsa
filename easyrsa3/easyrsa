@@ -2276,6 +2276,14 @@ Run easyrsa without commands for usage and command help."
 	ca_crt="$in_dir/ca.crt"
 	crt_in="$in_dir/issued/$file_name_base.crt"
 
+	# Cert file must exist
+	[ -f "$crt_in" ] || die "\
+No certificate found for the input: '$crt_in'"
+
+	# Verify file is a valid cert
+	verify_file x509 "$crt_in" || die "\
+Input is not a valid certificate: $crt_in"
+
 	# Test and show SSL out
 	if easyrsa_openssl verify -CAfile "$ca_crt" "$crt_in"; then
 		[ "$EASYRSA_SILENT" ] || print # Separate Notice below
