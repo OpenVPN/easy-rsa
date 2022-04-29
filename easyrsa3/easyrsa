@@ -109,10 +109,11 @@ cmd_help() {
 
       This mode uses the <filename_base> as the X509 CN."
 			opts="
-        nopass  - do not encrypt the private key (default is encrypted)
-        nodatetime - generate certificate with start and end date
-                     of 01 January 00:00:00 changing year only
-        inline  - create an inline credentials file for this node" ;;
+        nopass     - do not encrypt the private key (default is encrypted)
+        nodatetime - generate certificate with start date of
+                     01 January 00:00:00 and end date of CA generation
+                     day 00:00:00, changing year only
+        inline     - create an inline credentials file for this node" ;;
 		revoke) text="
   revoke <filename_base> [reason]
       Revoke a certificate specified by the filename_base, with an optional
@@ -1184,8 +1185,7 @@ sign_req() {
 	crt_type="$1"
 	req_in="$EASYRSA_PKI/reqs/$2.req"
 	crt_out="$EASYRSA_PKI/issued/$2.crt"
-	start_date=$(date "+%Y")"0101000000Z"
-	end_date=$(date "+%Y" -d "$EASYRSA_CERT_EXPIRE day")"0101000000Z"
+	cert_dates "$EASYRSA_PKI/ca.crt"
 
 	# Randomize Serial number
 	if [ "$EASYRSA_RAND_SN" != "no" ];
@@ -1321,7 +1321,7 @@ $ext_tmp"
 	# sign request
 	crt_out_tmp="$(easyrsa_mktemp)" || die "Failed to create temporary file"
 	easyrsa_openssl ca -utf8 -in "$req_in" -out "$crt_out_tmp" \
-		$([ "$4" = "nodatetime" ] && echo "-startdate" "$start_date" "-enddate" "$end_date") \
+		$([ "$4" = "nodatetime" ] && echo "-startdate" "$start_date_nodatetime" "-enddate" "$end_date_nodatetime") \
 		-extfile "$ext_tmp" -days "$EASYRSA_CERT_EXPIRE" -batch \
 		${EASYRSA_PASSIN:+-passin "$EASYRSA_PASSIN"} \
 			|| die "signing failed (openssl output above may have more detail)"
@@ -1586,6 +1586,49 @@ revoke_move() {
 	return 0
 } #= move_revoked()
 
+# Set certificate expire date, renew date and variables needed for nodatetime
+cert_dates() {
+	cert_notbefore_date="$(
+		easyrsa_openssl x509 -in "$1" -noout -startdate | \
+			sed 's/^notBefore=//'
+		)"
+	cert_notafter_date="$(
+		easyrsa_openssl x509 -in "$1" -noout -enddate | \
+			sed 's/^notAfter=//'
+		)"
+
+	case "$easyrsa_uname" in
+	"Darwin"|*"BSD")
+		expire_date="$(date -j -f '%b %d %T %Y %Z' "$cert_notafter_date" +%s)"
+		allow_renew_date="$(( $(date -j +%s) + 86400 * EASYRSA_CERT_RENEW ))"
+		start_date_nodatetime_md="$(date -j -f '%b %d %T %Y %Z' "$cert_notbefore_date" +%m%d)"
+		start_date_nodatetime="$(date +%Y)0101000000Z"
+		end_date_nodatetime="$(date -j -f %s $(( $(date +%s) + 86400 * EASYRSA_CERT_EXPIRE )) +%Y)${start_date_nodatetime_md}000000Z"
+	;;
+	*)
+		# Linux and Windows
+		if expire_date="$(date -d "$cert_notafter_date" +%s)"
+		then
+			allow_renew_date="$(date -d "+${EASYRSA_CERT_RENEW}day" +%s)"
+			start_date_nodatetime_md="$(date -d "$cert_notbefore_date" +%m%d)"
+			start_date_nodatetime="$(date +%Y)0101000000Z"
+			end_date_nodatetime="$(date -d "+${EASYRSA_CERT_EXPIRE}day" +%Y)${start_date_nodatetime_md}000000Z"
+
+		# Alpine Linux and busybox
+		elif expire_date="$(date -D "%b %e %H:%M:%S %Y" -d "$cert_notafter_date" +%s)"
+		then
+			allow_renew_date="$(( $(date +%s) + 86400 * EASYRSA_CERT_RENEW ))"
+			start_date_nodatetime_md="$(date -D "%b %e %H:%M:%S %Y" -d "$cert_notbefore_date" +%m%d)"
+			start_date_nodatetime="$(date +%Y)0101000000Z"
+			end_date_nodatetime="$(date -D %s -d $(( $(date +%s) + 86400 * EASYRSA_CERT_EXPIRE )) +%Y)${start_date_nodatetime_md}000000Z"
+
+		# Something else
+		else
+			die "Date failed"
+		fi
+	esac
+} #= cert_dates()
+
 # renew backend
 renew() {
 	# pull filename base:
@@ -1660,32 +1703,7 @@ Cannot renew this certificate because a conflicting file exists.
 	unset -v deny_msg
 
 	# Check if old cert is expired or expires within 30
-	cert_expire_date="$(
-		easyrsa_openssl x509 -in "$crt_in" -noout -enddate | \
-			sed 's/^notAfter=//'
-		)"
-
-	case "$easyrsa_uname" in
-	"Darwin"|*"BSD")
-		expire_date="$(date -j -f '%b %d %T %Y %Z' "$cert_expire_date" +%s)"
-		allow_renew_date="$(( $(date -j +%s) + 86400 * EASYRSA_CERT_RENEW ))"
-	;;
-	*)
-		# Linux and Windows
-		if expire_date="$(date -d "$cert_expire_date" +%s)"
-		then
-			allow_renew_date="$(date -d "+${EASYRSA_CERT_RENEW}day" +%s)"
-
-		# Alpine Linux and busybox
-		elif expire_date="$(date -D "%b %e %H:%M:%S %Y" -d "$cert_expire_date" +%s)"
-		then
-			allow_renew_date="$(( $(date +%s) + 86400 * EASYRSA_CERT_RENEW ))"
-
-		# Something else
-		else
-			die "Date failed"
-		fi
-	esac
+	cert_dates "$crt_in"
 
 	[ "$expire_date" -lt "$allow_renew_date" ] || die "\
 Certificate expires in more than $EASYRSA_CERT_RENEW days.
