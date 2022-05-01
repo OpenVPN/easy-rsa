@@ -384,8 +384,8 @@ Non-existant temporary directory: $EASYRSA_TEMP_DIR"
 		rand="$("$EASYRSA_OPENSSL" rand -hex 4)" \
 			|| die "secure_session - rand '$rand'"
 
+		mkdir "${EASYRSA_TEMP_DIR}/${rand}" || continue
 		EASYRSA_TEMP_DIR_session="${EASYRSA_TEMP_DIR}/${rand}"
-		mkdir "$EASYRSA_TEMP_DIR_session" || continue
 		return
 	done
 	return 1

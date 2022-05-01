@@ -225,6 +225,7 @@ download_shellcheck () {
 				log "version check failed: ${ERSA_UT}/${target_file}"
 			sc_bin="${ERSA_UT}/${target_file}"
 			sc_bin_ok=1
+			log "shellcheck enabled"
 		else
 			# download and basic check
 			log "curl_it ${target_file}"
