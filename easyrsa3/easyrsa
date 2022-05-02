@@ -2231,7 +2231,7 @@ display_san() {
 # display cert DN info on a req/X509, passed by full pathname
 display_dn() {
 	format="$1" path="$2"
-	print "$("$EASYRSA_OPENSSL" "$format" -in "$path" -noout -subject -nameopt multiline)"
+	print "$("$EASYRSA_OPENSSL" "$format" -in "$path" -noout -subject -nameopt utf8,sep_multiline,space_eq,lname,align)"
 	san="$(display_san "$1" "$2")"
 	if [ -n "$san" ]; then
 		print ""
@@ -2278,7 +2278,7 @@ Run easyrsa without commands for usage help."
 	# opts support
 	type_opts="-${type}opt"
 	out_opts="no_pubkey,no_sigdump"
-	name_opts=multiline
+	name_opts=utf8,sep_multiline,space_eq,lname,align
 	while [ -n "$1" ]; do
 		case "$1" in
 			full) out_opts= ;;
@@ -2365,7 +2365,7 @@ $in_file"
   * $in_file"
 
 	easyrsa_openssl "$format" -in "$in_file" -noout -text\
-		-nameopt multiline -certopt "$out_opts" || die "\
+		-nameopt utf8,sep_multiline,space_eq,lname,align -certopt "$out_opts" || die "\
 OpenSSL failure to process the input"
 } # => show_ca()
 
@@ -2800,7 +2800,7 @@ up23_verify_current_ca ()
 
 	# Current CA is unverified
 	# Extract the current CA details
-	CA_SUBJECT="$(easyrsa_openssl $format -in "$in_file" -subject -noout -nameopt multiline)"
+	CA_SUBJECT="$(easyrsa_openssl $format -in "$in_file" -subject -noout -nameopt utf8,sep_multiline,space_eq,lname,align)"
 
 	# Extract individual elements
 	CA_countryName="$(printf "%s\n" "$CA_SUBJECT" \
@@ -2851,7 +2851,7 @@ up23_show_current_ca ()
 	# $opts is always set here
 	# shellcheck disable=SC2086 # Ignore unquoted variables
 	easyrsa_openssl $format -in "$in_file" -noout -text \
-		-nameopt multiline $opts || die "\
+		-nameopt utf8,sep_multiline,space_eq,lname,align $opts || die "\
 	OpenSSL failure to process the input CA certificate: $in_file"
 	printf "%s\n" "-------------------------------------------------------------------------"
 } #=> up23_show_current_ca ()
