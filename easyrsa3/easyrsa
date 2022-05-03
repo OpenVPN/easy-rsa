@@ -497,7 +497,7 @@ easyrsa_openssl() {
 
 		if [ "$openssl_command" = "makesafeconf" ]; then
 			# move temp file to safessl-easyrsa.cnf
-			mv "$easyrsa_openssl_conf" "$EASYRSA_SAFE_CONF" || \
+			mv -f "$easyrsa_openssl_conf" "$EASYRSA_SAFE_CONF" || \
 				die "easyrsa_openssl - makesafeconf failed"
 		else
 			# !!!
@@ -1605,8 +1605,8 @@ cert_dates() {
 	# Set fixed dates for new certificate
 	case "$EASYRSA_FIX_OFFSET" in
 	'') : ;; # empty ok
-	*[^1234567890]*) die "\
-Non-numeric value for EASYRSA_FIX_OFFSET: '$EASYRSA_FIX_OFFSET'"
+	*[!1234567890]*|0*) die "\
+Non-decimal value for EASYRSA_FIX_OFFSET: '$EASYRSA_FIX_OFFSET'"
 	;;
 	*)
 		# Check offset range
@@ -1615,52 +1615,64 @@ Non-numeric value for EASYRSA_FIX_OFFSET: '$EASYRSA_FIX_OFFSET'"
 			die "Fixed off-set out of range [1-365 days]: $EASYRSA_FIX_OFFSET"
 		fi
 
-		# Number of years from default (2 years) plus fixed offset
-		offset_lifetime="
-			$(( (EASYRSA_CERT_EXPIRE / 365) * 365 + EASYRSA_FIX_OFFSET-1 ))"
+		# initialise fixed dates
+		unset -v start_fixdate end_fixdate
 
-		# This year
-		current_year="$(date +%Y)"
+		# Number of years from default (2 years) plus fixed offset
+		fix_days="$(( (EASYRSA_CERT_EXPIRE / 365) * 365 + EASYRSA_FIX_OFFSET ))"
+
+		# Current Year and seconds
+		this_year="$(date +%Y)"
+		now_sec="$(date +%s)"
 	esac
 
+	# OS dependencies
 	case "$easyrsa_uname" in
 	"Darwin"|*"BSD")
-		now_date="$(date -j +%s)"
+		now_sec="$(date -j +%s)"
 		expire_date="$(date -j -f '%b %d %T %Y %Z' "$crt_not_after" +%s)"
-		allow_renew_date="$(( now_date + EASYRSA_CERT_RENEW * 86400 ))"
+		allow_renew_date="$(( now_sec + EASYRSA_CERT_RENEW * 86400 ))"
 
 		if [ "$EASYRSA_FIX_OFFSET" ]; then
-			start_fix_sec="$(date -j "${current_year}01010000.00" +%s)"
-			end_fix_sec="$(( start_fix_sec + offset_lifetime * 86400 ))"
+			start_fix_sec="$(date -j "${this_year}01010000.00" +%s)"
+			end_fix_sec="$(( start_fix_sec + fix_days * 86400 ))"
+			# Convert to date-stamps for SSL input
 			start_fixdate="$(date -j -r "$start_fix_sec" +%Y%m%d%H%M%SZ)"
 			end_fixdate="$(date -j -r "$end_fix_sec" +%Y%m%d%H%M%SZ)"
 		fi
 	;;
 	*)
-		# Linux and Windows
+		# Linux and Windows (FTR: date.exe does not support format +%s as input)
 		if expire_date="$(date -d "$crt_not_after" +%s)"
 		then
 			allow_renew_date="$(date -d "+${EASYRSA_CERT_RENEW}day" +%s)"
 
 			if [ "$EASYRSA_FIX_OFFSET" ]; then
 				# New Years Day, this year
-				start_fix_sec="$(date -d "${current_year}-01-01 00:00:00Z" +%s)"
-				# The day-number of the final year
-				end_fix_sec="$(( start_fix_sec + offset_lifetime * 86400 ))"
+				New_Year_day="$(
+					date -d "${this_year}-01-01 00:00:00Z" '+%Y-%m-%d %H:%M:%SZ'
+					)"
 				# Convert to date-stamps for SSL input
-				start_fixdate="$(date -d @"$start_fix_sec" +%Y%m%d%H%M%SZ)"
-				end_fixdate="$(date -d @"$end_fix_sec" +%Y%m%d%H%M%SZ)"
+				start_fixdate="$(
+					date -d "$New_Year_day" +%Y%m%d%H%M%SZ
+					)"
+				end_fixdate="$(
+					date -d "$New_Year_day +${fix_days}days" +%Y%m%d%H%M%SZ
+					)"
+				end_fix_sec="$(
+					date -d "$New_Year_day +${fix_days}days" +%s
+					)"
 			fi
 
 		# Alpine Linux and busybox
 		elif expire_date="$(date -D "%b %e %H:%M:%S %Y" -d "$crt_not_after" +%s)"
 		then
-			now_date="$(date +%s)"
-			allow_renew_date="$(( now_date + EASYRSA_CERT_RENEW * 86400 ))"
+			allow_renew_date="$(( now_sec + EASYRSA_CERT_RENEW * 86400 ))"
 
 			if [ "$EASYRSA_FIX_OFFSET" ]; then
-				start_fix_sec="$(date -d "${current_year}01010000.00" +%s)"
-				end_fix_sec="$(( start_fix_sec + offset_lifetime * 86400 ))"
+				start_fix_sec="$(date -d "${this_year}01010000.00" +%s)"
+				end_fix_sec="$(( start_fix_sec + fix_days * 86400 ))"
+				# Convert to date-stamps for SSL input
 				start_fixdate="$(date -d @"$start_fix_sec" +%Y%m%d%H%M%SZ)"
 				end_fixdate="$(date -d @"$end_fix_sec" +%Y%m%d%H%M%SZ)"
 			fi
@@ -1670,6 +1682,17 @@ Non-numeric value for EASYRSA_FIX_OFFSET: '$EASYRSA_FIX_OFFSET'"
 			die "Date failed"
 		fi
 	esac
+
+	# Do not generate an expired, fixed date certificate
+	if [ "$EASYRSA_FIX_OFFSET" ]; then
+		[ "$now_sec" ] || die "Undefined: now_sec"
+		[ "$end_fix_sec" ] || die "Undefined end_fix_sec"
+		[ "$now_sec" -lt "$end_fix_sec" ] || die "\
+The lifetime of the certificate will expire before the date today."
+		[ "$start_fixdate" ] || die "Undefined: start_fixdate"
+		[ "$end_fixdate" ] || die "Undefined: end_fixdate"
+	fi
+
 } # => cert_dates()
 
 # renew backend
