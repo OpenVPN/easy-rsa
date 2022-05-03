@@ -2231,7 +2231,11 @@ display_san() {
 # display cert DN info on a req/X509, passed by full pathname
 display_dn() {
 	format="$1" path="$2"
-	print "$("$EASYRSA_OPENSSL" "$format" -in "$path" -noout -subject -nameopt multiline)"
+	name_opts="utf8,sep_multiline,space_eq,lname,align"
+	print "$(
+		"$EASYRSA_OPENSSL" "$format" -in "$path" -noout -subject \
+			-nameopt "$name_opts"
+		)"
 	san="$(display_san "$1" "$2")"
 	if [ -n "$san" ]; then
 		print ""
@@ -2278,7 +2282,7 @@ Run easyrsa without commands for usage help."
 	# opts support
 	type_opts="-${type}opt"
 	out_opts="no_pubkey,no_sigdump"
-	name_opts=multiline
+	name_opts="utf8,sep_multiline,space_eq,lname,align"
 	while [ -n "$1" ]; do
 		case "$1" in
 			full) out_opts= ;;
@@ -2336,6 +2340,7 @@ OpenSSL failure to process the input"
 show_ca() {
 	# opts support
 	out_opts="no_pubkey,no_sigdump"
+	name_opts="utf8,sep_multiline,space_eq,lname,align"
 	while [ -n "$1" ]; do
 		case "$1" in
 			full) out_opts= ;;
@@ -2364,8 +2369,8 @@ $in_file"
   This file is stored at:
   * $in_file"
 
-	easyrsa_openssl "$format" -in "$in_file" -noout -text\
-		-nameopt multiline -certopt "$out_opts" || die "\
+	easyrsa_openssl "$format" -in "$in_file" -noout -text \
+		-nameopt "$name_opts" -certopt "$out_opts" || die "\
 OpenSSL failure to process the input"
 } # => show_ca()
 
@@ -2800,7 +2805,11 @@ up23_verify_current_ca ()
 
 	# Current CA is unverified
 	# Extract the current CA details
-	CA_SUBJECT="$(easyrsa_openssl $format -in "$in_file" -subject -noout -nameopt multiline)"
+	name_opts="utf8,sep_multiline,space_eq,lname,align"
+	CA_SUBJECT="$(
+		easyrsa_openssl $format -in "$in_file" -subject -noout \
+			-nameopt "$name_opts"
+		)"
 
 	# Extract individual elements
 	CA_countryName="$(printf "%s\n" "$CA_SUBJECT" \
@@ -2847,11 +2856,12 @@ up23_verify_current_ca ()
 
 up23_show_current_ca ()
 {
+	name_opts="utf8,sep_multiline,space_eq,lname,align"
 	printf "%s\n" "-------------------------------------------------------------------------"
 	# $opts is always set here
 	# shellcheck disable=SC2086 # Ignore unquoted variables
 	easyrsa_openssl $format -in "$in_file" -noout -text \
-		-nameopt multiline $opts || die "\
+		-nameopt "$name_opts" $opts || die "\
 	OpenSSL failure to process the input CA certificate: $in_file"
 	printf "%s\n" "-------------------------------------------------------------------------"
 } #=> up23_show_current_ca ()
