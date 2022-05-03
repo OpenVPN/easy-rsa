@@ -109,11 +109,8 @@ cmd_help() {
 
       This mode uses the <filename_base> as the X509 CN."
 			opts="
-        nopass     - do not encrypt the private key (default is encrypted)
-        nodatetime - generate certificate with start date of
-                     01 January 00:00:00 and end date of CA generation
-                     day 00:00:00, changing year only
-        inline     - create an inline credentials file for this node" ;;
+        nopass  - do not encrypt the private key (default is encrypted)
+        inline  - create an inline credentials file for this node" ;;
 		revoke) text="
   revoke <filename_base> [reason]
       Revoke a certificate specified by the filename_base, with an optional
@@ -270,6 +267,12 @@ General options:
 Certificate & Request options: (these impact cert/req field values)
 
 --days=#        : sets the signing validity to the specified number of days
+--fix-offset=#  : Generate certificate with fixed start and end dates.
+                : Range 1 to 365
+                : start date: 01 January 00:00:00 of the current year
+                : end date:   off-set days 01:00:00 of the final year
+				: Final year is configured via --days (Default: 825 days, 2 years)
+
 --digest=ALG    : digest to use in the requests & certificates
 --dn-mode=MODE  : DN mode to use (cn_only or org)
 --keysize=#     : size in bits of keypair to generate
@@ -1185,7 +1188,9 @@ sign_req() {
 	crt_type="$1"
 	req_in="$EASYRSA_PKI/reqs/$2.req"
 	crt_out="$EASYRSA_PKI/issued/$2.crt"
-	cert_dates "$EASYRSA_PKI/ca.crt"
+
+	# Get fixed dates by --fix-offset
+	cert_dates
 
 	# Randomize Serial number
 	if [ "$EASYRSA_RAND_SN" != "no" ];
@@ -1321,9 +1326,10 @@ $ext_tmp"
 	# sign request
 	crt_out_tmp="$(easyrsa_mktemp)" || die "Failed to create temporary file"
 	easyrsa_openssl ca -utf8 -in "$req_in" -out "$crt_out_tmp" \
-		$([ "$4" = "nodatetime" ] && echo "-startdate" "$start_date_nodatetime" "-enddate" "$end_date_nodatetime") \
 		-extfile "$ext_tmp" -days "$EASYRSA_CERT_EXPIRE" -batch \
 		${EASYRSA_PASSIN:+-passin "$EASYRSA_PASSIN"} \
+		${EASYRSA_FIX_OFFSET:+ -startdate "$start_fixdate"} \
+		${EASYRSA_FIX_OFFSET:+ -enddate "$end_fixdate"} \
 			|| die "signing failed (openssl output above may have more detail)"
 
 	mv "$crt_out_tmp" "$crt_out"
@@ -1356,7 +1362,6 @@ Run easyrsa without commands for usage and commands."
 	while [ -n "$1" ]; do
 		case "$1" in
 			nopass) nopass=1 ;;
-			nodatetime) nodatetime=1 ;;
 			inline) EASYRSA_INLINE=1 ;;
 			*) warn "Ignoring unknown command option: '$1'"
 		esac
@@ -1377,9 +1382,9 @@ Matching file found at: "
 	gen_req "$name" batch ${nopass+ nopass}
 
 	# Sign it
-	( sign_req "$crt_type" "$name" batch ${nodatetime+ nodatetime} ) || {
+	( sign_req "$crt_type" "$name" batch ) || {
 		rm -f "$req_out" "$key_out"
-		die "Failed to sign '$name'"
+		die "Failed to sign '$name' - See error messages above for details."
 	}
 
 	# inline it
@@ -1526,7 +1531,7 @@ Revocation was successful. You must run gen-crl and upload a CRL to your
 infrastructure in order to prevent the revoked cert from being accepted."
 
 	return 0
-} #= revoke()
+} # => revoke()
 
 # move-revoked
 # moves revoked certificates to the 'revoked' folder
@@ -1584,50 +1589,88 @@ revoke_move() {
 	fi
 
 	return 0
-} #= move_revoked()
+} # => move_revoked()
 
-# Set certificate expire date, renew date and variables needed for nodatetime
+# Set certificate expire date, renew date and variables needed for fixdate
 cert_dates() {
-	cert_notbefore_date="$(
-		easyrsa_openssl x509 -in "$1" -noout -startdate | \
-			sed 's/^notBefore=//'
-		)"
-	cert_notafter_date="$(
-		easyrsa_openssl x509 -in "$1" -noout -enddate | \
-			sed 's/^notAfter=//'
-		)"
+	if [ "$1" ]; then
+		# Required for renewal
+		crt_not_before="$(easyrsa_openssl x509 -in "$1" -noout -startdate)"
+		crt_not_before="${crt_not_before#*=}"
+		crt_not_after="$(easyrsa_openssl x509 -in "$1" -noout -enddate)"
+		crt_not_after="${crt_not_after#*=}"
+		shift
+	fi
+
+	# Set fixed dates for new certificate
+	case "$EASYRSA_FIX_OFFSET" in
+	'') : ;; # empty ok
+	*[^1234567890]*) die "\
+Non-numeric value for EASYRSA_FIX_OFFSET: '$EASYRSA_FIX_OFFSET'"
+	;;
+	*)
+		# Check offset range
+		if [ 1 -gt "$EASYRSA_FIX_OFFSET" ] || [ 365 -lt "$EASYRSA_FIX_OFFSET" ]
+		then
+			die "Fixed off-set out of range [1-365 days]: $EASYRSA_FIX_OFFSET"
+		fi
+
+		# Number of years from default (2 years) plus fixed offset
+		offset_lifetime="
+			$(( (EASYRSA_CERT_EXPIRE / 365) * 365 + EASYRSA_FIX_OFFSET-1 ))"
+
+		# This year
+		current_year="$(date +%Y)"
+	esac
 
 	case "$easyrsa_uname" in
 	"Darwin"|*"BSD")
-		expire_date="$(date -j -f '%b %d %T %Y %Z' "$cert_notafter_date" +%s)"
-		allow_renew_date="$(( $(date -j +%s) + 86400 * EASYRSA_CERT_RENEW ))"
-		start_date_nodatetime_md="$(date -j -f '%b %d %T %Y %Z' "$cert_notbefore_date" +%m%d)"
-		start_date_nodatetime="$(date +%Y)0101000000Z"
-		end_date_nodatetime="$(date -j -f %s $(( $(date +%s) + 86400 * EASYRSA_CERT_EXPIRE )) +%Y)${start_date_nodatetime_md}000000Z"
+		now_date="$(date -j +%s)"
+		expire_date="$(date -j -f '%b %d %T %Y %Z' "$crt_not_after" +%s)"
+		allow_renew_date="$(( now_date + EASYRSA_CERT_RENEW * 86400 ))"
+
+		if [ "$EASYRSA_FIX_OFFSET" ]; then
+			start_fix_sec="$(date -j "${current_year}01010000.00" +%s)"
+			end_fix_sec="$(( start_fix_sec + offset_lifetime * 86400 ))"
+			start_fixdate="$(date -j -r "$start_fix_sec" +%Y%m%d%H%M%SZ)"
+			end_fixdate="$(date -j -r "$end_fix_sec" +%Y%m%d%H%M%SZ)"
+		fi
 	;;
 	*)
 		# Linux and Windows
-		if expire_date="$(date -d "$cert_notafter_date" +%s)"
+		if expire_date="$(date -d "$crt_not_after" +%s)"
 		then
 			allow_renew_date="$(date -d "+${EASYRSA_CERT_RENEW}day" +%s)"
-			start_date_nodatetime_md="$(date -d "$cert_notbefore_date" +%m%d)"
-			start_date_nodatetime="$(date +%Y)0101000000Z"
-			end_date_nodatetime="$(date -d "+${EASYRSA_CERT_EXPIRE}day" +%Y)${start_date_nodatetime_md}000000Z"
+
+			if [ "$EASYRSA_FIX_OFFSET" ]; then
+				# New Years Day, this year
+				start_fix_sec="$(date -d "${current_year}-01-01 00:00:00Z" +%s)"
+				# The day-number of the final year
+				end_fix_sec="$(( start_fix_sec + offset_lifetime * 86400 ))"
+				# Convert to date-stamps for SSL input
+				start_fixdate="$(date -d @"$start_fix_sec" +%Y%m%d%H%M%SZ)"
+				end_fixdate="$(date -d @"$end_fix_sec" +%Y%m%d%H%M%SZ)"
+			fi
 
 		# Alpine Linux and busybox
-		elif expire_date="$(date -D "%b %e %H:%M:%S %Y" -d "$cert_notafter_date" +%s)"
+		elif expire_date="$(date -D "%b %e %H:%M:%S %Y" -d "$crt_not_after" +%s)"
 		then
-			allow_renew_date="$(( $(date +%s) + 86400 * EASYRSA_CERT_RENEW ))"
-			start_date_nodatetime_md="$(date -D "%b %e %H:%M:%S %Y" -d "$cert_notbefore_date" +%m%d)"
-			start_date_nodatetime="$(date +%Y)0101000000Z"
-			end_date_nodatetime="$(date -D %s -d $(( $(date +%s) + 86400 * EASYRSA_CERT_EXPIRE )) +%Y)${start_date_nodatetime_md}000000Z"
+			now_date="$(date +%s)"
+			allow_renew_date="$(( now_date + EASYRSA_CERT_RENEW * 86400 ))"
+
+			if [ "$EASYRSA_FIX_OFFSET" ]; then
+				start_fix_sec="$(date -d "${current_year}01010000.00" +%s)"
+				end_fix_sec="$(( start_fix_sec + offset_lifetime * 86400 ))"
+				start_fixdate="$(date -d @"$start_fix_sec" +%Y%m%d%H%M%SZ)"
+				end_fixdate="$(date -d @"$end_fix_sec" +%Y%m%d%H%M%SZ)"
+			fi
 
 		# Something else
 		else
 			die "Date failed"
 		fi
 	esac
-} #= cert_dates()
+} # => cert_dates()
 
 # renew backend
 renew() {
@@ -1769,7 +1812,7 @@ Renew was successful:
   use: 'easyrsa revoke-renewed $file_name_base'"
 
 	return 0
-} #= renew()
+} # => renew()
 
 # move-renewed
 # moves renewed certificates to the 'renewed' folder
@@ -1827,7 +1870,7 @@ renew_move() {
 	fi
 
 	return 0
-} #= move_renewed()
+} # => move_renewed()
 
 # revoke-renewed backend
 revoke_renewed() {
@@ -1940,7 +1983,7 @@ infrastructure in order to prevent the revoked renewed cert from being accepted.
 "       # => notice end
 
 	return 0
-} #= revoke_renewed()
+} # => revoke_renewed()
 
 # move-renewed-revoked
 # moves renewed then revoked certificates to the 'revoked' folder
@@ -1987,7 +2030,7 @@ revoke_renewed_move() {
 	done
 
 	return 0
-} # => move_renewed_revoked()
+} # => revoke_renewed_move()
 
 # gen-crl backend
 gen_crl() {
@@ -2636,6 +2679,7 @@ Failed to source the vars file, remove any unsupported characters."
 	set_var EASYRSA_CERT_EXPIRE		825 # new default of 36 months
 	set_var EASYRSA_CERT_RENEW		30
 	set_var EASYRSA_CRL_DAYS		180
+	set_var EASYRSA_FIX_OFFSET		0
 	set_var EASYRSA_NS_SUPPORT		no
 	set_var EASYRSA_NS_COMMENT		"Easy-RSA (~VER~) Generated Certificate"
 	set_var EASYRSA_TEMP_DIR		"$EASYRSA_PKI"
@@ -3361,6 +3405,8 @@ while :; do
 		export EASYRSA_CA_EXPIRE="$val"
 		export EASYRSA_CRL_DAYS="$val"
 		;;
+	--fix-offset)
+		export EASYRSA_FIX_OFFSET="$val" ;;
 	--pki-dir)
 		export EASYRSA_PKI="$val" ;;
 	--tmp-dir)
