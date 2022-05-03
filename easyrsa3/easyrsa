@@ -2679,7 +2679,6 @@ Failed to source the vars file, remove any unsupported characters."
 	set_var EASYRSA_CERT_EXPIRE		825 # new default of 36 months
 	set_var EASYRSA_CERT_RENEW		30
 	set_var EASYRSA_CRL_DAYS		180
-	set_var EASYRSA_FIX_OFFSET		0
 	set_var EASYRSA_NS_SUPPORT		no
 	set_var EASYRSA_NS_COMMENT		"Easy-RSA (~VER~) Generated Certificate"
 	set_var EASYRSA_TEMP_DIR		"$EASYRSA_PKI"
