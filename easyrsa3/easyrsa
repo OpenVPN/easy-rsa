@@ -2065,23 +2065,24 @@ renewable() {
 
 	in_dir="$EASYRSA_PKI"
 	if [ $# -eq 0 ] ; then
-		candidates=( $(ls ${in_dir}/issued/ | sed -e 's|.crt$||p;d' ) )
+	    candidates=$(find "${in_dir}"/issued/ \
+                             | sort | sed -e 's|^.*/||;s|.crt$||p;d' )
 	else
-		candidates=( $@ )
+		candidates=$*
 	fi
-	matches=()
-	for candidate in ${candidates[@]} ; do
+	matches=""
+	for candidate in $candidates ; do
 		crt_in="$in_dir/issued/$candidate.crt"
 		cert_dates "$crt_in"
 		if [ "$expire_date" -lt "$allow_renew_date" ] ; then
-		    matches+=( $candidate )
+		    matches="$matches $candidate"
 		fi
 	done
-	if [ ${#matches[@]} -eq 0 ] ; then
+	if [ -z "$matches" ] ; then
 		# Nothing to renew
 		exit 1
 	else
-		print "${matches[@]}"
+		print "$matches"
 	fi
 } # => renewable
 
