@@ -2561,6 +2561,7 @@ vars_setup() {
 	#prog_file2="$(which -- "$prog_file" 2>/dev/null)" && prog_file="$prog_file2"
 	#prog_file2="$(readlink -f "$prog_file" 2>/dev/null)" && prog_file="$prog_file2"
 	prog_dir="${prog_file%/*}"
+	if [ "$prog_dir" = . ]; then prog_in_pwd=1; else unset -v prog_in_pwd; fi
 
 	# Program dir vars - This location is least wanted.
 	prog_vars="${prog_dir}/vars"
@@ -2610,6 +2611,11 @@ vars_setup() {
 
 			# program location:
 			{ [ -e "$prog_vars" ] && e_prog_vars=1; } || unset -v prog_vars
+
+			# Filter duplicates
+			if [ "$prog_vars" ] && [ "$pwd_vars" ] && [ "$prog_in_pwd" ]; then
+				unset -v prog_vars e_prog_vars
+			fi
 
 			# Allow only one vars to be found, No exceptions!
 			found_vars="$((e_pki_vars + e_easy_vars + e_pwd_vars + e_prog_vars))"
