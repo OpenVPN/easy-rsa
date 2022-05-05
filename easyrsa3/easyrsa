@@ -3,7 +3,8 @@
 # Easy-RSA 3 -- A Shell-based CA Utility
 #
 # Copyright (C) 2018 by the Open-Source OpenVPN development community.
-# A full list of contributors can be found in the ChangeLog.
+# A full list of contributors can be found on Github at:
+#   https://github.com/OpenVPN/easy-rsa/graphs/contributors
 #
 # This code released under version 2 of the GNU GPL; see COPYING and the
 # Licensing/ directory of this project for full licensing details.
