@@ -2065,8 +2065,14 @@ renewable() {
 
 	in_dir="$EASYRSA_PKI"
 	if [ $# -eq 0 ] ; then
-	    candidates=$(find "${in_dir}"/issued/ \
-                             | sort | sed -e 's|^.*/||;s|.crt$||p;d' )
+            awkscript='
+BEGIN { FS = "\t" };
+$1 ~ '/V/' {
+  gsub(".*/CN=", "",  $6);
+  gsub("[^-0-9a-zA-Z.].*", "", $6);
+  print $6;
+}'
+		candidates=$(awk "$awkscript" ${in_dir}/index.txt)
 	else
 		candidates=$*
 	fi
