@@ -1596,11 +1596,18 @@ revoke_move() {
 cert_dates() {
 	if [ "$1" ]; then
 		# Required for renewal
-		crt_not_before="$(easyrsa_openssl x509 -in "$1" -noout -startdate)"
+		# Call openssl directly, otherwise this is not debug compatible
+		crt_not_before="$("$EASYRSA_OPENSSL" x509 -in "$1" -noout -startdate 2>&1)" \
+			|| die "cert_dates - crt_not_before: $crt_not_before"
 		crt_not_before="${crt_not_before#*=}"
-		crt_not_after="$(easyrsa_openssl x509 -in "$1" -noout -enddate)"
+		crt_not_after="$("$EASYRSA_OPENSSL" x509 -in "$1" -noout -enddate 2>&1)" \
+			|| die "cert_dates - crt_not_after: $crt_not_after"
 		crt_not_after="${crt_not_after#*=}"
 		shift
+	else
+		# Required for --fix-offset
+		# This is a fake date to satisfy the 'if expire_date' command test
+		crt_not_after="Jun 12 02:02:02 1999 GMT"
 	fi
 
 	# Set fixed dates for new certificate
@@ -1623,8 +1630,8 @@ Non-decimal value for EASYRSA_FIX_OFFSET: '$EASYRSA_FIX_OFFSET'"
 		fix_days="$(( (EASYRSA_CERT_EXPIRE / 365) * 365 + EASYRSA_FIX_OFFSET ))"
 
 		# Current Year and seconds
-		this_year="$(date +%Y)"
-		now_sec="$(date +%s)"
+		this_year="$(date +%Y)" || die "cert_dates - this_year"
+		now_sec="$(date +%s)" || die "cert_dates - now_sec"
 	esac
 
 	# OS dependencies
@@ -1646,6 +1653,7 @@ Non-decimal value for EASYRSA_FIX_OFFSET: '$EASYRSA_FIX_OFFSET'"
 		# Linux and Windows (FTR: date.exe does not support format +%s as input)
 		if expire_date="$(date -d "$crt_not_after" +%s)"
 		then
+			# Note: date.exe is Year 2038 end 32bit
 			allow_renew_date="$(date -d "+${EASYRSA_CERT_RENEW}day" +%s)"
 
 			if [ "$EASYRSA_FIX_OFFSET" ]; then
@@ -1686,12 +1694,13 @@ Non-decimal value for EASYRSA_FIX_OFFSET: '$EASYRSA_FIX_OFFSET'"
 
 	# Do not generate an expired, fixed date certificate
 	if [ "$EASYRSA_FIX_OFFSET" ]; then
-		[ "$now_sec" ] || die "Undefined: now_sec"
-		[ "$end_fix_sec" ] || die "Undefined end_fix_sec"
+		[ "$(( now_sec * end_fix_sec ))" -gt 0 ] \
+			|| die "Undefined: now_sec, end_fix_sec"
 		[ "$now_sec" -lt "$end_fix_sec" ] || die "\
 The lifetime of the certificate will expire before the date today."
 		[ "$start_fixdate" ] || die "Undefined: start_fixdate"
 		[ "$end_fixdate" ] || die "Undefined: end_fixdate"
+		unset -v crt_not_after
 	fi
 
 } # => cert_dates()
