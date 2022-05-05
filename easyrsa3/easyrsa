@@ -1700,8 +1700,16 @@ Non-decimal value for EASYRSA_FIX_OFFSET: '$EASYRSA_FIX_OFFSET'"
 
 	# Do not generate an expired, fixed date certificate
 	if [ "$EASYRSA_FIX_OFFSET" ]; then
-		[ "$(( now_sec * end_fix_sec ))" -gt 0 ] \
-			|| die "Undefined: now_sec, end_fix_sec"
+		for date_stamp in "${now_sec}" "${end_fix_sec}"; do
+			case "${date_stamp}" in
+			''|*[!1234567890]*|0*)
+				die "Undefined: '$now_sec', '$end_fix_sec'"
+			;;
+			*)
+				[ "${#date_stamp}" -eq 10 ] \
+					|| die "Undefined: $now_sec, $end_fix_sec"
+			esac
+		done
 		[ "$now_sec" -lt "$end_fix_sec" ] || die "\
 The lifetime of the certificate will expire before the date today."
 		[ "$start_fixdate" ] || die "Undefined: start_fixdate"
