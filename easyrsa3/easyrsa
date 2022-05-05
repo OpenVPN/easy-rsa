@@ -2637,6 +2637,8 @@ Priority should be given to your PKI vars file:
 			[ "$prog_vars" ] && vars="$prog_vars"
 			[ "$pki_vars" ] && vars="$pki_vars"
 		fi
+	# END: Find vars
+	fi
 
 		# If $EASYRSA_NO_VARS is defined (not blank) then do not use vars
 		# if $no_pki_required then no vars is required.
@@ -2681,8 +2683,6 @@ Failed to source the vars file, remove any unsupported characters."
 					warn "Move your vars file to your PKI folder, where it is safe!"
 			fi
 		fi
-	# END: Find vars
-	fi
 
 	# Set defaults, preferring existing env-vars if present
 	set_var EASYRSA					"$PWD"
