@@ -432,8 +432,14 @@ cleanup() {
 
 	# shellcheck disable=SC3040 # In POSIX sh, set option [name] is undefined
 	case "$easyrsa_host_os" in
-		nix) stty echo ;;
-		win) set -o echo ;;
+		nix) [ -t 1 ] && stty echo ;;
+		win)
+			if [ "$easyrsa_win_git_bash" ]; then
+				[ -t 1 ] && stty echo
+			else
+				set -o echo
+			fi
+		;;
 		*) warn "Host OS undefined."
 	esac
 	[ "$EASYRSA_SILENT" ] || echo "" # just to get a clean line
