@@ -2640,49 +2640,49 @@ Priority should be given to your PKI vars file:
 	# END: Find vars
 	fi
 
-		# If $EASYRSA_NO_VARS is defined (not blank) then do not use vars
-		# if $no_pki_required then no vars is required.
-		if [ "$EASYRSA_NO_VARS" ] || [ "$no_pki_required" ]; then
+	# If $EASYRSA_NO_VARS is defined (not blank) then do not use vars
+	# if $no_pki_required then no vars is required.
+	if [ "$EASYRSA_NO_VARS" ] || [ "$no_pki_required" ]; then
+		: # ok
+	else
+		# If a vars file was located then source it
+		if [ -z "$vars" ]; then
+			# $vars remains undefined .. no vars found
 			: # ok
 		else
-			# If a vars file was located then source it
-			if [ -z "$vars" ]; then
-				# $vars remains undefined .. no vars found
-				: # ok
-			else
-				# Sanitize vars
-				if grep -Eq 'EASYRSA_PASSIN|EASYRSA_PASSOUT' "$vars"; then
-					die "\
+			# Sanitize vars
+			if grep -Eq 'EASYRSA_PASSIN|EASYRSA_PASSOUT' "$vars"; then
+				die "\
 Variable EASYRSA_PASSIN or EASYRSA_PASSOUT has been found in the configuration
 file. Storing sensitive information in the configuration file is not
 recommended - please remove it from there before continuing."
-				fi
+			fi
 
-				# Sanitize vars further but ONLY if it is in PKI folder
-				if [ "$pki_vars" ]; then
-					# Warning: Single quote
-					if grep '^[[:blank:]]*set_var[[:blank:]]\+.*' "$vars" | \
-						grep -q -e '&' -e "'" -e '`' -e '\$' -e '#' ; then
-						warn "\
+			# Sanitize vars further but ONLY if it is in PKI folder
+			if [ "$pki_vars" ]; then
+				# Warning: Single quote
+				if grep '^[[:blank:]]*set_var[[:blank:]]\+.*' "$vars" | \
+					grep -q -e '&' -e "'" -e '`' -e '\$' -e '#' ; then
+					warn "\
 Unsupported  characters are present in the vars file.
 These characters are not supported: (') (&) (\`) (\$) (#)
 Sourcing the vars file and building certificates will probably fail .."
-					fi
 				fi
+			fi
 
-				# shellcheck disable=SC2034 # EASYRSA_CALLER appears unused.
-				EASYRSA_CALLER=1
-				# shellcheck disable=1090 # can't follow non-constant source. vars
-				( . "$vars" 2>/dev/null ) || die "\
+			# shellcheck disable=SC2034 # EASYRSA_CALLER appears unused.
+			EASYRSA_CALLER=1
+			# shellcheck disable=1090 # can't follow non-constant source. vars
+			( . "$vars" 2>/dev/null ) || die "\
 Failed to source the vars file, remove any unsupported characters."
 
-				# shellcheck disable=1090 # can't follow non-constant source. vars
-				. "$vars" 2>/dev/null
-				notice "Using Easy-RSA configuration from: $vars"
-				[ "$pki_vars" ] || \
-					warn "Move your vars file to your PKI folder, where it is safe!"
-			fi
+			# shellcheck disable=1090 # can't follow non-constant source. vars
+			. "$vars" 2>/dev/null
+			notice "Using Easy-RSA configuration from: $vars"
+			[ "$pki_vars" ] || \
+				warn "Move your vars file to your PKI folder, where it is safe!"
 		fi
+	fi
 
 	# Set defaults, preferring existing env-vars if present
 	set_var EASYRSA					"$PWD"
