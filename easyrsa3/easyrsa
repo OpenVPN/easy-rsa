@@ -2064,26 +2064,27 @@ renewable() {
 	verify_ca_init
 
 	in_dir="$EASYRSA_PKI"
-	if [ $# -eq 0 ] ; then
-            awkscript='
+	MATCH=$(echo "$*" | sed -re 's/\s+/|/g')
+	DATE=$(date --date \
+               "+${EASYRSA_CERT_RENEW} days" \
+               +"%y%m%d%H%M%S")
+        { awkscript=$(cat) ; } <<EOF
 BEGIN { FS = "\t" };
-$1 ~ '/V/' {
-  gsub(".*/CN=", "",  $6);
-  gsub("[^-0-9a-zA-Z.].*", "", $6);
-  print $6;
-}'
-		candidates=$(awk "$awkscript" ${in_dir}/index.txt)
-	else
-		candidates=$*
-	fi
-	matches=""
-	for candidate in $candidates ; do
-		crt_in="$in_dir/issued/$candidate.crt"
-		cert_dates "$crt_in"
-		if [ "$expire_date" -lt "$allow_renew_date" ] ; then
-		    matches="$matches $candidate"
-		fi
-	done
+# Only report valid entries
+\$1 ~ /V/ {
+  # Only consider CN
+  gsub(".*/CN=", "",  \$6);
+  gsub("[^-0-9a-zA-Z.].*", "", \$6);
+  # Only report old enough candidates
+  if (\$2 < "${DATE}") {
+    # Only report matches
+    if (\$6 ~ /(${MATCH})/) {
+      print \$6;
+    }
+  }
+}
+EOF
+	matches=$(awk "$awkscript" "${in_dir}/index.txt")
 	if [ -z "$matches" ] ; then
 		# Nothing to renew
 		exit 1
