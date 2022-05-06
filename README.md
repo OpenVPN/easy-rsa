@@ -39,8 +39,9 @@ the most recent release.
 The prior 2.x and 1.x versions are available as release branches for
 tracking and possible back-porting of relevant fixes. Branch layout is:
 
-    master         <- 3.x, at present
+    master         <- 3.1, at present
     v3.x.x            pre-release branches, used for staging branches
+    release/3.0       v3.0.x bugfix/security/openssl updates
     release/2.x
     release/1.x
 
