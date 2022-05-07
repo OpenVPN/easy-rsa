@@ -1735,7 +1735,6 @@ The lifetime of the certificate will expire before the date today."
 		[ "$end_fixdate" ] || die "Undefined: end_fixdate"
 		unset -v crt_not_after
 	fi
-
 } # => cert_dates()
 
 # renew backend
@@ -2551,6 +2550,7 @@ OpenSSL failure to process the input"
 # Fixed format date
 # Build a Windows date.exe compatible input field
 build_ff_date_string() {
+	unset -v ff_date
 	ff_date="$1"
 	[ "$ff_date" ] || die "ff_date: '$ff_date'"
 	yy="${ff_date%???????????}"
@@ -2580,11 +2580,11 @@ read_db() {
 	report="$1"; shift
 	tab_char='	'
 	db_in="$EASYRSA_PKI/index.txt"
-	while read -r crt_stat crt_notAfter crt_record; do
+	while read -r crt_status crt_notAfter crt_record; do
 
 		# Interpret the db/certificate record
 		unset -v crt_serial crt_cn crt_revokedate crt_reason
-		case "$crt_stat" in
+		case "$crt_status" in
 		V)
 			# Valid
 			crt_serial="${crt_record%%${tab_char}*}"
@@ -2603,14 +2603,14 @@ read_db() {
 			crt_record="${crt_record#*${tab_char}}"
 			crt_cn="${crt_record#*/CN=}"; crt_cn="${crt_cn%%/*}"
 		;;
-		*) die "Unexpected status: $crt_stat"
+		*) die "Unexpected status: $crt_status"
 		esac
 
 		# do status report for this record
 		# TODO: renewed-not-revoked
 		case "$report" in
-		expire) if [ "$crt_stat" = V ]; then expire_status; fi ;;
-		revoke) if [ "$crt_stat" = R ]; then revoke_status; fi ;;
+		expire) if [ "$crt_status" = V ]; then expire_status; fi ;;
+		revoke) if [ "$crt_status" = R ]; then revoke_status; fi ;;
 		*) die "Unrecognised report: $report"
 		esac
 	done < "$db_in"
@@ -2631,7 +2631,7 @@ expire_status() {
 
 	if [ "$expire_date" -lt "$allow_renew_date" ]; then
 		# cert expires in less than grace period
-		printf '%s%s\n' "$crt_stat | Serial: $crt_serial | " \
+		printf '%s%s\n' "$crt_status | Serial: $crt_serial | " \
 			"Expires: $ff_date | CN: $crt_cn"
 	fi
 } # => expire_status()
@@ -2649,7 +2649,7 @@ revoke_status() {
 		cert_dates "$crt_notAfter"
 	fi
 
-	printf '%s%s\n' "$crt_stat | Serial: $crt_serial | " \
+	printf '%s%s\n' "$crt_status | Serial: $crt_serial | " \
 		"Revoked: $ff_date | Reason: $crt_reason | CN: $crt_cn"
 } # => revoke_status()
 
@@ -2660,6 +2660,9 @@ status() {
 	shift 2
 
 	verify_ca_init
+
+	# This does not build, so no need (ban) for fixed dates
+	unset -v EASYRSA_FIX_OFFSET
 
 	case "$report" in
 	expire)
