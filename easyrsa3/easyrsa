@@ -290,6 +290,7 @@ General options:
 Certificate & Request options: (these impact cert/req field values)
 
 --days=#        : sets the signing validity to the specified number of days
+--renew-days=#  : Number of days grace period before allowing renewal
 --fix-offset=#  : Generate certificate with fixed start and end dates.
                 : Range 1 to 365
                 : start date: 01 January 00:00:00 of the current year
@@ -2584,6 +2585,7 @@ build_ff_date_string() {
 # shellcheck disable=SC2295
 read_db() {
 	report="$1"; shift
+
 	tab_char='	'
 	db_in="$EASYRSA_PKI/index.txt"
 	while read -r crt_status crt_notAfter crt_record; do
@@ -2591,15 +2593,13 @@ read_db() {
 		# Interpret the db/certificate record
 		unset -v crt_serial crt_cn crt_revokedate crt_reason
 		case "$crt_status" in
-		V)
-			# Valid
+		V)	# Valid
 			crt_serial="${crt_record%%${tab_char}*}"
 			crt_record="${crt_record#*${tab_char}}"
 			crt_cn="${crt_record#*/CN=}"; crt_cn="${crt_cn%%/*}"
 			crt_file="$EASYRSA_PKI/issued/$crt_cn.crt"
 		;;
-		R)
-			# Revoked
+		R)	# Revoked
 			crt_revokedate="${crt_record%%${tab_char}*}"
 			crt_reason="${crt_revokedate#*,}"
 			[ -z "$crt_reason" ] || crt_revokedate="${crt_revokedate%,*}"
@@ -2612,8 +2612,7 @@ read_db() {
 		*) die "Unexpected status: $crt_status"
 		esac
 
-		# do status report for this record
-		# TODO: renewed-not-revoked
+		# Output selected status report for this record
 		case "$report" in
 		expire) # Certs which expire before EASYRSA_CERT_RENEW days
 			if [ "$crt_status" = V ]; then expire_status; fi
@@ -2643,7 +2642,7 @@ expire_status() {
 	fi
 
 	if [ "$expire_date" -lt "$allow_renew_date" ]; then
-		# cert expires in less than grace period
+		# Cert expires in less than grace period
 		printf '%s%s\n' "$crt_status | Serial: $crt_serial | " \
 			"Expires: $ff_date | CN: $crt_cn"
 	fi
@@ -2670,6 +2669,7 @@ revoke_status() {
 renew_status() {
 	build_ff_date_string "$crt_notAfter"
 
+	# Renewed cert must always exist, otherwise this cert has not been renewed
 	crt_file="$EASYRSA_PKI/renewed/issued/${crt_cn}.crt"
 	if [ -e "$crt_file" ]; then
 		# Use cert date
@@ -2681,7 +2681,6 @@ renew_status() {
 		renewed_crt_serial="${renewed_crt_serial##*=}"
 
 		if [ "$crt_serial" = "$renewed_crt_serial" ]; then
-			# Renewed cert must exist always
 			printf '%s%s\n' "$crt_status | Serial: $crt_serial | " \
 				"Expires: $ff_date | CN: $crt_cn"
 		else
@@ -2702,7 +2701,7 @@ status() {
 
 	verify_ca_init
 
-	# This does not build, so no need (ban) for fixed dates
+	# This does not build certs, so do not need support for fixed dates
 	unset -v EASYRSA_FIX_OFFSET
 
 	case "$report" in
@@ -2734,9 +2733,7 @@ status() {
 		*) print "Coming soon.."
 		esac
 	;;
-	*)
-		# TODO: renewed-not-revoked
-		warn "Unrecognised report: $report"
+	*) warn "Unrecognised report: $report"
 	esac
 } # => status()
 
@@ -3711,6 +3708,8 @@ while :; do
 		;;
 	--fix-offset)
 		export EASYRSA_FIX_OFFSET="$val" ;;
+	--renew-days)
+		export EASYRSA_CERT_RENEW="$val" ;;
 	--pki-dir)
 		export EASYRSA_PKI="$val" ;;
 	--tmp-dir)
