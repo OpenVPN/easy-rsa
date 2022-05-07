@@ -21,6 +21,7 @@ Easy-RSA 3 ChangeLog
    * Introduce 'init-pki soft'  option (#197)
    * Warnings are no longer silenced by --batch (#523)
    * Improve packaging options (#510)
+   * Update regex for POSIX compliance (#556)
 
 3.0.8 (2020-09-09)
    * Provide --version option (#372)
