@@ -46,6 +46,7 @@ Here is the list of commands available with a short syntax reminder. Use the
   show-crl
   show-expire
   show-revoke
+  show-renew
   verify <filename_base>
   import-req <request_file_path> <short_basename>
   export-p1 <filename_base> [ cmd-opts ]
@@ -180,6 +181,11 @@ cmd_help() {
 		show-revoke) text="
   show-revoke [ cmd-opts ]
       Shows details of revoked certificates
+
+      Human-readable output is shown." ;;
+		show-renew) text="
+  show-renew [ cmd-opts ]
+      Shows details of renewed certificates, which have not been revoked
 
       Human-readable output is shown." ;;
 		verify) text="
