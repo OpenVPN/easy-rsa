@@ -2609,8 +2609,15 @@ read_db() {
 		# do status report for this record
 		# TODO: renewed-not-revoked
 		case "$report" in
-		expire) if [ "$crt_status" = V ]; then expire_status; fi ;;
-		revoke) if [ "$crt_status" = R ]; then revoke_status; fi ;;
+		expire) # Certs which expire before EASYRSA_CERT_RENEW days
+			if [ "$crt_status" = V ]; then expire_status; fi
+		;;
+		revoke) # Certs which have been revoked
+			if [ "$crt_status" = R ]; then revoke_status; fi
+		;;
+		renew) # Certs which have been renewed but not revoked
+			if [ "$crt_status" = V ]; then renew_status; fi
+		;;
 		*) die "Unrecognised report: $report"
 		esac
 	done < "$db_in"
@@ -2653,6 +2660,34 @@ revoke_status() {
 		"Revoked: $ff_date | Reason: $crt_reason | CN: $crt_cn"
 } # => revoke_status()
 
+# Renewed status
+renew_status() {
+	build_ff_date_string "$crt_notAfter"
+
+	crt_file="$EASYRSA_PKI/renewed/issued/${crt_cn}.crt"
+	if [ -e "$crt_file" ]; then
+		# Use cert date
+		cert_dates "$crt_file"
+
+		# get the serial number of the certificate -> serial=XXXX
+		renewed_crt_serial="$(easyrsa_openssl x509 -in "$crt_file" -noout -serial)"
+		# remove the serial= part -> we only need the XXXX part
+		renewed_crt_serial="${renewed_crt_serial##*=}"
+
+		if [ "$crt_serial" = "$renewed_crt_serial" ]; then
+			# Renewed cert must exist always
+			printf '%s%s\n' "$crt_status | Serial: $crt_serial | " \
+				"Expires: $ff_date | CN: $crt_cn"
+		else
+			# Cert is valid but not renewed
+			: # ok - ignore
+		fi
+	else
+		# Cert is valid but no renewed cert exists
+		: # ok - ignore
+	fi
+} # => renew_status()
+
 # cert status reports
 status() {
 	report="$1"
@@ -2681,6 +2716,15 @@ status() {
 			print "Showing certificates which are revoked:"
 			print
 			read_db revoke ;;
+		*) print "Coming soon.."
+		esac
+	;;
+	renew)
+		case "$in_crt" in
+		all)
+			print "Showing certificates which have been renewed but not revoked:"
+			print
+			read_db renew ;;
 		*) print "Coming soon.."
 		esac
 	;;
@@ -3862,6 +3906,13 @@ case "$cmd" in
 			status revoke all
 		else
 			status revoke "$@"
+		fi
+		;;
+	show-renew)
+		if [ -z "$*" ]; then
+			status renew all
+		else
+			status renew "$@"
 		fi
 		;;
 	upgrade)
