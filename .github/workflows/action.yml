@@ -68,7 +68,7 @@ jobs:
 
   mtest:
     # The type of runner that the job will run on
-    runs-on: macos-latest
+    runs-on: macos-10.15
 
     env:
       EASYRSA_REMOTE_CI: 1
