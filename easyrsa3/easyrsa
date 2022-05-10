@@ -37,6 +37,7 @@ Here is the list of commands available with a short syntax reminder. Use the
   revoke <filename_base> [cmd-opts]
   revoke-renewed <filename_base> [cmd-opts]
   renew <filename_base> [cmd-opts]
+  renewable [ <filename_base> ]
   build-serverClient-full <filename_base> [ cmd-opts ]
   gen-crl
   update-db
@@ -143,6 +144,9 @@ cmd_help() {
       Renew a certificate specified by the filename_base"
 			opts="
         nopass  - do not encrypt the private key (default is encrypted)" ;;
+		renewable) text="
+  renewable [ <filename_base> ]
+      Check which certificates can be renewed" ;;
 		gen-crl) text="
   gen-crl
       Generate a CRL" ;;
@@ -2106,6 +2110,40 @@ revoke_renewed_move() {
 	return 0
 } # => revoke_renewed_move()
 
+# renewable backend
+renewable() {
+	verify_ca_init
+
+	in_dir="$EASYRSA_PKI"
+	MATCH=$(echo "$*" | sed -re 's/\s+/|/g')
+	DATE=$(date --date \
+               "+${EASYRSA_CERT_RENEW} days" \
+               +"%y%m%d%H%M%S")
+        { awkscript=$(cat) ; } <<EOF
+BEGIN { FS = "\t" };
+# Only report valid entries
+\$1 ~ /V/ {
+  # Only consider CN
+  gsub(".*/CN=", "",  \$6);
+  gsub("[^-0-9a-zA-Z.].*", "", \$6);
+  # Only report old enough candidates
+  if (\$2 < "${DATE}") {
+    # Only report matches
+    if (\$6 ~ /(${MATCH})/) {
+      print \$6;
+    }
+  }
+}
+EOF
+	matches=$(awk "$awkscript" "${in_dir}/index.txt")
+	if [ -z "$matches" ] ; then
+		# Nothing to renew
+		exit 1
+	else
+		print "$matches"
+	fi
+} # => renewable
+
 # gen-crl backend
 gen_crl() {
 	verify_ca_init
@@ -3868,6 +3906,9 @@ case "$cmd" in
 		;;
 	renew)
 		renew "$@"
+		;;
+	renewable)
+		renewable "$@"
 		;;
 	import-req)
 		import_req "$@"
