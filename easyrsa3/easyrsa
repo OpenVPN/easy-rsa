@@ -44,6 +44,9 @@ Here is the list of commands available with a short syntax reminder. Use the
   show-cert <filename_base> [ cmd-opts ]
   show-ca [ cmd-opts ]
   show-crl
+  show-expire
+  show-revoke
+  show-renew
   verify <filename_base>
   import-req <request_file_path> <short_basename>
   export-p1 <filename_base> [ cmd-opts ]
@@ -170,6 +173,21 @@ cmd_help() {
       Shows details of the current certificate revocation list (CRL)
 
       Human-readable output is shown." ;;
+		show-expire) text="
+  show-expire [ cmd-opts ]
+      Shows details of expiring certificates
+
+      Human-readable output is shown." ;;
+		show-revoke) text="
+  show-revoke [ cmd-opts ]
+      Shows details of revoked certificates
+
+      Human-readable output is shown." ;;
+		show-renew) text="
+  show-renew [ cmd-opts ]
+      Shows details of renewed certificates, which have not been revoked
+
+      Human-readable output is shown." ;;
 		verify) text="
   verify <filename_base>
       Verify certificate against CA" ;;
@@ -272,6 +290,7 @@ General options:
 Certificate & Request options: (these impact cert/req field values)
 
 --days=#        : sets the signing validity to the specified number of days
+--renew-days=#  : Number of days grace period before allowing renewal
 --fix-offset=#  : Generate certificate with fixed start and end dates.
                 : Range 1 to 365
                 : start date: 01 January 00:00:00 of the current year
@@ -1604,7 +1623,7 @@ revoke_move() {
 
 # Set certificate expire date, renew date and variables needed for fixdate
 cert_dates() {
-	if [ "$1" ]; then
+	if [ -e "$1" ]; then
 		# Required for renewal
 		# Call openssl directly, otherwise this is not debug compatible
 		crt_not_before="$("$EASYRSA_OPENSSL" x509 -in "$1" -noout -startdate 2>&1)" \
@@ -1614,6 +1633,9 @@ cert_dates() {
 			|| die "cert_dates - crt_not_after: $crt_not_after"
 		crt_not_after="${crt_not_after#*=}"
 		shift
+	elif [ "$1" ]; then
+		# Required for status
+		crt_not_after="$1"
 	else
 		# Required for --fix-offset
 		# This is a fake date to satisfy the 'if expire_date' command test
@@ -1722,7 +1744,6 @@ The lifetime of the certificate will expire before the date today."
 		[ "$end_fixdate" ] || die "Undefined: end_fixdate"
 		unset -v crt_not_after
 	fi
-
 } # => cert_dates()
 
 # renew backend
@@ -2534,6 +2555,189 @@ $in_file"
 		-nameopt "$name_opts" -certopt "$out_opts" || die "\
 OpenSSL failure to process the input"
 } # => show_ca()
+
+# Fixed format date
+# Build a Windows date.exe compatible input field
+build_ff_date_string() {
+	unset -v ff_date
+	ff_date="$1"
+	[ "$ff_date" ] || die "ff_date: '$ff_date'"
+	yy="${ff_date%???????????}"
+	ff_date="${ff_date#"$yy"}"
+	mm="${ff_date%?????????}"
+	ff_date="${ff_date#"$mm"}"
+	dd="${ff_date%???????}"
+	ff_date="${ff_date#"$dd"}"
+	HH="${ff_date%?????}"
+	ff_date="${ff_date#"$HH"}"
+	MM="${ff_date%???}"
+	ff_date="${ff_date#"$MM"}"
+	SS="${ff_date%?}"
+	ff_date="${ff_date#"$SS"}"
+	TZ="$ff_date"
+	ff_date="${yy}-${mm}-${dd} ${HH}:${MM}:${SS}${TZ}"
+} # => build_date_string()
+
+# SC2295: (info): Expansions inside ${..} need to be quoted separately,
+# otherwise they match as patterns. (what-ever that means .. ;-)
+# Unfortunately, Windows sh.exe has an absolutely ridiculous bug.
+# Try this in sh.exe: t='   '; s="a${t}b${t}c"; echo "${s%%"${t}"*}"
+
+# Read db
+# shellcheck disable=SC2295
+read_db() {
+	report="$1"; shift
+
+	tab_char='	'
+	db_in="$EASYRSA_PKI/index.txt"
+	while read -r crt_status crt_notAfter crt_record; do
+
+		# Interpret the db/certificate record
+		unset -v crt_serial crt_cn crt_revokedate crt_reason
+		case "$crt_status" in
+		V)	# Valid
+			crt_serial="${crt_record%%${tab_char}*}"
+			crt_record="${crt_record#*${tab_char}}"
+			crt_cn="${crt_record#*/CN=}"; crt_cn="${crt_cn%%/*}"
+			crt_file="$EASYRSA_PKI/issued/$crt_cn.crt"
+		;;
+		R)	# Revoked
+			crt_revokedate="${crt_record%%${tab_char}*}"
+			crt_reason="${crt_revokedate#*,}"
+			[ -z "$crt_reason" ] || crt_revokedate="${crt_revokedate%,*}"
+			crt_record="${crt_record#*${tab_char}}"
+
+			crt_serial="${crt_record%%${tab_char}*}"
+			crt_record="${crt_record#*${tab_char}}"
+			crt_cn="${crt_record#*/CN=}"; crt_cn="${crt_cn%%/*}"
+		;;
+		*) die "Unexpected status: $crt_status"
+		esac
+
+		# Output selected status report for this record
+		case "$report" in
+		expire) # Certs which expire before EASYRSA_CERT_RENEW days
+			if [ "$crt_status" = V ]; then expire_status; fi
+		;;
+		revoke) # Certs which have been revoked
+			if [ "$crt_status" = R ]; then revoke_status; fi
+		;;
+		renew) # Certs which have been renewed but not revoked
+			if [ "$crt_status" = V ]; then renew_status; fi
+		;;
+		*) die "Unrecognised report: $report"
+		esac
+	done < "$db_in"
+} # => read_db()
+
+# Expire status
+expire_status() {
+	build_ff_date_string "$crt_notAfter"
+
+	crt_file="$EASYRSA_PKI/issued/${crt_cn}.crt"
+	if [ -e "$crt_file" ]; then
+		# Use cert date
+		cert_dates "$crt_file"
+	else
+		# Use db translated date
+		cert_dates "$crt_notAfter"
+	fi
+
+	if [ "$expire_date" -lt "$allow_renew_date" ]; then
+		# Cert expires in less than grace period
+		printf '%s%s\n' "$crt_status | Serial: $crt_serial | " \
+			"Expires: $ff_date | CN: $crt_cn"
+	fi
+} # => expire_status()
+
+# Revoke status
+revoke_status() {
+	build_ff_date_string "$crt_revokedate"
+
+	crt_file="$EASYRSA_PKI/revoked/certs_by_serial/$crt_serial.crt"
+	if [ -e "$crt_file" ]; then
+		# Use cert file
+		cert_dates "$crt_file"
+	else
+		# Use db translated date
+		cert_dates "$crt_notAfter"
+	fi
+
+	printf '%s%s\n' "$crt_status | Serial: $crt_serial | " \
+		"Revoked: $ff_date | Reason: $crt_reason | CN: $crt_cn"
+} # => revoke_status()
+
+# Renewed status
+renew_status() {
+	build_ff_date_string "$crt_notAfter"
+
+	# Renewed cert must always exist, otherwise this cert has not been renewed
+	crt_file="$EASYRSA_PKI/renewed/issued/${crt_cn}.crt"
+	if [ -e "$crt_file" ]; then
+		# Use cert date
+		cert_dates "$crt_file"
+
+		# get the serial number of the certificate -> serial=XXXX
+		renewed_crt_serial="$(easyrsa_openssl x509 -in "$crt_file" -noout -serial)"
+		# remove the serial= part -> we only need the XXXX part
+		renewed_crt_serial="${renewed_crt_serial##*=}"
+
+		if [ "$crt_serial" = "$renewed_crt_serial" ]; then
+			printf '%s%s\n' "$crt_status | Serial: $crt_serial | " \
+				"Expires: $ff_date | CN: $crt_cn"
+		else
+			# Cert is valid but not renewed
+			: # ok - ignore
+		fi
+	else
+		# Cert is valid but no renewed cert exists
+		: # ok - ignore
+	fi
+} # => renew_status()
+
+# cert status reports
+status() {
+	report="$1"
+	in_crt="$2"
+	shift 2
+
+	verify_ca_init
+
+	# This does not build certs, so do not need support for fixed dates
+	unset -v EASYRSA_FIX_OFFSET
+
+	case "$report" in
+	expire)
+		case "$in_crt" in
+		all)
+			print "Showing certificates which expire in less than $EASYRSA_CERT_RENEW days:"
+			print
+			read_db expire
+		;;
+		*) print "Coming soon.."
+		esac
+	;;
+	revoke)
+		case "$in_crt" in
+		all)
+			print "Showing certificates which are revoked:"
+			print
+			read_db revoke ;;
+		*) print "Coming soon.."
+		esac
+	;;
+	renew)
+		case "$in_crt" in
+		all)
+			print "Showing certificates which have been renewed but not revoked:"
+			print
+			read_db renew ;;
+		*) print "Coming soon.."
+		esac
+	;;
+	*) warn "Unrecognised report: $report"
+	esac
+} # => status()
 
 # set_var is not known by shellcheck, therefore:
 # Fake declare known variables for shellcheck
@@ -3507,6 +3711,8 @@ while :; do
 		;;
 	--fix-offset)
 		export EASYRSA_FIX_OFFSET="$val" ;;
+	--renew-days)
+		export EASYRSA_CERT_RENEW="$val" ;;
 	--pki-dir)
 		export EASYRSA_PKI="$val" ;;
 	--tmp-dir)
@@ -3701,6 +3907,27 @@ case "$cmd" in
 		;;
 	verify)
 		verify_cert "$@"
+		;;
+	show-expire)
+		if [ -z "$*" ]; then
+			status expire all
+		else
+			status expire "$@"
+		fi
+		;;
+	show-revoke)
+		if [ -z "$*" ]; then
+			status revoke all
+		else
+			status revoke "$@"
+		fi
+		;;
+	show-renew)
+		if [ -z "$*" ]; then
+			status renew all
+		else
+			status renew "$@"
+		fi
 		;;
 	upgrade)
 		up23_manage_upgrade_23 "$@"
