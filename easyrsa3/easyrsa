@@ -1635,7 +1635,9 @@ Non-decimal value for EASYRSA_FIX_OFFSET: '$EASYRSA_FIX_OFFSET'"
 		allow_renew_date="$(( now_sec + EASYRSA_CERT_RENEW * 86400 ))"
 
 		if [ "$EASYRSA_FIX_OFFSET" ]; then
-			start_fix_sec="$(date -j "${this_year}01010000.00" +%s)"
+			start_fix_sec="$(
+				date -j -f '%Y%m%d%H%M%S' "${this_year}0101000000" +%s
+				)"
 			end_fix_sec="$(( start_fix_sec + fix_days * 86400 ))"
 			# Convert to date-stamps for SSL input
 			start_fixdate="$(date -j -r "$start_fix_sec" +%Y%m%d%H%M%SZ)"

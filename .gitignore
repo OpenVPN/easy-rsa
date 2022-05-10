@@ -6,3 +6,4 @@ dist-staging
 easyrsa3/safessl-easyrsa.cnf
 testdeps/*
 shellcheck
+.DS_Store
