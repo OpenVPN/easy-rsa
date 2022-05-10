@@ -2716,8 +2716,9 @@ Priority should be given to your PKI vars file:
 	# END: Find vars
 	fi
 
-	# If $EASYRSA_NO_VARS is defined (not blank) then do not use vars
-	# if $no_pki_required then no vars is required.
+	# If $EASYRSA_NO_VARS is defined (not blank) then do not use vars.
+	# If $no_pki_required then located vars files are not required.
+	# User defined '--vars=file' is respected.
 	if [ "$EASYRSA_NO_VARS" ] || [ "$no_pki_required" ]; then
 		: # ok
 	else
@@ -3604,13 +3605,19 @@ trap "exit 14" 15
 cmd="$1"
 [ -n "$1" ] && shift # scrape off command
 
-# This avoids unnecessary warnings and notices
-case "$cmd" in
-	init-pki|clean-all) no_pki_required=1 ;;
-	""|help|-h|--help|--usage) no_pki_required=1 ;;
-	version) no_pki_required=1 ;;
-	*) unset -v no_pki_required
-esac
+# User defined '--vars=file' or defaults
+if [ "$EASYRSA_VARS_FILE" ]; then
+       # User defined --vars=file MUST be sourced, do not set no_pki_required
+       : # ok
+else
+	# This avoids unnecessary warnings and notices
+	case "$cmd" in
+		init-pki|clean-all) no_pki_required=1 ;;
+		""|help|-h|--help|--usage) no_pki_required=1 ;;
+		version) no_pki_required=1 ;;
+		*) unset -v no_pki_required
+	esac
+fi
 
 # Get host details
 detect_host
