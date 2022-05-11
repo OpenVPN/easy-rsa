@@ -2908,21 +2908,20 @@ vars_setup() {
 		if [ -z "$no_pki_required" ]; then
 
 			# Clear flags - This is the preferred order to find:
-			unset -v e_pki_vars e_easy_vars e_pwd_vars e_prog_vars \
-					found_vars
+			unset -v e_pki_vars e_easy_vars e_pwd_vars e_prog_vars found_vars
 
 			# PKI location, if present:
-			{ [ -e "$pki_vars" ] && e_pki_vars=1; } || unset -v pki_vars
+			[ -e "$pki_vars" ] && e_pki_vars=1
 
 			# EASYRSA, if defined:
-			{ [ -e "$easy_vars" ] && e_easy_vars=1; } || unset -v easy_vars
+			[ -e "$easy_vars" ] && e_easy_vars=1
 
 			# Eventually the file below must be removed from EasyRSA
 			# vars of last resort
-			{ [ -e "$pwd_vars" ] && e_pwd_vars=1; } || unset -v pwd_vars
+			[ -e "$pwd_vars" ] && e_pwd_vars=1
 
 			# program location:
-			{ [ -e "$prog_vars" ] && e_prog_vars=1; } || unset -v prog_vars
+			[ -e "$prog_vars" ] && e_prog_vars=1
 
 			# Filter duplicates
 			if [ "$prog_vars" ] && [ "$pwd_vars" ] && [ "$prog_in_pwd" ]; then
@@ -2950,9 +2949,9 @@ Priority should be given to your PKI vars file:
 			esac
 
 			# If a SINGLE vars file is found then assign $vars
+			[ "$prog_vars" ] && vars="$prog_vars"
 			[ "$pwd_vars" ] && vars="$pwd_vars"
 			[ "$easy_vars" ] && vars="$easy_vars"
-			[ "$prog_vars" ] && vars="$prog_vars"
 			[ "$pki_vars" ] && vars="$pki_vars"
 		fi
 	# END: Find vars
