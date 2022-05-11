@@ -262,7 +262,7 @@ cmd_help() {
 	esac
 
 	# display the help text
-	print "$text"
+	[ "$text" ] && print "$text"
 	[ -n "$opts" ] && print "
       cmd-opts is an optional set of command options from this list:
 $opts"
@@ -343,9 +343,7 @@ Easy-RSA error:
 
 $1" 1>&2
 
-	print "
-Host: $host_out
-${EASYRSA_DEBUG+
+	print "Host: $host_out${EASYRSA_DEBUG+
 *** Disable EASYRSA_DEBUG mode ***}"
 
 	exit "${2:-1}"
@@ -469,7 +467,16 @@ cleanup() {
 		;;
 		*) warn "Host OS undefined."
 	esac
-	[ "$EASYRSA_SILENT" ] || echo "" # just to get a clean line
+
+	# Exit with error 1, if an error ocured...
+	if [ "$1" ]; then
+		# if there is no error then 'cleanup ok' is called
+		exit 0
+	else
+		# if 'cleanup' is called without 'ok' then an error occurred
+		[ "$EASYRSA_SILENT" ] || echo "" # just to get a clean line
+		exit 1
+	fi
 } # => cleanup()
 
 # Easy-RSA meta-wrapper for SSL
@@ -3711,7 +3718,6 @@ SSL Lib:     $ssl_version
 Git Commit:  ~GITHEAD~
 Source Repo: https://github.com/OpenVPN/easy-rsa
 VERSION_TEXT
-		exit 0
 } # => print_version ()
 
 
@@ -3974,7 +3980,6 @@ case "$cmd" in
 		;;
 	""|help|-h|--help|--usage)
 		cmd_help "$1"
-		exit 0
 		;;
 	version)
 		print_version
@@ -3982,5 +3987,9 @@ case "$cmd" in
 	*)
 		die "Unknown command '$cmd'. Run without commands for usage help."
 esac
+
+# Clear traps and do 'cleanup ok' on successful completion
+trap - 0 1 2 3 6 15
+cleanup ok
 
 # vim: ft=sh nu ai sw=8 ts=8 noet
