@@ -769,9 +769,14 @@ and initialize a fresh PKI here."
   init-pki complete; you may now create a CA or requests.
 
   Your newly created PKI dir is:
-  * $EASYRSA_PKI
+  * $EASYRSA_PKI"
 
+	if [ "$user_vars_true" ]; then
+		: # ok - No message required
+	else
+		notice "\
   IMPORTANT: Easy-RSA 'vars' file has now been moved to your PKI above."
+	fi
 } # => init_pki()
 
 # Copy data-files from various sources
@@ -863,31 +868,35 @@ install_data_to_pki () {
 		set_var EASYRSA_EXT_DIR "$EASYRSA_PKI/x509-types"
 	fi
 
-	# If this is init-pki then create PKI/vars from PKI/example
-	case "$context" in
-	init-pki)
-		if [ -e "${EASYRSA_PKI}/${vars_file_example}" ]; then
-			[ -e "${EASYRSA_PKI}/${vars_file}" ] || \
-				cp "${EASYRSA_PKI}/${vars_file_example}" \
-					"${EASYRSA_PKI}/${vars_file}" || :
-		fi
-	;;
-	vars-setup)
-		if [ "$found_vars" ]; then
-			: # ok - Do not make a PKI/vars if another vars exists
-		else
+	if [ user_vars_true ]; then
+		: # ok - No PKI/vars required
+	else
+		# Create PKI/vars from PKI/example
+		case "$context" in
+		init-pki)
 			if [ -e "${EASYRSA_PKI}/${vars_file_example}" ]; then
 				[ -e "${EASYRSA_PKI}/${vars_file}" ] || \
 					cp "${EASYRSA_PKI}/${vars_file_example}" \
 						"${EASYRSA_PKI}/${vars_file}" || :
 			fi
-		fi
-	;;
-	'')
-		die "install_data_to_pki - unspecified context" ;;
-	*)
-		die "install_data_to_pki - unknown context: $context"
-	esac
+		;;
+		vars-setup)
+			if [ "$found_vars" ]; then
+				: # ok - Do not make a PKI/vars if another vars exists
+			else
+				if [ -e "${EASYRSA_PKI}/${vars_file_example}" ]; then
+					[ -e "${EASYRSA_PKI}/${vars_file}" ] || \
+						cp "${EASYRSA_PKI}/${vars_file_example}" \
+							"${EASYRSA_PKI}/${vars_file}" || :
+				fi
+			fi
+		;;
+		'')
+			die "install_data_to_pki - unspecified context" ;;
+		*)
+			die "install_data_to_pki - unknown context: $context"
+		esac
+	fi
 
 	# Check PKI is updated - Omit unnecessary checks
 	#[ -e "${EASYRSA_PKI}/${vars_file}" ] || return
@@ -2935,6 +2944,7 @@ vars_setup() {
 			# If the --vars option does not point to a file, show helpful error.
 			die "The file '$EASYRSA_VARS_FILE' was not found."
 		fi
+		unset -v prog_vars pwd_vars easy_vars pki_vars expected_pki_vars
 
 	# Otherwise, find vars 'the new way' followed by 'the old way' ..
 	else
@@ -2942,7 +2952,7 @@ vars_setup() {
 		if [ -z "$no_pki_required" ]; then
 
 			# Clear flags - This is the preferred order to find:
-			unset -v e_pki_vars e_easy_vars e_pwd_vars e_prog_vars found_vars
+			unset -v e_pki_vars e_easy_vars e_pwd_vars e_prog_vars found_vars vars_in_pki
 
 			# PKI location, if present:
 			[ -e "$pki_vars" ] && e_pki_vars=1
@@ -2986,7 +2996,7 @@ Priority should be given to your PKI vars file:
 			[ "$prog_vars" ] && vars="$prog_vars"
 			[ "$pwd_vars" ] && vars="$pwd_vars"
 			[ "$easy_vars" ] && vars="$easy_vars"
-			[ "$pki_vars" ] && vars="$pki_vars"
+			[ "$pki_vars" ] && vars="$pki_vars" && vars_in_pki=1
 		fi
 	# END: Find vars
 	fi
@@ -3011,7 +3021,7 @@ recommended - please remove it from there before continuing."
 			fi
 
 			# Sanitize vars further but ONLY if it is in PKI folder
-			if [ "$pki_vars" ]; then
+			if [ "$vars_in_pki" ]; then
 				# Warning: Single quote
 				if grep '^[[:blank:]]*set_var[[:blank:]]\+.*' "$vars" | \
 					grep -q -e '&' -e "'" -e '`' -e '\$' -e '#' ; then
@@ -3031,8 +3041,13 @@ Failed to source the vars file, remove any unsupported characters."
 			# shellcheck disable=1090 # can't follow non-constant source. vars
 			. "$vars" 2>/dev/null
 			notice "Using Easy-RSA configuration from: $vars"
-			[ "$pki_vars" ] || \
-				warn "Move your vars file to your PKI folder, where it is safe!"
+			if [ "$user_vars_true" ]; then
+				: # ok - No message required
+			else
+				[ "$vars_in_pki" ] || \
+					warn "\
+  Move your vars file to your PKI folder, where it is safe!"
+			fi
 		fi
 	fi
 
@@ -3758,7 +3773,7 @@ NL='
 [ -z "$EASYRSA_NO_UMASK" ] && umask "${EASYRSA_UMASK:-077}"
 
 # Initialisation requirements
-unset -v easyrsa_error_exit user_san_true
+unset -v easyrsa_error_exit user_san_true user_vars_true
 
 # Parse options
 while :; do
@@ -3841,6 +3856,7 @@ while :; do
 	--subca-len)
 		export EASYRSA_SUBCA_LEN="$val" ;;
 	--vars)
+		user_vars_true=1
 		export EASYRSA_VARS_FILE="$val" ;;
 	--copy-ext)
 		empty_ok=1
@@ -3904,6 +3920,7 @@ vars_setup
 # determine how we were called, then hand off to the function responsible
 case "$cmd" in
 	init-pki|clean-all)
+		no_pki_required=1
 		init_pki "$@"
 		;;
 	build-ca)
