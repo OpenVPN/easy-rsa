@@ -1885,7 +1885,7 @@ Renewal not allowed."
 	else
 		san="$(
 			easyrsa_openssl x509 -in "$crt_in" -noout -text | sed -n \
-			"/X509v3 Subject Alternative Name:/{n;s/IP Address:/IP:/;s/ //g;p;}"
+			"/X509v3 Subject Alternative Name:/{n;s/IP Address:/IP:/g;s/ //g;p;}"
 			)"
 
 		[ -n "$san" ] && export EASYRSA_EXTRA_EXTS="\
