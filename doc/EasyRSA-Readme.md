@@ -161,7 +161,7 @@ Using Easy-RSA as a CA
 #### Building the CA
 
   In order to sign requests to produce certificates, you need a CA. To create a
-  new CA in a PKI you have created, run:
+  new CA in the PKI you have created, run:
 
     ./easyrsa build-ca
 
@@ -190,21 +190,24 @@ Using Easy-RSA as a CA
 
 #### Signing a request
 
-  Once Easy-RSA has imported a request, it can be reviewed and signed. Every
-  certificate needs a "type" which controls what extensions the certificate gets
-  Easy-RSA ships with 3 possible types: `client`, `server`, and `ca`, described
-  below:
-
-  * client - A TLS client, suitable for a VPN user or web browser (web client)
-  * server - A TLS server, suitable for a VPN or web server
-  * ca - A intermediate CA, used when chaining multiple CAs together
+  Once Easy-RSA has imported a request, it can be reviewed and signed:
 
     ./easyrsa sign-req <type> nameOfRequest
+
+  Every certificate needs a `type` which controls what extensions the certificate
+  gets.
+
+  Easy-RSA ships with 4 possible "types":
+
+  * `client` - A TLS client, suitable for a VPN user or web browser (web client)
+  * `server` - A TLS server, suitable for a VPN or web server
+  * `ca` - A intermediate CA, used when chaining multiple CAs together
+  * `serverClient` - A TLS server and TLS client
 
   Additional types of certs may be defined by local sites as needed; see the
   advanced documentation for details.
 
-#### Revoking and publishing CRLs
+#### Revoking and publishing Certificate Revocation Lists (CRLs)
 
   If an issue certificate needs to be revoked, this can be done as follows:
 
@@ -240,4 +243,3 @@ In order to obtain a signed certificate, the request file must be sent to the
 CA for signing; this step is obviously not required if a single PKI is used as
 both the CA and keypair/request generation as the generated request is already
 "imported."
-

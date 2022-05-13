@@ -1,22 +1,22 @@
 # Easy-RSA 3 parameter settings
 
-# NOTE: If you installed Easy-RSA from your distro's package manager, don't edit
+# NOTE: If you installed Easy-RSA from your package manager, do not edit
 # this file in place -- instead, you should copy the entire easy-rsa directory
-# to another location so future upgrades don't wipe out your changes.
+# to another location so future upgrades do not wipe out your changes.
 
 # HOW TO USE THIS FILE
 #
 # vars.example contains built-in examples to Easy-RSA settings. You MUST name
-# this file 'vars' if you want it to be used as a configuration file. If you do
+# this file "vars" if you want it to be used as a configuration file. If you do
 # not, it WILL NOT be automatically read when you call easyrsa commands.
 #
 # It is not necessary to use this config file unless you wish to change
 # operational defaults. These defaults should be fine for many uses without the
-# need to copy and edit the 'vars' file.
+# need to copy and edit the "vars" file.
 #
 # All of the editable settings are shown commented and start with the command
-# 'set_var' -- this means any set_var command that is uncommented has been
-# modified by the user. If you're happy with a default, there is no need to
+# "set_var" -- this means any set_var command that is uncommented has been
+# modified by the user. If you are happy with a default, there is no need to
 # define the value to its default.
 
 # NOTES FOR WINDOWS USERS
@@ -26,14 +26,14 @@
 # the openssl binary might look like this:
 # "C:/Program Files/OpenSSL-Win32/bin/openssl.exe"
 
-# A little housekeeping: DON'T EDIT THIS SECTION
-# 
-# Easy-RSA 3.x doesn't source into the environment directly.
+# A little housekeeping: DO NOT EDIT THIS SECTION
+#
+# Easy-RSA 3.x does not source into the environment directly.
 # Complain if a user tries to do this:
 if [ -z "$EASYRSA_CALLER" ]; then
-	echo "You appear to be sourcing an Easy-RSA 'vars' file." >&2
+	echo "You appear to be sourcing an Easy-RSA *vars* file." >&2
 	echo "This is no longer necessary and is disallowed. See the section called" >&2
-	echo "'How to use this file' near the top comments for more details." >&2
+	echo "*How to use this file* near the top comments for more details." >&2
 	return 1
 fi
 
@@ -78,7 +78,7 @@ fi
 # Define X509 DN mode.
 # This is used to adjust what elements are included in the Subject field as the DN
 # (this is the "Distinguished Name.")
-# Note that in cn_only mode the Organizational fields further below aren't used.
+# Note that in cn_only mode the Organizational fields further below are not used.
 #
 # Choices are:
 #   cn_only  - use just a CN value
@@ -89,15 +89,22 @@ fi
 
 # Device fields (used with 'device' mode and ignored in 'cn_only' and
 # 'org' modes.)
-
 # set_var EASYRSA_REQ_SN	"My device SN"
 
-# Organizational fields (used with 'org' mode and ignored in 'cn_only'
-# and 'device' mode.)
+# Organizational fields (used with "org" mode and ignored in "cn_only" mode.)
 # These are the default values for fields which will be placed in the
-# certificate.  Don't leave any of these fields blank, although interactively
+# certificate.  Do not leave any of these fields blank, although interactively
 # you may omit any specific field by typing the "." symbol (not valid for
 # email.)
+
+# NOTE: The following characters are not supported
+#       in these "Organizational fields" by Easy-RSA:
+#       single quote (')
+#       back-tick (`)
+#       hash (#)
+#       ampersand (&)
+#       dollar sign ($)
+# Use them at your own risk!
 
 #set_var EASYRSA_REQ_COUNTRY	"US"
 #set_var EASYRSA_REQ_PROVINCE	"California"
@@ -144,6 +151,12 @@ fi
 # renewed?
 #set_var EASYRSA_CERT_RENEW	30
 
+# For fixed certificate start/end dates - Range 1..365
+# If set here then command line option is always in effect.
+# The day number 183 is either July 2nd or 3rd (leap-year)
+# Replace with your chosen day-of-year value:
+#set_var  EASYRSA_FIX_OFFSET 183
+
 # Random serial numbers by default, set to no for the old incremental serial numbers
 #
 #set_var EASYRSA_RAND_SN	"yes"
@@ -178,9 +191,9 @@ fi
 # Broken shell command aliases: If you have a largely broken shell that is
 # missing any of these POSIX-required commands used by Easy-RSA, you will need
 # to define an alias to the proper path for the command.  The symptom will be
-# some form of a 'command not found' error from your shell. This means your
+# some form of a "command not found" error from your shell. This means your
 # shell is BROKEN, but you can hack around it here if you really need. These
-# shown values are not defaults: it is up to you to know what you're doing if
+# shown values are not defaults: it is up to you to know what you are doing if
 # you touch these.
 #
 #alias awk="/alt/bin/awk"
@@ -189,9 +202,9 @@ fi
 # X509 extensions directory:
 # If you want to customize the X509 extensions used, set the directory to look
 # for extensions here. Each cert type you sign must have a matching filename,
-# and an optional file named 'COMMON' is included first when present. Note that
+# and an optional file named "COMMON" is included first when present. Note that
 # when undefined here, default behaviour is to look in $EASYRSA_PKI first, then
-# fallback to $EASYRSA for the 'x509-types' dir.  You may override this
+# fallback to $EASYRSA for the "x509-types" dir.  You may override this
 # detection with an explicit dir here.
 #
 #set_var EASYRSA_EXT_DIR	"$EASYRSA/x509-types"
@@ -206,7 +219,7 @@ fi
 # specific and you cannot just use a standard config file, so this is an
 # advanced feature.
 
-#set_var EASYRSA_SSL_CONF	"$EASYRSA/openssl-easyrsa.cnf"
+#set_var EASYRSA_SSL_CONF	"$EASYRSA_PKI/openssl-easyrsa.cnf"
 
 # Default CN:
 # This is best left alone. Interactively you will set this manually, and BATCH
@@ -225,4 +238,3 @@ fi
 # or most output. Setting this to any non-blank string enables batch mode.
 
 #set_var EASYRSA_BATCH		""
-

@@ -5,3 +5,8 @@
 # demonstrated in the following example:
 
 #crlDistributionPoints = URI:http://example.net/pki/my_ca.crl
+
+# The authority information access extension gives details about how to access
+# certain information relating to the CA.
+
+#authorityInfoAccess = caIssuers;URI:http://example.net/pki/my_ca.crt

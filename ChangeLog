@@ -1,8 +1,28 @@
 Easy-RSA 3 ChangeLog
 
-3.0.9 (TBD)
-   * Upgrade OpenSSL from 1.1.0j to 1.1.1g for Windows (#405)
+3.1.0 (TBD)
+   * Introduce basic support for OpenSSL version 3 (#492)
+   * Update regex in grep to be POSIX compliant (#556)
+
+3.0.9 (2022-05-xx)
+   * Upgrade OpenSSL from 1.1.0j to 1.1.1o (#405, #407) 
+      - We are buliding this ourselves now.
    * Fix --version so it uses EASYRSA_OPENSSL (#416)
+   * Use openssl rand instead of non-POSIX mktemp (#478)
+   * Fix paths with spaces (#443)
+   * Correct OpenSSL version from Homebrew on macOs (#416)
+   * Fix revoking a renewed certificate (Original PR #394)
+     Follow-up commit: ef22701878bb10df567d60f2ac50dce52a82c9ee
+   * Introduce 'show-crl' (d1993892178c5219f4a38d50db3b53d1a972b36c)
+   * Support Windows-Git 'version of bash' (#533)
+   * Disallow use of single quote (') in vars file, Warning (#530)
+   * Creating a CA uses x509-types/ca and COMMON (#526)
+   * Prefer 'PKI/vars' over all other locations (#528)
+   * Introduce 'init-pki soft'  option (#197)
+   * Warnings are no longer silenced by --batch (#523)
+   * Improve packaging options (#510)
+   * Update regex for POSIX compliance (#556)
+   * Correct date format for Darwin/BSD (#559)
 
 3.0.8 (2020-09-09)
    * Provide --version option (#372)
@@ -51,7 +71,7 @@ Easy-RSA 3 ChangeLog
     * Remove use of egrep (#154)
     * Integrate with Travis-CI (#165)
     * Remove "local" from variable assignment (#165)
-        * Other changes related to Travis-CI fixes
+    * Other changes related to Travis-CI fixes
 	* Assign values to variables defined previously w/local
     * Finally(?) fix the subjectAltName issues I presented earlier (really
       fixes #168)
@@ -79,11 +99,11 @@ Easy-RSA 3 ChangeLog
 
     * 8b42eea Make aes256 default, replacing 3des
         (keros: Github)
-    
+
     * f2f4ac8 Make -utf8 default
         (roubert: Github)
 
-	
+
 3.0.0-rc2 (2014/07/27)
 
     * 1551e5f docs: fix typo
