@@ -34,11 +34,11 @@ Here is the list of commands available with a short syntax reminder. Use the
   sign-req <type> <filename_base>
   build-client-full <filename_base> [ cmd-opts ]
   build-server-full <filename_base> [ cmd-opts ]
+  build-serverClient-full <filename_base> [ cmd-opts ]
   revoke <filename_base> [cmd-opts]
   revoke-renewed <filename_base> [cmd-opts]
   renew <filename_base> [cmd-opts]
   renewable [ <filename_base> ]
-  build-serverClient-full <filename_base> [ cmd-opts ]
   gen-crl
   update-db
   show-req <filename_base> [ cmd-opts ]
@@ -193,8 +193,10 @@ cmd_help() {
 
       Human-readable output is shown." ;;
 		verify) text="
-  verify <filename_base>
-      Verify certificate against CA" ;;
+  verify <filename_base> [ cmd-opts ]
+      Verify certificate against CA"
+			opts="
+        batch   - On failure to verify, return error (1) to calling program" ;;
 		import-req) text="
   import-req <request_file_path> <short_basename>
       Import a certificate request from a file
@@ -265,7 +267,8 @@ cmd_help() {
 	[ "$text" ] && print "$text"
 	[ -n "$opts" ] && print "
       cmd-opts is an optional set of command options from this list:
-$opts"
+$opts
+"
 } # => cmd_help()
 
 # Options usage
@@ -343,7 +346,8 @@ Easy-RSA error:
 
 $1" 1>&2
 
-	print "Host: $host_out${EASYRSA_DEBUG+
+	print "
+Host: $host_out${EASYRSA_DEBUG+
 *** Disable EASYRSA_DEBUG mode ***}"
 
 	exit "${2:-1}"
@@ -451,9 +455,15 @@ easyrsa_mktemp() {
 
 # remove temp files and do terminal cleanups
 cleanup() {
-	[ -z "$EASYRSA_TEMP_DIR_session" ] || rm -rf "$EASYRSA_TEMP_DIR_session"
-	[ -n "${EASYRSA_EC_DIR%/*}" ] && [ -d "$EASYRSA_EC_DIR" ] && \
+	if [ "${EASYRSA_TEMP_DIR_session%/*}" ] && [ -d "$EASYRSA_TEMP_DIR_session" ]
+	then
+		rm -rf "$EASYRSA_TEMP_DIR_session"
+	fi
+
+	if [ "${EASYRSA_EC_DIR%/*}" ] && [ -d "$EASYRSA_EC_DIR" ]
+	then
 		rm -rf "$EASYRSA_EC_DIR"
+	fi
 
 	# shellcheck disable=SC3040 # In POSIX sh, set option [name] is undefined
 	case "$easyrsa_host_os" in
@@ -469,7 +479,10 @@ cleanup() {
 	esac
 
 	# Exit with error 1, if an error ocured...
-	if [ "$1" ]; then
+	if [ "$easyrsa_error_exit" ]; then
+		# Set by verify_cert() for full error-out
+		exit 1
+	elif [ "$1" = ok ]; then
 		# if there is no error then 'cleanup ok' is called
 		exit 0
 	else
@@ -1071,6 +1084,7 @@ current CA keypair. If you intended to start a new CA, run init-pki first."
 			${EASYRSA_DIGEST+ -"$EASYRSA_DIGEST"} \
 			${no_password+ "$no_password"} \
 			${EASYRSA_PASSIN:+ -passin "$EASYRSA_PASSIN"} \
+			${EASYRSA_PASSOUT:+ -passout "$EASYRSA_PASSOUT"} \
 			${out_key_pass_tmp:+ -passin file:"$out_key_pass_tmp"} \
 				|| die "Failed to build the CA"
 	;;
@@ -2458,6 +2472,18 @@ Run easyrsa without commands for usage and command help."
 	file_name_base="$1"
 	shift
 
+	# function opts support
+	unset -v exit_with_error
+	while [ "$1" ]; do
+		case "$1" in
+			# batch flag, return status [0/1] to calling program
+			# Otherwise, exit 0 on successful completion
+			batch) exit_with_error=1 ;;
+			*) warn "Ignoring unknown command option: '$1'"
+		esac
+		shift
+	done
+
 	in_dir="$EASYRSA_PKI"
 	ca_crt="$in_dir/ca.crt"
 	crt_in="$in_dir/issued/$file_name_base.crt"
@@ -2476,14 +2502,15 @@ Input is not a valid certificate: $crt_in"
 		notice "\
   Certificate name:   $file_name_base
   Verfication status: GOOD"
-		exit 0
-	fi
-
-	[ "$EASYRSA_SILENT" ] || print # Separate Notice below
-	warn "\
+		# easyrsa_error_exit=1 # Simple 'proof of concept' test
+	else
+		[ "$EASYRSA_SILENT" ] || print # Separate Notice below
+		notice "\
   Certificate name:   $file_name_base
   Verfication status: FAILED"
-	exit 1
+		# Exit with error (cmd-opt: batch), otherwise terminal msg only
+		[ "$exit_with_error" ] && easyrsa_error_exit=1
+	fi
 } # => verify_cert()
 
 # verify a file seems to be a valid req/X509
@@ -3731,7 +3758,7 @@ NL='
 [ -z "$EASYRSA_NO_UMASK" ] && umask "${EASYRSA_UMASK:-077}"
 
 # Initialisation requirements
-unset -v user_san_true
+unset -v easyrsa_error_exit user_san_true
 
 # Parse options
 while :; do
