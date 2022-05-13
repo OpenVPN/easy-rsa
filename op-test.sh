@@ -109,11 +109,11 @@ run_unit_test ()
 		[ "$no_delete" ] && export SAVE_PKI=1
 
 		if [ "${dry_run}" ]; then
-			log "<<dry-run>> sh ${utest_bin} ${verb}"
+			log "<<dry-run>> sh ${utest_bin} ${verb} $use_passwords"
 			estat=1
 		else
 			log ">>>>>>: sh ${utest_bin} ${verb}"
-			if sh "${utest_bin}" "${verb}"; then
+			if sh "${utest_bin}" "${verb}" "$use_passwords"; then
 				log "OK"
 				estat=0
 			else
@@ -340,6 +340,7 @@ while [ -n "$1" ]; do
 	-vv)				verb='-vv' ;;
 	-sc)				enable_shellcheck=1 ;;
 	-o3)				enable_openssl3=1 ;;
+	-p)					use_passwords='-p' ;;
 	-dr)				dry_run=1 ;;
 	-nt|--no-test)		unset -v enable_unit_test ;;
 	-nc|--no-curl)		unset -v enable_curl ;;
