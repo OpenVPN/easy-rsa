@@ -868,7 +868,7 @@ install_data_to_pki () {
 		set_var EASYRSA_EXT_DIR "$EASYRSA_PKI/x509-types"
 	fi
 
-	if [ user_vars_true ]; then
+	if [ "$user_vars_true" ]; then
 		: # ok - No PKI/vars required
 	else
 		# Create PKI/vars from PKI/example
