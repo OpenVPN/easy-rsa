@@ -872,35 +872,31 @@ install_data_to_pki () {
 		set_var EASYRSA_EXT_DIR "$EASYRSA_PKI/x509-types"
 	fi
 
-	if [ "$user_vars_true" ]; then
-		: # ok - No PKI/vars required
-	else
-		# Create PKI/vars from PKI/example
-		case "$context" in
-		init-pki)
+	# Create PKI/vars from PKI/example
+	case "$context" in
+	init-pki)
+		if [ -e "${EASYRSA_PKI}/${vars_file_example}" ]; then
+			[ -e "${EASYRSA_PKI}/${vars_file}" ] || \
+				cp "${EASYRSA_PKI}/${vars_file_example}" \
+					"${EASYRSA_PKI}/${vars_file}" || :
+		fi
+	;;
+	vars-setup)
+		if [ "$found_vars" ]; then
+			: # ok - Do not make a PKI/vars if another vars exists
+		else
 			if [ -e "${EASYRSA_PKI}/${vars_file_example}" ]; then
 				[ -e "${EASYRSA_PKI}/${vars_file}" ] || \
 					cp "${EASYRSA_PKI}/${vars_file_example}" \
 						"${EASYRSA_PKI}/${vars_file}" || :
 			fi
-		;;
-		vars-setup)
-			if [ "$found_vars" ]; then
-				: # ok - Do not make a PKI/vars if another vars exists
-			else
-				if [ -e "${EASYRSA_PKI}/${vars_file_example}" ]; then
-					[ -e "${EASYRSA_PKI}/${vars_file}" ] || \
-						cp "${EASYRSA_PKI}/${vars_file_example}" \
-							"${EASYRSA_PKI}/${vars_file}" || :
-				fi
-			fi
-		;;
-		'')
-			die "install_data_to_pki - unspecified context" ;;
-		*)
-			die "install_data_to_pki - unknown context: $context"
-		esac
-	fi
+		fi
+	;;
+	'')
+		die "install_data_to_pki - unspecified context" ;;
+	*)
+		die "install_data_to_pki - unknown context: $context"
+	esac
 
 	# Check PKI is updated - Omit unnecessary checks
 	#[ -e "${EASYRSA_PKI}/${vars_file}" ] || return
@@ -3026,7 +3022,7 @@ recommended - please remove it from there before continuing."
 
 			# Sanitize vars further but ONLY if it is in PKI folder
 			if [ "$vars_in_pki" ]; then
-				# Warning: Single quote
+				# Warning: Unsupported  characters
 				if grep '^[[:blank:]]*set_var[[:blank:]]\+.*' "$vars" | \
 					grep -q -e '&' -e "'" -e '`' -e '\$' -e '#' ; then
 					warn "\
@@ -3901,19 +3897,13 @@ trap "exit 14" 15
 cmd="$1"
 [ -n "$1" ] && shift # scrape off command
 
-# User defined '--vars=file' or defaults
-if [ "$EASYRSA_VARS_FILE" ]; then
-       # User defined --vars=file MUST be sourced, do not set no_pki_required
-       : # ok
-else
-	# This avoids unnecessary warnings and notices
-	case "$cmd" in
-		init-pki|clean-all) no_pki_required=1 ;;
-		""|help|-h|--help|--usage) no_pki_required=1 ;;
-		version) no_pki_required=1 ;;
-		*) unset -v no_pki_required
-	esac
-fi
+# This avoids unnecessary warnings and notices
+case "$cmd" in
+	init-pki|clean-all) no_pki_required=1 ;;
+	""|help|-h|--help|--usage) no_pki_required=1 ;;
+	version) no_pki_required=1 ;;
+	*) unset -v no_pki_required
+esac
 
 # Get host details
 detect_host
@@ -3925,10 +3915,9 @@ vars_setup
 case "$cmd" in
 	init-pki|clean-all)
 		if [ "$user_vars_true" ]; then
-		# Ref: https://github.com/OpenVPN/easy-rsa/issues/566
-			warn "Use of '--vars=FILE init-pki' is deprecated, use '--pki-dir=DIR'"
+			# Ref: https://github.com/OpenVPN/easy-rsa/issues/566
+			die "Use of '--vars=FILE init-pki' is prohibited, use '--pki-dir=DIR'"
 		fi
-		no_pki_required=1
 		init_pki "$@"
 		;;
 	build-ca)
