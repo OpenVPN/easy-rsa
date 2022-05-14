@@ -288,10 +288,14 @@ General options:
 
 --passin=ARG    : set -passin ARG for openssl
 --passout=ARG   : set -passout ARG for openssl
---pki-dir=DIR   : declare the PKI directory
---tmp-dir=DIR   : declare the temporary directory
 --ssl-conf=FILE : define a specific OpenSSL config file for Easy-RSA to use
+
 --vars=FILE     : define a specific 'vars' file to use for Easy-RSA config
+                  Can be used with everything, except 'init-pki'
+--pki-dir=DIR   : declare the PKI directory
+                  Use this for 'init-pki', not '--vars' above.
+
+--tmp-dir=DIR   : declare the temporary directory
 --version       : prints EasyRSA version and build information, then exits
 
 Certificate & Request options: (these impact cert/req field values)
@@ -3920,6 +3924,10 @@ vars_setup
 # determine how we were called, then hand off to the function responsible
 case "$cmd" in
 	init-pki|clean-all)
+		if [ "$user_vars_true" ]; then
+		# Ref: https://github.com/OpenVPN/easy-rsa/issues/566
+			warn "Use of '--vars=FILE init-pki' is deprecated, use '--pki-dir=DIR'"
+		fi
 		no_pki_required=1
 		init_pki "$@"
 		;;
