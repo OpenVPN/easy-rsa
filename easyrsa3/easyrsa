@@ -518,6 +518,7 @@ easyrsa_openssl() {
 		# Make LibreSSL safe config file from OpenSSL config file
 
 		# Do not use easyrsa_mktemp() for init-pki
+		# LibreSSL cannot generate random without a PKI and safe-conf
 		if [ "$no_pki_required" ]; then
 			# for init-pki $EASYRSA_SAFE_CONF is always set in the PKI, use it.
 			easyrsa_openssl_conf="${EASYRSA_SAFE_CONF}.init-tmp"
@@ -527,6 +528,7 @@ easyrsa_openssl() {
 		fi
 
 		# OpenSSL does not require a safe config, so skip to the copy
+		# require_safe_ssl_conf is set by verify_ssl_lib()
 		if [ "$require_safe_ssl_conf" ]; then
 			# Make a safe SSL config file
 			sed \
@@ -2949,8 +2951,9 @@ vars_setup() {
 	# Otherwise, find vars 'the new way' followed by 'the old way' ..
 	else
 		# if PKI is required
-		if [ -z "$no_pki_required" ]; then
-
+		if [ "$no_pki_required" ]; then
+			: # ok - No vars required either
+		else
 			# Clear flags - This is the preferred order to find:
 			unset -v e_pki_vars e_easy_vars e_pwd_vars e_prog_vars found_vars vars_in_pki
 
@@ -3003,15 +3006,24 @@ Priority should be given to your PKI vars file:
 
 	# If $EASYRSA_NO_VARS is defined (not blank) then do not use vars.
 	# If $no_pki_required then located vars files are not required.
-	# User defined '--vars=file' is respected.
 	if [ "$EASYRSA_NO_VARS" ] || [ "$no_pki_required" ]; then
 		: # ok
 	else
 		# If a vars file was located then source it
 		if [ -z "$vars" ]; then
 			# $vars remains undefined .. no vars found
+			# install_data_to_pki() will create a default 'PKI/vars'
 			: # ok
 		else
+			# 'vars' now MUST exist
+			if [ ! -e "$vars" ]; then
+				if [ -d "$EASYRSA_PKI" ]; then
+					die "Missing vars file, expected: $vars"
+				else
+					die "Your PKI is not initialised."
+				fi
+			fi
+
 			# Sanitize vars
 			if grep -Eq 'EASYRSA_PASSIN|EASYRSA_PASSOUT' "$vars"; then
 				die "\
@@ -3032,12 +3044,16 @@ Sourcing the vars file and building certificates will probably fail .."
 				fi
 			fi
 
+			# Enable sourcing 'vars'
 			# shellcheck disable=SC2034 # EASYRSA_CALLER appears unused.
 			EASYRSA_CALLER=1
+
+			# Test souring 'vars' in a subshell
 			# shellcheck disable=1090 # can't follow non-constant source. vars
 			( . "$vars" 2>/dev/null ) || die "\
 Failed to source the vars file, remove any unsupported characters."
 
+			# Source 'vars' now
 			# shellcheck disable=1090 # can't follow non-constant source. vars
 			. "$vars" 2>/dev/null
 			notice "Using Easy-RSA configuration from: $vars"
@@ -3090,29 +3106,24 @@ Failed to source the vars file, remove any unsupported characters."
 		*) die "Alg '$EASYRSA_ALGO' is invalid: must be 'rsa', 'ec' or 'ed' "
 	esac
 
-	# Assign value to $EASYRSA_TEMP_DIR_session
-	# and work-around Windows mktemp bug when parent dir is missing
-	#
-	# Bug: When the parent-dir is missing Windows'mktemp -du' fails.
-	# The work-around is to create the parent-dir, if it does not exist.
-	# The reason it does not exist is because 'init-pki' has not been run.
-	# Use the same gaurd against a missing PKI; Only set variables which
-	# require a PKI, eg '$EASYRSA_PKI', if there is a PKI !
-	#
-	# Also, integrate a partial 'init-pki' by using 'install_data_to_pki()'
-	#
-	# If EASYRSA_PKI directory exists then
+	# For commands which 'require a PKI' and the PKI exists
 	if  [ ! "$no_pki_required" ] && [ -d "$EASYRSA_PKI" ]; then
 
 		# Make a safe SSL config for LibreSSL
+		# Must specify 'no_pki_required' and 'require_safe_ssl_conf' here
+		# because verify_ssl_lib() has not yet run
 		# sub-shell out, to change running variables, only the file is required
-		(
-			no_pki_required=1
-			require_safe_ssl_conf=1
-			easyrsa_openssl makesafeconf
-		) || die "Failed to create safe ssl conf (vars_setup)"
+		#(
+		#	no_pki_required=1
+		#	require_safe_ssl_conf=1
+		#	easyrsa_openssl makesafeconf
+		#) || \
+		#	die "Failed to create safe ssl conf (vars_setup)"
+		# Alternate version:
+		no_pki_required=1 require_safe_ssl_conf=1 easyrsa_openssl makesafeconf || \
+			die "Failed to create safe ssl conf (vars_setup)"
 
-		# Temp dir session
+		# mkdir Temp dir session
 		secure_session || die "Temporary directory secure-session failed."
 
 		if [ -d "$EASYRSA_TEMP_DIR" ]; then
@@ -3127,6 +3138,7 @@ Failed to source the vars file, remove any unsupported characters."
 			install_data_to_pki vars-setup || \
 				warn "Failed to install new required data-dir to PKI. (vars_setup)"
 
+			# export OPENSSL_CONF for OpenSSL, OpenSSL config file MUST exist
 			# EASYRSA_SAFE_CONF is output by 'install_data_to_pki()'
 			# via 'easyrsa_openssl() makesafeconf' above.
 			# Setting EasyRSA specific OPENSSL_CONF to sanatized safe conf
@@ -3139,7 +3151,7 @@ Failed to source the vars file, remove any unsupported characters."
 		else
 			# If the directory does not exist then we have not run init-pki
 			# The temp-dir is Always created by 'install_data_to_pki'
-			: # ok
+			die "Temporary directory does not exist: $EASYRSA_TEMP_DIR"
 		fi
 	fi
 } # vars_setup()
@@ -3893,20 +3905,19 @@ trap "exit 3" 3
 trap "exit 6" 6
 trap "exit 14" 15
 
+# Get host details - does not require vars_setup
+detect_host
+
 # Set cmd now because vars_setup needs to know if this is init-pki
 cmd="$1"
 [ -n "$1" ] && shift # scrape off command
 
 # This avoids unnecessary warnings and notices
 case "$cmd" in
-	init-pki|clean-all) no_pki_required=1 ;;
-	""|help|-h|--help|--usage) no_pki_required=1 ;;
-	version) no_pki_required=1 ;;
+	init-pki|clean-all|""|help|-h|--help|--usage|version)
+		no_pki_required=1 ;;
 	*) unset -v no_pki_required
 esac
-
-# Get host details
-detect_host
 
 # Intelligent env-var detection and auto-loading:
 vars_setup
