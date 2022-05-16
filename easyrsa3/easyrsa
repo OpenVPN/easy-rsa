@@ -2955,7 +2955,8 @@ vars_setup() {
 			: # ok - No vars required either
 		else
 			# Clear flags - This is the preferred order to find:
-			unset -v e_pki_vars e_easy_vars e_pwd_vars e_prog_vars found_vars vars_in_pki
+			unset -v e_pki_vars e_easy_vars e_pwd_vars e_prog_vars \
+				found_vars vars_in_pki
 
 			# PKI location, if present:
 			[ -e "$pki_vars" ] && e_pki_vars=1
@@ -2971,7 +2972,7 @@ vars_setup() {
 			[ -e "$prog_vars" ] && e_prog_vars=1
 
 			# Filter duplicates
-			if [ "$prog_vars" ] && [ "$pwd_vars" ] && [ "$prog_in_pwd" ]; then
+			if [ "$e_prog_vars" ] && [ "$e_pwd_vars" ] && [ "$prog_in_pwd" ]; then
 				unset -v prog_vars e_prog_vars
 			fi
 
@@ -2996,10 +2997,13 @@ Priority should be given to your PKI vars file:
 			esac
 
 			# If a SINGLE vars file is found then assign $vars
-			[ "$prog_vars" ] && vars="$prog_vars"
-			[ "$pwd_vars" ] && vars="$pwd_vars"
-			[ "$easy_vars" ] && vars="$easy_vars"
-			[ "$pki_vars" ] && vars="$pki_vars" && vars_in_pki=1
+			[ "$e_prog_vars" ] && vars="$prog_vars"
+			[ "$e_pwd_vars" ] && vars="$pwd_vars"
+			[ "$e_easy_vars" ] && vars="$easy_vars"
+			[ "$e_pki_vars" ] && vars="$pki_vars" && vars_in_pki=1
+
+			# Clean up
+			unset -v prog_vars pwd_vars easy_vars pki_vars
 		fi
 	# END: Find vars
 	fi
@@ -3016,13 +3020,7 @@ Priority should be given to your PKI vars file:
 			: # ok
 		else
 			# 'vars' now MUST exist
-			if [ ! -e "$vars" ]; then
-				if [ -d "$EASYRSA_PKI" ]; then
-					die "Missing vars file, expected: $vars"
-				else
-					die "Your PKI is not initialised."
-				fi
-			fi
+			[ -e "$vars" ] || die "Missing vars file, expected: $vars"
 
 			# Sanitize vars
 			if grep -Eq 'EASYRSA_PASSIN|EASYRSA_PASSOUT' "$vars"; then
