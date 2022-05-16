@@ -589,33 +589,6 @@ easyrsa_openssl() {
 	fi
 } # => easyrsa_openssl()
 
-# Verify supplied curve exists and Always generate curve file
-verify_curve_ec() {
-	# Check that the ecparams dir exists
-	[ -d "$EASYRSA_EC_DIR" ] || mkdir "$EASYRSA_EC_DIR" || die "\
-Failed creating ecparams dir (permissions?) at:
-$EASYRSA_EC_DIR"
-
-	# Check that the required ecparams file exists
-	if easyrsa_openssl ecparam -name "$EASYRSA_CURVE" \
-		-out "$EASYRSA_ALGO_PARAMS" 1>/dev/null
-	then
-		return 0
-	fi
-
-	# Clean up failure
-	rm -rf "$EASYRSA_EC_DIR"
-	die "\
-Failed to generate ecparam file (permissions?) when writing to:
-$EASYRSA_ALGO_PARAMS"
-} # => verify_curve_ec()
-
-# Verify if Edwards Curve exists
-verify_curve_ed() {
-	easyrsa_openssl genpkey -algorithm "$EASYRSA_CURVE" > /dev/null \
-		|| die "Edwards Curve $EASYRSA_CURVE not found."
-} # => verify_curve_ed()
-
 # Verify the SSL library is functional and establish version dependencies
 verify_ssl_lib() {
 	if [ -z "$EASYRSA_SSL_OK" ]; then
@@ -952,8 +925,6 @@ build_ca() {
 	done
 
 	verify_pki_init
-	[ "$EASYRSA_ALGO" = "ec" ] && verify_curve_ec
-	[ "$EASYRSA_ALGO" = "ed" ] && verify_curve_ed
 
 	out_key="$EASYRSA_PKI/private/ca.key"
 	# setup for an intermediate CA
@@ -1178,10 +1149,6 @@ Run easyrsa without commands for usage and commands."
 		esac
 		shift
 	done
-
-	# Verify required curves
-	[ "$EASYRSA_ALGO" = "ec" ] && verify_curve_ec
-	[ "$EASYRSA_ALGO" = "ed" ] && verify_curve_ed
 
 	# don't wipe out an existing private key without confirmation
 	[ -f "$key_out" ] && confirm "Confirm key overwrite: " "yes" "\
@@ -2903,6 +2870,33 @@ detect_host() {
 	unset -v easyrsa_host_test
 } # => detect_host()
 
+# Verify the selected algorithm parameters
+verify_algo_params() {
+	# EASYRSA_ALGO_PARAMS must be set depending on selected algo
+	case "$EASYRSA_ALGO" in
+	rsa)
+		# Set RSA key size
+		EASYRSA_ALGO_PARAMS="$EASYRSA_KEY_SIZE"
+	;;
+	ec)
+		# Verify Elliptic curve
+		EASYRSA_ALGO_PARAMS="$(easyrsa_mktemp)"
+
+		# Create the required ecparams file
+		easyrsa_openssl ecparam -name "$EASYRSA_CURVE" \
+			-out "$EASYRSA_ALGO_PARAMS" 1>/dev/null || die "\
+Failed to generate ecparam file (permissions?) when writing to:
+$EASYRSA_ALGO_PARAMS"
+	;;
+	ed)
+		# Verify Edwards curve
+		easyrsa_openssl genpkey -algorithm "$EASYRSA_CURVE" > /dev/null \
+			|| die "Edwards Curve $EASYRSA_CURVE not found."
+	;;
+	*) die "Alg '$EASYRSA_ALGO' is invalid: must be 'rsa', 'ec' or 'ed'"
+	esac
+} # => verify_algo_params()
+
 # vars setup
 # Here sourcing of 'vars' if present occurs. If not present, defaults are used
 # to support running without a sourced config format
@@ -3097,14 +3091,6 @@ Failed to source the vars file, remove any unsupported characters."
 
 	set_var EASYRSA_KDC_REALM		"CHANGEME.EXAMPLE.COM"
 
-	# EASYRSA_ALGO_PARAMS must be set depending on selected algo
-	case "$EASYRSA_ALGO" in
-		rsa) EASYRSA_ALGO_PARAMS="${EASYRSA_KEY_SIZE}" ;;
-		ec) EASYRSA_ALGO_PARAMS="$EASYRSA_EC_DIR/${EASYRSA_CURVE}.pem" ;;
-		ed) : ;; # ok
-		*) die "Alg '$EASYRSA_ALGO' is invalid: must be 'rsa', 'ec' or 'ed' "
-	esac
-
 	# For commands which 'require a PKI' and the PKI exists
 	if  [ ! "$no_pki_required" ] && [ -d "$EASYRSA_PKI" ]; then
 
@@ -3146,6 +3132,9 @@ Failed to source the vars file, remove any unsupported characters."
 			else
 				die "Failed to find Safe-SSL config file."
 			fi
+
+			# Verify selected algorithm and parameters
+			verify_algo_params
 
 		else
 			# If the directory does not exist then we have not run init-pki
