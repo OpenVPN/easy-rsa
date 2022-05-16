@@ -415,14 +415,17 @@ secure_session() {
 	[ "$EASYRSA_TEMP_DIR_session" ] && die "session overload"
 
 	# temporary directory must exist
-	[ -n "$EASYRSA_TEMP_DIR" ] || return
-	[ -d "$EASYRSA_TEMP_DIR" ] || die "\
-Non-existant temporary directory: $EASYRSA_TEMP_DIR"
+	if [ "$EASYRSA_TEMP_DIR" ] && [ -d "$EASYRSA_TEMP_DIR" ]; then
+		: # ok
+	else
+		die "Non-existant temporary directory: $EASYRSA_TEMP_DIR"
+	fi
 
 	for i in 1 2 3; do
 		# Always use openssl directly for rand
-		rand="$("$EASYRSA_OPENSSL" rand -hex 4)" \
-			|| die "secure_session - rand '$rand'"
+		rand="$(
+			"$EASYRSA_OPENSSL" rand -hex 4
+			)" || die "secure_session - rand '$rand'"
 
 		mkdir "${EASYRSA_TEMP_DIR}/${rand}" || continue
 		EASYRSA_TEMP_DIR_session="${EASYRSA_TEMP_DIR}/${rand}"
@@ -434,13 +437,17 @@ Non-existant temporary directory: $EASYRSA_TEMP_DIR"
 # Create tempfile atomically or fail
 easyrsa_mktemp() {
 	# session directory must exist
-	[ -n "$EASYRSA_TEMP_DIR_session" ] || return
-	[ -d "$EASYRSA_TEMP_DIR_session" ] || return
+	if [ "$EASYRSA_TEMP_DIR_session" ] && [ -d "$EASYRSA_TEMP_DIR_session" ]; then
+		: # ok
+	else
+		die "Non-existant temporary session: $EASYRSA_TEMP_DIR_session"
+	fi
 
 	for i in 1 2 3; do
 		# Always use openssl directly for rand
-		rand="$("$EASYRSA_OPENSSL" rand -hex 4)" \
-			|| die "easyrsa_mktemp - rand '$rand'"
+		rand="$(
+			"$EASYRSA_OPENSSL" rand -hex 4
+			)" || die "easyrsa_mktemp - rand '$rand'"
 
 		shotfile="${EASYRSA_TEMP_DIR_session}/shot.$rand"
 		if [ -e "$shotfile" ]; then
@@ -560,10 +567,6 @@ easyrsa_openssl() {
 			mv -f "$easyrsa_openssl_conf" "$EASYRSA_SAFE_CONF" || \
 				die "easyrsa_openssl - makesafeconf failed"
 		else
-			# !!!
-			# this debug CANNOT be used in automated testing
-			# to function correctly easyrsa_openssl()
-			# must ONLY output SSL layer output
 			# debug log on
 			if [ "$EASYRSA_DEBUG" ]; then set -x; fi
 
@@ -575,10 +578,6 @@ easyrsa_openssl() {
 			if [ "$EASYRSA_DEBUG" ]; then set +x; fi
 		fi
 	else
-		# !!!
-		# this debug CANNOT be used in automated testing
-		# to function correctly easyrsa_openssl()
-		# must ONLY output SSL layer output
 		# debug log on
 		if [ "$EASYRSA_DEBUG" ]; then set -x; fi
 
@@ -981,6 +980,7 @@ build_ca() {
 Unable to create a CA as you already seem to have one set up.
 If you intended to start a new CA, run init-pki first."
 	fi
+
 	# If a private key exists here, a intermediate ca was created but not signed.
 	# Notify the user and require a signed ca.crt or a init-pki:
 	[ -f "$out_key" ] && \
@@ -1114,7 +1114,8 @@ current CA keypair. If you intended to start a new CA, run init-pki first."
 NOTE: Your intermediate CA request is at $out_file
 and now must be sent to your parent CA for signing. Place your resulting cert
 at $EASYRSA_PKI/ca.crt prior to signing operations."
-	else	notice "\
+	else
+		notice "\
 
 CA creation complete and you may now import and sign cert requests.
 Your new CA certificate file for publishing is at:
