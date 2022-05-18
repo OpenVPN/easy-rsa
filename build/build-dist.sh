@@ -63,6 +63,12 @@ dist_clean() {
 			"$DISTCLEAN"
 		rm -rf "$DIST_ROOT" || die "dist_clean failed to rm"
 	fi
+	# remove any test pki paths in easyrsa path
+
+	if [ -d "easyrsa3/pki" ]; then
+		echo "Found test pki, removing..."       
+		rm -rf easyrsa3/pki
+	fi
 	mkdir -p "$DIST_ROOT" || die "dist_clean failed to mkdir"
 }
 
@@ -104,7 +110,7 @@ stage_win() {
 			# FreeBSD does not accept -i without argument in a way also acceptable by GNU sed
 			sed -i.tmp -e "s/~~~/$VERSION/" "$SRC_ROOT/$f" || die "Cannot update easyrsa version"
 			rm -f "$SRC_ROOT/$f.tmp"
-			python -m markdown "$SRC_ROOT/$f" > "$DIST_ROOT/$win/$PV/${f%.md}.html" || die "Failed to convert markdown to HTML"
+			python3 -m markdown "$SRC_ROOT/$f" > "$DIST_ROOT/$win/$PV/${f%.md}.html" || die "Failed to convert markdown to HTML"
 		done
 
 		# Copy files into $PV, starting with easyrsa3 as the initial root dir
