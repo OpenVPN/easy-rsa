@@ -345,6 +345,9 @@ print() { printf "%s\n" "$*" || exit 1; }
 # Exit fatally with a message to stderr
 # present even with EASYRSA_BATCH as these are fatal problems
 die() {
+	# If renew failed then restore cert, key and req. Otherwise, issue a warning
+	# If *restore* fails then at least the file-names are not serial-numbers
+	[ "$restore_failed_renew" ] && renew_restore_move
 	print "
 Easy-RSA error:
 
@@ -1751,10 +1754,14 @@ subjectAltName = $san"
 	# move renewed files so we can reissue certificate with the same name
 	renew_move
 
+	# Set restore on error flag
+	restore_failed_renew=1
+
 	# renew certificate
 	build_full "$cert_type" "$file_name_base" "$opt_nopass" || die "\
 Failed to renew certificate: renew command failed."
 
+	# Success messages
 	[ "$EASYRSA_SILENT" ] || print # Separate Notice below
 	notice "\
 
@@ -1767,7 +1774,41 @@ Renew was successful:
 	return 0
 } # => renew()
 
-# move-renewed
+# Restore files on failure to renew
+renew_restore_move() {
+	unset -v restore_failed_renew rrm_err
+	# restore crt, key and req file to PKI folders
+	if ! mv "$restore_crt_out" "$restore_crt_in"; then
+		warn "Failed to restore: $restore_crt_out"
+		rrm_err=1
+	fi
+
+	# only restore the key if we have it
+	if [ -e "$restore_key_out" ]; then
+		if ! mv "$restore_key_out" "$restore_key_in"; then
+			warn "Failed to restore: $restore_key_out"
+			rrm_err=1
+		fi
+	fi
+
+	# only restore the req if we have it
+	if [ -e "$restore_req_out" ]; then
+		if ! mv "$restore_req_out" "$restore_req_in"; then
+			warn "Failed to restore: $restore_req_out"
+			rrm_err=1
+		fi
+	fi
+
+	# messages
+	[ "$EASYRSA_SILENT" ] || print # Separate Notice below
+	if [ "$rrm_err" ]; then
+		warn "Failed to restore renewed files."
+	else
+		notice "Renewed files have been restored."
+	fi
+} # => renew_restore_move()
+
+# renew_move
 # moves renewed certificates to the 'renewed' folder
 # allows reissuing certificates with the same name
 renew_move() {
@@ -1782,39 +1823,45 @@ renew_move() {
 	done
 
 	# move crt, key and req file to renewed folders
+	restore_crt_in="$crt_in"
+	restore_crt_out="$crt_out"
 	mv "$crt_in" "$crt_out" || die "Failed to move: $crt_in"
 
 	# only move the key if we have it
+	restore_key_in="$key_in"
+	restore_key_out="$key_out"
 	if [ -e "$key_in" ]; then
 		mv "$key_in" "$key_out" || die "Failed to move: $key_in"
 	fi
 
 	# only move the req if we have it
+	restore_req_in="$req_in"
+	restore_req_out="$req_out"
 	if [ -e "$req_in" ]; then
 		mv "$req_in" "$req_out" || die "Failed to move: $req_in"
 	fi
 
-	# move any pkcs files
+	# remove any pkcs files
 	for pkcs in p12 p7b p8 p1; do
 		if [ -e "$in_dir/issued/$file_name_base.$pkcs" ]; then
 			# issued
-			mv "$in_dir/issued/$file_name_base.$pkcs" \
-				"$out_dir/issued/$file_name_base.$pkcs" \
-					|| die "Failed to move: $file_name_base.$pkcs"
+			rm "$in_dir/issued/$file_name_base.$pkcs" \
+				|| die "Failed to remove: $file_name_base.$pkcs"
 
 		elif [ -e "$in_dir/private/$file_name_base.$pkcs" ]; then
 			# private
-			mv "$in_dir/private/$file_name_base.$pkcs" \
-				"$out_dir/private/$file_name_base.$pkcs" \
-					|| die "Failed to move: $file_name_base.$pkcs"
+			rm "$in_dir/private/$file_name_base.$pkcs" \
+				|| die "Failed to remove: $file_name_base.$pkcs"
 		else
 			: # ok
 		fi
 	done
 
 	# remove the duplicate certificate in the certs_by_serial folder
-	rm "$duplicate_crt_by_serial" || warn \
+	if [ -e "$duplicate_crt_by_serial" ]; then
+		rm "$duplicate_crt_by_serial" || warn \
 		"Failed to remove the duplicate certificate in the certs_by_serial folder"
+	fi
 
 	# remove credentials file (if exists)
 	if [ -e "$creds_in" ]; then
@@ -1823,7 +1870,7 @@ renew_move() {
 	fi
 
 	return 0
-} # => move_renewed()
+} # => renew_move()
 
 # revoke-renewed backend
 revoke_renewed() {
