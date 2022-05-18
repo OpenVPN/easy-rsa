@@ -1642,7 +1642,7 @@ cert_dates() {
 		crt_not_after="$1"
 	else
 		# Required for --fix-offset
-		# This is a fake date to satisfy the 'if expire_date' command test
+		# This is a fake date to satisfy the 'if expire_date_s' command test
 		crt_not_after="Jun 12 02:02:02 1999 GMT"
 	fi
 
@@ -1674,8 +1674,9 @@ Non-decimal value for EASYRSA_FIX_OFFSET: '$EASYRSA_FIX_OFFSET'"
 	case "$easyrsa_uname" in
 	"Darwin"|*"BSD")
 		now_sec="$(date -j +%s)"
-		expire_date="$(date -j -f '%b %d %T %Y %Z' "$crt_not_after" +%s)"
-		allow_renew_date="$(( now_sec + EASYRSA_CERT_RENEW * 86400 ))"
+		expire_date="$(date -j -f '%b %d %T %Y %Z' "$crt_not_after")"
+		expire_date_s="$(date -j -f '%b %d %T %Y %Z' "$crt_not_after" +%s)"
+		allow_renew_date_s="$(( now_sec + EASYRSA_CERT_RENEW * 86400 ))"
 
 		if [ "$EASYRSA_FIX_OFFSET" ]; then
 			start_fix_sec="$(
@@ -1689,10 +1690,11 @@ Non-decimal value for EASYRSA_FIX_OFFSET: '$EASYRSA_FIX_OFFSET'"
 	;;
 	*)
 		# Linux and Windows (FTR: date.exe does not support format +%s as input)
-		if expire_date="$(date -d "$crt_not_after" +%s)"
+		if expire_date_s="$(date -d "$crt_not_after" +%s)"
 		then
 			# Note: date.exe is Year 2038 end 32bit
-			allow_renew_date="$(date -d "+${EASYRSA_CERT_RENEW}day" +%s)"
+			expire_date="$(date -d "$crt_not_after")"
+			allow_renew_date_s="$(date -d "+${EASYRSA_CERT_RENEW}day" +%s)"
 
 			if [ "$EASYRSA_FIX_OFFSET" ]; then
 				# New Years Day, this year
@@ -1712,9 +1714,10 @@ Non-decimal value for EASYRSA_FIX_OFFSET: '$EASYRSA_FIX_OFFSET'"
 			fi
 
 		# Alpine Linux and busybox
-		elif expire_date="$(date -D "%b %e %H:%M:%S %Y" -d "$crt_not_after" +%s)"
+		elif expire_date_s="$(date -D "%b %e %H:%M:%S %Y" -d "$crt_not_after" +%s)"
 		then
-			allow_renew_date="$(( now_sec + EASYRSA_CERT_RENEW * 86400 ))"
+			expire_date="$(date -D "%b %e %H:%M:%S %Y" -d "$crt_not_after")"
+			allow_renew_date_s="$(( now_sec + EASYRSA_CERT_RENEW * 86400 ))"
 
 			if [ "$EASYRSA_FIX_OFFSET" ]; then
 				start_fix_sec="$(date -d "${this_year}01010000.00" +%s)"
@@ -1826,7 +1829,7 @@ Cannot renew this certificate because a conflicting file exists.
 	# Check if old cert is expired or expires within 30
 	cert_dates "$crt_in"
 
-	[ "$expire_date" -lt "$allow_renew_date" ] || die "\
+	[ "$expire_date_s" -lt "$allow_renew_date_s" ] || die "\
 Certificate expires in more than $EASYRSA_CERT_RENEW days.
 Renewal not allowed."
 
@@ -2641,40 +2644,44 @@ read_db() {
 
 	tab_char='	'
 	db_in="$EASYRSA_PKI/index.txt"
-	while read -r crt_status crt_notAfter crt_record; do
+	while read -r db_status db_notAfter db_record; do
 
 		# Interpret the db/certificate record
-		unset -v crt_serial crt_cn crt_revokedate crt_reason
-		case "$crt_status" in
+		unset -v db_serial db_cn db_revoke_date db_reason
+		case "$db_status" in
 		V)	# Valid
-			crt_serial="${crt_record%%${tab_char}*}"
-			crt_record="${crt_record#*${tab_char}}"
-			crt_cn="${crt_record#*/CN=}"; crt_cn="${crt_cn%%/*}"
-			crt_file="$EASYRSA_PKI/issued/$crt_cn.crt"
+			db_serial="${db_record%%${tab_char}*}"
+			db_record="${db_record#*${tab_char}}"
+			db_cn="${db_record#*/CN=}"; db_cn="${db_cn%%/*}"
+			crt_file="$EASYRSA_PKI/issued/$db_cn.crt"
 		;;
 		R)	# Revoked
-			crt_revokedate="${crt_record%%${tab_char}*}"
-			crt_reason="${crt_revokedate#*,}"
-			[ -z "$crt_reason" ] || crt_revokedate="${crt_revokedate%,*}"
-			crt_record="${crt_record#*${tab_char}}"
+			db_revoke_date="${db_record%%${tab_char}*}"
+			db_reason="${db_revoke_date#*,}"
+			if [ "$db_reason" = "$db_revoke_date" ]; then
+				db_reason="None given"
+			else
+				db_revoke_date="${db_revoke_date%,*}"
+			fi
+			db_record="${db_record#*${tab_char}}"
 
-			crt_serial="${crt_record%%${tab_char}*}"
-			crt_record="${crt_record#*${tab_char}}"
-			crt_cn="${crt_record#*/CN=}"; crt_cn="${crt_cn%%/*}"
+			db_serial="${db_record%%${tab_char}*}"
+			db_record="${db_record#*${tab_char}}"
+			db_cn="${db_record#*/CN=}"; db_cn="${db_cn%%/*}"
 		;;
-		*) die "Unexpected status: $crt_status"
+		*) die "Unexpected status: $db_status"
 		esac
 
 		# Output selected status report for this record
 		case "$report" in
 		expire) # Certs which expire before EASYRSA_CERT_RENEW days
-			if [ "$crt_status" = V ]; then expire_status; fi
+			if [ "$db_status" = V ]; then expire_status; fi
 		;;
 		revoke) # Certs which have been revoked
-			if [ "$crt_status" = R ]; then revoke_status; fi
+			if [ "$db_status" = R ]; then revoke_status; fi
 		;;
 		renew) # Certs which have been renewed but not revoked
-			if [ "$crt_status" = V ]; then renew_status; fi
+			if [ "$db_status" = V ]; then renew_status; fi
 		;;
 		*) die "Unrecognised report: $report"
 		esac
@@ -2683,47 +2690,47 @@ read_db() {
 
 # Expire status
 expire_status() {
-	build_ff_date_string "$crt_notAfter"
-
-	crt_file="$EASYRSA_PKI/issued/${crt_cn}.crt"
+	crt_file="$EASYRSA_PKI/issued/$db_cn.crt"
 	if [ -e "$crt_file" ]; then
 		# Use cert date
 		cert_dates "$crt_file"
 	else
+		# Translate db date to usable date
+		build_ff_date_string "$db_notAfter"
+		db_notAfter="$ff_date"
 		# Use db translated date
-		cert_dates "$crt_notAfter"
+		cert_dates "$db_notAfter"
 	fi
 
-	if [ "$expire_date" -lt "$allow_renew_date" ]; then
+	if [ "$expire_date_s" -lt "$allow_renew_date_s" ]; then
 		# Cert expires in less than grace period
-		printf '%s%s\n' "$crt_status | Serial: $crt_serial | " \
-			"Expires: $ff_date | CN: $crt_cn"
+		printf '%s%s\n' "$db_status | Serial: $db_serial | " \
+			"Expires: $expire_date | CN: $db_cn"
 	fi
 } # => expire_status()
 
 # Revoke status
 revoke_status() {
-	build_ff_date_string "$crt_revokedate"
-
-	crt_file="$EASYRSA_PKI/revoked/certs_by_serial/$crt_serial.crt"
-	if [ -e "$crt_file" ]; then
-		# Use cert file
-		cert_dates "$crt_file"
-	else
+		# Translate db date to usable date
+		build_ff_date_string "$db_revoke_date"
+		db_revoke_date="$ff_date"
 		# Use db translated date
-		cert_dates "$crt_notAfter"
-	fi
+		# ff db_revoke_date returns db_revoke_date as full expire_date
+		cert_dates "$db_revoke_date"
+		crt_revoke_date="$expire_date"
 
-	printf '%s%s\n' "$crt_status | Serial: $crt_serial | " \
-		"Revoked: $ff_date | Reason: $crt_reason | CN: $crt_cn"
+		printf '%s%s\n' "$db_status | Serial: $db_serial | " \
+			"Revoked: $crt_revoke_date | Reason: $db_reason | CN: $db_cn"
 } # => revoke_status()
 
 # Renewed status
+# renewed certs only remain in the renewed folder until they are revoked
+# Only ONE renewed cert with unique CN can exist in the renewed folder
 renew_status() {
-	build_ff_date_string "$crt_notAfter"
+	build_ff_date_string "$db_notAfter"
 
-	# Renewed cert must always exist, otherwise this cert has not been renewed
-	crt_file="$EASYRSA_PKI/renewed/issued/${crt_cn}.crt"
+	# Does a Renewed cert exist ?
+	crt_file="$EASYRSA_PKI/renewed/issued/${db_cn}.crt"
 	if [ -e "$crt_file" ]; then
 		# Use cert date
 		cert_dates "$crt_file"
@@ -2733,15 +2740,16 @@ renew_status() {
 		# remove the serial= part -> we only need the XXXX part
 		renewed_crt_serial="${renewed_crt_serial##*=}"
 
-		if [ "$crt_serial" = "$renewed_crt_serial" ]; then
-			printf '%s%s\n' "$crt_status | Serial: $crt_serial | " \
-				"Expires: $ff_date | CN: $crt_cn"
+		# db serial must match certificate serial
+		if [ "$db_serial" = "$renewed_crt_serial" ]; then
+			printf '%s%s\n' "$db_status | Serial: $db_serial | " \
+				"Expires: $crt_not_after | CN: $db_cn"
 		else
-			# Cert is valid but not renewed
+			# Cert is valid, this is the replacement cert from renewal
 			: # ok - ignore
 		fi
 	else
-		# Cert is valid but no renewed cert exists
+		# Cert is valid but no renewed cert exists or it has been revoked
 		: # ok - ignore
 	fi
 } # => renew_status()
@@ -2761,8 +2769,9 @@ status() {
 	expire)
 		case "$in_crt" in
 		all)
-			print "Showing certificates which expire in less than $EASYRSA_CERT_RENEW days:"
-			print
+			[ "$EASYRSA_SILENT" ] || print "\
+* Showing certificates which expire in less than $EASYRSA_CERT_RENEW days:
+"
 			read_db expire
 		;;
 		*) print "Coming soon.."
@@ -2771,18 +2780,22 @@ status() {
 	revoke)
 		case "$in_crt" in
 		all)
-			print "Showing certificates which are revoked:"
-			print
-			read_db revoke ;;
+			[ "$EASYRSA_SILENT" ] || print "\
+* Showing certificates which are revoked:
+"
+			read_db revoke
+		;;
 		*) print "Coming soon.."
 		esac
 	;;
 	renew)
 		case "$in_crt" in
 		all)
-			print "Showing certificates which have been renewed but not revoked:"
-			print
-			read_db renew ;;
+			[ "$EASYRSA_SILENT" ] || print "\
+* Showing certificates which have been renewed but NOT revoked:
+"
+			read_db renew
+		;;
 		*) print "Coming soon.."
 		esac
 	;;
