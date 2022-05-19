@@ -63,6 +63,12 @@ dist_clean() {
 			"$DISTCLEAN"
 		rm -rf "$DIST_ROOT" || die "dist_clean failed to rm"
 	fi
+	# remove any test pki paths in easyrsa path
+
+	if [ -d "easyrsa3/pki" ]; then
+		echo "Found test pki, removing..."       
+		rm -rf easyrsa3/pki
+	fi
 	mkdir -p "$DIST_ROOT" || die "dist_clean failed to mkdir"
 }
 
