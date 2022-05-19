@@ -45,9 +45,9 @@ Here is the list of commands available with a short syntax reminder. Use the
   show-cert <filename_base> [ cmd-opts ]
   show-ca [ cmd-opts ]
   show-crl
-  show-expire
-  show-revoke
-  show-renew
+  show-expire <filename_base> (Optional)
+  show-revoke <filename_base> (Optional)
+  show-renew <filename_base> (Optional)
   verify <filename_base>
   import-req <request_file_path> <short_basename>
   export-p1 <filename_base> [ cmd-opts ]
@@ -178,20 +178,21 @@ cmd_help() {
 
       Human-readable output is shown." ;;
 		show-expire) text="
-  show-expire [ cmd-opts ]
-      Shows details of expiring certificates
+  show-expire <filename_base> (Optional)
 
-      Human-readable output is shown." ;;
+      Shows details of *all* expiring certificates
+      Use --renew-days=NN to extend the grace period (Default 30 days)
+      Optionally, check *only* <filename_base> certificate" ;;
 		show-revoke) text="
-  show-revoke [ cmd-opts ]
-      Shows details of revoked certificates
+  show-revoke <filename_base> (Optional)
 
-      Human-readable output is shown." ;;
+      Shows details of *all* revoked certificates.
+      Optionally, check *only* <filename_base> certificate" ;;
 		show-renew) text="
-  show-renew [ cmd-opts ]
-      Shows details of renewed certificates, which have not been revoked
+  show-renew <filename_base> (Optional)
 
-      Human-readable output is shown." ;;
+      Shows details of renewed certificates, which have not been revoked
+      Optionally, check *only* <filename_base> certificate" ;;
 		verify) text="
   verify <filename_base> [ cmd-opts ]
       Verify certificate against CA"
@@ -264,7 +265,7 @@ cmd_help() {
 	esac
 
 	# display the help text
-	[ "$text" ] && print "$text"
+	[ "$text" ] && print "${text}${NL}"
 	[ -n "$opts" ] && print "
       cmd-opts is an optional set of command options from this list:
 $opts
@@ -2537,12 +2538,15 @@ Run easyrsa without commands for usage and command help."
 	shift
 
 	# function opts support
-	unset -v exit_with_error
+	unset -v exit_with_error easyrsa_error_exit
 	while [ "$1" ]; do
 		case "$1" in
 			# batch flag, return status [0/1] to calling program
 			# Otherwise, exit 0 on successful completion
-			batch) exit_with_error=1 ;;
+			batch)
+				exit_with_error=1
+				EASYRSA_SILENT=1
+			;;
 			*) warn "Ignoring unknown command option: '$1'"
 		esac
 		shift
@@ -2560,8 +2564,8 @@ No certificate found for the input: '$crt_in'"
 	verify_file x509 "$crt_in" || die "\
 Input is not a valid certificate: $crt_in"
 
-	# Test and show SSL out
-	if easyrsa_openssl verify -CAfile "$ca_crt" "$crt_in"; then
+	# Test SSL out
+	if easyrsa_openssl verify -CAfile "$ca_crt" "$crt_in" 1>/dev/null; then
 		[ "$EASYRSA_SILENT" ] || print # Separate Notice below
 		notice "\
   Certificate name:   $file_name_base
@@ -2574,6 +2578,7 @@ Input is not a valid certificate: $crt_in"
   Verfication status: FAILED"
 		# Exit with error (cmd-opt: batch), otherwise terminal msg only
 		[ "$exit_with_error" ] && easyrsa_error_exit=1
+		return 1
 	fi
 } # => verify_cert()
 
@@ -2726,8 +2731,6 @@ build_ff_date_string() {
 # Read db
 # shellcheck disable=SC2295
 read_db() {
-	report="$1"; shift
-
 	tab_char='	'
 	db_in="$EASYRSA_PKI/index.txt"
 	while read -r db_status db_notAfter db_record; do
@@ -2761,13 +2764,28 @@ read_db() {
 		# Output selected status report for this record
 		case "$report" in
 		expire) # Certs which expire before EASYRSA_CERT_RENEW days
-			if [ "$db_status" = V ]; then expire_status; fi
+			if [ "$db_status" = V ]; then
+				case "$target" in
+				'') expire_status ;;
+				*) [ "$target" = "$db_cn" ] && expire_status
+				esac
+			fi
 		;;
 		revoke) # Certs which have been revoked
-			if [ "$db_status" = R ]; then revoke_status; fi
+			if [ "$db_status" = R ]; then
+				case "$target" in
+				'') revoke_status ;;
+				*) [ "$target" = "$db_cn" ] && revoke_status
+				esac
+			fi
 		;;
 		renew) # Certs which have been renewed but not revoked
-			if [ "$db_status" = V ]; then renew_status; fi
+			if [ "$db_status" = V ]; then
+				case "$target" in
+				'') renew_status ;;
+				*) [ "$target" = "$db_cn" ] && renew_status
+				esac
+			fi
 		;;
 		*) die "Unrecognised report: $report"
 		esac
@@ -2843,49 +2861,44 @@ renew_status() {
 
 # cert status reports
 status() {
-	[ "$#" = 2 ] || die "status - Incorrect input parameters"
+	[ "$#" -gt 0 ] || die "status - Incorrect input parameters"
 	report="$1"
-	in_crt="$2"
-	shift 2
+	target="$2"
 
 	verify_ca_init
 
 	# This does not build certs, so do not need support for fixed dates
 	unset -v EASYRSA_FIX_OFFSET
 
-	case "$report" in
-	expire)
-		case "$in_crt" in
-		all)
-			[ "$EASYRSA_SILENT" ] || notice "\
-Showing certificates which expire in less than $EASYRSA_CERT_RENEW days:"
-			read_db expire
+	# If no target file then add Notice
+	if [ -z "$target" ]; then
+		# Select correct Notice
+		case "$report" in
+		expire)
+				[ "$EASYRSA_SILENT" ] || notice "\
+* Showing certificates which expire in less than $EASYRSA_CERT_RENEW days (--renew-days):"
 		;;
-		*) print "Coming soon.."
-		esac
-	;;
-	revoke)
-		case "$in_crt" in
-		all)
+		revoke)
 			[ "$EASYRSA_SILENT" ] || notice "\
 * Showing certificates which are revoked:"
-			read_db revoke
 		;;
-		*) print "Coming soon.."
-		esac
-	;;
-	renew)
-		case "$in_crt" in
-		all)
+		renew)
 			[ "$EASYRSA_SILENT" ] || notice "\
 * Showing certificates which have been renewed but NOT revoked:"
-			read_db renew
 		;;
-		*) print "Coming soon.."
+		*) warn "Unrecognised report: $report"
 		esac
-	;;
-	*) warn "Unrecognised report: $report"
-	esac
+	else
+		# get status for a single cert - Verify cert first
+		in_crt="$EASYRSA_PKI/issued/$target.crt"
+		[ -e "$in_crt" ] || die "File not found: $in_crt"
+		format="x509"
+		verify_file "$format" "$in_crt"
+	fi
+
+	# Create report
+	read_db
+
 } # => status()
 
 # set_var is not known by shellcheck, therefore:
@@ -4091,28 +4104,19 @@ case "$cmd" in
 		show_ca "$@"
 		;;
 	verify)
-		verify_cert "$@"
+		# using internal 'batch' mode, this can return an error
+		# Ignore the error here, catch the error if used internally
+		# eg. show-expire/expire_status
+		verify_cert "$@" || :
 		;;
 	show-expire)
-		if [ -z "$*" ]; then
-			status expire all
-		else
-			status expire "$@"
-		fi
+		status expire "$@"
 		;;
 	show-revoke)
-		if [ -z "$*" ]; then
-			status revoke all
-		else
-			status revoke "$@"
-		fi
+		status revoke "$@"
 		;;
 	show-renew)
-		if [ -z "$*" ]; then
-			status renew all
-		else
-			status renew "$@"
-		fi
+		status renew "$@"
 		;;
 	upgrade)
 		up23_manage_upgrade_23 "$@"
