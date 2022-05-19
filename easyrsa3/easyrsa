@@ -363,8 +363,9 @@ Host: $host_out${EASYRSA_DEBUG+
 # non-fatal warning output
 warn() {
 	[ "$EASYRSA_SILENT" ] && return
-	print "* WARNING:
-
+	print "
+WARNING
+=======
 $1
 " 1>&2
 } # => warn()
@@ -373,9 +374,18 @@ $1
 notice() {
 	[ "$EASYRSA_SILENT" ] && return
 	[ "$EASYRSA_BATCH" ] && return
-	print "* Notice:
+	print "
+Notice
+------
 $1
 "
+} # => notice()
+
+# informational notices to stdout
+message() {
+	[ "$EASYRSA_SILENT" ] && return
+	[ "$EASYRSA_BATCH" ] && return
+	print "* $1"
 } # => notice()
 
 # yes/no case-insensitive match (operates on stdin pipe)
@@ -614,7 +624,7 @@ Expected to find openssl command at: $EASYRSA_OPENSSL"
 			3) no_password='-noenc' ;;
 			*) die "Unsupported SSL library: $osslv_major"
 		esac
-		notice "Using SSL: $EASYRSA_OPENSSL $val"
+		message "Using SSL: $EASYRSA_OPENSSL ${val}"
 		EASYRSA_SSL_OK=1
 	fi
 
@@ -746,17 +756,17 @@ and initialize a fresh PKI here."
 	fi
 
 	notice "\
+'init-pki' complete; you may now create a CA or requests.
 
-  init-pki complete; you may now create a CA or requests.
-
-  Your newly created PKI dir is:
-  * $EASYRSA_PKI"
+Your newly created PKI dir is:
+* $EASYRSA_PKI"
 
 	if [ "$user_vars_true" ]; then
 		: # ok - No message required
 	else
-		notice "\
-  IMPORTANT: Easy-RSA 'vars' file has now been moved to your PKI above."
+		message "\
+IMPORTANT: Easy-RSA 'vars' file has now been moved to your PKI above.
+"
 	fi
 } # => init_pki()
 
@@ -911,6 +921,8 @@ hide_read_pass()
 		warn "Could not disable echo. Password will be shown on screen!"
 		read -r "$@"
 	fi
+
+	return 0
 } # => hide_read_pass()
 
 # build-ca backend:
@@ -1081,20 +1093,20 @@ current CA keypair. If you intended to start a new CA, run init-pki first."
 	[ -f "$out_key_pass_tmp" ] && rm "$out_key_pass_tmp"
 
 	# Success messages
-	[ "$EASYRSA_SILENT" ] || print # Separate Notice below
+	#[ "$EASYRSA_SILENT" ] || print # Separate Notice below
 	if [ -n "$sub_ca" ]; then
 		notice "\
-
 NOTE: Your intermediate CA request is at $out_file
 and now must be sent to your parent CA for signing. Place your resulting cert
 at $EASYRSA_PKI/ca.crt prior to signing operations."
 	else
 		notice "\
-
 CA creation complete and you may now import and sign cert requests.
 Your new CA certificate file for publishing is at:
 $out_file"
 	fi
+
+	return 0
 } # => build_ca()
 
 # gen-dh backend:
@@ -1121,6 +1133,7 @@ gen_dh() {
 	notice "\
 
 DH parameters of size $EASYRSA_KEY_SIZE created at $out_file"
+
 	return 0
 } # => gen_dh()
 
@@ -1130,6 +1143,7 @@ gen_req() {
 	[ -n "$1" ] || die "\
 Error: gen-req must have a file base as the first argument.
 Run easyrsa without commands for usage and commands."
+
 	key_out="$EASYRSA_PKI/private/$1.key"
 	req_out="$EASYRSA_PKI/reqs/$1.req"
 
@@ -1208,11 +1222,12 @@ $EASYRSA_EXTRA_EXTS"
 		${ssl_batch+ -batch} \
 		${EASYRSA_PASSOUT:+ -passout "$EASYRSA_PASSOUT"} \
 			|| die "Failed to generate request"
+
+	# Move temp-files to target-files
 	mv "$key_out_tmp" "$key_out"
 	mv "$req_out_tmp" "$req_out"
 
 	notice "\
-
 Keypair and certificate request completed. Your files are:
 req: $req_out
 key: $key_out"
@@ -1374,8 +1389,7 @@ $ext_tmp"
 
 	[ "$EASYRSA_SILENT" ] || print # Separate Notice below
 	unset -v EASYRSA_BATCH # This is why batch mode should not silence output
-	notice "\
-Certificate created at: $crt_out"
+	notice "Certificate created at: $crt_out"
 
 	return 0
 } # => sign_req()
@@ -1389,11 +1403,14 @@ build_full() {
 	[ -n "$2" ] || die "\
 Error: didn't find a file base name as the first argument.
 Run easyrsa without commands for usage and commands."
-	crt_type="$1" name="$2"
-	req_out="$EASYRSA_PKI/reqs/$2.req"
-	key_out="$EASYRSA_PKI/private/$2.key"
-	crt_out="$EASYRSA_PKI/issued/$2.crt"
+
+	crt_type="$1"
+	name="$2"
 	shift 2
+
+	req_out="$EASYRSA_PKI/reqs/$name.req"
+	key_out="$EASYRSA_PKI/private/$name.key"
+	crt_out="$EASYRSA_PKI/issued/$name.crt"
 
 	# function opts support
 	while [ -n "$1" ]; do
@@ -1435,6 +1452,8 @@ Matching file found at: "
 Inline file created: $inline_file"
 		fi
 	fi
+
+	return 0
 } # => build_full()
 
 # Create inline credentials file for this node
@@ -1456,6 +1475,8 @@ inline_creds ()
 		printf "%s\n" "</key>"
 		printf "%s\n" ""
 	} > "$inline_file"
+
+	return 0
 } # => inline_creds ()
 
 # revoke backend
@@ -1560,8 +1581,7 @@ Cannot revoke this certificate because a conflicting file exists.
 	revoke_move
 
 	[ "$EASYRSA_SILENT" ] || print # Separate Notice below
-	notice "\
-
+	notice "
 IMPORTANT!!!
 
 Revocation was successful. You must run gen-crl and upload a CRL to your
@@ -1763,8 +1783,7 @@ Failed to renew certificate: renew command failed."
 
 	# Success messages
 	[ "$EASYRSA_SILENT" ] || print # Separate Notice below
-	notice "\
-
+	notice "
 IMPORTANT!!!
 
 Renew was successful:
@@ -1806,6 +1825,8 @@ renew_restore_move() {
 	else
 		notice "Renewed files have been restored."
 	fi
+
+	return 0
 } # => renew_restore_move()
 
 # renew_move
@@ -1974,13 +1995,11 @@ Cannot revoke this certificate because a conflicting file exists.
 	revoke_renewed_move
 
 	[ "$EASYRSA_SILENT" ] || print # Separate Notice below
-	notice "\
-
+	notice "
 IMPORTANT!!!
 
 Revocation was successful. You must run gen-crl and upload a CRL to your
-infrastructure in order to prevent the revoked renewed cert from being accepted.
-"       # => notice end
+infrastructure in order to prevent the revoked renewed cert from being accepted."
 
 	return 0
 } # => revoke_renewed()
@@ -2059,11 +2078,13 @@ BEGIN { FS = "\t" };
 EOF
 	matches=$(awk "$awkscript" "${in_dir}/index.txt")
 	if [ -z "$matches" ] ; then
-		# Nothing to renew
-		exit 1
+		: # ok - Nothing is renewable
 	else
 		print "$matches"
 	fi
+	[ "$EASYRSA_SILENT" ] || print # Separate output above
+
+	return 0
 } # => renewable
 
 # Set certificate expire date, renew date and variables needed for fixdate
@@ -2209,7 +2230,6 @@ CRL Generation failed."
 
 	[ "$EASYRSA_SILENT" ] || print # Separate Notice below
 	notice "\
-
 An updated CRL has been created.
 CRL file: $out_file"
 
@@ -2242,7 +2262,6 @@ Existing file at: $out_req"
 	cp "$in_req" "$out_req"
 
 	notice "\
-
 The request has been successfully imported with a short name of: $short_name
 You may now use this name to perform signing operations on this request."
 
@@ -2360,7 +2379,6 @@ Missing key expected at: $key_in"
 	esac
 
 	notice "\
-
 Successful export of $pkcs_type file. Your exported file is at the following
 location: $pkcs_out"
 
@@ -2606,16 +2624,18 @@ This file is not a valid $type file:
 $in_file"
 
 	notice "\
+Showing $type details for: '$name'
 
-  Showing $type details for '$name'.
-  This file is stored at:
-  * $in_file"
+This file is stored at:
+* $in_file"
 
 	easyrsa_openssl "$format" -in "$in_file" -noout -text \
 		${type_opts+ "$type_opts" "$out_opts"} \
 		${name_opts+ -nameopt "$name_opts"} \
 			|| die "\
 OpenSSL failure to process the input"
+
+	[ "$EASYRSA_SILENT" ] || print # Separate certificate above
 } # => show()
 
 # show-ca command backend
@@ -2646,15 +2666,17 @@ $in_file"
 This file is not a valid $type file:
 $in_file"
 
-	notice "\
+	notice "
+Showing $type details for 'ca'.
 
-  Showing $type details for 'ca'.
-  This file is stored at:
-  * $in_file"
+This file is stored at:
+* $in_file"
 
 	easyrsa_openssl "$format" -in "$in_file" -noout -text \
 		-nameopt "$name_opts" -certopt "$out_opts" || die "\
 OpenSSL failure to process the input"
+
+	[ "$EASYRSA_SILENT" ] || print # Separate certificate above
 } # => show_ca()
 
 # Fixed format date
@@ -2733,6 +2755,7 @@ read_db() {
 		*) die "Unrecognised report: $report"
 		esac
 	done < "$db_in"
+	[ "$EASYRSA_SILENT" ] || print # Separate Notice below
 } # => read_db()
 
 # Expire status
@@ -2816,9 +2839,8 @@ status() {
 	expire)
 		case "$in_crt" in
 		all)
-			[ "$EASYRSA_SILENT" ] || print "\
-* Showing certificates which expire in less than $EASYRSA_CERT_RENEW days:
-"
+			[ "$EASYRSA_SILENT" ] || notice "\
+Showing certificates which expire in less than $EASYRSA_CERT_RENEW days:"
 			read_db expire
 		;;
 		*) print "Coming soon.."
@@ -2827,9 +2849,8 @@ status() {
 	revoke)
 		case "$in_crt" in
 		all)
-			[ "$EASYRSA_SILENT" ] || print "\
-* Showing certificates which are revoked:
-"
+			[ "$EASYRSA_SILENT" ] || notice "\
+* Showing certificates which are revoked:"
 			read_db revoke
 		;;
 		*) print "Coming soon.."
@@ -2838,9 +2859,8 @@ status() {
 	renew)
 		case "$in_crt" in
 		all)
-			[ "$EASYRSA_SILENT" ] || print "\
-* Showing certificates which have been renewed but NOT revoked:
-"
+			[ "$EASYRSA_SILENT" ] || notice "\
+* Showing certificates which have been renewed but NOT revoked:"
 			read_db renew
 		;;
 		*) print "Coming soon.."
@@ -3047,8 +3067,7 @@ vars_setup() {
 Conflicting 'vars' files found.
 
 Priority should be given to your PKI vars file:
-* $expected_pki_vars
-"
+* $expected_pki_vars"
 			esac
 
 			# If a SINGLE vars file is found then assign $vars
@@ -3109,7 +3128,8 @@ Failed to source the vars file, remove any unsupported characters."
 			# Source 'vars' now
 			# shellcheck disable=1090 # can't follow non-constant source. vars
 			. "$vars" 2>/dev/null
-			notice "Using Easy-RSA configuration from: $vars"
+			message "Using Easy-RSA configuration from: ${vars}"
+
 			if [ "$user_vars_true" ]; then
 				: # ok - No message required
 			else
