@@ -2731,7 +2731,7 @@ build_ff_date_string() {
 # Read db
 # shellcheck disable=SC2295
 read_db() {
-	tab_char='	'
+	TCT='	' # tab character
 	db_in="$EASYRSA_PKI/index.txt"
 	while read -r db_status db_notAfter db_record; do
 
@@ -2739,23 +2739,23 @@ read_db() {
 		unset -v db_serial db_cn db_revoke_date db_reason
 		case "$db_status" in
 		V)	# Valid
-			db_serial="${db_record%%${tab_char}*}"
-			db_record="${db_record#*${tab_char}}"
+			db_serial="${db_record%%${TCT}*}"
+			db_record="${db_record#*${TCT}}"
 			db_cn="${db_record#*/CN=}"; db_cn="${db_cn%%/*}"
 			crt_file="$EASYRSA_PKI/issued/$db_cn.crt"
 		;;
 		R)	# Revoked
-			db_revoke_date="${db_record%%${tab_char}*}"
+			db_revoke_date="${db_record%%${TCT}*}"
 			db_reason="${db_revoke_date#*,}"
 			if [ "$db_reason" = "$db_revoke_date" ]; then
 				db_reason="None given"
 			else
 				db_revoke_date="${db_revoke_date%,*}"
 			fi
-			db_record="${db_record#*${tab_char}}"
+			db_record="${db_record#*${TCT}}"
 
-			db_serial="${db_record%%${tab_char}*}"
-			db_record="${db_record#*${tab_char}}"
+			db_serial="${db_record%%${TCT}*}"
+			db_record="${db_record#*${TCT}}"
 			db_cn="${db_record#*/CN=}"; db_cn="${db_cn%%/*}"
 		;;
 		*) die "Unexpected status: $db_status"
@@ -4130,6 +4130,10 @@ case "$cmd" in
 	*)
 		die "Unknown command '$cmd'. Run without commands for usage help."
 esac
+
+# Check for untrapped errors
+# shellcheck disable=SC2181
+[ $? = 0 ] || warn "Untrapped error detected!"
 
 # Clear traps and do 'cleanup ok' on successful completion
 trap - 0 1 2 3 6 15
