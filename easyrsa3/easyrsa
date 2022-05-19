@@ -2459,32 +2459,42 @@ Failed to perform update-db: see above for related openssl errors."
 
 # Display subjectAltName
 display_san() {
-	format="$1" path="$2"
+	[ "$#" = 2 ] || die "display_dn - Incorrect input parameters"
+	format="$1"
+	path="$2"
+	shift 2
 
 	if echo "$EASYRSA_EXTRA_EXTS" | grep -q subjectAltName; then
 		print "$(echo "$EASYRSA_EXTRA_EXTS" | grep subjectAltName |
 			sed 's/^\s*subjectAltName\s*=\s*//')"
 	else
 		san="$(
-		x509v3san="X509v3 Subject Alternative Name:"
-		"$EASYRSA_OPENSSL" "$format" -in "$path" -noout -text |
+			x509v3san="X509v3 Subject Alternative Name:"
+			"$EASYRSA_OPENSSL" "$format" -in "$path" -noout -text |
 			sed -n "/${x509v3san}/{n;s/ //g;s/IPAddress:/IP:/g;s/RegisteredID/RID/;p;}"
 			)"
 
-		[ -n "$san" ] && print "$san"
+		[ "$san" ] && print "$san"
 	fi
 } # => display_san()
 
 # display cert DN info on a req/X509, passed by full pathname
 display_dn() {
-	format="$1" path="$2"
+	[ "$#" = 2 ] || die "display_dn - Incorrect input parameters"
+	format="$1"
+	path="$2"
+	shift 2
+
+	# Display DN
 	name_opts="utf8,sep_multiline,space_eq,lname,align"
 	print "$(
 		"$EASYRSA_OPENSSL" "$format" -in "$path" -noout -subject \
 			-nameopt "$name_opts"
 		)"
-	san="$(display_san "$1" "$2")"
-	if [ -n "$san" ]; then
+
+	# Display SAN, if present
+	san="$(display_san "$format" "$path")"
+	if [ "$san" ]; then
 		print ""
 		print "X509v3 Subject Alternative Name:"
 		print "    $san"
@@ -2493,13 +2503,20 @@ display_dn() {
 
 # generate default SAN from req/X509, passed by full pathname
 default_server_san() {
+	[ "$#" = 1 ] || die "display_dn - Incorrect input parameters"
 	path="$1"
+	shift
+
+	# Extract CN from DN
 	cn="$(
 		easyrsa_openssl req -in "$path" -noout -subject -nameopt sep_multiline |
 		awk -F'=' '/^  *CN=/{print $2}'
 		)"
 
-	if echo "$cn" | grep -E -q '^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$'; then
+	# See: https://github.com/OpenVPN/easy-rsa/issues/576
+	# Select default SAN
+	if echo "$cn" | grep -E -q '^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$'
+	then
 		print "subjectAltName = IP:$cn"
 	else
 		print "subjectAltName = DNS:$cn"
@@ -2781,16 +2798,16 @@ expire_status() {
 
 # Revoke status
 revoke_status() {
-		# Translate db date to usable date
-		build_ff_date_string "$db_revoke_date"
-		db_revoke_date="$ff_date"
-		# Use db translated date
-		# ff db_revoke_date returns db_revoke_date as full expire_date
-		cert_dates "$db_revoke_date"
-		crt_revoke_date="$expire_date"
+	# Translate db date to usable date
+	build_ff_date_string "$db_revoke_date"
+	db_revoke_date="$ff_date"
+	# Use db translated date
+	# ff db_revoke_date returns db_revoke_date as full expire_date
+	cert_dates "$db_revoke_date"
+	crt_revoke_date="$expire_date"
 
-		printf '%s%s\n' "$db_status | Serial: $db_serial | " \
-			"Revoked: $crt_revoke_date | Reason: $db_reason | CN: $db_cn"
+	printf '%s%s\n' "$db_status | Serial: $db_serial | " \
+		"Revoked: $crt_revoke_date | Reason: $db_reason | CN: $db_cn"
 } # => revoke_status()
 
 # Renewed status
@@ -2826,6 +2843,7 @@ renew_status() {
 
 # cert status reports
 status() {
+	[ "$#" = 2 ] || die "status - Incorrect input parameters"
 	report="$1"
 	in_crt="$2"
 	shift 2
@@ -3014,7 +3032,7 @@ vars_setup() {
 
 	# Find vars
 	# Explicit command-line path:
-	if [ "$EASYRSA_VARS_FILE" ]; then
+	if [ "$user_vars_true" ]; then
 		if [ -e "$EASYRSA_VARS_FILE" ]; then
 			vars="$EASYRSA_VARS_FILE"
 		else
@@ -3040,6 +3058,7 @@ vars_setup() {
 			[ -e "$easy_vars" ] && e_easy_vars=1
 
 			# Eventually the file below must be removed from EasyRSA
+			# To use a file in PWD use $EASYRSA/vars above
 			# vars of last resort
 			[ -e "$pwd_vars" ] && e_pwd_vars=1
 
@@ -3135,7 +3154,7 @@ Failed to source the vars file, remove any unsupported characters."
 			else
 				[ "$vars_in_pki" ] || \
 					warn "\
-  Move your vars file to your PKI folder, where it is safe!"
+Move your vars file to your PKI folder, where it is safe!"
 			fi
 		fi
 	fi
