@@ -1,5 +1,8 @@
 Easy-RSA 3 ChangeLog
 
+3.1.1 (TBD)
+   *  Expand status reports to include checking a single cert (#577)
+
 3.1.0 (2022-05-18)
    * Introduce basic support for OpenSSL version 3 (#492)
    * Update regex in grep to be POSIX compliant (#556)
