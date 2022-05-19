@@ -1,6 +1,6 @@
 Easy-RSA 3 ChangeLog
 
-3.1.0 (TBD)
+3.1.0 (2022-05-18)
    * Introduce basic support for OpenSSL version 3 (#492)
    * Update regex in grep to be POSIX compliant (#556)
    * Introduce status reporting tools (#555 & #557)
