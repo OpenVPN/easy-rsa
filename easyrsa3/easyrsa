@@ -3204,21 +3204,16 @@ Move your vars file to your PKI folder, where it is safe!"
 	set_var EASYRSA_KDC_REALM		"CHANGEME.EXAMPLE.COM"
 
 	# For commands which 'require a PKI' and the PKI exists
-	if  [ ! "$no_pki_required" ] && [ -d "$EASYRSA_PKI" ]; then
+	if  [ "$pki_is_required" ] && [ -d "$EASYRSA_PKI" ]; then
 
 		# Make a safe SSL config for LibreSSL
 		# Must specify 'no_pki_required' and 'require_safe_ssl_conf' here
 		# because verify_ssl_lib() has not yet run
-		# sub-shell out, to change running variables, only the file is required
-		#(
-		#	no_pki_required=1
-		#	require_safe_ssl_conf=1
-		#	easyrsa_openssl makesafeconf
-		#) || \
-		#	die "Failed to create safe ssl conf (vars_setup)"
-		# Alternate version:
-		no_pki_required=1 require_safe_ssl_conf=1 easyrsa_openssl makesafeconf || \
-			die "Failed to create safe ssl conf (vars_setup)"
+		{	# Scope conditions to this single command
+			no_pki_required=1 require_safe_ssl_conf=1 \
+				easyrsa_openssl makesafeconf || \
+					die "Failed to create safe ssl conf (vars_setup)"
+		} # Close scope
 
 		# mkdir Temp dir session
 		secure_session || die "Temporary directory secure-session failed."
@@ -4015,8 +4010,9 @@ cmd="$1"
 # This avoids unnecessary warnings and notices
 case "$cmd" in
 	init-pki|clean-all|""|help|-h|--help|--usage|version)
-		no_pki_required=1 ;;
-	*) unset -v no_pki_required
+		unset -v pki_is_required; no_pki_required=1 ;;
+	*)
+		pki_is_required=1; unset -v no_pki_required
 esac
 
 # Intelligent env-var detection and auto-loading:
