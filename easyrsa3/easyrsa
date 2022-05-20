@@ -1245,8 +1245,7 @@ sign_req() {
 	cert_dates
 
 	# Randomize Serial number
-	if [ "$EASYRSA_RAND_SN" = "yes" ];
-	then
+	if [ "$EASYRSA_RAND_SN" != "no" ]; then
 		i=""
 		serial=""
 		check_serial=""
