@@ -371,7 +371,7 @@ sc_hash='SHA256(shellcheck)= f4bce23c11c3919c1b20bcb0f206f6b44c44e26f2bc95f8aa70
 
 ssl_file='openssl'
 unset -v ssl_bin ssl_bin_ok
-ssl_hash='SHA256(openssl)= bc4a5882bad4f51e6d04c25877e1e85ad86f14c5f6e078dd9c02f9d38f8791be'
+ssl_hash='SHA256(openssl)= a0aed8b4aec1b72ca17c8a9ab04e10d829343a12cb5e7f8f6ae73e6f2ce026fd'
 
 # Here we go ..
 
