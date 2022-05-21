@@ -30,32 +30,32 @@ Here is the list of commands available with a short syntax reminder. Use the
   init-pki [ cmd-opts ]
   build-ca [ cmd-opts ]
   gen-dh
-  gen-req <filename_base> [ cmd-opts ]
-  sign-req <type> <filename_base>
-  build-client-full <filename_base> [ cmd-opts ]
-  build-server-full <filename_base> [ cmd-opts ]
-  build-serverClient-full <filename_base> [ cmd-opts ]
-  revoke <filename_base> [cmd-opts]
-  revoke-renewed <filename_base> [cmd-opts]
-  renew <filename_base> [cmd-opts]
-  renewable [ <filename_base> ]
+  gen-req <file_name_base> [ cmd-opts ]
+  sign-req <type> <file_name_base>
+  build-client-full <file_name_base> [ cmd-opts ]
+  build-server-full <file_name_base> [ cmd-opts ]
+  build-serverClient-full <file_name_base> [ cmd-opts ]
+  revoke <file_name_base> [cmd-opts]
+  renew <file_name_base> [cmd-opts]
+  renewable [ <file_name_base> ]
+  revoke-renewed <file_name_base> [cmd-opts]
   gen-crl
   update-db
-  show-req <filename_base> [ cmd-opts ]
-  show-cert <filename_base> [ cmd-opts ]
+  show-req <file_name_base> [ cmd-opts ]
+  show-cert <file_name_base> [ cmd-opts ]
   show-ca [ cmd-opts ]
   show-crl
-  show-expire <filename_base> (Optional)
-  show-revoke <filename_base> (Optional)
-  show-renew <filename_base> (Optional)
-  verify <filename_base>
-  import-req <request_file_path> <short_basename>
-  export-p1 <filename_base> [ cmd-opts ]
-  export-p7 <filename_base> [ cmd-opts ]
-  export-p8 <filename_base> [ cmd-opts ]
-  export-p12 <filename_base> [ cmd-opts ]
-  set-rsa-pass <filename_base> [ cmd-opts ]
-  set-ec-pass <filename_base> [ cmd-opts ]
+  show-expire <file_name_base> (Optional)
+  show-revoke <file_name_base> (Optional)
+  show-renew <file_name_base> (Optional)
+  verify <file_name_base>
+  import-req <request_file_path> <short_name_base>
+  export-p1 <file_name_base> [ cmd-opts ]
+  export-p7 <file_name_base> [ cmd-opts ]
+  export-p8 <file_name_base> [ cmd-opts ]
+  export-p12 <file_name_base> [ cmd-opts ]
+  set-rsa-pass <file_name_base> [ cmd-opts ]
+  set-ec-pass <file_name_base> [ cmd-opts ]
   upgrade <type>
 "
 
@@ -72,179 +72,284 @@ DIRECTORY STATUS (commands would take effect on these locations)
 
 # Detailed command help
 # When called with no args, calls usage(), otherwise shows help for a command
+# Please maintain strict indentation rules.
+# Commands are TAB indented, while text is SPACE indented.
+# 'case' indentation is minimalistic.
 cmd_help() {
 	text=""
 	opts=""
 	case "$1" in
-		init-pki|clean-all) text="
-  init-pki [ cmd-opts ]
+	init-pki|clean-all)
+		text="
+* init-pki [ cmd-opts ]
+
       Removes & re-initializes the PKI dir for a clean PKI"
-			opts="
-        hard-reset - Recursively deletes the PKI directory if it exists.
-        soft-reset - Keeps the vars file and the PKI directory itself intact." ;;
-		build-ca) text="
-  build-ca [ cmd-opts ]
+
+		opts="
+      * hard-reset - Recursively deletes the PKI directory if it exists.
+      * soft-reset - Keeps the vars file and the PKI directory itself intact."
+	;;
+	build-ca)
+		text="
+* build-ca [ cmd-opts ]
+
       Creates a new CA"
-			opts="
-        nopass  - do not encrypt the CA key (default is encrypted)
-        subca   - create an intermediate CA keypair and request (default is a root CA)
-        intca   - alias to the above" ;;
-		gen-dh) text="
-  gen-dh
-      Generates DH (Diffie-Hellman) parameters" ;;
-		gen-req) text="
-  gen-req <filename_base> [ cmd-opts ]
-      Generate a standalone keypair and request (CSR)
+
+		opts="
+      * nopass  - do not encrypt the CA key (default is encrypted)
+      * subca   - create an intermediate CA keypair and request
+                  (default is a root CA)
+      * intca   - alias to the above"
+	;;
+	gen-dh)
+		text="
+* gen-dh
+
+      Generates DH (Diffie-Hellman) parameters"
+	;;
+	gen-req)
+		text="
+* gen-req <file_name_base> [ cmd-opts ]
+
+      Generate a standalone private key and certificate signing request [CSR]
 
       This request is suitable for sending to a remote CA for signing."
-			opts="
-        text    - Include certificate text in request
-        nopass  - do not encrypt the private key (default is encrypted)" ;;
-		sign|sign-req) text="
-  sign-req <type> <filename_base>
-      Sign a certificate request of the defined type. <type> must be a known
-      type such as 'client', 'server', 'serverClient', or 'ca' (or a user-added type.)
+
+		opts="
+      * text    - Include certificate text in request
+      * nopass  - do not encrypt the private key (default is encrypted)"
+	;;
+	sign|sign-req)
+		text="
+* sign-req <type> <file_name_base>
+
+      Sign a certificate request of the defined type. <type> must be a known type,
+      such as: 'client', 'server', 'serverClient', or 'ca' (or a user-added type).
 
       This request file must exist in the reqs/ dir and have a .req file
-      extension. See import-req below for importing reqs from other sources." ;;
-		build|build-client-full|build-server-full|build-serverClient-full) text="
-  build-client-full <filename_base> [ cmd-opts ]
-  build-server-full <filename_base> [ cmd-opts ]
-  build-serverClient-full <filename_base> [ cmd-opts ]
+      extension. See import-req below for importing reqs from other sources."
+	;;
+	build|build-client-full|build-server-full|build-serverClient-full)
+		text="
+* build-client-full <file_name_base> [ cmd-opts ]
+* build-server-full <file_name_base> [ cmd-opts ]
+* build-serverClient-full <file_name_base> [ cmd-opts ]
+
       Generate a keypair and sign locally for a client and/or server
 
-      This mode uses the <filename_base> as the X509 CN."
-			opts="
-        nopass  - do not encrypt the private key (default is encrypted)
-        inline  - create an inline credentials file for this node" ;;
-		revoke) text="
-  revoke <filename_base> [reason]
-      Revoke a certificate specified by the filename_base, with an optional
-      revocation reason that is one of:
+      This mode uses the <file_name_base> as the X509 CN."
+
+		opts="
+      * nopass  - do not encrypt the private key (default is encrypted)
+      * inline  - create an inline credentials file for this node"
+	;;
+	revoke)
+		text="
+* revoke <file_name_base> [reason]
+
+      Revoke a certificate specified by the <file_name_base>,
+      with an optional revocation reason which can be one of:
         unspecified
         keyCompromise
         CACompromise
         affiliationChanged
         superseded
         cessationOfOperation
-        certificateHold";;
-		revoke-renewed) text="
-  revoke-renewed <filename_base> [reason]
-      Revoke a renewed certificate specified by the filename_base, with an optional
-      revocation reason that is one of:
+        certificateHold"
+	;;
+	revoke-renewed)
+		text="
+* revoke-renewed <file_name_base> [reason]
+
+      Revoke a *renewed* certificate specified by the <file_name_base>,
+      with an optional revocation reason which can be one of:
         unspecified
         keyCompromise
         CACompromise
         affiliationChanged
         superseded
         cessationOfOperation
-        certificateHold";;
-		renew) text="
-  renew <filename_base> [ cmd-opts ]
-      Renew a certificate specified by the filename_base"
-			opts="
-        nopass  - do not encrypt the private key (default is encrypted)" ;;
-		renewable) text="
-  renewable [ <filename_base> ]
-      Check which certificates can be renewed" ;;
-		gen-crl) text="
-  gen-crl
-      Generate a CRL" ;;
-		update-db) text="
-  update-db
+        certificateHold"
+	;;
+	renew)
+		text="
+* renew <file_name_base> [ cmd-opts ]
+
+      Renew a certificate specified by the <file_name_base>"
+
+		opts="
+      * nopass  - do not encrypt the private key (default is encrypted)"
+	;;
+	renewable)
+		text="
+* renewable [ <file_name_base> ]
+
+      Check which certificates can be renewed"
+	;;
+	gen-crl)
+		text="
+* gen-crl
+
+      Generate a certificate revocation list [CRL]"
+	;;
+	update-db)
+		text="
+* update-db
+
       Update the index.txt database
 
-      This command will use the system time to update the status of issued
-      certificates." ;;
-		show-req|show-cert) text="
-  show-req  <filename_base> [ cmd-opts ]
-  show-cert <filename_base> [ cmd-opts ]
-      Shows details of the req or cert referenced by filename_base
+      This command will use the system time to update the status of
+      issued certificates."
+	;;
+	show-req|show-cert)
+		text="
+* show-req  <file_name_base> [ cmd-opts ]
+* show-cert <file_name_base> [ cmd-opts ]
 
-      Human-readable output is shown, including any requested cert options when
-      showing a request."
-			opts="
-        full    - show full req/cert info, including pubkey/sig data" ;;
-		show-ca) text="
-  show-ca [ cmd-opts ]
-      Shows details of the CA cert
+      Shows details of the req or cert referenced by <file_name_base>
+
+      Human-readable output is shown, including any requested cert
+      options when showing a request."
+
+		opts="
+      * full    - show full req/cert info, including pubkey/sig data"
+	;;
+	show-ca)
+		text="
+* show-ca [ cmd-opts ]
+
+      Shows details of the Certificate Authority [CA] certificate
 
       Human-readable output is shown."
-			opts="
-        full    - show full cert info, including pubkey/sig data" ;;
-		show-crl) text="
-  show-crl
+
+		opts="
+      * full    - show full cert info, including pubkey/sig data"
+	;;
+	show-crl)
+		text="
+* show-crl
+
       Shows details of the current certificate revocation list (CRL)
 
-      Human-readable output is shown." ;;
-		show-expire) text="
-  show-expire <filename_base> (Optional)
+      Human-readable output is shown."
+	;;
+	show-expire)
+		text="
+* show-expire [ <file_name_base> ]
 
       Shows details of *all* expiring certificates
       Use --renew-days=NN to extend the grace period (Default 30 days)
-      Optionally, check *only* <filename_base> certificate" ;;
-		show-revoke) text="
-  show-revoke <filename_base> (Optional)
+      Optionally, check *only* <file_name_base> certificate"
+	;;
+	show-revoke)
+		text="
+* show-revoke [ <file_name_base> ]
 
       Shows details of *all* revoked certificates.
-      Optionally, check *only* <filename_base> certificate" ;;
-		show-renew) text="
-  show-renew <filename_base> (Optional)
+      Optionally, check *only* <file_name_base> certificate"
+	;;
+	show-renew)
+		text="
+* show-renew [ <file_name_base> ]
 
       Shows details of renewed certificates, which have not been revoked
-      Optionally, check *only* <filename_base> certificate" ;;
-		verify) text="
-  verify <filename_base> [ cmd-opts ]
-      Verify certificate against CA"
-			opts="
-        batch   - On failure to verify, return error (1) to calling program" ;;
-		import-req) text="
-  import-req <request_file_path> <short_basename>
+      Optionally, check *only* <file_name_base> certificate"
+	;;
+	verify)
+		text="
+* verify <file_name_base> [ cmd-opts ]
+
+      Verify certificate against CA
+
+      Returns the current validity of the certificate."
+
+		opts="
+      * batch   - On failure to verify, return error (1) to calling program"
+	;;
+	import-req)
+		text="
+* import-req <request_file_path> <short_name_base>
+
       Import a certificate request from a file
 
       This will copy the specified file into the reqs/ dir in
       preparation for signing.
-      The <short_basename> is the filename base to create.
+
+      The <short_name_base> is the <file_name_base> to create.
 
       Example usage:
-        import-req /some/where/bob_request.req bob" ;;
-		export-p12) text="
-  export-p12 <filename_base> [ cmd-opts ]
-      Export a PKCS#12 file with the keypair specified by <filename_base>"
-			opts="
-        nopass  - use no password and leave the key unencrypted
-        noca    - do not include the ca.crt file in the PKCS12 output
-        nokey   - do not include the private key in the PKCS12 output
-        usefn   - use <filename_base> as friendly name" ;;
-		export-p7) text="
-  export-p7 <filename_base> [ cmd-opts ]
-      Export a PKCS#7 file with the pubkey specified by <filename_base>"
-			opts="
-        noca    - do not include the ca.crt file in the PKCS7 output" ;;
-		export-p8) text="
-  export-p8 <filename_base> [ cmd-opts ]
-      Export a PKCS#8 file with the private key specified by <filename_base>"
-			opts="
-        nopass  - do not encrypt the private key (default is encrypted)" ;;
-		export-p1) text="
-  export-p1 <filename_base> [ cmd-opts ]
-      Export a PKCS#1 (RSA format) file with the pubkey specified by <filename_base>"
-			opts="
-        nopass  - do not encrypt the private key (default is encrypted)" ;;
-		set-rsa-pass|set-ec-pass) text="
-  set-rsa-pass <filename_base> [ cmd-opts ]
-  set-ec-pass <filename_base> [ cmd-opts ]
-      Set a new passphrase on an RSA or EC key for the listed <filename_base>."
-			opts="
-        nopass  - use no password and leave the key unencrypted
-        file    - (advanced) treat the file as a raw path, not a short-name" ;;
-		upgrade) text="
-  upgrade <type>
-      Upgrade EasyRSA PKI and/or CA. <type> must be one of:
-        pki - Upgrade EasyRSA v2.x PKI to EasyRSA v3.x PKI (includes CA below)
-        ca  - Upgrade EasyRSA v3.0.5 CA or older to EasyRSA v3.0.6 CA or later." ;;
-		altname|subjectaltname|san) text="
-  --subject-alt-name=SAN_FORMAT_STRING
+        import-req /some/where/bob_request.req bob"
+	;;
+	export-p12)
+		text="
+* export-p12 <file_name_base> [ cmd-opts ]
+
+      Export a PKCS#12 file with the keypair,
+      specified by <file_name_base>"
+
+		opts="
+      * nopass  - use no password and leave the key unencrypted
+      * noca    - do not include the ca.crt file in the PKCS12 output
+      * nokey   - do not include the private key in the PKCS12 output
+      * usefn   - use <file_name_base> as friendly name"
+	;;
+	export-p7)
+		text="
+* export-p7 <file_name_base> [ cmd-opts ]
+
+      Export a PKCS#7 file with the pubkey,
+      specified by <file_name_base>"
+
+		opts="
+      * noca    - do not include the ca.crt file in the PKCS7 output"
+	;;
+	export-p8)
+		text="
+* export-p8 <file_name_base> [ cmd-opts ]
+
+      Export a PKCS#8 file with the private key,
+      specified by <file_name_base>"
+
+		opts="
+      * nopass  - do not encrypt the private key (default is encrypted)"
+	;;
+	export-p1)
+		text="
+* export-p1 <file_name_base> [ cmd-opts ]
+
+      Export a PKCS#1 (RSA format) file with the pubkey,
+      specified by <file_name_base>"
+
+		opts="
+      * nopass  - do not encrypt the private key (default is encrypted)"
+	;;
+	set-rsa-pass|set-ec-pass)
+		text="
+* set-rsa-pass <file_name_base> [ cmd-opts ]
+* set-ec-pass <file_name_base> [ cmd-opts ]
+
+      Set a new passphrase on an RSA or EC key
+      for the key specified by <file_name_base>."
+
+		opts="
+      * nopass  - use no password and leave the key unencrypted
+      * file    - (advanced) treat the file as a raw path, not a short-name"
+	;;
+	upgrade)
+		text="
+* upgrade <type>
+
+      Upgrade EasyRSA PKI and/or CA.
+
+      Upgrade <type> must be one of:
+
+      * pki - Upgrade EasyRSA v2.x PKI to EasyRSA v3.x PKI (includes CA below)
+      * ca  - Upgrade EasyRSA v3.0.5 CA or older to EasyRSA v3.0.6 CA or later."
+	;;
+	altname|subjectaltname|san)
+		text="
+* --subject-alt-name=SAN_FORMAT_STRING
+
       This global option adds a subjectAltName to the request or issued
       certificate. It MUST be in a valid format accepted by openssl or
       req/cert generation will fail. Note that including multiple such names
@@ -252,24 +357,36 @@ cmd_help() {
       option will REPLACE the value.
 
       Examples of the SAN_FORMAT_STRING shown below:
-        DNS:alternate.example.net
-        DNS:primary.example.net,DNS:alternate.example.net
-        IP:203.0.113.29
-        email:alternate@example.net" ;;
-		options)
-			opt_usage ;;
-		"")
-			usage ;;
-		*) text="
+
+      * DNS:alternate.example.net
+      * DNS:primary.example.net,DNS:alternate.example.net
+      * IP:203.0.113.29
+      * email:alternate@example.net"
+	;;
+	options)
+		opt_usage
+	;;
+	"")
+		usage ;;
+	*)
+		text="
   Unknown command: '$1' (try without commands for a list of commands)"
 	esac
 
 	# display the help text
 	[ "$text" ] && print "${text}${NL}"
-	[ "$opts" ] && print "
-      cmd-opts is an optional set of command options from this list:
+	if [ "$opts" ]; then
+		print "\
+    Available command-options (cmd-opts):
 $opts
 "
+	else
+		print "\
+    Available command-options (cmd-opts):
+
+    * N/A - No supported command-options
+"
+	fi
 } # => cmd_help()
 
 # Options usage
@@ -2592,7 +2709,7 @@ show() {
 	in_file=""
 	format=""
 	[ "$name" ] || die "\
-Missing expected filename_base argument.
+Missing expected <file_name_base> argument.
 Run easyrsa without commands for usage help."
 
 	# opts support
