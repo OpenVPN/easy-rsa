@@ -384,7 +384,7 @@ $opts
 		print "\
     Available command-options (cmd-opts):
 
-    * N/A - No supported command-options
+      * N/A - No supported command-options
 "
 	fi
 } # => cmd_help()
