@@ -50,7 +50,7 @@ curl_it () {
 
 	# valid target
 	case "$file" in
-	easyrsa-unit-tests.sh)
+	easyrsa-unit-tests.sh|easyrsa-unit-tests-help.sh)
 		unset -v require_hash
 	;;
 	shellcheck|openssl)
@@ -116,6 +116,9 @@ run_unit_test ()
 			if sh "${utest_bin}" "${verb}" "$use_passwords"; then
 				log "OK"
 				estat=0
+				if [ "$EASYRSA_BY_TINCANTECH" ]; then
+					sh "${utest_help_bin}" "${help_verb}" "$use_passwords"
+				fi
 			else
 				log "FAIL"
 				estat=1
@@ -133,7 +136,7 @@ run_unit_test ()
 
 ## DOWNLOAD unit-test
 download_unit_test () {
-	# if not present then download unit-test 
+	# if not present then download unit-test
 	target_file="${utest_file}"
 	target_hash="${utest_hash}"
 	if [ "$enable_unit_test" ]; then
@@ -174,6 +177,50 @@ download_unit_test () {
 	fi # => shellcheck
 }
 ## DOWNLOAD unit-test
+
+## DOWNLOAD unit-test-help
+download_unit_test_help () {
+	# if not present then download unit-test-help
+	target_file="${utest_help_file}"
+	target_hash="${utest_hash}"
+	if [ "$enable_unit_test" ]; then
+		if [ -e "${ERSA_UT}/${target_file}" ]; then
+			[ -x "${ERSA_UT}/${target_file}" ] || \
+				chmod +x "${ERSA_UT}/${target_file}"
+			# version check
+			if "${ERSA_UT}/${target_file}" version; then
+				utest_help_bin="${ERSA_UT}/${target_file}"
+				utest_help_bin_ok=1
+				export ERSA_UTEST_CURL_TARGET=localhost
+			else
+				log "version check failed: ${ERSA_UT}/${target_file}"
+			fi
+		else
+			# download and basic check
+			log "curl_it ${target_file}"
+			if curl_it "${target_file}" "${target_hash}"; then
+				[ -x "${ERSA_UT}/${target_file}" ] || \
+					chmod +x "${ERSA_UT}/${target_file}"
+				# functional check - version check
+				if "${ERSA_UT}/${target_file}" version; then
+					utest_help_bin="${ERSA_UT}/${target_file}"
+					utest_help_bin_ok=1
+					export ERSA_UTEST_CURL_TARGET=online
+					unset -v keep_eut
+				else
+					log "version check failed: ${target_file}"
+				fi
+			else
+				log "curl_it ${target_file} - failed"
+			fi
+		fi
+		[ "$utest_help_bin_ok" ] || log "undefined: utest_help_bin_ok"
+		log "setup unit-test-help - ok"
+	else
+		log "unit-test-help disabled"
+	fi # => shellcheck
+}
+## DOWNLOAD unit-test-help
 
 ################################################################################
 
@@ -365,6 +412,11 @@ utest_file='easyrsa-unit-tests.sh'
 unset -v utest_bin utest_bin_ok
 utest_hash='no-hash'
 
+utest_help_file='easyrsa-unit-tests-help.sh'
+unset -v utest_help_bin utest_help_bin_ok
+#utest_hash='no-hash'
+help_verb="-vv"
+
 sc_file='shellcheck'
 unset -v sc_bin sc_bin_ok
 sc_hash='SHA256(shellcheck)= f4bce23c11c3919c1b20bcb0f206f6b44c44e26f2bc95f8aa708716095fa0651'
@@ -378,6 +430,7 @@ ssl_hash='SHA256(openssl)= a0aed8b4aec1b72ca17c8a9ab04e10d829343a12cb5e7f8f6ae73
 download_shellcheck
 download_opensslv3
 download_unit_test
+download_unit_test_help
 
 run_shellcheck
 run_unit_test
