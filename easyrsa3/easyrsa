@@ -39,6 +39,7 @@ Here is the list of commands available with a short syntax reminder. Use the
   renew <file_name_base> [cmd-opts]
   renewable [ <file_name_base> ]
   revoke-renewed <file_name_base> [cmd-opts]
+  rewind-renew <certificate-serial-number>
   gen-crl
   update-db
   show-req <file_name_base> [ cmd-opts ]
@@ -185,6 +186,15 @@ cmd_help() {
 * renewable [ <file_name_base> ]
 
       Check which certificates can be renewed"
+	;;
+	rewind-renew)
+		text="
+* rewind-renew <certificate-serial-number>
+
+      Rewind EasyRSA version 3.0 style renewed certificates.
+
+      Moves and renames certs, keys and reqs. Use with caution!
+      Ref: https://github.com/OpenVPN/easy-rsa/issues/578"
 	;;
 	gen-crl)
 		text="
@@ -1649,8 +1659,7 @@ Unable to revoke as the input file is not a valid certificate. Unexpected
 input in file: $crt_in"
 
 	# Verify request
-	if [ -e "$req_in" ]
-	then
+	if [ -e "$req_in" ]; then
 		verify_file req "$req_in" || die "\
 Unable to move request. The file is not a valid request.
 Unexpected input in file: $req_in"
@@ -1807,8 +1816,7 @@ Unable to renew as the input file is not a valid certificate. Unexpected
 input in file: $crt_in"
 
 	# Verify request
-	if [ -e "$req_in" ]
-	then
+	if [ -e "$req_in" ]; then
 		verify_file req "$req_in" || die "\
 Unable to move request. The file is not a valid request.
 Unexpected input in file: $req_in"
@@ -2194,6 +2202,100 @@ EOF
 
 	return 0
 } # => renewable
+
+# Move renewed certs_by_serial to the new renew layout
+rewind_renew() {
+	# pull filename base: serial number
+	[ "$1" ] || die "\
+Error: didn't find a serial number as the first argument.
+Run easyrsa without commands for usage and command help."
+
+	verify_ca_init
+
+	# Assign file_name_base and dust off!
+	file_name_base="$1"
+	shift "$#" # No options supported
+
+	in_dir="$EASYRSA_PKI/renewed"
+	crt_in="$in_dir/certs_by_serial/$file_name_base.crt"
+	key_in="$in_dir/private_by_serial/$file_name_base.key"
+	req_in="$in_dir/reqs_by_serial/$file_name_base.req"
+
+	# referenced cert must exist:
+	[ -f "$crt_in" ] || die "\
+Unable to renew as no certificate was found. Certificate was expected
+at: $crt_in"
+
+	# Verify certificate
+	verify_file x509 "$crt_in" || die "\
+Unable to renew as the input file is not a valid certificate. Unexpected
+input in file: $crt_in"
+
+	# Verify request
+	if [ -e "$req_in" ]; then
+		verify_file req "$req_in" || die "\
+Unable to move request. The file is not a valid request.
+Unexpected input in file: $req_in"
+	fi
+
+	# get the commonName of the certificate via DN
+	crt_cn="$(
+		easyrsa_openssl x509 -in "$crt_in" -noout -subject -nameopt \
+		utf8,multiline | grep '^[[:blank:]]*commonName[[:blank:]]*= '
+		)"
+	crt_cn="${crt_cn#*= }"
+
+	# Set out_dir
+	out_dir="$EASYRSA_PKI/renewed"
+	crt_out="$out_dir/issued/$crt_cn.crt"
+	key_out="$out_dir/private/$crt_cn.key"
+	req_out="$out_dir/reqs/$crt_cn.req"
+
+	# NEVER over-write a renewed cert, revoke it first
+	deny_msg="\
+Cannot renew this certificate because a conflicting file exists.
+*"
+	[ -e "$crt_out" ] && die "$deny_msg certificate: $crt_out"
+	[ -e "$key_out" ] && die "$deny_msg private key: $key_out"
+	[ -e "$req_out" ] && die "$deny_msg request    : $req_out"
+	unset -v deny_msg
+
+	# move crt, key and req file to renewed folders
+	mv "$crt_in" "$crt_out" || die "Failed to move: $crt_in"
+
+	# only move the key if we have it
+	if [ -e "$key_in" ]; then
+		if mv "$key_in" "$key_out"; then
+			: # ok
+		else
+			# Attempt restore
+			mv -f "$crt_out" "$crt_in"
+			mv -f "$key_out" "$key_in" 2>/dev/null
+			die "Failed to move: $key_in"
+		fi
+	fi
+
+	# only move the req if we have it
+	if [ -e "$req_in" ]; then
+		if mv "$req_in" "$req_out"; then
+			: # ok
+		else
+			# Attempt restore
+			mv -f "$crt_out" "$crt_in"
+			mv -f "$key_out" "$key_in"
+			die "Failed to move: $req_in"
+		fi
+	fi
+
+	# Success message
+	notice "\
+Rewind is successful.
+
+Common Name  : $crt_cn
+Serial number: $file_name_base
+
+To revoke use: 'revoke-renewed $crt_cn'"
+} # => rewind_renew()
 
 # Set certificate expire date, renew date and variables needed for fixdate
 cert_dates() {
@@ -4172,6 +4274,9 @@ case "$cmd" in
 		;;
 	renewable)
 		renewable "$@"
+		;;
+	rewind-renew)
+		rewind_renew "$@"
 		;;
 	import-req)
 		import_req "$@"
