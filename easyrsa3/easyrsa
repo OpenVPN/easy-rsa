@@ -2264,6 +2264,7 @@ Run easyrsa without commands for usage and command help."
 	file_name_base="$1"
 	shift "$#" # No options supported
 
+	cert_serial="$file_name_base"
 	in_dir="$EASYRSA_PKI/renewed"
 	crt_in="$in_dir/certs_by_serial/$file_name_base.crt"
 	key_in="$in_dir/private_by_serial/$file_name_base.key"
@@ -2307,6 +2308,23 @@ Cannot renew this certificate because a conflicting file exists.
 	[ -e "$key_out" ] && die "$deny_msg private key: $key_out"
 	[ -e "$req_out" ] && die "$deny_msg request    : $req_out"
 	unset -v deny_msg
+
+	warn "\
+This process is destructive!
+
+These files will be moved to the NEW 'renewed' storage sub-directory:
+* $crt_in
+* $key_in
+* $req_in"
+
+	confirm "  Continue with rewind-renew: " "yes" "\
+Please confirm you wish to rewind-renew the certificate
+with the following subject:
+
+  $(display_dn x509 "$crt_in")
+
+  serial-number: $cert_serial
+"	# => confirm end
 
 	# move crt, key and req file to renewed folders
 	mv "$crt_in" "$crt_out" || die "Failed to move: $crt_in"
