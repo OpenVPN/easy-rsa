@@ -481,7 +481,7 @@ Easy-RSA error:
 $1" 1>&2
 
 	print "
-Host: $host_out${EASYRSA_DEBUG+
+$host_out${EASYRSA_DEBUG+
 *** Disable EASYRSA_DEBUG mode ***}"
 
 	exit "${2:-1}"
@@ -3226,7 +3226,8 @@ satisfy_shellcheck() {
 
 # Identify host OS
 detect_host() {
-	unset -v easyrsa_host_os easyrsa_host_test easyrsa_win_git_bash
+	unset -v easyrsa_ver_test easyrsa_host_os easyrsa_host_test \
+			easyrsa_win_git_bash
 
 	# Detect Windows
 	[ "${OS}" ] && easyrsa_host_test="${OS}"
@@ -3251,11 +3252,19 @@ detect_host() {
 	else
 		easyrsa_host_os=nix
 		easyrsa_uname="$(uname 2>/dev/null)"
-		easyrsa_shell="$SHELL"
+		easyrsa_shell="${SHELL:-undefined}"
 	fi
-	host_out="$easyrsa_host_os | $easyrsa_uname | $easyrsa_shell"
+
+	easyrsa_ver_test="${EASYRSA_version%%~*}"
+	if [ "$easyrsa_ver_test" ]; then
+		host_out="Version: $EASYRSA_version"
+	else
+		host_out="Version: dev"
+	fi
+
+	host_out="${host_out} | $easyrsa_host_os | $easyrsa_uname | $easyrsa_shell"
 	host_out="${host_out}${easyrsa_win_git_bash+ | "$easyrsa_win_git_bash"}"
-	unset -v easyrsa_host_test
+	unset -v easyrsa_ver_test easyrsa_host_test
 } # => detect_host()
 
 # Verify the selected algorithm parameters
@@ -4138,7 +4147,7 @@ print_version()
 	ssl_version="$("${EASYRSA_OPENSSL:-openssl}" version)"
 		cat << VERSION_TEXT
 EasyRSA Version Information
-Version:     ~VER~
+Version:     $EASYRSA_version
 Generated:   ~DATE~
 SSL Lib:     $ssl_version
 Git Commit:  ~GITHEAD~
@@ -4150,6 +4159,7 @@ VERSION_TEXT
 ########################################
 # Invocation entry point:
 
+EASYRSA_version="~VER~"
 NL='
 '
 
