@@ -651,6 +651,43 @@ make_safe_ssl_copy() {
 	easyrsa_openssl makesafeconf
 } # => make_safe_ssl_copy()
 
+# 'sed' behavior with '&' is not modifiable, so auto escape '&'
+escape_char() {
+	bad_char="$1"
+	in_str="$2"
+	shift 2 || die "escape_borken_char - input"
+	part_full_rhs="$in_str"
+	part_head=""
+	part_next=""
+	part_temp=""
+
+	# shell###check disable=SC1003 # Want to escape a single quote? No..
+	esc_char='\'
+
+	part_head="${in_str%%"${bad_char}"*}" # Drop RHS
+	if [ "$part_head" = "$in_str" ]; then
+		# ok - No borken chars found
+		out_str="${part_head}"
+	else
+		part_head="${part_head}${esc_char}${bad_char}" # Insert ESC+char
+		while [ "$part_full_rhs" ]; do
+			part_full_rhs="${part_full_rhs#*"${bad_char}"}" # Drop LHS
+			part_next="${part_full_rhs%%"${bad_char}"*}" # Drop RHS
+
+			if [ "$part_next" = "$part_full_rhs" ]; then
+				# ok - No borken chars found
+				part_full_rhs=""
+				part_temp="${part_temp}${part_next}"
+			else
+				part_full_rhs="${part_full_rhs#*"${bad_char}"}" # Drop LHS
+				part_next="${part_next}${esc_char}${bad_char}" # Insert ESC+char
+				part_temp="${part_temp}${part_next}"
+			fi
+		done
+		out_str="${part_head}${part_temp}"
+	fi
+} # => escape_char()
+
 # Easy-RSA meta-wrapper for SSL
 easyrsa_openssl() {
 	openssl_command="$1"; shift
@@ -682,28 +719,47 @@ easyrsa_openssl() {
 				die "easyrsa_openssl - Failed to create temporary file"
 		fi
 
+		# escape borken chars: '&'
+		escape_char '&' "$EASYRSA_REQ_PROVINCE"
+		EASYRSA_REQ_PROVINCE_esc="$out_str"
+		escape_char '&' "$EASYRSA_REQ_CITY"
+		EASYRSA_REQ_CITY_esc="$out_str"
+		escape_char '&' "$EASYRSA_REQ_ORG"
+		EASYRSA_REQ_ORG_esc="$out_str"
+		escape_char '&' "$EASYRSA_REQ_EMAIL"
+		EASYRSA_REQ_EMAIL_esc="$out_str"
+		escape_char '&' "$EASYRSA_REQ_OU"
+		EASYRSA_REQ_OU_esc="$out_str"
+
 		# OpenSSL does not require a safe config, so skip to the copy
 		# require_safe_ssl_conf is set by verify_ssl_lib()
+		# OpenSSL cannot handle unescaped ampersand, so this is ALWAYS enabled
 		if [ "$require_safe_ssl_conf" ]; then
 			# Make a safe SSL config file
+			# First line: replace 'ENV::EASYRSA' with 'EASYRSA'
+			# Result: '$ENV::EASYRSA_PKI' -> '$EASYRSA_PKI'
+			# Now replace '$EASYRSA_PKI' with expansion
+			#	-e s\`ENV::EASYRSA\`EASYRSA\`g \
+
+			# shellcheck disable=SC2016 # No expansion inside ' single quote
 			sed \
-				-e "s\`ENV::EASYRSA\`EASYRSA\`g" \
-				-e "s\`\$dir\`$EASYRSA_PKI\`g" \
-				-e "s\`\$EASYRSA_PKI\`$EASYRSA_PKI\`g" \
-				-e "s\`\$EASYRSA_CERT_EXPIRE\`$EASYRSA_CERT_EXPIRE\`g" \
-				-e "s\`\$EASYRSA_CRL_DAYS\`$EASYRSA_CRL_DAYS\`g" \
-				-e "s\`\$EASYRSA_DIGEST\`$EASYRSA_DIGEST\`g" \
-				-e "s\`\$EASYRSA_KEY_SIZE\`$EASYRSA_KEY_SIZE\`g" \
-				-e "s\`\$EASYRSA_DN\`$EASYRSA_DN\`g" \
-				-e "s\`\$EASYRSA_REQ_COUNTRY\`$EASYRSA_REQ_COUNTRY\`g" \
-				-e "s\`\$EASYRSA_REQ_PROVINCE\`$EASYRSA_REQ_PROVINCE\`g" \
-				-e "s\`\$EASYRSA_REQ_CITY\`$EASYRSA_REQ_CITY\`g" \
-				-e "s\`\$EASYRSA_REQ_ORG\`$EASYRSA_REQ_ORG\`g" \
-				-e "s\`\$EASYRSA_REQ_OU\`$EASYRSA_REQ_OU\`g" \
-				-e "s\`\$EASYRSA_REQ_CN\`$EASYRSA_REQ_CN\`g" \
-				-e "s\`\$EASYRSA_REQ_EMAIL\`$EASYRSA_REQ_EMAIL\`g" \
+			-e s\`'$dir'\`"$EASYRSA_PKI"\`g \
+			-e s\`'$ENV::EASYRSA_PKI'\`"$EASYRSA_PKI"\`g \
+			-e s\`'$ENV::EASYRSA_CERT_EXPIRE'\`"$EASYRSA_CERT_EXPIRE"\`g \
+			-e s\`'$ENV::EASYRSA_CRL_DAYS'\`"$EASYRSA_CRL_DAYS"\`g \
+			-e s\`'$ENV::EASYRSA_DIGEST'\`"$EASYRSA_DIGEST"\`g \
+			-e s\`'$ENV::EASYRSA_KEY_SIZE'\`"$EASYRSA_KEY_SIZE"\`g \
+			-e s\`'$ENV::EASYRSA_DN'\`"$EASYRSA_DN"\`g \
+			-e s\`'$ENV::EASYRSA_REQ_COUNTRY'\`"$EASYRSA_REQ_COUNTRY"\`g \
+			-e s\`'$ENV::EASYRSA_REQ_PROVINCE'\`"$EASYRSA_REQ_PROVINCE_esc"\`g \
+			-e s\`'$ENV::EASYRSA_REQ_CITY'\`"$EASYRSA_REQ_CITY_esc"\`g \
+			-e s\`'$ENV::EASYRSA_REQ_ORG'\`"$EASYRSA_REQ_ORG_esc"\`g \
+			-e s\`'$ENV::EASYRSA_REQ_OU'\`"$EASYRSA_REQ_OU_esc"\`g \
+			-e s\`'$ENV::EASYRSA_REQ_CN'\`"$EASYRSA_REQ_CN"\`g \
+			-e s\`'$ENV::EASYRSA_REQ_EMAIL'\`"$EASYRSA_REQ_EMAIL_esc"\`g \
 				"$EASYRSA_SSL_CONF" > "$easyrsa_openssl_conf" || \
 					die "easyrsa_openssl - Failed to make temporary config"
+
 		else
 			# Do NOT Make a safe SSL config file
 			cp -f "$EASYRSA_SSL_CONF" "$easyrsa_openssl_conf" || \
@@ -745,8 +801,8 @@ verify_ssl_lib() {
 	if [ -z "$EASYRSA_SSL_OK" ]; then
 		val="$("$EASYRSA_OPENSSL" version)"
 		case "${val%% *}" in
-			# OpenSSL does not require a safe config-file
-			OpenSSL) unset -v require_safe_ssl_conf ;;
+			# OpenSSL does require a safe config-file for ampersand
+			OpenSSL) require_safe_ssl_conf=1 ;;
 			LibreSSL) require_safe_ssl_conf=1 ;;
 			*) die "\
 Missing or invalid OpenSSL
@@ -3436,12 +3492,24 @@ recommended - please remove it from there before continuing."
 			# Sanitize vars further but ONLY if it is in PKI folder
 			if [ "$vars_in_pki" ]; then
 				# Warning: Unsupported  characters
-				if grep '^[[:blank:]]*set_var[[:blank:]]\+.*' "$vars" | \
-					grep -q -e '&' -e "'" -e '`' -e '\$' -e '#' ; then
-					warn "\
+				if
+					grep \
+						'^[[:blank:]]*set_var[[:blank:]][[:blank:]]*.*' \
+							"$vars" |
+					grep \
+						-e "EASYRSA_REQ_COUNTRY" \
+						-e "EASYRSA_REQ_PROVINCE" \
+						-e "EASYRSA_REQ_CITY" \
+						-e "EASYRSA_REQ_ORG" \
+						-e "EASYRSA_REQ_EMAIL" \
+						-e "EASYRSA_REQ_OU" |
+					grep \
+						 -e '`' -e '{' -e '}'
+				then
+					warn '\
 Unsupported  characters are present in the vars file.
-These characters are not supported: (') (&) (\`) (\$) (#)
-Sourcing the vars file and building certificates will probably fail .."
+These characters are not supported: (\`) ({) (})
+Sourcing the vars file and building certificates will probably fail ..'
 				fi
 			fi
 
@@ -3457,7 +3525,7 @@ Failed to source the vars file, remove any unsupported characters."
 			# Source 'vars' now
 			# shellcheck disable=1090 # can't follow non-constant source. vars
 			. "$vars" 2>/dev/null
-			message "Using Easy-RSA configuration from: ${vars}"
+			message "Using Easy-RSA configuration from: $vars"
 
 			if [ "$user_vars_true" ]; then
 				: # ok - No message required
