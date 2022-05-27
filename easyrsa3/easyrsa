@@ -652,7 +652,7 @@ make_safe_ssl_copy() {
 } # => make_safe_ssl_copy()
 
 # 'sed' behavior with '&' is not modifiable, so auto escape '&'
-escape_borken_char() {
+escape_char() {
 	bad_char="$1"
 	in_str="$2"
 	shift 2 || die "escape_borken_char - input"
@@ -686,7 +686,7 @@ escape_borken_char() {
 		done
 		out_str="${part_head}${part_temp}"
 	fi
-} # => escape_borken_char()
+} # => escape_char()
 
 # Easy-RSA meta-wrapper for SSL
 easyrsa_openssl() {
@@ -720,15 +720,15 @@ easyrsa_openssl() {
 		fi
 
 		# escape borken chars: '&'
-		escape_borken_char '&' "$EASYRSA_REQ_PROVINCE"
+		escape_char '&' "$EASYRSA_REQ_PROVINCE"
 		EASYRSA_REQ_PROVINCE_esc="$out_str"
-		escape_borken_char '&' "$EASYRSA_REQ_CITY"
+		escape_char '&' "$EASYRSA_REQ_CITY"
 		EASYRSA_REQ_CITY_esc="$out_str"
-		escape_borken_char '&' "$EASYRSA_REQ_ORG"
+		escape_char '&' "$EASYRSA_REQ_ORG"
 		EASYRSA_REQ_ORG_esc="$out_str"
-		escape_borken_char '&' "$EASYRSA_REQ_EMAIL"
+		escape_char '&' "$EASYRSA_REQ_EMAIL"
 		EASYRSA_REQ_EMAIL_esc="$out_str"
-		escape_borken_char '&' "$EASYRSA_REQ_OU"
+		escape_char '&' "$EASYRSA_REQ_OU"
 		EASYRSA_REQ_OU_esc="$out_str"
 
 		# OpenSSL does not require a safe config, so skip to the copy
@@ -3492,12 +3492,24 @@ recommended - please remove it from there before continuing."
 			# Sanitize vars further but ONLY if it is in PKI folder
 			if [ "$vars_in_pki" ]; then
 				# Warning: Unsupported  characters
-				if grep '^[[:blank:]]*set_var[[:blank:]]\+.*' "$vars" | \
-					grep -q -e '&' -e "'" -e '`' -e '\$' -e '#' ; then
-					warn "\
+				if
+					grep \
+						'^[[:blank:]]*set_var[[:blank:]][[:blank:]]*.*' \
+							"$vars" |
+					grep \
+						-e "EASYRSA_REQ_COUNTRY" \
+						-e "EASYRSA_REQ_PROVINCE" \
+						-e "EASYRSA_REQ_CITY" \
+						-e "EASYRSA_REQ_ORG" \
+						-e "EASYRSA_REQ_EMAIL" \
+						-e "EASYRSA_REQ_OU" |
+					grep \
+						 -e '`' -e '{' -e '}'
+				then
+					warn '\
 Unsupported  characters are present in the vars file.
-These characters are not supported: (') (&) (\`) (\$) (#)
-Sourcing the vars file and building certificates will probably fail .."
+These characters are not supported: (\`) ({) (})
+Sourcing the vars file and building certificates will probably fail ..'
 				fi
 			fi
 
@@ -3513,7 +3525,7 @@ Failed to source the vars file, remove any unsupported characters."
 			# Source 'vars' now
 			# shellcheck disable=1090 # can't follow non-constant source. vars
 			. "$vars" 2>/dev/null
-			message "Using Easy-RSA configuration from: ${vars}"
+			message "Using Easy-RSA configuration from: $vars"
 
 			if [ "$user_vars_true" ]; then
 				: # ok - No message required
