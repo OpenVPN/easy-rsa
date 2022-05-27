@@ -643,6 +643,14 @@ cleanup() {
 	fi
 } # => cleanup()
 
+# Make a copy safe SSL config file for comparison (undocumented)
+make_safe_ssl_copy() {
+	no_pki_required=1
+	require_safe_ssl_conf=1
+	make_copy_ssl_conf=1
+	easyrsa_openssl makesafeconf
+} # => make_safe_ssl_copy()
+
 # Easy-RSA meta-wrapper for SSL
 easyrsa_openssl() {
 	openssl_command="$1"; shift
@@ -706,6 +714,9 @@ easyrsa_openssl() {
 			# move temp file to safessl-easyrsa.cnf
 			mv -f "$easyrsa_openssl_conf" "$EASYRSA_SAFE_CONF" || \
 				die "easyrsa_openssl - makesafeconf failed"
+			if [ "$make_copy_ssl_conf" ]; then
+				cp "$EASYRSA_SAFE_CONF" "${EASYRSA_SAFE_CONF}.copy"
+			fi
 		else
 			# debug log on
 			if [ "$EASYRSA_DEBUG" ]; then set -x; fi
@@ -4403,6 +4414,9 @@ case "$cmd" in
 		;;
 	show-renew)
 		status renew "$@"
+		;;
+	make-safe-ssl)
+		make_safe_ssl_copy "$@"
 		;;
 	upgrade)
 		up23_manage_upgrade_23 "$@"
