@@ -652,6 +652,7 @@ make_safe_ssl_copy() {
 } # => make_safe_ssl_copy()
 
 # 'sed' behavior with '&' is not modifiable, so auto escape '&'
+# shellcheck disable=SC2295 # Expansions inside ${..} need to be quoted ..
 escape_char() {
 	bad_char="$1"
 	in_str="$2"
@@ -660,26 +661,24 @@ escape_char() {
 	part_head=""
 	part_next=""
 	part_temp=""
+	esc_char=\\
 
-	# shell###check disable=SC1003 # Want to escape a single quote? No..
-	esc_char='\'
-
-	part_head="${in_str%%"${bad_char}"*}" # Drop RHS
+	part_head="${in_str%%${bad_char}*}" # Drop RHS
 	if [ "$part_head" = "$in_str" ]; then
 		# ok - No borken chars found
 		out_str="${part_head}"
 	else
 		part_head="${part_head}${esc_char}${bad_char}" # Insert ESC+char
 		while [ "$part_full_rhs" ]; do
-			part_full_rhs="${part_full_rhs#*"${bad_char}"}" # Drop LHS
-			part_next="${part_full_rhs%%"${bad_char}"*}" # Drop RHS
+			part_full_rhs="${part_full_rhs#*${bad_char}}" # Drop LHS
+			part_next="${part_full_rhs%%${bad_char}*}" # Drop RHS
 
 			if [ "$part_next" = "$part_full_rhs" ]; then
 				# ok - No borken chars found
 				part_full_rhs=""
 				part_temp="${part_temp}${part_next}"
 			else
-				part_full_rhs="${part_full_rhs#*"${bad_char}"}" # Drop LHS
+				part_full_rhs="${part_full_rhs#*${bad_char}}" # Drop LHS
 				part_next="${part_next}${esc_char}${bad_char}" # Insert ESC+char
 				part_temp="${part_temp}${part_next}"
 			fi
