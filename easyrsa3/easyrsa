@@ -2475,25 +2475,55 @@ Non-decimal value for EASYRSA_FIX_OFFSET: '$EASYRSA_FIX_OFFSET'"
 
 	# OS dependencies
 	case "$easyrsa_uname" in
-	"Darwin"|*"BSD")
-		now_sec="$(date -j +%s)"
-		expire_date="$(date -j -f '%b %d %T %Y %Z' "$crt_not_after")"
-		expire_date_s="$(date -j -f '%b %d %T %Y %Z' "$crt_not_after" +%s)"
-		allow_renew_date_s="$(( now_sec + EASYRSA_CERT_RENEW * 86400 ))"
+		"Darwin"|*"BSD")
+			if expire_date_s="$(date -d "$crt_not_after" +%s 2> /dev/null)"
+			then
+				# Note: date.exe is Year 2038 end 32bit
+				expire_date="$(date -d "$crt_not_after")"
+				allow_renew_date_s="$(date -d "+${EASYRSA_CERT_RENEW}day" +%s)"
 
-		if [ "$EASYRSA_FIX_OFFSET" ]; then
-			start_fix_sec="$(
-				date -j -f '%Y%m%d%H%M%S' "${this_year}0101000000" +%s
-				)"
-			end_fix_sec="$(( start_fix_sec + fix_days * 86400 ))"
-			# Convert to date-stamps for SSL input
-			start_fixdate="$(date -j -r "$start_fix_sec" +%Y%m%d%H%M%SZ)"
-			end_fixdate="$(date -j -r "$end_fix_sec" +%Y%m%d%H%M%SZ)"
-		fi
-	;;
+				if [ "$EASYRSA_FIX_OFFSET" ]; then
+					# New Years Day, this year
+					New_Year_day="$(
+						date -d "${this_year}-01-01 00:00:00Z" '+%Y-%m-%d %H:%M:%SZ'
+						)"
+					# Convert to date-stamps for SSL input
+					start_fixdate="$(
+						date -d "$New_Year_day" +%Y%m%d%H%M%SZ
+						)"
+					end_fixdate="$(
+						date -d "$New_Year_day +${fix_days}days" +%Y%m%d%H%M%SZ
+						)"
+					end_fix_sec="$(
+						date -d "$New_Year_day +${fix_days}days" +%s
+						)"
+					fi
+			else
+				easyrsa_date="date"
+				if ! date -j > /dev/null 2>&1
+				then
+					# Fail back to MacOS BSD date
+					easyrsa_date="/bin/date"
+				fi
+				now_sec="$("${easyrsa_date}" -j +%s)"
+				expire_date="$("${easyrsa_date}" -j -f '%b %d %T %Y %Z' "$crt_not_after")"
+				expire_date_s="$("${easyrsa_date}" -j -f '%b %d %T %Y %Z' "$crt_not_after" +%s)"
+				allow_renew_date_s="$(( now_sec + EASYRSA_CERT_RENEW * 86400 ))"
+
+				if [ "$EASYRSA_FIX_OFFSET" ]; then
+					start_fix_sec="$(
+						"${easyrsa_date}" -j -f '%Y%m%d%H%M%S' "${this_year}0101000000" +%s
+						)"
+					end_fix_sec="$(( start_fix_sec + fix_days * 86400 ))"
+					# Convert to date-stamps for SSL input
+					start_fixdate="$("${easyrsa_date}" -j -r "$start_fix_sec" +%Y%m%d%H%M%SZ)"
+					end_fixdate="$("${easyrsa_date}" -j -r "$end_fix_sec" +%Y%m%d%H%M%SZ)"
+				fi
+			fi
+		;;
 	*)
 		# Linux and Windows (FTR: date.exe does not support format +%s as input)
-		if expire_date_s="$(date -d "$crt_not_after" +%s)"
+		if expire_date_s="$(date -d "$crt_not_after" +%s 2>/dev/null)"
 		then
 			# Note: date.exe is Year 2038 end 32bit
 			expire_date="$(date -d "$crt_not_after")"
@@ -2517,7 +2547,7 @@ Non-decimal value for EASYRSA_FIX_OFFSET: '$EASYRSA_FIX_OFFSET'"
 			fi
 
 		# Alpine Linux and busybox
-		elif expire_date_s="$(date -D "%b %e %H:%M:%S %Y" -d "$crt_not_after" +%s)"
+		elif expire_date_s="$(date -D "%b %e %H:%M:%S %Y" -d "$crt_not_after" +%s 2>/dev/null)"
 		then
 			expire_date="$(date -D "%b %e %H:%M:%S %Y" -d "$crt_not_after")"
 			allow_renew_date_s="$(( now_sec + EASYRSA_CERT_RENEW * 86400 ))"
