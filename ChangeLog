@@ -1,6 +1,7 @@
 Easy-RSA 3 ChangeLog
 
 3.1.1 (TBD)
+   * Provide support for ampersand and other characters (#588)
    * Introduce 'rewind-renew' (#579)
    * Expand status reports to include checking a single cert (#577)
 
