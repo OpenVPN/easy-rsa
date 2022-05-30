@@ -638,7 +638,7 @@ cleanup() {
 		exit 0
 	else
 		# if 'cleanup' is called without 'ok' then an error occurred
-		[ "$EASYRSA_SILENT" ] || echo "" # just to get a clean line
+		[ "$EASYRSA_SILENT" ] || print # just to get a clean line
 		exit 1
 	fi
 } # => cleanup()
@@ -651,40 +651,88 @@ make_safe_ssl_copy() {
 	easyrsa_openssl makesafeconf
 } # => make_safe_ssl_copy()
 
+# Escape hazardous characters
+escape_hazard() {
+		escape_field "$EASYRSA_REQ_PROVINCE" EASYRSA_REQ_PROVINCE
+		EASYRSA_REQ_PROVINCE_esc="$escaped"
+		escape_field  "$EASYRSA_REQ_CITY" EASYRSA_REQ_CITY
+		EASYRSA_REQ_CITY_esc="$escaped"
+		escape_field "$EASYRSA_REQ_ORG" EASYRSA_REQ_ORG
+		EASYRSA_REQ_ORG_esc="$escaped"
+		escape_field "$EASYRSA_REQ_EMAIL" EASYRSA_REQ_EMAIL
+		EASYRSA_REQ_EMAIL_esc="$escaped"
+		escape_field "$EASYRSA_REQ_OU" EASYRSA_REQ_OU
+		EASYRSA_REQ_OU_esc="$escaped"
+		unset -v escaped
+} # => escape_hazard()
+
+# Escape a single field
+escape_field() {
+	# Must be escaped here, if it was set externally
+	escape_char '"' "$1" "$2"
+	escaped="$out_str"
+	# Escaped for set_var() only, not required to escape here
+	#escape_char '{' "$escaped" "$2"
+	#escaped="$out_str"
+	#escape_char '}' "$escaped" "$2"
+	#escaped="$out_str"
+	# Must be escaped here
+	escape_char '&' "$escaped" "$2"
+	escaped="$out_str"
+	# Must be escaped here
+	escape_char '$' "$escaped" "$2"
+	escaped="$out_str"
+	unset -v out_str
+} # => escape_field()
+
 # 'sed' behavior with '&' is not modifiable, so auto escape '&'
 # shellcheck disable=SC2295 # Expansions inside ${..} need to be quoted ..
 escape_char() {
 	bad_char="$1"
 	in_str="$2"
-	shift 2 || die "escape_borken_char - input"
+	field="$3"
+	shift 3 || die "escape_char - bad input"
 	part_full_rhs="$in_str"
 	part_head=""
 	part_next=""
 	part_temp=""
 	esc_char=\\
 
-	part_head="${in_str%%${bad_char}*}" # Drop RHS
-	if [ "$part_head" = "$in_str" ]; then
-		# ok - No borken chars found
+	part_head="${part_full_rhs%%${bad_char}*}" # Drop RHS>
+	if [ "$part_head" = "$part_full_rhs" ]; then
+		# ok - No bad chars found
 		out_str="${part_head}"
 	else
 		part_head="${part_head}${esc_char}${bad_char}" # Insert ESC+char
-		while [ "$part_full_rhs" ]; do
-			part_full_rhs="${part_full_rhs#*${bad_char}}" # Drop LHS
-			part_next="${part_full_rhs%%${bad_char}*}" # Drop RHS
+		part_full_rhs="${part_full_rhs#*${bad_char}}" # Drop <LHS
 
+		while [ "$part_full_rhs" ]; do
+
+			part_next="${part_full_rhs%%${bad_char}*}" # Drop RHS>
 			if [ "$part_next" = "$part_full_rhs" ]; then
-				# ok - No borken chars found
-				part_full_rhs=""
-				part_temp="${part_temp}${part_next}"
+				# ok - No further bad chars found
+				part_full_rhs="" # Clear to exit
 			else
-				part_full_rhs="${part_full_rhs#*${bad_char}}" # Drop LHS
+				# Found bad char
+				part_full_rhs="${part_full_rhs#*${bad_char}}" # Drop <LHS
 				part_next="${part_next}${esc_char}${bad_char}" # Insert ESC+char
-				part_temp="${part_temp}${part_next}"
 			fi
+			part_temp="${part_temp}${part_next}" # Append with ESC+char inserted
 		done
-		out_str="${part_head}${part_temp}"
+		out_str="${part_head}${part_temp}" # Append final part without ESC+char
 	fi
+
+	# Debugging feature
+	if [ "$make_copy_ssl_conf" ]; then
+		print
+		print "* field: $field"
+		print "  in:  $in_str"
+		print "  out: $out_str"
+	fi
+
+	# Clean up
+	unset -v esc_char bad_char in_str field \
+		part_full_rhs part_head part_next part_temp
 } # => escape_char()
 
 # Easy-RSA meta-wrapper for SSL
@@ -718,47 +766,39 @@ easyrsa_openssl() {
 				die "easyrsa_openssl - Failed to create temporary file"
 		fi
 
-		# escape borken chars: '&'
-		escape_char '&' "$EASYRSA_REQ_PROVINCE"
-		EASYRSA_REQ_PROVINCE_esc="$out_str"
-		escape_char '&' "$EASYRSA_REQ_CITY"
-		EASYRSA_REQ_CITY_esc="$out_str"
-		escape_char '&' "$EASYRSA_REQ_ORG"
-		EASYRSA_REQ_ORG_esc="$out_str"
-		escape_char '&' "$EASYRSA_REQ_EMAIL"
-		EASYRSA_REQ_EMAIL_esc="$out_str"
-		escape_char '&' "$EASYRSA_REQ_OU"
-		EASYRSA_REQ_OU_esc="$out_str"
+		# Auto-escape hazardous characters:
+		# '&' - Workaround 'sed' demented behavior
+		# '$' - Must be escaped here to feed to openssl
+		# (") - Must be escaped here to feed to openssl, if set externally
+		EASYRSA_REQ_PROVINCE_esc="$EASYRSA_REQ_PROVINCE"
+		EASYRSA_REQ_CITY_esc="$EASYRSA_REQ_CITY"
+		EASYRSA_REQ_ORG_esc="$EASYRSA_REQ_ORG"
+		EASYRSA_REQ_OU_esc="$EASYRSA_REQ_OU"
+		EASYRSA_REQ_EMAIL_esc="$EASYRSA_REQ_EMAIL"
+		escape_hazard
 
-		# OpenSSL does not require a safe config, so skip to the copy
-		# require_safe_ssl_conf is set by verify_ssl_lib()
+		# require_safe_ssl_conf is ALWAYS set by verify_ssl_lib()
 		# OpenSSL cannot handle unescaped ampersand, so this is ALWAYS enabled
 		if [ "$require_safe_ssl_conf" ]; then
 			# Make a safe SSL config file
-			# First line: replace 'ENV::EASYRSA' with 'EASYRSA'
-			# Result: '$ENV::EASYRSA_PKI' -> '$EASYRSA_PKI'
-			# Now replace '$EASYRSA_PKI' with expansion
-			#	-e s\`ENV::EASYRSA\`EASYRSA\`g \
-
 			# shellcheck disable=SC2016 # No expansion inside ' single quote
 			sed \
-			-e s\`'$dir'\`"$EASYRSA_PKI"\`g \
-			-e s\`'$ENV::EASYRSA_PKI'\`"$EASYRSA_PKI"\`g \
-			-e s\`'$ENV::EASYRSA_CERT_EXPIRE'\`"$EASYRSA_CERT_EXPIRE"\`g \
-			-e s\`'$ENV::EASYRSA_CRL_DAYS'\`"$EASYRSA_CRL_DAYS"\`g \
-			-e s\`'$ENV::EASYRSA_DIGEST'\`"$EASYRSA_DIGEST"\`g \
-			-e s\`'$ENV::EASYRSA_KEY_SIZE'\`"$EASYRSA_KEY_SIZE"\`g \
-			-e s\`'$ENV::EASYRSA_DN'\`"$EASYRSA_DN"\`g \
-			-e s\`'$ENV::EASYRSA_REQ_COUNTRY'\`"$EASYRSA_REQ_COUNTRY"\`g \
-			-e s\`'$ENV::EASYRSA_REQ_PROVINCE'\`"$EASYRSA_REQ_PROVINCE_esc"\`g \
-			-e s\`'$ENV::EASYRSA_REQ_CITY'\`"$EASYRSA_REQ_CITY_esc"\`g \
-			-e s\`'$ENV::EASYRSA_REQ_ORG'\`"$EASYRSA_REQ_ORG_esc"\`g \
-			-e s\`'$ENV::EASYRSA_REQ_OU'\`"$EASYRSA_REQ_OU_esc"\`g \
-			-e s\`'$ENV::EASYRSA_REQ_CN'\`"$EASYRSA_REQ_CN"\`g \
-			-e s\`'$ENV::EASYRSA_REQ_EMAIL'\`"$EASYRSA_REQ_EMAIL_esc"\`g \
+			-e s\`'$dir'\`\""$EASYRSA_PKI"\"\`g \
+			-e s\`'$ENV::EASYRSA_PKI'\`\""$EASYRSA_PKI"\"\`g \
+			-e s\`'$ENV::EASYRSA_CERT_EXPIRE'\`\""$EASYRSA_CERT_EXPIRE"\"\`g \
+			-e s\`'$ENV::EASYRSA_CRL_DAYS'\`\""$EASYRSA_CRL_DAYS"\"\`g \
+			-e s\`'$ENV::EASYRSA_DIGEST'\`\""$EASYRSA_DIGEST"\"\`g \
+			-e s\`'$ENV::EASYRSA_KEY_SIZE'\`\""$EASYRSA_KEY_SIZE"\"\`g \
+			-e s\`'$ENV::EASYRSA_DN'\`\""$EASYRSA_DN"\"\`g \
+			-e s\`'$ENV::EASYRSA_REQ_CN'\`\""$EASYRSA_REQ_CN"\"\`g \
+			-e s\`'$ENV::EASYRSA_REQ_COUNTRY'\`\""$EASYRSA_REQ_COUNTRY"\"\`g \
+			-e s\`'$ENV::EASYRSA_REQ_PROVINCE'\`\""$EASYRSA_REQ_PROVINCE_esc"\"\`g \
+			-e s\`'$ENV::EASYRSA_REQ_CITY'\`\""$EASYRSA_REQ_CITY_esc"\"\`g \
+			-e s\`'$ENV::EASYRSA_REQ_ORG'\`\""$EASYRSA_REQ_ORG_esc"\"\`g \
+			-e s\`'$ENV::EASYRSA_REQ_OU'\`\""$EASYRSA_REQ_OU_esc"\"\`g \
+			-e s\`'$ENV::EASYRSA_REQ_EMAIL'\`\""$EASYRSA_REQ_EMAIL_esc"\"\`g \
 				"$EASYRSA_SSL_CONF" > "$easyrsa_openssl_conf" || \
 					die "easyrsa_openssl - Failed to make temporary config"
-
 		else
 			# Do NOT Make a safe SSL config file
 			cp -f "$EASYRSA_SSL_CONF" "$easyrsa_openssl_conf" || \
@@ -770,7 +810,9 @@ easyrsa_openssl() {
 			mv -f "$easyrsa_openssl_conf" "$EASYRSA_SAFE_CONF" || \
 				die "easyrsa_openssl - makesafeconf failed"
 			if [ "$make_copy_ssl_conf" ]; then
-				cp "$EASYRSA_SAFE_CONF" "${EASYRSA_SAFE_CONF}.copy"
+				print
+				cp -v "$EASYRSA_SAFE_CONF" "${EASYRSA_SAFE_CONF}.temp"
+				print
 			fi
 		else
 			# debug log on
@@ -1012,11 +1054,11 @@ install_data_to_pki () {
 
 	# Find and copy data-files, in specific order
 	for area in \
-		"$PWD" \
-		"${0%/*}" \
 		'/etc/easy-rsa' \
 		'/usr/share/easy-rsa' \
 		'/usr/local/share/easy-rsa' \
+		"$PWD" \
+		"${0%/*}" \
 		# EOL - # Add more distros here
 	do
 		# Omitting "$vars_file"
@@ -3503,12 +3545,12 @@ recommended - please remove it from there before continuing."
 						-e "EASYRSA_REQ_EMAIL" \
 						-e "EASYRSA_REQ_OU" |
 					grep \
-						 -e '`' -e '{' -e '}'
+						-q -e '`'
 				then
-					warn '\
+					die "\
 Unsupported  characters are present in the vars file.
-These characters are not supported: (\`) ({) (})
-Sourcing the vars file and building certificates will probably fail ..'
+These characters are not supported: (\`)
+Remove any unsupported characters."
 				fi
 			fi
 
