@@ -1,9 +1,10 @@
 easyrsa3/pki
-easyrsa3/unit-tests-temp
-easyrsa-unit-tests.sh
 easyrsa3/vars
-dist-staging
 easyrsa3/safessl-easyrsa.cnf
-testdeps/*
-shellcheck
+easyrsa3/unit?tests
+easyrsa-unit-tests.sh
+easyrsa-unit-tests-help.sh
+dist-staging
 .DS_Store
+test-deps/*
+shellcheck
