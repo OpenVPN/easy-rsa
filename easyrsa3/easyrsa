@@ -748,13 +748,13 @@ easyrsa_openssl() {
 			-e s\`'$ENV::EASYRSA_CRL_DAYS'\`"$EASYRSA_CRL_DAYS"\`g \
 			-e s\`'$ENV::EASYRSA_DIGEST'\`"$EASYRSA_DIGEST"\`g \
 			-e s\`'$ENV::EASYRSA_KEY_SIZE'\`"$EASYRSA_KEY_SIZE"\`g \
+			-e s\`'$ENV::EASYRSA_REQ_CN'\`"$EASYRSA_REQ_CN"\`g \
 			-e s\`'$ENV::EASYRSA_DN'\`"$EASYRSA_DN"\`g \
 			-e s\`'$ENV::EASYRSA_REQ_COUNTRY'\`"$EASYRSA_REQ_COUNTRY"\`g \
 			-e s\`'$ENV::EASYRSA_REQ_PROVINCE'\`"$EASYRSA_REQ_PROVINCE_esc"\`g \
 			-e s\`'$ENV::EASYRSA_REQ_CITY'\`"$EASYRSA_REQ_CITY_esc"\`g \
 			-e s\`'$ENV::EASYRSA_REQ_ORG'\`"$EASYRSA_REQ_ORG_esc"\`g \
 			-e s\`'$ENV::EASYRSA_REQ_OU'\`"$EASYRSA_REQ_OU_esc"\`g \
-			-e s\`'$ENV::EASYRSA_REQ_CN'\`"$EASYRSA_REQ_CN"\`g \
 			-e s\`'$ENV::EASYRSA_REQ_EMAIL'\`"$EASYRSA_REQ_EMAIL_esc"\`g \
 				"$EASYRSA_SSL_CONF" > "$easyrsa_openssl_conf" || \
 					die "easyrsa_openssl - Failed to make temporary config"
@@ -798,7 +798,8 @@ easyrsa_openssl() {
 # Verify the SSL library is functional and establish version dependencies
 verify_ssl_lib() {
 	if [ -z "$EASYRSA_SSL_OK" ]; then
-		val="$("$EASYRSA_OPENSSL" version)"
+		# redirect err-out to ignore missing etc/ssl/openssl.cnf file
+		val="$("$EASYRSA_OPENSSL" version 2>/dev/null)"
 		case "${val%% *}" in
 			# OpenSSL does require a safe config-file for ampersand
 			OpenSSL) require_safe_ssl_conf=1 ;;
