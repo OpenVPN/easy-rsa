@@ -1,6 +1,7 @@
 Easy-RSA 3 ChangeLog
 
 3.1.1 (TBD)
+   * Support ampersand and dollar-sign in vars file (#590)
    * Introduce 'rewind-renew' (#579)
    * Expand status reports to include checking a single cert (#577)
 
