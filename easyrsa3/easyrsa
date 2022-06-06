@@ -78,6 +78,7 @@ DIRECTORY STATUS (commands would take effect on these locations)
 # 'case' indentation is minimalistic.
 cmd_help() {
 	text=""
+	err_text=""
 	opts=""
 	case "$1" in
 	init-pki|clean-all)
@@ -375,29 +376,33 @@ cmd_help() {
       * IP:203.0.113.29
       * email:alternate@example.net"
 	;;
-	options)
+	opts|options)
 		opt_usage
 	;;
 	"")
 		usage ;;
 	*)
-		text="
+		err_text="
   Unknown command: '$1' (try without commands for a list of commands)"
 	esac
 
 	# display the help text
 	[ "$text" ] && print "${text}${NL}"
-	if [ "$opts" ]; then
+	if [ "$text" ] && [ "$opts" ]; then
 		print "\
     Available command-options (cmd-opts):
 $opts
 "
-	else
+	elif [ "$text" ] && [ -z "$opts" ]; then
 		print "\
     Available command-options (cmd-opts):
 
       * N/A - No supported command-options
 "
+	elif [ "$err_text" ]; then
+		print "${err_text}${NL}"
+	else
+		: # ok - No opts message required
 	fi
 } # => cmd_help()
 
