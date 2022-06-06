@@ -436,12 +436,6 @@ General options:
 Certificate & Request options: (these impact cert/req field values)
 
 --days=#        : sets the signing validity to the specified number of days
---renew-days=#  : Number of days grace period before allowing renewal
---fix-offset=#  : Generate certificate with fixed start and end dates.
-                : Range 1 to 365
-                : start date: 01 January 00:00:00 of the current year
-                : end date:   off-set days 01:00:00 of the final year
-				: Final year is configured via --days (Default: 825 days, 2 years)
 
 --digest=ALG    : digest to use in the requests & certificates
 --dn-mode=MODE  : DN mode to use (cn_only or org)
@@ -470,6 +464,16 @@ Deprecated features:
 --ns-cert=YES/NO      : yes or no to including deprecated NS extensions
 --ns-comment=COMMENT  : NS comment to include (value may be blank)
 "
+
+: << OLD_OPTS
+--renew-days=#  : Number of days grace period before allowing renewal
+--fix-offset=#  : Generate certificate with fixed start and end dates.
+                : Range 1 to 365
+                : start date: 01 January 00:00:00 of the current year
+                : end date:   off-set days 01:00:00 of the final year
+				: Final year is configured via --days (Default: 825 days, 2 years)
+OLD_OPTS
+
 } # => opt_usage()
 
 # Wrapper around printf - clobber print since it's not POSIX anyway
@@ -1417,7 +1421,7 @@ sign_req() {
 	crt_out="$EASYRSA_PKI/issued/$2.crt"
 
 	# Get fixed dates by --fix-offset
-	cert_dates
+	#cert_dates
 
 	# Randomize Serial number
 	if [ "$EASYRSA_RAND_SN" != "no" ]; then
@@ -1905,12 +1909,12 @@ Cannot renew this certificate because a conflicting file exists.
 	[ -e "$req_out" ] && die "$deny_msg request    : $req_out"
 	unset -v deny_msg
 
-	# Check if old cert is expired or expires within 30
-	cert_dates "$crt_in"
-
-	[ "$expire_date_s" -lt "$allow_renew_date_s" ] || die "\
-Certificate expires in more than $EASYRSA_CERT_RENEW days.
-Renewal not allowed."
+	#	# Check if old cert is expired or expires within 30
+	#	cert_dates "$crt_in"
+	#
+	#	[ "$expire_date_s" -lt "$allow_renew_date_s" ] || die "\
+	#Certificate expires in more than $EASYRSA_CERT_RENEW days.
+	#Renewal not allowed."
 
 	# Extract certificate usage from old cert
 	cert_ext_key_usage="$(
@@ -2413,6 +2417,9 @@ To revoke use: 'revoke-renewed $crt_cn'"
 
 # Set certificate expire date, renew date and variables needed for fixdate
 cert_dates() {
+
+	die "DISABLED: cert_dates()"
+
 	if [ -e "$1" ]; then
 		# Required for renewal
 		# Call openssl directly, otherwise this is not debug compatible
@@ -3047,7 +3054,7 @@ build_ff_date_string() {
 	ff_date="${ff_date#"$SS"}"
 	TZ="$ff_date"
 	ff_date="${yy}-${mm}-${dd} ${HH}:${MM}:${SS}${TZ}"
-} # => build_date_string()
+} # => build_ff_date_string()
 
 # SC2295: (info): Expansions inside ${..} need to be quoted separately,
 # otherwise they match as patterns. (what-ever that means .. ;-)
@@ -3187,6 +3194,11 @@ renew_status() {
 
 # cert status reports
 status() {
+	# Disabled until a universal date wrapper is complete
+	unset EASYRSA_BATCH EASYRSA_SILENT
+	message "Status reports are currently disabled."
+	return
+
 	[ "$#" -gt 0 ] || die "status - Incorrect input parameters"
 	report="$1"
 	target="$2"

@@ -142,16 +142,6 @@ fi
 # publication date.
 #set_var EASYRSA_CRL_DAYS	180
 
-# How many days before its expiration date a certificate is allowed to be
-# renewed?
-#set_var EASYRSA_CERT_RENEW	30
-
-# For fixed certificate start/end dates - Range 1..365
-# If set here then command line option is always in effect.
-# The day number 183 is either July 2nd or 3rd (leap-year)
-# Replace with your chosen day-of-year value:
-#set_var  EASYRSA_FIX_OFFSET 183
-
 # Random serial numbers by default, set to no for the old incremental serial numbers
 #
 #set_var EASYRSA_RAND_SN	"yes"
@@ -233,3 +223,17 @@ fi
 # or most output. Setting this to any non-blank string enables batch mode.
 
 #set_var EASYRSA_BATCH		""
+
+# DISABLED - DO NOT USE
+# Ref: https://github.com/OpenVPN/easy-rsa/issues/593
+# How many days before its expiration date a certificate is allowed to be
+# renewed?
+#set_var EASYRSA_CERT_RENEW	30
+
+# DISABLED - DO NOT USE
+# Ref: https://github.com/OpenVPN/easy-rsa/issues/593
+# For fixed certificate start/end dates - Range 1..365
+# If set here then command line option is always in effect.
+# The day number 183 is either July 2nd or 3rd (leap-year)
+# Replace with your chosen day-of-year value:
+#set_var  EASYRSA_FIX_OFFSET 183
