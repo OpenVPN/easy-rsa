@@ -1759,7 +1759,8 @@ with the following subject:
   $(display_dn x509 "$crt_in")
 
   serial-number: $cert_serial
-"	# => confirm end
+
+  Reason: ${crl_reason-None given}"
 
 	# Revoke certificate
 	easyrsa_openssl ca -utf8 -revoke "$crt_in" \
@@ -1969,8 +1970,7 @@ with the following subject:
 
   $(display_dn x509 "$crt_in")
 
-  serial-number: $cert_serial
-"	# => confirm end
+  serial-number: $cert_serial"
 
 	# move renewed files so we can reissue certificate with the same name
 	renew_move
@@ -2189,12 +2189,7 @@ This process is destructive!
 These files will be moved to the 'revoked' storage sub-directory:
 * $crt_in
 * $key_in
-* $req_in
-
-These files will be DELETED:
-* All PKCS files for commonName : $file_name_base
-* The inline credentials file   : $creds_in
-* The duplicate certificate     : $duplicate_crt_by_serial"
+* $req_in"
 
 	confirm "  Continue with revocation: " "yes" "\
   Please confirm you wish to revoke the renewed certificate
@@ -2203,11 +2198,12 @@ These files will be DELETED:
   $(display_dn x509 "$crt_in")
 
   serial-number: $cert_serial
-"	# => confirm end
+
+  Reason: ${crl_reason-None given}"
 
 	# Revoke the old (already renewed) certificate
 	easyrsa_openssl ca -utf8 -revoke "$crt_in" \
-		${crl_reason:+ -crl_reason "$crl_reason"} \
+		${crl_reason+ -crl_reason "$crl_reason"} \
 		${EASYRSA_PASSIN:+ -passin "$EASYRSA_PASSIN"} \
 			|| die "Failed to revoke renewed certificate: revocation command failed."
 
@@ -2248,22 +2244,6 @@ revoke_renewed_move() {
 	if [ -e "$req_in" ]; then
 		mv "$req_in" "$req_out" || warn "Failed to move: $req_in"
 	fi
-
-	# move any pkcs files
-	for pkcs in p12 p7b p8 p1; do
-		if [ -e "$in_dir/issued/$file_name_base.$pkcs" ]; then
-			# issued
-			rm "$in_dir/issued/$file_name_base.$pkcs" ||
-				warn "Failed to remove: $file_name_base.$pkcs"
-
-		elif [ -e "$in_dir/private/$file_name_base.$pkcs" ]; then
-			# private
-			rm "$in_dir/private/$file_name_base.$pkcs" ||
-				warn "Failed to remove: $file_name_base.$pkcs"
-		else
-			: # ok
-		fi
-	done
 
 	return 0
 } # => revoke_renewed_move()
