@@ -663,23 +663,29 @@ make_safe_ssl_copy() {
 # Escape hazardous characters
 escape_hazard() {
 	# escape '&' and '$' and write free form fields to org temp-file
-	print "\
+	( # subshell for local debug
+		# debug log on
+		if [ "$EASYRSA_DEBUG" ]; then print "<< DEBUG-ON >>"; set -x; fi
+		print "\
 export EASYRSA_REQ_COUNTRY=\"$EASYRSA_REQ_COUNTRY\"
 export EASYRSA_REQ_PROVINCE=\"$EASYRSA_REQ_PROVINCE\"
 export EASYRSA_REQ_CITY=\"$EASYRSA_REQ_CITY\"
 export EASYRSA_REQ_ORG=\"$EASYRSA_REQ_ORG\"
 export EASYRSA_REQ_OU=\"$EASYRSA_REQ_OU\"
 export EASYRSA_REQ_EMAIL=\"$EASYRSA_REQ_EMAIL\"
-" |		sed -e s\`'&'\`'\\\&'\`g \
+" | sed		-e s\`'&'\`'\\\&'\`g \
 			-e s\`'\$'\`'\\\$'\`g > "$easyrsa_openssl_conf_org" || \
 				die "Failed to write 'easyrsa_openssl_conf_org' temp file"
+		# debug log off
+		if [ "$EASYRSA_DEBUG" ]; then set +x; print ">> DEBUG-OFF <<"; fi
+	) # Close subshell
 
 	# Reload fields from fully escaped org temp-file
 	# shellcheck disable=SC1090 # can't follow non-constant source.
 	. "$easyrsa_openssl_conf_org" || die "escape_hazard - Failed to source 'org'"
 
 	# Clean up
-	[ ! -e "$easyrsa_openssl_conf_org" ] || rm -rf "$easyrsa_openssl_conf_org"
+	rm -f "$easyrsa_openssl_conf_org"
 } # => escape_hazard()
 
 # Easy-RSA meta-wrapper for SSL
@@ -760,24 +766,24 @@ easyrsa_openssl() {
 			fi
 		else
 			# debug log on
-			if [ "$EASYRSA_DEBUG" ]; then set -x; fi
+			[ "$EASYRSA_DEBUG" ] && echo "<< DEBUG-ON >>" && set -x
 
 			# Exec SSL with -config temp-file
 			"$EASYRSA_OPENSSL" "$openssl_command" \
 				-config "$easyrsa_openssl_conf" "$@" || return
 
 			# debug log off
-			if [ "$EASYRSA_DEBUG" ]; then set +x; fi
+			[ "$EASYRSA_DEBUG" ] && set +x && echo ">> DEBUG-OFF <<"
 		fi
 	else
 		# debug log on
-		if [ "$EASYRSA_DEBUG" ]; then set -x; fi
+		[ "$EASYRSA_DEBUG" ] && echo "<< DEBUG-ON >>" && set -x
 
 		# Exec SSL without -config temp-file
 		"$EASYRSA_OPENSSL" "$openssl_command" "$@" || return
 
 		# debug log off
-		if [ "$EASYRSA_DEBUG" ]; then set +x; fi
+		[ "$EASYRSA_DEBUG" ] && set +x && echo ">> DEBUG-OFF <<"
 	fi
 } # => easyrsa_openssl()
 
@@ -980,6 +986,9 @@ install_data_to_pki () {
 # priority over './vars'. But it will not be updated if './vars' is changed.
 #
 # Copying 'vars' to the PKI is complicated, code is included but DISABLED.
+
+	# debug log on
+	[ "$EASYRSA_DEBUG" ] && echo "<< DEBUG-ON >>" && set -x
 
 	context="$1"
 	shift
@@ -1614,10 +1623,12 @@ Matching file found at: "
 	gen_req "$name" batch ${nopass+ nopass}
 
 	# Sign it
-	( sign_req "$crt_type" "$name" batch ) || {
+	if sign_req "$crt_type" "$name" batch; then
+		: # ok
+	else
 		rm -f "$req_out" "$key_out"
 		die "Failed to sign '$name' - See error messages above for details."
-	}
+	fi
 
 	# inline it
 	if [ "$EASYRSA_INLINE" ]; then
@@ -1989,8 +2000,8 @@ Renewal has failed to build a new certificate/key pair."
 	# Success messages
 	notice "                              * IMPORTANT *
 
-Renew was successful. To revoke the old certificate, once the new one
-has been deployed, use 'revoke-renewed $file_name_base'"
+Renew was successful. To revoke the old certificate, once the new one has
+been deployed, use 'revoke-renewed $file_name_base reason' ('reason' is optional)"
 
 	return 0
 } # => renew()
@@ -4214,7 +4225,8 @@ Version:     $EASYRSA_version
 Generated:   ~DATE~
 SSL Lib:     $ssl_version
 Git Commit:  ~GITHEAD~
-Source Repo: https://github.com/OpenVPN/easy-rsa
+Source Repo: https://github.com/OpenVPN/easy-rsa${EASYRSA_DEBUG+
+* debug enabled}
 VERSION_TEXT
 } # => print_version ()
 
