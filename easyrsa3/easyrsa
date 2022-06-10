@@ -766,24 +766,24 @@ easyrsa_openssl() {
 			fi
 		else
 			# debug log on
-			[ "$EASYRSA_DEBUG" ] && echo "<< DEBUG-ON >>" && set -x
+			if [ "$EASYRSA_DEBUG" ]; then print "<< DEBUG-ON >>"; set -x; fi
 
 			# Exec SSL with -config temp-file
 			"$EASYRSA_OPENSSL" "$openssl_command" \
 				-config "$easyrsa_openssl_conf" "$@" || return
 
 			# debug log off
-			[ "$EASYRSA_DEBUG" ] && set +x && echo ">> DEBUG-OFF <<"
+			if [ "$EASYRSA_DEBUG" ]; then set +x; print ">> DEBUG-OFF <<"; fi
 		fi
 	else
 		# debug log on
-		[ "$EASYRSA_DEBUG" ] && echo "<< DEBUG-ON >>" && set -x
+		if [ "$EASYRSA_DEBUG" ]; then print "<< DEBUG-ON >>"; set -x; fi
 
 		# Exec SSL without -config temp-file
 		"$EASYRSA_OPENSSL" "$openssl_command" "$@" || return
 
 		# debug log off
-		[ "$EASYRSA_DEBUG" ] && set +x && echo ">> DEBUG-OFF <<"
+		if [ "$EASYRSA_DEBUG" ]; then set +x; print ">> DEBUG-OFF <<"; fi
 	fi
 } # => easyrsa_openssl()
 
@@ -988,7 +988,7 @@ install_data_to_pki () {
 # Copying 'vars' to the PKI is complicated, code is included but DISABLED.
 
 	# debug log on
-	[ "$EASYRSA_DEBUG" ] && echo "<< DEBUG-ON >>" && set -x
+	if [ "$EASYRSA_DEBUG" ]; then print ">> DEBUG-ON <<"; set -x; fi
 
 	context="$1"
 	shift
@@ -1088,7 +1088,11 @@ install_data_to_pki () {
 
 	# Complete or error
 	require_safe_ssl_conf=1 # Always required
-	[ -e "$EASYRSA_SAFE_CONF" ] || easyrsa_openssl makesafeconf
+	[ -e "$EASYRSA_SAFE_CONF" ] || easyrsa_openssl makesafeconf || return
+
+	# debug log OFF
+	if [ "$EASYRSA_DEBUG" ]; then set +x; print ">> DEBUG-OFF <<"; fi
+
 } # => install_data_to_pki ()
 
 # Disable terminal echo, if possible, otherwise warn
