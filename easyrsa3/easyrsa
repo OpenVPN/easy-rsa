@@ -1433,9 +1433,6 @@ sign_req() {
 	req_in="$EASYRSA_PKI/reqs/$2.req"
 	crt_out="$EASYRSA_PKI/issued/$2.crt"
 
-	# Get fixed dates by --fix-offset
-	#cert_dates
-
 	# Randomize Serial number
 	if [ "$EASYRSA_RAND_SN" != "no" ]; then
 		i=""
@@ -1497,6 +1494,19 @@ Request subject, to be signed as a $crt_type certificate for $EASYRSA_CERT_EXPIR
 
 $(display_dn req "$req_in")
 "	# => confirm end
+
+	# Get fixed dates by --fix-offset
+	if [ "$EASYRSA_FIX_OFFSET" ]; then
+		fixed_dates="$( # subshell for debug
+			[ "$EASYRSA_DEBUG" ] && set -x
+			fixed_cert_dates "$EASYRSA_FIX_OFFSET"
+		)" # Close subshell
+		start_fixdate="${fixed_dates% *}"
+		end_fixdate="${fixed_dates#* }"
+		unset -v fixed_dates
+	else
+		unset -v start_fixdate end_fixdate
+	fi
 
 	# When EASYRSA_CP_EXT is defined, adjust openssl's [default_ca] section:
 	if [ "$EASYRSA_CP_EXT" ]; then
@@ -1571,8 +1581,8 @@ $ext_tmp"
 	easyrsa_openssl ca -utf8 -in "$req_in" -out "$crt_out_tmp" \
 		-extfile "$ext_tmp" -days "$EASYRSA_CERT_EXPIRE" -batch \
 		${EASYRSA_PASSIN:+-passin "$EASYRSA_PASSIN"} \
-		${EASYRSA_FIX_OFFSET:+ -startdate "$start_fixdate"} \
-		${EASYRSA_FIX_OFFSET:+ -enddate "$end_fixdate"} \
+		${EASYRSA_FIX_OFFSET+ -startdate "$start_fixdate"} \
+		${EASYRSA_FIX_OFFSET+ -enddate "$end_fixdate"} \
 			|| die "signing failed (openssl output above may have more detail)"
 
 	mv "$crt_out_tmp" "$crt_out"
@@ -2897,6 +2907,149 @@ OpenSSL failure to process the input"
 
 	[ "$EASYRSA_SILENT" ] || print # Separate certificate above
 } # => show_ca()
+
+# Set fixed offset dates
+fixed_cert_dates() {
+	# Set the start fixed day-number of the Year
+	start_fix_day_n="$1"
+
+	# Check offset is numeric
+	case "$start_fix_day_n" in
+	(''|*[!1234567890]*|0*)
+		die "fixed_cert_dates - Number expected: $start_fix_day_n"
+	esac
+
+	# Check offset range
+	if [ 1 -gt "$start_fix_day_n" ] || [ 365 -lt "$start_fix_day_n" ]
+	then
+		die "Fixed off-set out of range [1-365 days]: $start_fix_day_n"
+	fi
+
+	# Set the end fixed day-number of the Year
+	end_fix_day_n="$(( start_fix_day_n + EASYRSA_CERT_EXPIRE ))"
+
+	# OS dependencies
+
+	# busybox - Works best with seconds since epoch
+	# busybox can probably do this better, this was writen for 'date'
+	if busybox date --help > /dev/null 2>&1; then
+
+		this_year_n="$(busybox date -u +%y)"
+		today_n="$(busybox date -u +%j)"
+
+		# If the start day number is into the future then back-date by one year
+		if [ "$start_fix_day_n" -gt "$today_n" ]; then
+			not_valid_until_d="$(( start_fix_day_n - today_n ))"
+			this_year_n="$(( this_year_n - 1 ))"
+			# Get user confirmation
+			# This needs to be less rigid ;-)
+			confirm "  Create certificate with one year back-dated date ? " \
+				"yes" "\
+This certificate will not be valid for '${not_valid_until_d} days'.
+The fixed date will be rolled backward by one year."
+		fi
+
+		New_Year_day_s="$(
+			busybox date -u -d "${this_year_n}01010000.01" '+%s'
+			)"
+
+		start_fix_day_s="$(( New_Year_day_s + start_fix_day_n * 86400 ))"
+		end_fix_day_s="$(( start_fix_day_s + EASYRSA_CERT_EXPIRE * 86400 ))"
+
+		# Convert to date-stamps for SSL input
+		start_fix_day_d="$(
+			busybox date -u -d @"${start_fix_day_s}" +%Y%m%d%H%M%SZ
+			)"
+		end_fix_day_d="$(
+			busybox date -u -d @"${end_fix_day_s}" +%Y%m%d%H%M%SZ
+			)"
+
+	# Darwin, BSD
+	elif 	(
+				case "$easyrsa_uname" in
+				(Darwin|*BSD)
+					# Not MacPorts GNU date
+					date -j && return
+				esac
+				return 1
+			)
+	then
+
+		this_year_n="$(date -j +%y)"
+		today_n="$(date -u -j +%j)"
+
+		# If the start day number is into the future then back-date by one year
+		if [ "$start_fix_day_n" -gt "$today_n" ]; then
+			not_valid_until_d="$(( start_fix_day_n - today_n ))"
+			this_year_n="$(( this_year_n - 1 ))"
+			# Get user confirmation
+			confirm "  Create certificate with one year back-dated date ? " \
+				"yes" "\
+This certificate will not be valid for ${not_valid_until_d} days.
+The fixed date will be rolled backward by one year."
+		fi
+
+		New_Year_day_d="$(
+			date -u -j -f '%y%m%d%H%M%S' "${this_year_n}0101000001" \
+				'+%Y%m%d%H%M.%SZ'
+			)"
+
+		# Convert to date-stamps for SSL input
+		start_fix_day_d="$(
+			date -u -j -f %Y%m%d%H%M.%SZ -v "+${start_fix_day_n}d" \
+				"$New_Year_day_d" +%Y%m%d%H%M%SZ
+			)"
+		end_fix_day_d="$(
+			date -u -j -f %Y%m%d%H%M.%SZ -v "+${end_fix_day_n}d" \
+				"$New_Year_day_d" +%Y%m%d%H%M%SZ
+			)"
+		end_fix_day_s="$(
+			date -u -j -f %Y%m%d%H%M.%SZ -v "+${end_fix_day_n}d" \
+				"$New_Year_day_d" +%s
+			)"
+
+	# Linux and Windows
+	# Windows date.exe does not support format +%s as input
+	# MacPorts GNU date
+	elif this_year_n="$(date -u +%y)"; then
+
+		# Day of Year number today
+		today_n="$(date -u +%j)"
+
+		# If the start day number is into the future then back-date by one year
+		if [ "$start_fix_day_n" -gt "$today_n" ]; then
+			not_valid_until_d="$(( start_fix_day_n - today_n ))"
+			this_year_n="$(( this_year_n - 1 ))"
+			# Get user confirmation
+			confirm "  Create certificate with one year back-dated date ? " \
+				"yes" "\
+This certificate will not be valid for ${not_valid_until_d} days.
+The fixed date will be rolled backward by one year."
+		fi
+
+		# New Years day date
+		New_Year_day_d="$(
+			date -u -d "${this_year_n}-01-01 00:00:01Z" '+%Y-%m-%d %H:%M:%SZ'
+			)"
+
+		# Convert to date-stamps for SSL input
+		start_fix_day_d="$(
+			date -u -d "$New_Year_day_d +${start_fix_day_n}days" +%Y%m%d%H%M%SZ
+			)"
+		end_fix_day_d="$(
+			date -u -d "$New_Year_day_d +${end_fix_day_n}days" +%Y%m%d%H%M%SZ
+			)"
+		end_fix_day_s="$(
+			date -u -d "$New_Year_day_d +${end_fix_day_n}days" +%s
+			)"
+
+	else
+		die "Unsupported 'date' program, upgrade your Matrix."
+	fi
+
+	# Return FINAL dates for use in the certificate
+	print "$start_fix_day_d $end_fix_day_d"
+} # => fixed_cert_dates()
 
 # Convert certificate date to timestamp seconds since epoch
 cert_date_to_timestamp_s() {
