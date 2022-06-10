@@ -4229,6 +4229,19 @@ NL='
 # Be secure with a restrictive umask
 [ "$EASYRSA_NO_UMASK" ] || umask "${EASYRSA_UMASK:-077}"
 
+# Register cleanup on EXIT
+trap "cleanup" EXIT
+# When SIGHUP, SIGINT, SIGQUIT, SIGABRT and SIGTERM,
+# explicitly exit to signal EXIT (non-bash shells)
+trap "exit 1" 1
+trap "exit 2" 2
+trap "exit 3" 3
+trap "exit 6" 6
+trap "exit 14" 15
+
+# Get host details - does not require vars_setup
+detect_host
+
 # Initialisation requirements
 unset -v easyrsa_error_exit user_san_true user_vars_true
 
@@ -4357,19 +4370,6 @@ subjectAltName = $val"
 
 	shift
 done
-
-# Register cleanup on EXIT
-trap "cleanup" EXIT
-# When SIGHUP, SIGINT, SIGQUIT, SIGABRT and SIGTERM,
-# explicitly exit to signal EXIT (non-bash shells)
-trap "exit 1" 1
-trap "exit 2" 2
-trap "exit 3" 3
-trap "exit 6" 6
-trap "exit 14" 15
-
-# Get host details - does not require vars_setup
-detect_host
 
 # Set cmd now because vars_setup needs to know if this is init-pki
 cmd="$1"
