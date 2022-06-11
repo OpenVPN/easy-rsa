@@ -2965,15 +2965,7 @@ The fixed date will be rolled backward by one year."
 			)"
 
 	# Darwin, BSD
-	elif 	(
-				case "$easyrsa_uname" in
-				(Darwin|*BSD)
-					# Not MacPorts GNU date
-					date -j && return
-				esac
-				return 1
-			)
-	then
+	elif date -j > /dev/null 2>&1; then
 
 		this_year_n="$(date -j +%y)"
 		today_n="$(date -u -j +%j)"
@@ -2990,8 +2982,8 @@ The fixed date will be rolled backward by one year."
 		fi
 
 		New_Year_day_d="$(
-			date -u -j -f '%y%m%d%H%M%S' "${this_year_n}0101000001" \
-				'+%Y%m%d%H%M.%SZ'
+			date -u -j -f %y%m%d%H%M%S "${this_year_n}0101000001" \
+				+%Y%m%d%H%M.%SZ
 			)"
 
 		# Convert to date-stamps for SSL input
