@@ -3048,14 +3048,14 @@ cert_date_to_timestamp_s() {
 
 	in_date="$1"
 
-	# OS dependencies
-	# Linux and Windows (FTR: date.exe does not support format +%s as input)
-	# MacPorts GNU date
-	if timestamp_s="$(
-		date -d "$in_date" +%s \
-			2>/dev/null
-		)"
-	then return
+	# busybox
+	if busybox date --help > /dev/null 2>&1
+	then
+		timestamp_s="$(
+			date -D "%b %e %H:%M:%S %Y" -d "$in_date" +%s \
+				2>/dev/null
+			)"
+		return
 
 	# Darwin, BSD
 	elif timestamp_s="$(
@@ -3064,9 +3064,11 @@ cert_date_to_timestamp_s() {
 		)"
 	then return
 
-	# busybox
+	# OS dependencies
+	# Linux and Windows (FTR: date.exe does not support format +%s as input)
+	# MacPorts GNU date
 	elif timestamp_s="$(
-		date -D "%b %e %H:%M:%S %Y" -d "$in_date" +%s \
+		date -d "$in_date" +%s \
 			2>/dev/null
 		)"
 	then return
@@ -3085,14 +3087,15 @@ offset_days_to_cert_date() {
 
 	offset="$1"
 
-	# OS dependencies
-	# Linux and Windows (FTR: date.exe does not support format +%s as input)
-	# MacPorts GNU date
-	if cert_type_date="$(
-		date -u -d "+${offset}days" "+%b %d %H:%M:%S %Y %Z" \
-			2>/dev/null
-		)"
-	then return
+	# busybox (Alpine)
+	if busybox date --help > /dev/null 2>&1
+	then
+		cert_type_date="$(
+			date -u -d "@$(( $(date +%s) + offset * 86400 ))" \
+				"+%b %d %H:%M:%S %Y %Z" \
+				2>/dev/null
+			)"
+		return
 
 	# Darwin, BSD
 	elif cert_type_date="$(
@@ -3101,19 +3104,19 @@ offset_days_to_cert_date() {
 		)"
 	then return
 
-	# busybox (Alpine)
+	# OS dependencies
+	# Linux and Windows (FTR: date.exe does not support format +%s as input)
+	# MacPorts GNU date
 	elif cert_type_date="$(
-		date -u -d "@$(( $(date +%s) + offset * 86400 ))" \
-			"+%b %d %H:%M:%S %Y %Z" \
+		date -u -d "+${offset}days" "+%b %d %H:%M:%S %Y %Z" \
 			2>/dev/null
 		)"
 	then return
 
 	# Something else
 	else
-		: # ok
 		die "\
-ff_date_to_cert_date:
+offset_days_to_cert_date:
 'date' failed for 'offset': $offset"
 	fi
 } # => offset_days_to_cert_date()
@@ -3123,14 +3126,14 @@ ff_date_to_cert_date() {
 
 	in_date="$1"
 
-	# OS dependencies
-	# Linux and Windows (FTR: date.exe does not support format +%s as input)
-	# MacPorts GNU date
-	if cert_type_date="$(
-		date -u -d "$in_date" "+%b %d %H:%M:%S %Y %Z" \
+	# busybox
+	if busybox date --help > /dev/null 2>&1
+	then
+		cert_type_date="$(
+		date -u -D "%b %e %H:%M:%S %Y" -d "$in_date" "+%b %d %H:%M:%S %Y %Z" \
 			2>/dev/null
 		)"
-	then return
+		return
 
 	# Darwin, BSD
 	elif cert_type_date="$(
@@ -3139,9 +3142,11 @@ ff_date_to_cert_date() {
 		)"
 	then return
 
-	# busybox
+	# OS dependencies
+	# Linux and Windows (FTR: date.exe does not support format +%s as input)
+	# MacPorts GNU date
 	elif cert_type_date="$(
-		date -u -D "%b %e %H:%M:%S %Y" -d "$in_date" "+%b %d %H:%M:%S %Y %Z" \
+		date -u -d "$in_date" "+%b %d %H:%M:%S %Y %Z" \
 			2>/dev/null
 		)"
 	then return
