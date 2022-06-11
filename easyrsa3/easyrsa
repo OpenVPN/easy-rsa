@@ -489,9 +489,7 @@ Easy-RSA error:
 
 $1" 1>&2
 
-	print "
-$host_out | ${ssl_lib:-ssl_lib not set}${EASYRSA_DEBUG+
-*** Disable EASYRSA_DEBUG mode ***}"
+	show_host
 
 	exit "${2:-1}"
 } # => die()
@@ -3480,6 +3478,17 @@ detect_host() {
 	unset -v easyrsa_ver_test easyrsa_host_test
 } # => detect_host()
 
+# Extra diagnostics
+show_host() {
+	print_version
+	print "$host_out | ${ssl_lib:-ssl_lib not set}"
+	case "$easyrsa_host_os" in
+	win) set ;;
+	nix) env ;;
+	*) print "Unknown host OS: $easyrsa_host_os"
+	esac
+} # => show_host()
+
 # Verify the selected algorithm parameters
 verify_algo_params() {
 	# EASYRSA_ALGO_PARAMS must be set depending on selected algo
@@ -4650,6 +4659,9 @@ case "$cmd" in
 		;;
 	show-renew)
 		status renew "$@"
+		;;
+	show-host)
+		show_host "$@"
 		;;
 	make-safe-ssl)
 		make_safe_ssl_copy "$@"
