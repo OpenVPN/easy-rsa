@@ -3099,7 +3099,7 @@ offset_days_to_cert_date() {
 
 	# Darwin, BSD
 	elif cert_type_date="$(
-		date -u -j -v "+${offset}days" "+%b %d %H:%M:%S %Y %Z" \
+		date -u -j -v "+${offset}d" "+%b %d %H:%M:%S %Y %Z" \
 			2>/dev/null
 		)"
 	then return
