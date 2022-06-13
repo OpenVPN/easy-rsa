@@ -421,8 +421,8 @@ General options:
 --silent        : Disable all Warnings and Notices
 --sbatch        : Combined --silent and --batch operating mode
 
---passin=ARG    : set -passin ARG for openssl
---passout=ARG   : set -passout ARG for openssl
+--passin=ARG    : set -passin ARG for openssl (eg: pass:xEasyRSAy)
+--passout=ARG   : set -passout ARG for openssl (eg: pass:xEasyRSAy)
 --ssl-conf=FILE : define a specific OpenSSL config file for Easy-RSA to use
 
 --vars=FILE     : define a specific 'vars' file to use for Easy-RSA config
@@ -436,44 +436,46 @@ General options:
 Certificate & Request options: (these impact cert/req field values)
 
 --days=#        : sets the signing validity to the specified number of days
+--renew-days=#  : Number of days grace to search for expiring certificates
+                  Only effects reporting as a cut-off date for the commands
+                  'renewable' and 'show-expire' (Default: 90 days)
+--fix-offset=#  : Generate certificate with fixed start and end dates.
+                  Range 1 to 365
+                  start-date is 01 January 00:00:01 of the current year
+                  plus the --fix-offset=# number of days.
+                  end-date is configured via --days=# (Default: 825 days)
 
 --digest=ALG    : digest to use in the requests & certificates
---dn-mode=MODE  : DN mode to use (cn_only or org)
---keysize=#     : size in bits of keypair to generate
---req-cn=NAME   : default CN to use
---subca-len=#   : path length of signed intermediate CA certs; must be >= 0 if used
---subject-alt-name
---san           : Add a subjectAltName.
-                : For more info and syntax, see: 'easyrsa help altname'
+--keysize=#     : size in bits of keypair to generate (RSA Only)
 --use-algo=ALG  : crypto alg to use: choose rsa (default), ec or ed
 --curve=NAME    : for elliptic curve, sets the named curve to use
+
+--subca-len=#   : path length of signed intermediate CA certs; must be >= 0 if used
 --copy-ext      : Copy included request X509 extensions (namely subjAltName)
+--san|--subject-alt-name
+                : Add a subjectAltName.
+                  For more info and syntax, see: 'easyrsa help altname'
 
-Organizational DN options: (only used with the 'org' DN mode)
-  (values may be blank for org DN options)
+Distinguished Name mode:
 
---req-c=CC        : country code (2-letters)
---req-st=NAME     : State/Province
---req-city=NAME   : City/Locality
---req-org=NAME    : Organization
---req-email=NAME  : Email addresses
---req-ou=NAME     : Organizational Unit
+  --dn-mode=MODE    : Distinguished Name mode to use 'cn_only' or 'org'
+                      (Default: 'cn_only')
+
+  --req-cn=NAME     : default CN to use (DEPRECATED)
+
+  Distinguished Name Organizational options: (only used with '--dn-mode=org')
+  --req-c=CC        : country code (2-letters)
+  --req-st=NAME     : State/Province
+  --req-city=NAME   : City/Locality
+  --req-org=NAME    : Organization
+  --req-email=NAME  : Email addresses
+  --req-ou=NAME     : Organizational Unit
 
 Deprecated features:
 
 --ns-cert=YES/NO      : yes or no to including deprecated NS extensions
 --ns-comment=COMMENT  : NS comment to include (value may be blank)
 "
-
-: << OLD_OPTS
---renew-days=#  : Number of days grace period before allowing renewal
---fix-offset=#  : Generate certificate with fixed start and end dates.
-                : Range 1 to 365
-                : start date: 01 January 00:00:00 of the current year
-                : end date:   off-set days 01:00:00 of the final year
-				: Final year is configured via --days (Default: 825 days, 2 years)
-OLD_OPTS
-
 } # => opt_usage()
 
 # Wrapper around printf - clobber print since it's not POSIX anyway
@@ -3708,7 +3710,7 @@ Move your vars file to your PKI folder, where it is safe!"
 	set_var EASYRSA_EC_DIR			"$EASYRSA_PKI/ecparams"
 	set_var EASYRSA_CA_EXPIRE		3650
 	set_var EASYRSA_CERT_EXPIRE		825 # new default of 36 months
-	set_var EASYRSA_CERT_RENEW		30
+	set_var EASYRSA_CERT_RENEW		90
 	set_var EASYRSA_CRL_DAYS		180
 	set_var EASYRSA_NS_SUPPORT		no
 	set_var EASYRSA_NS_COMMENT		"Easy-RSA (~VER~) Generated Certificate"
