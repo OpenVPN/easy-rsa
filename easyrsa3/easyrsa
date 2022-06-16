@@ -3050,7 +3050,7 @@ cert_date_to_timestamp_s() {
 	if busybox date --help > /dev/null 2>&1
 	then
 		timestamp_s="$(
-			date -D "%b %e %H:%M:%S %Y" -d "$in_date" +%s \
+			busybox date -D "%b %e %H:%M:%S %Y" -d "$in_date" +%s \
 				2>/dev/null
 			)"
 		return
@@ -3089,7 +3089,7 @@ offset_days_to_cert_date() {
 	if busybox date --help > /dev/null 2>&1
 	then
 		cert_type_date="$(
-			date -u -d "@$(( $(date +%s) + offset * 86400 ))" \
+			busybox date -u -d "@$(( $(busybox date +%s) + offset * 86400 ))" \
 				"+%b %d %H:%M:%S %Y %Z" \
 				2>/dev/null
 			)"
@@ -3128,8 +3128,8 @@ ff_date_to_cert_date() {
 	if busybox date --help > /dev/null 2>&1
 	then
 		cert_type_date="$(
-		date -u -D "%b %e %H:%M:%S %Y" -d "$in_date" "+%b %d %H:%M:%S %Y %Z" \
-			2>/dev/null
+		busybox date -u -D "%b %e %H:%M:%S %Y" -d "$in_date" \
+			"+%b %d %H:%M:%S %Y %Z" 2>/dev/null
 		)"
 		return
 
