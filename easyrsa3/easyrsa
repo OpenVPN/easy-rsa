@@ -1637,12 +1637,10 @@ Matching file found at: "
 	gen_req "$name" batch ${nopass+ nopass}
 
 	# Sign it
-	if sign_req "$crt_type" "$name" batch; then
-		: # ok
-	else
-		rm -f "$req_out" "$key_out"
+	( sign_req "$crt_type" "$name" batch ) || {
+		rm -f "$crt_out" "$req_out" "$key_out"
 		die "Failed to sign '$name' - See error messages above for details."
-	fi
+	}
 
 	# inline it
 	if [ "$EASYRSA_INLINE" ]; then
