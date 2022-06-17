@@ -470,6 +470,7 @@ Distinguished Name mode:
   --req-org=NAME    : Organization
   --req-email=NAME  : Email addresses
   --req-ou=NAME     : Organizational Unit
+  --req-sub-ou=NAME : Organizational Sub-Unit
 
 Deprecated features:
 
@@ -491,7 +492,7 @@ Easy-RSA error:
 
 $1" 1>&2
 
-	show_host
+	show_host || :
 
 	exit "${2:-1}"
 } # => die()
@@ -745,6 +746,7 @@ easyrsa_openssl() {
 			-e s\`'$ENV::EASYRSA_REQ_CITY'\`\""$EASYRSA_REQ_CITY"\"\`g \
 			-e s\`'$ENV::EASYRSA_REQ_ORG'\`\""$EASYRSA_REQ_ORG"\"\`g \
 			-e s\`'$ENV::EASYRSA_REQ_OU'\`\""$EASYRSA_REQ_OU"\"\`g \
+			-e s\`'$ENV::EASYRSA_REQ_SUB_OU'\`\""$EASYRSA_REQ_SUB_OU"\"\`g \
 			-e s\`'$ENV::EASYRSA_REQ_EMAIL'\`\""$EASYRSA_REQ_EMAIL"\"\`g \
 				"$EASYRSA_SSL_CONF" > "$easyrsa_openssl_conf" || \
 					die "easyrsa_openssl - Failed to make temporary config (1)"
@@ -1180,9 +1182,45 @@ current CA keypair. If you intended to start a new CA, run init-pki first."
 	printf "" > "$EASYRSA_PKI/index.txt.attr" || die "$err_file"
 	printf '%s\n' "01" > "$EASYRSA_PKI/serial" || die "$err_file"
 
-	# Default CN only when not in global EASYRSA_BATCH mode:
-	[ "$EASYRSA_BATCH" ] && ssl_batch=1
+	# Default CA commonName
 	[ "$EASYRSA_REQ_CN" = ChangeMe ] && export EASYRSA_REQ_CN="Easy-RSA CA"
+
+	# Do not use prompting from SSL config
+	ssl_batch=1
+
+	# Get user confirmation here, not while in SSL
+	if [ "$EASYRSA_BATCH" ]; then
+		: # ok
+	else
+		case "$EASYRSA_DN" in
+		cn_only)
+			confirm "
+  Create CA certificate with these DN settings ? " yes "\
+EasyRSA DN 'commonName-Only' mode (cn_only)
+
+* Current CA Distinguished Name fields:
+
+  commonName                = $EASYRSA_REQ_CN"
+		;;
+		org)
+			confirm "
+  Create CA certificate with these DN settings ? " yes "\
+EasyRSA DN 'Organisation' mode (org)
+
+* Current CA Distinguished Name fields:
+
+  commonName                = $EASYRSA_REQ_CN
+  countryName               = $EASYRSA_REQ_COUNTRY
+  stateOrProvinceName       = $EASYRSA_REQ_PROVINCE
+  localityName              = $EASYRSA_REQ_CITY
+  organizationName          = $EASYRSA_REQ_ORG
+  0.organizationalUnitName  = $EASYRSA_REQ_OU${EASYRSA_REQ_SUB_OU:+"
+  1.organizationalUnitName  = $EASYRSA_REQ_SUB_OU"}
+  emailAddress              = $EASYRSA_REQ_EMAIL"
+		;;
+		*) die "Unrecognised DN mode: $EASYRSA_DN"
+		esac
+	fi
 
 	out_key_tmp="$(easyrsa_mktemp)" || die "Failed to create temp-key file"
 	out_file_tmp="$(easyrsa_mktemp)" || die "Failed to create temp-cert file"
@@ -3482,6 +3520,7 @@ detect_host() {
 show_host() {
 	print_version
 	print "$host_out | ${ssl_lib:-ssl_lib not set}"
+	[ ! "$EASYRSA_DEBUG" ] && return
 	case "$easyrsa_host_os" in
 	win) set ;;
 	nix) env ;;
@@ -4496,6 +4535,9 @@ while :; do
 	--req-ou)
 		empty_ok=1
 		export EASYRSA_REQ_OU="$val" ;;
+	--req-sub-ou)
+		empty_ok=1
+		export EASYRSA_REQ_SUB_OU="$val" ;;
 	--ns-cert)
 		export EASYRSA_NS_SUPPORT="$val" ;;
 	--ns-comment)
