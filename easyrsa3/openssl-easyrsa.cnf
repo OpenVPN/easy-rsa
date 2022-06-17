@@ -90,8 +90,11 @@ localityName_default		= $ENV::EASYRSA_REQ_CITY
 0.organizationName		= Organization Name (eg, company)
 0.organizationName_default	= $ENV::EASYRSA_REQ_ORG
 
-organizationalUnitName		= Organizational Unit Name (eg, section)
-organizationalUnitName_default	= $ENV::EASYRSA_REQ_OU
+0.organizationalUnitName		= Organizational Unit Name (eg, section)
+0.organizationalUnitName_default	= $ENV::EASYRSA_REQ_OU
+
+1.organizationalUnitName		= Sub-Organizational Unit Name (eg, sub-section)
+1.organizationalUnitName_default	= $ENV::EASYRSA_REQ_SUB_OU
 
 commonName			= Common Name (eg: your user, host, or server name)
 commonName_max			= 64
