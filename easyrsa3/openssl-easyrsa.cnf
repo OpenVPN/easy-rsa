@@ -51,6 +51,7 @@ organizationalUnitName	= optional
 commonName		= supplied
 name			= optional
 emailAddress		= optional
+serialNumber	= optional
 
 ####################################################################
 # Easy-RSA request handling
@@ -100,6 +101,9 @@ commonName_default		= $ENV::EASYRSA_REQ_CN
 emailAddress			= Email Address
 emailAddress_default		= $ENV::EASYRSA_REQ_EMAIL
 emailAddress_max		= 64
+
+serialNumber		= Serial-number (eg, device serial-number)
+serialNumber_default	= $ENV::EASYRSA_REQ_SERIAL
 
 ####################################################################
 # Easy-RSA cert extension handling
