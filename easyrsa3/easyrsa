@@ -806,7 +806,13 @@ verify_ssl_lib() {
 		case "$osslv_major" in
 			1) no_password='-nodes' ;;
 			2) no_password='-nodes' ;; # LibreSSL Only
-			3) no_password='-noenc' ;;
+			3)
+				case "$ssl_lib" in
+				openssl) no_password='-noenc' ;;
+				libressl) no_password='-nodes' ;;
+				*) die "Unsupported SSL library: $ssl_lib"
+				esac
+			;;
 			*) die "Unsupported SSL library: $osslv_major"
 		esac
 		message "Using SSL: $EASYRSA_OPENSSL ${val}"
