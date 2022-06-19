@@ -790,15 +790,14 @@ easyrsa_openssl() {
 # Verify the SSL library is functional and establish version dependencies
 verify_ssl_lib() {
 	if [ -z "$EASYRSA_SSL_OK" ]; then
+		[ -f "$EASYRSA_OPENSSL" ] || die "Missing SSL lib: $EASYRSA_OPENSSL"
 		# redirect std-err to ignore missing etc/ssl/openssl.cnf file
 		val="$("$EASYRSA_OPENSSL" version 2>/dev/null)"
 		case "${val%% *}" in
 			# OpenSSL does require a safe config-file for ampersand
 			OpenSSL) ssl_lib=openssl; require_safe_ssl_conf=1 ;;
 			LibreSSL) ssl_lib=libressl; require_safe_ssl_conf=1 ;;
-			*) die "\
-Missing or invalid OpenSSL
-Expected to find openssl command at: $EASYRSA_OPENSSL"
+			*) die "Invalid SSL lib 'version' output"
 		esac
 
 		# Set SSL version dependent $no_password option
@@ -3482,6 +3481,7 @@ detect_host() {
 show_host() {
 	print_version
 	print "$host_out | ${ssl_lib:-ssl_lib not set}"
+	[ ! "$EASYRSA_DEBUG" ] && return
 	case "$easyrsa_host_os" in
 	win) set ;;
 	nix) env ;;
