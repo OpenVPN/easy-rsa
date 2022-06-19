@@ -702,7 +702,10 @@ easyrsa_openssl() {
 
 	# OpenSSL 1x genpkey does not support -config - Not as documented:
 	# https://www.openssl.org/docs/manmaster/man1/openssl-genpkey.html
-	if [ "$osslv_major" = 3 ] && [ "$openssl_command" = genpkey ]; then
+	# This could be anyones bug ..
+	if [ "$openssl_command" = genpkey ] && \
+		[ "$ssl_lib" = openssl ] && [ "$osslv_major" = 3 ]
+	then
 		has_config=1
 	fi
 
@@ -792,12 +795,15 @@ verify_ssl_lib() {
 	if [ -z "$EASYRSA_SSL_OK" ]; then
 		# redirect std-err to ignore missing etc/ssl/openssl.cnf file
 		val="$("$EASYRSA_OPENSSL" version 2>/dev/null)"
+
+		# SSL lib name
 		case "${val%% *}" in
 			# OpenSSL does require a safe config-file for ampersand
 			OpenSSL) ssl_lib=openssl; require_safe_ssl_conf=1 ;;
 			LibreSSL) ssl_lib=libressl; require_safe_ssl_conf=1 ;;
 			*) die "\
-Missing or invalid OpenSSL
+Missing SSL binary or invalid SSL output for 'version':
+* '${val%% *}'
 Expected to find openssl command at: $EASYRSA_OPENSSL"
 		esac
 
@@ -806,8 +812,14 @@ Expected to find openssl command at: $EASYRSA_OPENSSL"
 		osslv_major="${osslv_major%%.*}"
 		case "$osslv_major" in
 			1) no_password='-nodes' ;;
-			2) no_password='-nodes' ;; # LibreSSL Only
-			3) no_password='-noenc' ;;
+			2) no_password='-nodes' ;;
+			3)
+				case "$ssl_lib" in
+					openssl) no_password='-noenc' ;;
+					libressl) no_password='-nodes' ;;
+					*) die "Unsupported SSL library: $ssl_lib"
+				esac
+			;;
 			*) die "Unsupported SSL library: $osslv_major"
 		esac
 		message "Using SSL: $EASYRSA_OPENSSL ${val}"
@@ -3482,6 +3494,7 @@ detect_host() {
 show_host() {
 	print_version
 	print "$host_out | ${ssl_lib:-ssl_lib not set}"
+	[ ! "$EASYRSA_DEBUG" ] && return
 	case "$easyrsa_host_os" in
 	win) set ;;
 	nix) env ;;
