@@ -702,7 +702,10 @@ easyrsa_openssl() {
 
 	# OpenSSL 1x genpkey does not support -config - Not as documented:
 	# https://www.openssl.org/docs/manmaster/man1/openssl-genpkey.html
-	if [ "$osslv_major" = 3 ] && [ "$openssl_command" = genpkey ]; then
+	# This could be anyones bug ..
+	if [ "$openssl_command" = genpkey ] && \
+		[ "$ssl_lib" = openssl ] && [ "$osslv_major" = 3 ]
+	then
 		has_config=1
 	fi
 
