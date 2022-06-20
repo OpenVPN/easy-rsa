@@ -13,9 +13,9 @@ crl_dir		= $dir			# Where the issued crl are kept
 database	= $dir/index.txt	# database index file.
 new_certs_dir	= $dir/certs_by_serial	# default place for new certs.
 
-certificate	= $dir/ca.crt	 	# The CA certificate
-serial		= $dir/serial 		# The current serial number
-crl		= $dir/crl.pem 		# The current CRL
+certificate	= $dir/ca.crt		# The CA certificate
+serial		= $dir/serial		# The current serial number
+crl		= $dir/crl.pem		# The current CRL
 private_key	= $dir/private/ca.key	# The private key
 RANDFILE	= $dir/.rand		# private random number file
 
@@ -57,7 +57,7 @@ serialNumber	= optional
 # We key off $DN_MODE to determine how to format the DN
 [ req ]
 default_bits		= $ENV::EASYRSA_KEY_SIZE
-default_keyfile 	= privkey.pem
+default_keyfile	= privkey.pem
 default_md		= $ENV::EASYRSA_DIGEST
 distinguished_name	= $ENV::EASYRSA_DN
 x509_extensions		= easyrsa_ca	# The extensions to add to the self signed cert
