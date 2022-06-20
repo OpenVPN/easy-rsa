@@ -49,7 +49,6 @@ localityName		= optional
 organizationName	= optional
 organizationalUnitName	= optional
 commonName		= supplied
-name			= optional
 emailAddress		= optional
 serialNumber	= optional
 
