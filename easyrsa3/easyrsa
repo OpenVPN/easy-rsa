@@ -464,12 +464,13 @@ Distinguished Name mode:
   --req-cn=NAME     : default CN to use (DEPRECATED)
 
   Distinguished Name Organizational options: (only used with '--dn-mode=org')
-  --req-c=CC        : country code (2-letters)
-  --req-st=NAME     : State/Province
-  --req-city=NAME   : City/Locality
-  --req-org=NAME    : Organization
-  --req-email=NAME  : Email addresses
-  --req-ou=NAME     : Organizational Unit
+  --req-c=CC           : country code (2-letters)
+  --req-st=NAME        : State/Province
+  --req-city=NAME      : City/Locality
+  --req-org=NAME       : Organization
+  --req-email=NAME     : Email addresses
+  --req-ou=NAME        : Organizational Unit
+  --req-serial=VALUE   : Entity serial number (Only used when declared)
 
 Deprecated features:
 
