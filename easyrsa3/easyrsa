@@ -32,6 +32,7 @@ Here is the list of commands available with a short syntax reminder. Use the
   gen-dh
   gen-req <file_name_base> [ cmd-opts ]
   sign-req <type> <file_name_base>
+  cross-sign <type> <filename>
   build-client-full <file_name_base> [ cmd-opts ]
   build-server-full <file_name_base> [ cmd-opts ]
   build-serverClient-full <file_name_base> [ cmd-opts ]
@@ -1644,6 +1645,95 @@ $ext_tmp"
 
 	return 0
 } # => sign_req()
+
+cross_sign() {
+	crt_type="$1"
+	opts=""
+	crt_in="$2"
+	crt_out="$EASYRSA_PKI/issued/$(basename ${2%.*}).crt"
+
+	# Randomize Serial number
+	if [ "$EASYRSA_RAND_SN" != "no" ];
+	then
+		i=""
+		serial=""
+		check_serial=""
+		for i in 1 2 3 4 5; do
+			"$EASYRSA_OPENSSL" rand -hex -out "$EASYRSA_PKI/serial" 16
+			serial="$(cat "$EASYRSA_PKI/serial")"
+			check_serial="$("$EASYRSA_OPENSSL" ca -config "$EASYRSA_SSL_CONF" -status "$serial" 2>&1)"
+			case "$check_serial" in
+				*"not present in db"*) break ;;
+				*) continue ;;
+			esac
+		done
+	fi
+
+	# Support batch by internal caller:
+	[ "$3" = "batch" ] && EASYRSA_BATCH=1
+
+	verify_ca_init
+
+	# Check argument sanity:
+	[ -n "$2" ] || die "\
+Incorrect number of arguments provided to cross-sign:
+expected 2, got $# (see command help for usage)"
+
+	# Cert type must exist under the EASYRSA_EXT_DIR
+	[ -r "$EASYRSA_EXT_DIR/$crt_type" ] || die "\
+Unknown cert type '$crt_type'"
+
+	# Request file must exist
+	[ -f "$crt_in" ] || die "\
+No file found for the input: '$2'"
+
+	# Confirm input is a certificate
+	verify_file x509 "$crt_in" || die "\
+The certificate request file is not in a valid X509 certificate format.
+File Path: $crt_in"
+
+	# Display the request subject in an easy-to-read format
+	# Confirm the user wishes to sign this request
+	confirm "Confirm request details: " "yes" "
+You are about to sign the following certificate.
+Please check over the details shown below for accuracy. Note that this request
+has not been cryptographically verified. Please be sure it came from a trusted
+source or that you have verified the request checksum with the sender.
+
+Request subject, to be signed as a $crt_type certificate for $EASYRSA_CERT_EXPIRE days:
+
+$(display_dn x509 "$crt_in")
+"	# => confirm end
+
+	# Generate the extensions file for this cert:
+	ext_tmp="$(easyrsa_mktemp)" || die "Failed to create temporary file"
+	{
+		# Append first any COMMON file (if present) then the cert-type extensions
+		cat "$EASYRSA_EXT_DIR/COMMON"
+		cat "$EASYRSA_EXT_DIR/$crt_type"
+		# copy req extensions
+		[ "$EASYRSA_CP_EXT" ] && print "copy_extensions = copy"
+
+		# Add any advanced extensions supplied by env-var:
+		[ -n "$EASYRSA_EXTRA_EXTS" ] && print "$EASYRSA_EXTRA_EXTS"
+
+		: # needed to keep die from inherting the above test
+	} > "$ext_tmp" || die "\
+Failed to create temp extension file (bad permissions?) at:
+$ext_tmp"
+
+	# sign request
+	crt_out_tmp="$(easyrsa_mktemp)" || die "Failed to create temporary file"
+	easyrsa_openssl ca -utf8 -ss_cert "$crt_in" -out "$crt_out_tmp" -verbose \
+		-extfile "$ext_tmp" -days "$EASYRSA_CERT_EXPIRE" -batch $opts ${EASYRSA_PASSIN:+-passin "$EASYRSA_PASSIN"} \
+		|| die "signing failed (openssl output above may have more detail)"
+	mv "$crt_out_tmp" "$crt_out"
+	#rm -f "$ext_tmp"
+	notice "\
+Certificate created at: $crt_out
+"
+	return 0
+} # => cross_sign()
 
 # common build backend
 # used to generate+sign in 1 step
@@ -4635,6 +4725,9 @@ case "$cmd" in
 		;;
 	sign|sign-req)
 		sign_req "$@"
+		;;
+	cross-sign)
+		cross_sign "$@"
 		;;
 	build-client-full)
 		build_full client "$@"
