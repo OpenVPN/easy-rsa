@@ -36,6 +36,7 @@ Here is the list of commands available with a short syntax reminder. Use the
   build-server-full <file_name_base> [ cmd-opts ]
   build-serverClient-full <file_name_base> [ cmd-opts ]
   revoke <file_name_base> [cmd-opts]
+  renew-req <file_name_base> [cmd-opts]
   renew <file_name_base> [cmd-opts]
   renewable [ <file_name_base> ]
   revoke-renewed <file_name_base> [cmd-opts]
@@ -108,6 +109,17 @@ cmd_help() {
 * gen-dh
 
       Generates DH (Diffie-Hellman) parameters"
+	;;
+	renew-req)
+		text="
+* renew-req <file_name_base> [ cmd-opts ]
+
+      Generate a certificate signing request [CSR] from an existing private key.
+
+      This request is suitable for sending to a remote CA for signing."
+
+		opts="
+      * text    - Include certificate text in request"
 	;;
 	gen-req)
 		text="
@@ -1378,7 +1390,7 @@ DH parameters of size $EASYRSA_KEY_SIZE created at $out_file"
 	return 0
 } # => gen_dh()
 
-# gen-req backend:
+# gen-req and key backend:
 gen_req() {
 	# pull filename base and use as default interactive CommonName:
 	[ "$1" ] || die "\
@@ -1729,6 +1741,98 @@ inline_creds ()
 		printf "%s\n" ""
 	} > "$inline_file"
 } # => inline_creds ()
+
+# renew-req backend:
+# Create a new CSR with existing private key
+renew_req() {
+	# pull filename base and use as default interactive CommonName:
+	[ "$1" ] || die "\
+Error: gen-req must have a file base as the first argument.
+Run easyrsa without commands for usage and commands."
+
+	key_in="$EASYRSA_PKI/private/$1.key"
+	req_out="$EASYRSA_PKI/reqs/$1.req"
+
+	# Set the request commonName
+	EASYRSA_REQ_CN="$1"
+	shift
+
+	# Require SSL Lib version for 'nopass' -> $no_password
+	verify_pki_init
+
+	# function opts support
+	unset -v text nopass ssl_batch
+	while [ "$1" ]; do
+		case "$1" in
+			text) text=1 ;;
+			*) warn "Ignoring unknown command option: '$1'"
+		esac
+		shift
+	done
+
+	# an existing private key must exist
+	[ -f "$key_in" ] || die "Private key required: $key_in"
+
+	# don't wipe out an existing request without confirmation
+	[ -f "$req_out" ] && confirm "Confirm request overwrite: " "yes" "\
+
+WARNING!!!
+
+An existing request file was found at $req_out
+Continuing with request generation will replace this request file."
+
+	# When EASYRSA_EXTRA_EXTS is defined, append it to openssl's [req] section:
+	if [ "$EASYRSA_EXTRA_EXTS" ]; then
+		# Setup & insert the extra ext data keyed by a magic line
+		extra_exts="
+req_extensions = req_extra
+[ req_extra ]
+$EASYRSA_EXTRA_EXTS"
+		# shellcheck disable=SC2016 # vars don't expand in single quote
+		awkscript='
+{if ( match($0, "^#%EXTRA_EXTS%") )
+	{ while ( getline<"/dev/stdin" ) {print} next }
+ {print}
+}'
+		conf_tmp="$(easyrsa_mktemp)" || die "Failed to create temporary file"
+		print "$extra_exts" | \
+			awk "$awkscript" "$EASYRSA_SSL_CONF" \
+			> "$conf_tmp" \
+			|| die "Copying SSL config to temp file failed"
+		# Use this new SSL config for the rest of this function
+		EASYRSA_SSL_CONF="$conf_tmp"
+	fi
+
+	# Name temp files
+	req_out_tmp="$(easyrsa_mktemp)" || die "Failed to create temporary file"
+
+	# Set Edwards curve name or elliptic curve parameters file
+	algo_opts=""
+	if [ "ed" = "$EASYRSA_ALGO" ]; then
+		algo_opts="$EASYRSA_CURVE"
+	else
+		algo_opts="$EASYRSA_ALGO:$EASYRSA_ALGO_PARAMS"
+	fi
+
+	# Generate request
+	easyrsa_openssl req -utf8 -batch -new \
+		-key "$key_in" -out "$req_out_tmp" \
+		${text+ -text} \
+		${EASYRSA_PASSIN:+-passin "$EASYRSA_PASSIN"} \
+			|| die "Failed to generate request"
+
+	# Move temp-files to target-files
+	mv "$req_out_tmp" "$req_out"
+
+	# Success messages
+	notice "\
+Certificate request completed. Your file is:
+req: $req_out
+
+*Original* key: $key_in"
+
+	return 0
+} # => renew_req()
 
 # revoke backend
 revoke() {
@@ -4632,6 +4736,9 @@ case "$cmd" in
 		;;
 	gen-req)
 		gen_req "$@"
+		;;
+	renew-req)
+		renew_req "$@"
 		;;
 	sign|sign-req)
 		sign_req "$@"
