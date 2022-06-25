@@ -2406,6 +2406,11 @@ Unexpected input in file: $req_in"
 	key_out="$out_dir/private/$crt_cn.key"
 	req_out="$out_dir/reqs/$crt_cn.req"
 
+	# Create out_dir
+	for newdir in issued private reqs; do
+		mkdir -p "$out_dir/$newdir" || die "Failed to create: $out_dir/$newdir"
+	done
+
 	# NEVER over-write a renewed cert, revoke it first
 	deny_msg="\
 Cannot renew this certificate because a conflicting file exists.
