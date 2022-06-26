@@ -1158,6 +1158,7 @@ build_ca() {
 		shift
 	done
 
+	# Verify PKI has been initialised
 	verify_pki_init
 
 	out_key="$EASYRSA_PKI/private/ca.key"
@@ -1364,6 +1365,7 @@ $out_file"
 
 # gen-dh backend:
 gen_dh() {
+	# Verify PKI has been initialised
 	verify_pki_init
 
 	out_file="$EASYRSA_PKI/dh.pem"
@@ -1404,7 +1406,7 @@ Run easyrsa without commands for usage and commands."
 	EASYRSA_REQ_CN="$1"
 	shift
 
-	# Require SSL Lib version for 'nopass' -> $no_password
+	# Verify PKI has been initialised
 	verify_pki_init
 
 	# function opts support
@@ -1757,7 +1759,7 @@ Run easyrsa without commands for usage and commands."
 	EASYRSA_REQ_CN="$1"
 	shift
 
-	# Require SSL Lib version for 'nopass' -> $no_password
+	# Verify PKI has been initialised
 	verify_pki_init
 
 	# function opts support
@@ -2594,6 +2596,7 @@ CRL file: $out_file"
 
 # import-req backend
 import_req() {
+	# Verify PKI has been initialised
 	verify_pki_init
 
 	# pull passed paths
@@ -2641,6 +2644,7 @@ Run easyrsa without commands for usage and command help."
 	key_in="$EASYRSA_PKI/private/$short_name.key"
 	crt_ca="$EASYRSA_PKI/ca.crt"
 
+	# Verify PKI has been initialised
 	verify_pki_init
 
 	# opts support
@@ -2745,6 +2749,7 @@ location: $pkcs_out"
 
 # set-pass backend
 set_pass() {
+	# Verify PKI has been initialised
 	verify_pki_init
 
 	# key type, supplied internally from frontend command call (rsa/ec)
