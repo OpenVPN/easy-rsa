@@ -4100,6 +4100,15 @@ up23_create_openssl_cnf ()
 	up23_verbose "> OK"
 	up23_verbose "  New OpenSSL config file created in: $EASYRSA_PKI_SSL_CNFFILE"
 
+	# Create secure session
+	# Because the upgrade runs twice, once as a test and then for real
+	# EASYRSA_TEMP_DIR_session must be unset to avoid overload error
+	[ "$EASYRSA_TEMP_DIR_session" ] && unset EASYRSA_TEMP_DIR_session
+	up23_verbose "> Create secure session"
+	secure_session || die "up23_create_openssl_cnf - secure_session failed."
+	up23_verbose "> OK"
+	up23_verbose "  secure session: $EASYRSA_TEMP_DIR_session"
+
 	# Create $EASYRSA_PKI/safessl-easyrsa.cnf
 	easyrsa_openssl makesafeconf
 	if [ -f "$EASYRSA_PKI_SAFE_CNFFILE" ]
