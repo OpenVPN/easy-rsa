@@ -1,6 +1,7 @@
 Easy-RSA 3 ChangeLog
 
 3.1.1 (TBD)
+   * Introduce renew-req, create a new CSR for an existing key (#616)
    * Add serialNumber (OID 2.5.4.5) to DN 'org' mode (#606)
    * Support ampersand and dollar-sign in vars file (#590)
    * Introduce 'rewind-renew' (#579)
