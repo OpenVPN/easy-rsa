@@ -638,6 +638,11 @@ cleanup() {
 		rm -rf "$EASYRSA_EC_DIR"
 	fi
 
+	# Restore files when renew is interrupted
+	if [ "$on_error_undo_renew_move" ]; then
+		renew_restore_move
+	fi
+
 	# shellcheck disable=SC3040 # In POSIX sh, set option [name] is undefined
 	case "$easyrsa_host_os" in
 		nix) [ -t 1 ] && stty echo ;;
@@ -2153,10 +2158,11 @@ with the following subject:
 
 	# move renewed files so we can reissue certificate with the same name
 	renew_move
+	on_error_undo_renew_move=1
 
 	# renew certificate
 	if build_full "$cert_type" "$file_name_base" "$opt_nopass"; then
-		: # ok
+		unset on_error_undo_renew_move
 	else
 		# If renew failed then restore cert, key and req. Otherwise, issue a warning
 		# If *restore* fails then at least the file-names are not serial-numbers
@@ -2176,7 +2182,7 @@ been deployed, use 'revoke-renewed $file_name_base reason' ('reason' is optional
 
 # Restore files on failure to renew
 renew_restore_move() {
-	unset -v rrm_err
+	unset -v rrm_err on_error_undo_renew_move
 	# restore crt, key and req file to PKI folders
 	if mv "$restore_crt_out" "$restore_crt_in"; then
 		: # ok
@@ -2209,7 +2215,7 @@ renew_restore_move() {
 	if [ "$rrm_err" ]; then
 		warn "Failed to restore renewed files."
 	else
-		notice "Renewed files have been successfully restored."
+		notice "Renew FAILED but files have been successfully restored."
 	fi
 
 	return 0
