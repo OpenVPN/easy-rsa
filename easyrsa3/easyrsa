@@ -1546,6 +1546,11 @@ Unknown cert type '$crt_type'"
 No request found for the input: '$2'
 Expected to find the request at: $req_in"
 
+	# Existing certificate file must NOT exist
+	[ ! -e "$crt_out" ] || die "\
+Cannot sign this request for '$2' because a certificate for it already exists
+at: $crt_out"
+
 	# Confirm input is a cert req
 	verify_file req "$req_in" || die "\
 The certificate request file is not in a valid X509 request format.
