@@ -977,7 +977,7 @@ and initialize a fresh PKI here."
 Your newly created PKI dir is:
 * $EASYRSA_PKI"
 
-	if [ "$user_vars_true" ]; then
+	if [ "$user_vars_true" ] || [ "$old_vars_true" ]; then
 		: # ok - No message required
 	else
 		message "\
@@ -1079,12 +1079,18 @@ install_data_to_pki () {
 	fi
 
 	# Create PKI/vars from PKI/example
+	unset -v old_vars_true
 	case "$context" in
 	init-pki)
-		if [ -e "${EASYRSA_PKI}/${vars_file_example}" ]; then
-			[ -e "${EASYRSA_PKI}/${vars_file}" ] || \
-				cp "${EASYRSA_PKI}/${vars_file_example}" \
-					"${EASYRSA_PKI}/${vars_file}" || :
+		if [ -e ./vars ]; then
+			# If the old vars exists then do nothing
+			old_vars_true=1
+		else
+			if [ -e "${EASYRSA_PKI}/${vars_file_example}" ]; then
+				[ -e "${EASYRSA_PKI}/${vars_file}" ] || \
+					cp "${EASYRSA_PKI}/${vars_file_example}" \
+						"${EASYRSA_PKI}/${vars_file}" || :
+			fi
 		fi
 	;;
 	vars-setup)
