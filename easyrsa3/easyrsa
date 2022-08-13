@@ -1038,11 +1038,11 @@ install_data_to_pki () {
 
 	# Find and copy data-files, in specific order
 	for area in \
-		'/etc/easy-rsa' \
-		'/usr/share/easy-rsa' \
 		'/usr/local/share/easy-rsa' \
+		'/usr/share/easy-rsa' \
 		"$PWD" \
 		"${0%/*}" \
+		'/etc/easy-rsa' \
 		# EOL - # Add more distros here
 	do
 		# Omitting "$vars_file"
@@ -4747,9 +4747,12 @@ cmd="$1"
 # This avoids unnecessary warnings and notices
 case "$cmd" in
 	init-pki|clean-all|""|help|-h|--help|--usage|version)
-		unset -v pki_is_required; no_pki_required=1 ;;
+		no_pki_required=1
+		unset -v pki_is_required
+	;;
 	*)
-		pki_is_required=1; unset -v no_pki_required
+		pki_is_required=1
+		unset -v no_pki_required
 esac
 
 # Intelligent env-var detection and auto-loading:
