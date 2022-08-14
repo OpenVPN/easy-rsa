@@ -1,6 +1,8 @@
 Easy-RSA 3 ChangeLog
 
 3.1.1 (TBD)
+   * Introduce Quiet mode option -q|--quiet, disable information output
+       8b7e79096b18afc5c61bfbaee204c1f7401f0019
    * Introduce renew-req, create a new CSR for an existing key (#616)
    * Add serialNumber (OID 2.5.4.5) to DN 'org' mode (#606)
    * Support ampersand and dollar-sign in vars file (#590)
