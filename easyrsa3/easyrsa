@@ -977,7 +977,7 @@ and initialize a fresh PKI here."
 Your newly created PKI dir is:
 * $EASYRSA_PKI"
 
-	if [ "$user_vars_true" ]; then
+	if [ "$user_vars_true" ] || [ "$old_vars_true" ]; then
 		: # ok - No message required
 	else
 		message "\
@@ -1038,11 +1038,11 @@ install_data_to_pki () {
 
 	# Find and copy data-files, in specific order
 	for area in \
-		'/etc/easy-rsa' \
-		'/usr/share/easy-rsa' \
 		'/usr/local/share/easy-rsa' \
+		'/usr/share/easy-rsa' \
 		"$PWD" \
 		"${0%/*}" \
+		'/etc/easy-rsa' \
 		# EOL - # Add more distros here
 	do
 		# Omitting "$vars_file"
@@ -1079,12 +1079,18 @@ install_data_to_pki () {
 	fi
 
 	# Create PKI/vars from PKI/example
+	unset -v old_vars_true
 	case "$context" in
 	init-pki)
-		if [ -e "${EASYRSA_PKI}/${vars_file_example}" ]; then
-			[ -e "${EASYRSA_PKI}/${vars_file}" ] || \
-				cp "${EASYRSA_PKI}/${vars_file_example}" \
-					"${EASYRSA_PKI}/${vars_file}" || :
+		if [ -e ./vars ]; then
+			# If the old vars exists then do nothing
+			old_vars_true=1
+		else
+			if [ -e "${EASYRSA_PKI}/${vars_file_example}" ]; then
+				[ -e "${EASYRSA_PKI}/${vars_file}" ] || \
+					cp "${EASYRSA_PKI}/${vars_file_example}" \
+						"${EASYRSA_PKI}/${vars_file}" || :
+			fi
 		fi
 	;;
 	vars-setup)
@@ -4741,9 +4747,12 @@ cmd="$1"
 # This avoids unnecessary warnings and notices
 case "$cmd" in
 	init-pki|clean-all|""|help|-h|--help|--usage|version)
-		unset -v pki_is_required; no_pki_required=1 ;;
+		no_pki_required=1
+		unset -v pki_is_required
+	;;
 	*)
-		pki_is_required=1; unset -v no_pki_required
+		pki_is_required=1
+		unset -v no_pki_required
 esac
 
 # Intelligent env-var detection and auto-loading:
