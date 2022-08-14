@@ -432,6 +432,7 @@ General options:
 --batch         : set automatic (no-prompts when possible) mode
 --silent        : Disable all Warnings and Notices
 --sbatch        : Combined --silent and --batch operating mode
+--quiet|-q      : Quiet mode, disable information messages only
 
 --passin=ARG    : set -passin ARG for openssl (eg: pass:xEasyRSAy)
 --passout=ARG   : set -passout ARG for openssl (eg: pass:xEasyRSAy)
@@ -530,10 +531,11 @@ $1
 "
 } # => notice()
 
-# informational notices to stdout
-message() {
+# Helpful information
+information() {
 	[ "$EASYRSA_SILENT" ] && return
 	[ "$EASYRSA_BATCH" ] && return
+	[ "$EASYRSA_QUIET" ] && return
 	print "* $1"
 } # => notice()
 
@@ -841,7 +843,7 @@ Expected to find openssl command at: $EASYRSA_OPENSSL"
 			;;
 			*) die "Unsupported SSL library: $osslv_major"
 		esac
-		message "Using SSL: $EASYRSA_OPENSSL ${val}"
+		information "Using SSL: $EASYRSA_OPENSSL ${val}"
 		EASYRSA_SSL_OK=1
 
 		# Verify EASYRSA_SSL_CONF file exists
@@ -980,7 +982,7 @@ Your newly created PKI dir is:
 	if [ "$user_vars_true" ] || [ "$old_vars_true" ]; then
 		: # ok - No message required
 	else
-		message "\
+		information "\
 IMPORTANT: Easy-RSA 'vars' file has now been moved to your PKI above.
 "
 	fi
@@ -1094,7 +1096,7 @@ install_data_to_pki () {
 		fi
 	;;
 	vars-setup)
-		if [ "$found_vars" ]; then
+		if [ "$found_vars" ] || [ "$user_vars_true" ]; then
 			: # ok - Do not make a PKI/vars if another vars exists
 		else
 			if [ -e "${EASYRSA_PKI}/${vars_file_example}" ]; then
@@ -3661,6 +3663,7 @@ detect_host() {
 
 # Extra diagnostics
 show_host() {
+	print
 	print_version
 	print "$host_out | ${ssl_lib:-ssl_lib not set}"
 	[ ! "$EASYRSA_DEBUG" ] && return
@@ -3861,14 +3864,16 @@ Failed to source the vars file, remove any unsupported characters."
 			# Source 'vars' now
 			# shellcheck disable=1090 # can't follow non-constant source. vars
 			. "$vars" 2>/dev/null
-			message "Using Easy-RSA configuration from: $vars"
+			information "Using Easy-RSA configuration from: $vars"
 
-			if [ "$user_vars_true" ]; then
+			if [ "$vars_in_pki" ] || [ "$user_vars_true" ]; then
 				: # ok - No message required
 			else
-				[ "$vars_in_pki" ] || \
-					warn "\
-Move your vars file to your PKI folder, where it is safe!"
+				information "\
+The preferred location for 'vars' is within the PKI folder:
+    ${EASYRSA_PKI:-$PWD/pki}
+  To silence this message move your 'vars' file to your PKI
+  or declare your 'vars' file with option: --vars=./vars"
 			fi
 		fi
 	fi
@@ -4705,6 +4710,9 @@ while :; do
 		empty_ok=1
 		export EASYRSA_SILENT=1
 		export EASYRSA_BATCH=1 ;;
+	--quiet|-q)
+		empty_ok=1
+		export EASYRSA_QUIET=1 ;;
 	--passin)
 		export EASYRSA_PASSIN="$val";;
 	--passout)
