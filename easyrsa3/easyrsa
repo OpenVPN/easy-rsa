@@ -887,7 +887,7 @@ verify_ca_init() {
 
 	# Verify expected files are present. Allow files to be regular files
 	# (or symlinks), but also pipes, for flexibility with ca.key
-	for i in serial index.txt index.txt.attr ca.crt private/ca.key; do
+	for i in ca.crt private/ca.key index.txt index.txt.attr serial; do
 		if [ ! -f "$EASYRSA_PKI/$i" ] && [ ! -p "$EASYRSA_PKI/$i" ]; then
 			[ "$1" = "test" ] && return 1
 			die "\
