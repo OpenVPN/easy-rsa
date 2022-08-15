@@ -1387,11 +1387,14 @@ gen_dh() {
 	if [ -e "$out_file" ]; then
 		if [ "$EASYRSA_BATCH" ]; then
 			# if batch is enabled, die
-			die "*** File $out_file already exists! ***"
+			die "\
+DH parameters file already exists
+at: $out_file"
 		else
 			# warn the user, give them a chance to force overwrite
-			confirm "Overwrite?  " "yes" \
-				"*** File $out_file already exists! ***"
+			confirm "Overwrite?  " "yes" "\
+DH parameters file already exists
+at: $out_file"
 		fi
 	fi
 
