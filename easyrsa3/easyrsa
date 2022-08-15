@@ -3000,13 +3000,12 @@ verify_file() {
 show() {
 	type="$1"
 	name="$2"
-	shift 2
-
 	in_file=""
 	format=""
 	[ "$name" ] || die "\
 Missing expected <file_name_base> argument.
 Run easyrsa without commands for usage help."
+	shift 2
 
 	# opts support
 	type_opts="-${type}opt"
@@ -3043,7 +3042,7 @@ Run easyrsa without commands for usage help."
 
 	# Verify file exists and is of the correct type
 	[ -e "$in_file" ] || die "\
-No such $type file with a basename of '$name' is present.
+No such '$type' type file with a <file_name_base> of '$name' is present.
 Expected to find this file at:
 $in_file"
 
