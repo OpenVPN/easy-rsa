@@ -1563,14 +1563,18 @@ expected 2, got $# (see command help for usage)"
 	[ -e "$EASYRSA_EXT_DIR/$crt_type" ] || die "\
 Unknown cert type '$crt_type'"
 
+	# Cert type must NOT be COMMON
+	[ "$crt_type" != COMMON ] || die "\
+Invalid certificate type: '$crt_type'"
+
 	# Request file must exist
 	[ -e "$req_in" ] || die "\
 No request found for the input: '$2'
 Expected to find the request at: $req_in"
 
-	# Existing certificate file must NOT exist
+	# Certificate file must NOT exist
 	[ ! -e "$crt_out" ] || die "\
-Cannot sign this request for '$2' because a certificate for it already exists
+Cannot sign this request for '$2', a certificate already exists
 at: $crt_out"
 
 	# Confirm input is a cert req
