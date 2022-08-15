@@ -1384,23 +1384,34 @@ gen_dh() {
 	out_file="$EASYRSA_PKI/dh.pem"
 
 	# check to see if we already have a dh parameters file
-	if [ -e "$EASYRSA_PKI/dh.pem" ]; then
+	if [ -e "$out_file" ]; then
 		if [ "$EASYRSA_BATCH" ]; then
 			# if batch is enabled, die
-			die "file $EASYRSA_PKI/dh.pem already exists!"
+			die "*** File $out_file already exists! ***"
 		else
 			# warn the user, give them a chance to force overwrite
-			confirm "Overwrite?  " "yes" "*** File $EASYRSA_PKI/dh.pem already exists! ***"
+			confirm "Overwrite?  " "yes" \
+				"*** File $out_file already exists! ***"
 		fi
 	fi
 
-	"$EASYRSA_OPENSSL" dhparam -out "$out_file" "$EASYRSA_KEY_SIZE" || \
-		die "Failed to build DH params"
+	# Create a temp file, otherwise user abort leaves an incomplete dh.pem
+	tmp_dh_file="$(easyrsa_mktemp)" || die "Failed to create temp DH file"
 
-	[ "$EASYRSA_SILENT" ] || print # Separate Notice below
+	# Generate dh.pem
+	"$EASYRSA_OPENSSL" dhparam -out "$tmp_dh_file" "$EASYRSA_KEY_SIZE" || \
+		die "Failed to generate DH params"
+
+	# Validate dh.pem
+	"$EASYRSA_OPENSSL" dhparam -in "$tmp_dh_file" -check -noout || \
+		die "Failed to validate DH params"
+
+	mv -f "$tmp_dh_file" "$out_file" || die "Failed to move temp DH file"
+
 	notice "\
 
-DH parameters of size $EASYRSA_KEY_SIZE created at $out_file"
+DH parameters of size $EASYRSA_KEY_SIZE created
+at: $out_file"
 
 	return 0
 } # => gen_dh()
