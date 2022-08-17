@@ -3734,7 +3734,11 @@ vars_setup() {
 	#prog_file2="$(which -- "$prog_file" 2>/dev/null)" && prog_file="$prog_file2"
 	#prog_file2="$(readlink -f "$prog_file" 2>/dev/null)" && prog_file="$prog_file2"
 	prog_dir="${prog_file%/*}"
-	if [ "$prog_dir" = . ]; then prog_in_pwd=1; else unset -v prog_in_pwd; fi
+	if [ "$prog_dir" = . ] || [ "$prog_dir" = "$PWD" ]; then
+		prog_in_pwd=1
+	else
+		unset -v prog_in_pwd
+	fi
 
 	# Program dir vars - This location is least wanted.
 	prog_vars="${prog_dir}/vars"
