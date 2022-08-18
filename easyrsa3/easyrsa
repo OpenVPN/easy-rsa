@@ -4786,10 +4786,6 @@ vars_setup
 # determine how we were called, then hand off to the function responsible
 case "$cmd" in
 	init-pki|clean-all)
-		if [ "$user_vars_true" ]; then
-			# Ref: https://github.com/OpenVPN/easy-rsa/issues/566
-			die "Use of '--vars=FILE init-pki' is prohibited, use '--pki-dir=DIR'"
-		fi
 		init_pki "$@"
 		;;
 	build-ca)
