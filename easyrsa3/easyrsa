@@ -3850,13 +3850,8 @@ file. Storing sensitive information in the configuration file is not
 recommended - please remove it from there before continuing."
 			fi
 
-			# Sanitize vars further but ONLY if it is in PKI folder
-			if [ "$vars_in_pki" ]; then
-				# Warning: Unsupported  characters
-				if
-					grep \
-						'^[[:blank:]]*set_var[[:blank:]][[:blank:]]*.*' \
-							"$vars" |
+			# Warning: Unsupported  characters
+			if  grep '^[[:blank:]]*set_var[[:blank:]][[:blank:]]*.*' "$vars" |
 					grep \
 						-e "EASYRSA_REQ_COUNTRY" \
 						-e "EASYRSA_REQ_PROVINCE" \
@@ -3864,13 +3859,11 @@ recommended - please remove it from there before continuing."
 						-e "EASYRSA_REQ_ORG" \
 						-e "EASYRSA_REQ_EMAIL" \
 						-e "EASYRSA_REQ_OU" |
-					grep \
-						-q -e '`' -e '$' -e '{' -e '}'
-				then
-					warn 'Unsupported characters are present in the vars file.
-These characters are not supported: (`) "$" "{" "}"
+						grep -q -e '`' -e '{' -e '}'
+			then
+				warn 'Unsupported characters are present in the vars file.
+These characters are not supported: (`) "{" "}"
 Sourcing the vars file and building certificates will probably fail ..'
-				fi
 			fi
 
 			# Enable sourcing 'vars'
@@ -3879,12 +3872,13 @@ Sourcing the vars file and building certificates will probably fail ..'
 
 			# Test souring 'vars' in a subshell
 			# shellcheck disable=1090 # can't follow non-constant source. vars
-			( . "$vars" ) || die "\
-Failed to source the vars file, remove any unsupported characters."
+			( . "$vars" ) || die "Failed to source the vars file."
 
 			# Source 'vars' now
 			# shellcheck disable=1090 # can't follow non-constant source. vars
 			. "$vars" 2>/dev/null
+			unset -v EASYRSA_CALLER
+
 			information "Using Easy-RSA configuration from: $vars"
 
 			if [ "$vars_in_pki" ] || [ "$user_vars_true" ]; then
