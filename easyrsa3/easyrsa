@@ -2076,16 +2076,12 @@ Run easyrsa without commands for usage and command help."
 	up23_upgrade_ca || die "Failed to upgrade CA to support renewal."
 
 	# Set 'nopass'
-	opt_nopass=""
-	if [ "$1" ]; then
-		opt_nopass="$1"
-		shift
-	fi
-
-	# Enforce syntax
-	if [ "$1" ]; then
-		die "Syntax error: $1"
-	fi
+	unset -v opt_nopass
+	case "$1" in
+		nopass) opt_nopass="$1"; shift ;;
+		'') : ;; # Empty ok
+		*) die "Unknown option: $1"
+	esac
 
 	# referenced cert must exist:
 	[ -f "$crt_in" ] || die "\
@@ -2177,7 +2173,9 @@ These files will be moved to the 'renewed' storage sub-directory:
 These files will be DELETED:
 * All PKCS files for commonName : $file_name_base
 * The inline credentials file   : $creds_in
-* The duplicate certificate     : $duplicate_crt_by_serial"
+* The duplicate certificate     : $duplicate_crt_by_serial
+
+IMPORTANT: The new key will${opt_nopass+ NOT} be password protected."
 
 	confirm "  Continue with renewal: " "yes" "\
 Please confirm you wish to renew the certificate
@@ -2203,10 +2201,14 @@ Renewal has failed to build a new certificate/key pair."
 	fi
 
 	# Success messages
-	notice "                              * IMPORTANT *
+	notice "Renew was successful.
 
-Renew was successful. To revoke the old certificate, once the new one has
-been deployed, use 'revoke-renewed $file_name_base reason' ('reason' is optional)"
+                              * IMPORTANT *
+
+Renew has created a new certificate and key, both files MUST be replaced!
+
+To revoke the old certificate, once the new one has been deployed,
+use: 'revoke-renewed $file_name_base reason' ('reason' is optional)"
 
 	return 0
 } # => renew()
