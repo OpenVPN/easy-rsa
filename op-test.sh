@@ -419,12 +419,15 @@ help_verb="-vv"
 
 sc_file='shellcheck'
 unset -v sc_bin sc_bin_ok
+# v 0.8.0
 sc_hash='SHA256(shellcheck)= f4bce23c11c3919c1b20bcb0f206f6b44c44e26f2bc95f8aa708716095fa0651'
 
 ssl_file='openssl'
 unset -v ssl_bin ssl_bin_ok
-ssl_hash='SHA256(openssl)= a0aed8b4aec1b72ca17c8a9ab04e10d829343a12cb5e7f8f6ae73e6f2ce026fd'
-
+# v 3.0.3
+#ssl_hash='SHA256(openssl)= a0aed8b4aec1b72ca17c8a9ab04e10d829343a12cb5e7f8f6ae73e6f2ce026fd'
+# v 3.0.5
+ssl_hash='SHA256(openssl)= 341d278423aeecbaa2b057b84b5501dd492c8f7e192c5bb9c66a260dbc022a4c'
 # Here we go ..
 
 download_shellcheck
