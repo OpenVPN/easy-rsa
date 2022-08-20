@@ -3853,18 +3853,12 @@ recommended - please remove it from there before continuing."
 			fi
 
 			# Warning: Unsupported  characters
-			if  grep '^[[:blank:]]*set_var[[:blank:]][[:blank:]]*.*' "$vars" |
-					grep \
-						-e "EASYRSA_REQ_COUNTRY" \
-						-e "EASYRSA_REQ_PROVINCE" \
-						-e "EASYRSA_REQ_CITY" \
-						-e "EASYRSA_REQ_ORG" \
-						-e "EASYRSA_REQ_EMAIL" \
-						-e "EASYRSA_REQ_OU" |
-						grep -q -e '`' -e '{' -e '}'
+			if grep '^[[:blank:]]*set_var[[:blank:]]*.*$' "$vars" | \
+				grep -q -e '`'
 			then
-				warn 'Unsupported characters are present in the vars file.
-These characters are not supported: (`) "{" "}"
+				warn '\
+Unsupported characters are present in the vars file.
+These characters are not supported: ` backtick
 Sourcing the vars file and building certificates will probably fail ..'
 			fi
 

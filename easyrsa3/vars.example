@@ -94,12 +94,7 @@ fi
 
 # NOTE: The following characters are not supported
 #       in these "Organizational fields" by Easy-RSA:
-#       single quote (')
 #       back-tick (`)
-#       hash (#)
-#       ampersand (&)
-#       dollar sign ($)
-# Use them at your own risk!
 
 #set_var EASYRSA_REQ_COUNTRY	"US"
 #set_var EASYRSA_REQ_PROVINCE	"California"
