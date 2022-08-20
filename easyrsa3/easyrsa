@@ -439,9 +439,7 @@ General options:
 --ssl-conf=FILE : define a specific OpenSSL config file for Easy-RSA to use
 
 --vars=FILE     : define a specific 'vars' file to use for Easy-RSA config
-                  Can be used with everything, except 'init-pki'
 --pki-dir=DIR   : declare the PKI directory
-                  Use this for 'init-pki', not '--vars' above.
 
 --tmp-dir=DIR   : declare the temporary directory
 --version       : prints EasyRSA version and build information, then exits
