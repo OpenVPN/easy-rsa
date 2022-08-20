@@ -4636,11 +4636,11 @@ unset -v easyrsa_error_exit user_san_true user_vars_true
 # Parse options
 while :; do
 	# Separate option from value:
+	unset -v opt val is_empty empty_ok
 	opt="${1%%=*}"
 	val="${1#*=}"
 
 	# Empty values are not allowed unless expected
-	unset -v is_empty empty_ok
 	# eg: '--batch'
 	[ "$opt" = "$val" ] && is_empty=1
 	# eg: '--pki-dir='
@@ -4652,25 +4652,25 @@ while :; do
 		export EASYRSA_CA_EXPIRE="$val"
 		export EASYRSA_CRL_DAYS="$val"
 		case "$EASYRSA_CERT_EXPIRE" in
-		(*[!1234567890]*|0*)
-			print "--days - Number expected: $EASYRSA_CERT_EXPIRE"
-			exit 1
+			(*[!1234567890]*|0*)
+				print "--days - Number expected: $EASYRSA_CERT_EXPIRE"
+				exit 1
 		esac
 		;;
 	--fix-offset)
 		export EASYRSA_FIX_OFFSET="$val"
 		case "$EASYRSA_FIX_OFFSET" in
-		(*[!1234567890]*|0*)
-			print "--fix-offset - Number expected: $EASYRSA_FIX_OFFSET"
-			exit 1
+			(*[!1234567890]*|0*)
+				print "--fix-offset - Number expected: $EASYRSA_FIX_OFFSET"
+				exit 1
 		esac
 		;;
 	--renew-days)
 		export EASYRSA_CERT_RENEW="$val"
 		case "$EASYRSA_CERT_RENEW" in
-		(*[!1234567890]*|0*)
-			print "--renew-days - Number expected: $EASYRSA_CERT_RENEW"
-			exit 1
+			(*[!1234567890]*|0*)
+				print "--renew-days - Number expected: $EASYRSA_CERT_RENEW"
+				exit 1
 		esac
 		;;
 	--pki-dir)
@@ -4682,7 +4682,13 @@ while :; do
 	--use-algo)
 		export EASYRSA_ALGO="$val" ;;
 	--keysize)
-		export EASYRSA_KEY_SIZE="$val" ;;
+		export EASYRSA_KEY_SIZE="$val"
+		case "$EASYRSA_KEY_SIZE" in
+			(*[!1234567890]*|0*)
+				print "--keysize - Number expected: $EASYRSA_KEY_SIZE"
+				exit 1
+		esac
+		;;
 	--curve)
 		export EASYRSA_CURVE="$val" ;;
 	--dn-mode)
@@ -4735,7 +4741,13 @@ while :; do
 	--passout)
 		export EASYRSA_PASSOUT="$val";;
 	--subca-len)
-		export EASYRSA_SUBCA_LEN="$val" ;;
+		export EASYRSA_SUBCA_LEN="$val"
+		case "$EASYRSA_SUBCA_LEN" in
+			(*[!1234567890]*|0*)
+				print "--subca-len - Number expected: $EASYRSA_SUBCA_LEN"
+				exit 1
+		esac
+		;;
 	--vars)
 		user_vars_true=1
 		export EASYRSA_VARS_FILE="$val" ;;
