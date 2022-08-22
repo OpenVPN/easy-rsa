@@ -525,8 +525,7 @@ notice() {
 	print "
 Notice
 ------
-$1
-"
+$1"
 } # => notice()
 
 # Helpful information
@@ -534,7 +533,7 @@ information() {
 	[ "$EASYRSA_SILENT" ] && return
 	[ "$EASYRSA_BATCH" ] && return
 	[ "$EASYRSA_QUIET" ] && return
-	print "* $1"
+	print "$1"
 } # => notice()
 
 # yes/no case-insensitive match (operates on stdin pipe)
@@ -656,6 +655,13 @@ cleanup() {
 		*) warn "Host OS undefined."
 	esac
 
+	if [ "$EASYRSA_SILENT" ] || [ "$EASYRSA_BATCH" ] || [ "$EASYRSA_QUIET" ]
+	then
+		: # ok
+	else
+		print # just to get a clean line
+	fi
+
 	# Exit with error 1, if an error ocured...
 	if [ "$easyrsa_error_exit" ]; then
 		# Set by verify_cert() for full error-out
@@ -665,7 +671,6 @@ cleanup() {
 		exit 0
 	else
 		# if 'cleanup' is called without 'ok' then an error occurred
-		[ "$EASYRSA_SILENT" ] || print # just to get a clean line
 		exit 1
 	fi
 } # => cleanup()
@@ -981,8 +986,7 @@ Your newly created PKI dir is:
 		: # ok - No message required
 	else
 		information "\
-IMPORTANT: Easy-RSA 'vars' file has now been moved to your PKI above.
-"
+IMPORTANT: Easy-RSA 'vars' file has now been moved to your PKI above."
 	fi
 } # => init_pki()
 
@@ -1114,7 +1118,6 @@ install_data_to_pki () {
 	#[ -e "${EASYRSA_PKI}/${vars_file}" ] || return
 	#[ -e "${EASYRSA_PKI}/${vars_file_example}" ] || return
 	[ -e "${EASYRSA_PKI}/${ssl_cnf_file}" ] || return
-	#[ -e "${EASYRSA_PKI}/${x509_types_dir}" ] || return
 
 	# EASYRSA_EXT_DIR must be found! No exceptions!
 	# The shellcheck warning 2015 is valid, however, this code works correctly.
@@ -1123,7 +1126,7 @@ install_data_to_pki () {
 	[ "$EASYRSA_EXT_DIR" ] && [ -e "$EASYRSA_EXT_DIR" ] || \
 		die "x509-types folder cannot be found: $EASYRSA_EXT_DIR"
 
-	# Complete or error
+	# Create a safe ssl file, Complete or error
 	require_safe_ssl_conf=1 # Always required
 	[ -e "$EASYRSA_SAFE_CONF" ] || easyrsa_openssl makesafeconf || return
 
