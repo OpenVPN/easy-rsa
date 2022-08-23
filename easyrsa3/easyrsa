@@ -525,7 +525,8 @@ notice() {
 	print "
 Notice
 ------
-$1"
+$1
+"
 } # => notice()
 
 # Helpful information
@@ -533,7 +534,8 @@ information() {
 	[ "$EASYRSA_SILENT" ] && return
 	[ "$EASYRSA_BATCH" ] && return
 	[ "$EASYRSA_QUIET" ] && return
-	print "$1"
+	print "* $1
+"
 } # => notice()
 
 # yes/no case-insensitive match (operates on stdin pipe)
@@ -655,7 +657,8 @@ cleanup() {
 		*) warn "Host OS undefined."
 	esac
 
-	if [ "$EASYRSA_SILENT" ] || [ "$EASYRSA_BATCH" ] || [ "$EASYRSA_QUIET" ]
+	if [ "$1" = ok ] || [ "$EASYRSA_BATCH" ] || \
+		[ "$EASYRSA_SILENT" ] || [ "$EASYRSA_QUIET" ]
 	then
 		: # ok
 	else
@@ -923,7 +926,7 @@ init_pki() {
 	while [ "$1" ]; do
 		case "$1" in
 			hard-reset|hard) reset="hard" ;;
-			soft-reset|soft) reset="soft" ;;
+			soft-reset|soft) reset="soft"; old_vars_true=1 ;;
 			*) warn "Ignoring unknown command option: '$1'"
 		esac
 		shift
@@ -956,6 +959,11 @@ and initialize a fresh PKI here."
 		*)
 			die "Removal of PKI dir failed. Unknown reset type: $reset"
 		esac
+
+		# If vars was in the old pki then it has been removed
+		# If vars was somewhere else then it is user defined
+		# Clear found_vars because we MUST not find pki/vars
+		if [ "$vars_in_pki" ]; then unset -v found_vars; fi
 	fi
 
 	# new dirs:
@@ -982,13 +990,34 @@ and initialize a fresh PKI here."
 Your newly created PKI dir is:
 * $EASYRSA_PKI"
 
-	if [ "$user_vars_true" ] || [ "$old_vars_true" ]; then
-		: # ok - No message required
-	else
+	# Installation information
+	# if $no_new_vars then there are one or more known vars
+	# which are not in the PKI. All further commands will fail
+	# until vars is manually corrected
+	[ "$no_new_vars" ] || information "Using Easy-RSA configuration: $vars"
+	# For new PKIs where pki/vars was auto-created, show user message
+	if [ "$new_vars_true" ]; then
 		information "\
-IMPORTANT: Easy-RSA 'vars' file has now been moved to your PKI above."
+IMPORTANT: Easy-RSA 'vars' template file has been created in your new PKI.
+             Edit this 'vars' file to customise the settings for your PKI."
+
+	elif [ "$user_vars_true" ] || [ "$old_vars_true" ] || [ "$no_new_vars" ]
+	then
+		: # ok - User defined, old or no vars file exist
+	else
+		# Not in PKI and not user defined
+		prefer_vars_in_pki_msg
 	fi
+	information "Using x509-types directory: $EASYRSA_EXT_DIR"
 } # => init_pki()
+
+# Must be used in two places, so made it a function
+prefer_vars_in_pki_msg() {
+	information "\
+The preferred location for 'vars' is within the PKI folder.
+  To silence this message move your 'vars' file to your PKI
+  or declare your 'vars' file with option: --vars=<FILE>"
+} # => prefer_vars_in_pki_msg()
 
 # Copy data-files from various sources
 install_data_to_pki () {
@@ -1071,7 +1100,9 @@ install_data_to_pki () {
 
 		# Declare in preferred order, first wins, beaten by command line.
 		# Only set if not in PKI; Same condition made in vars_setup()
-		if [ ! -d "$EASYRSA_PKI/x509-types" ]; then
+		if [ -d "$EASYRSA_PKI/x509-types" ]; then
+			continue
+		else
 			set_var EASYRSA_EXT_DIR "${area}/${x509_types_dir}"
 		fi
 	done
@@ -1083,36 +1114,32 @@ install_data_to_pki () {
 	fi
 
 	# Create PKI/vars from PKI/example
-	unset -v old_vars_true
-	case "$context" in
-	init-pki)
-		if [ -e ./vars ]; then
-			# If the old vars exists then do nothing
-			old_vars_true=1
-		else
+	unset -v new_vars_true
+	if [ "$found_vars" ] || [ "$user_vars_true" ] || [ "$no_new_vars" ]
+	then
+		: # ok - Do not make a PKI/vars if another vars exists
+	else
+		case "$context" in
+		init-pki|vars-setup)
 			if [ -e "${EASYRSA_PKI}/${vars_file_example}" ]; then
-				[ -e "${EASYRSA_PKI}/${vars_file}" ] || \
+				if [ ! -e "${EASYRSA_PKI}/${vars_file}" ] && \
+					[ "$reset" = hard ]
+				then
+					# Failure means that no vars will exist and
+					# 'cp' will generate an error message
+					# This is not a fatal error
 					cp "${EASYRSA_PKI}/${vars_file_example}" \
-						"${EASYRSA_PKI}/${vars_file}" || :
+						"${EASYRSA_PKI}/${vars_file}" && \
+							new_vars_true=1
+				fi
 			fi
-		fi
-	;;
-	vars-setup)
-		if [ "$found_vars" ] || [ "$user_vars_true" ]; then
-			: # ok - Do not make a PKI/vars if another vars exists
-		else
-			if [ -e "${EASYRSA_PKI}/${vars_file_example}" ]; then
-				[ -e "${EASYRSA_PKI}/${vars_file}" ] || \
-					cp "${EASYRSA_PKI}/${vars_file_example}" \
-						"${EASYRSA_PKI}/${vars_file}" || :
-			fi
-		fi
-	;;
-	'')
-		die "install_data_to_pki - unspecified context" ;;
-	*)
-		die "install_data_to_pki - unknown context: $context"
-	esac
+		;;
+		'')
+			die "install_data_to_pki - unspecified context" ;;
+		*)
+			die "install_data_to_pki - unknown context: $context"
+		esac
+	fi
 
 	# Check PKI is updated - Omit unnecessary checks
 	#[ -e "${EASYRSA_PKI}/${vars_file}" ] || return
@@ -3775,43 +3802,47 @@ vars_setup() {
 		fi
 		unset -v prog_vars pwd_vars easy_vars pki_vars expected_pki_vars
 
-	# Otherwise, find vars 'the new way' followed by 'the old way' ..
+	# Otherwise, find vars 'the new way'
 	else
-		# if PKI is required
-		if [ "$no_pki_required" ]; then
-			: # ok - No vars required either
-		else
-			# Clear flags - This is the preferred order to find:
-			unset -v e_pki_vars e_easy_vars e_pwd_vars e_prog_vars \
-				found_vars vars_in_pki
+		# Clear flags - This is the preferred order to find:
+		unset -v e_pki_vars e_easy_vars e_pwd_vars e_prog_vars \
+			found_vars vars_in_pki
 
-			# PKI location, if present:
-			[ -e "$pki_vars" ] && e_pki_vars=1
+		# PKI location, if present:
+		[ -e "$pki_vars" ] && e_pki_vars=1
 
-			# EASYRSA, if defined:
-			[ -e "$easy_vars" ] && e_easy_vars=1
+		# EASYRSA, if defined:
+		[ -e "$easy_vars" ] && e_easy_vars=1
 
-			# Eventually the file below must be removed from EasyRSA
-			# To use a file in PWD use $EASYRSA/vars above
-			# vars of last resort
-			[ -e "$pwd_vars" ] && e_pwd_vars=1
+		# vars of last resort
+		[ -e "$pwd_vars" ] && e_pwd_vars=1
 
-			# program location:
-			[ -e "$prog_vars" ] && e_prog_vars=1
+		# program location:
+		[ -e "$prog_vars" ] && e_prog_vars=1
 
-			# Filter duplicates
-			if [ "$e_prog_vars" ] && [ "$e_pwd_vars" ] && [ "$prog_in_pwd" ]; then
-				unset -v prog_vars e_prog_vars
-			fi
+		# Filter duplicates
+		if [ "$e_prog_vars" ] && [ "$e_pwd_vars" ] && [ "$prog_in_pwd" ]
+		then
+			unset -v prog_vars e_prog_vars
+		fi
 
-			# Allow only one vars to be found, No exceptions!
-			found_vars="$((e_pki_vars + e_easy_vars + e_pwd_vars + e_prog_vars))"
+		# Allow only one vars to be found, No exceptions!
+		found_vars="$((e_pki_vars + e_easy_vars + e_pwd_vars + e_prog_vars))"
 
-			# If found_vars greater than 1 then output user info and exit
-			case "$found_vars" in
-				0) unset -v found_vars ;;
-				1) : ;; # ok
-				*)
+		# If found_vars greater than 1 then output user info and exit
+		case "$found_vars" in
+			0) unset -v found_vars ;;
+			1)
+				# If a SINGLE vars file is found then assign $vars
+				[ "$e_prog_vars" ] && vars="$prog_vars"
+				[ "$e_pwd_vars" ] && vars="$pwd_vars"
+				[ "$e_easy_vars" ] && vars="$easy_vars"
+				[ "$e_pki_vars" ] && vars="$pki_vars" && vars_in_pki=1
+				: # Wipe error status
+			;;
+			*)
+				# For init-pki, skip this check
+				if [ "$pki_is_required" ]; then
 					[ "$e_pki_vars" ] && print "Found: $pki_vars"
 					[ "$e_easy_vars" ] && print "Found: $easy_vars"
 					[ "$e_pwd_vars" ] && print "Found: $pwd_vars"
@@ -3821,30 +3852,31 @@ Conflicting 'vars' files found.
 
 Priority should be given to your PKI vars file:
 * $expected_pki_vars"
-			esac
+				fi
 
-			# If a SINGLE vars file is found then assign $vars
-			[ "$e_prog_vars" ] && vars="$prog_vars"
-			[ "$e_pwd_vars" ] && vars="$pwd_vars"
-			[ "$e_easy_vars" ] && vars="$easy_vars"
-			[ "$e_pki_vars" ] && vars="$pki_vars" && vars_in_pki=1
+				# For init-pki, pki/vars will be deleted
+				# Another vars file exists, so don't create pki/vars
+				no_new_vars=1
+		esac
 
-			# Clean up
-			unset -v prog_vars pwd_vars easy_vars pki_vars
-		fi
+		# Clean up
+		unset -v prog_vars pwd_vars easy_vars pki_vars
 	# END: Find vars
 	fi
 
+	# Find vars 'the old way'
 	# If $EASYRSA_NO_VARS is defined (not blank) then do not use vars.
 	# If $no_pki_required then located vars files are not required.
 	if [ "$EASYRSA_NO_VARS" ] || [ "$no_pki_required" ]; then
 		: # ok
+
+	# If a vars file was located then source it
 	else
-		# If a vars file was located then source it
+		# $vars remains undefined .. no vars found
+		# 'install_data_to_pki vars-setup' will NOT create a default PKI/vars
 		if [ -z "$vars" ]; then
-			# $vars remains undefined .. no vars found
-			# install_data_to_pki() will create a default 'PKI/vars'
-			: # ok
+			information "No Easy-RSA configuration file exists!"
+			no_new_vars=1
 		else
 			# 'vars' now MUST exist
 			[ -e "$vars" ] || die "Missing vars file, expected: $vars"
@@ -3880,17 +3912,6 @@ Sourcing the vars file and building certificates will probably fail ..'
 			. "$vars" 2>/dev/null
 			unset -v EASYRSA_CALLER
 
-			information "Using Easy-RSA configuration from: $vars"
-
-			if [ "$vars_in_pki" ] || [ "$user_vars_true" ]; then
-				: # ok - No message required
-			else
-				information "\
-The preferred location for 'vars' is within the PKI folder:
-    ${EASYRSA_PKI:-$PWD/pki}
-  To silence this message move your 'vars' file to your PKI
-  or declare your 'vars' file with option: --vars=./vars"
-			fi
 		fi
 	fi
 
@@ -3954,7 +3975,21 @@ The preferred location for 'vars' is within the PKI folder:
 			# This will find x509-types and export EASYRSA_EXT_DIR or die.
 			# Other errors only require warning.
 			install_data_to_pki vars-setup || \
-				warn "Failed to install new required data-dir to PKI. (vars_setup)"
+				warn "install_data_to_pki vars-setup Failed"
+
+			# Installation information
+			[ "$no_new_vars" ] || \
+				information "Using Easy-RSA configuration: $vars"
+			# if the vars file in use is not in the PKI and not user defined
+			# Show messages
+			if [ "$vars_in_pki" ] || [ "$user_vars_true" ] || \
+				[ "$no_new_vars" ]
+			then
+				: # ok - No message required
+			else
+				prefer_vars_in_pki_msg
+			fi
+			information "Using x509-types directory: $EASYRSA_EXT_DIR"
 
 			# export OPENSSL_CONF for OpenSSL, OpenSSL config file MUST exist
 			# EASYRSA_SAFE_CONF is output by 'install_data_to_pki()'
