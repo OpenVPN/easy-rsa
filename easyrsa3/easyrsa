@@ -430,9 +430,9 @@ non-empty values to options are mandatory.
 General options:
 
 --batch         : set automatic (no-prompts when possible) mode
---silent        : Disable all Warnings and Notices
+-s|--silent     : Disable all Warnings and Notices
 --sbatch        : Combined --silent and --batch operating mode
---quiet|-q      : Quiet mode, disable information messages only
+-q|--quiet      : Quiet mode, disable information messages only
 
 --passin=ARG    : set -passin ARG for openssl (eg: pass:xEasyRSAy)
 --passout=ARG   : set -passout ARG for openssl (eg: pass:xEasyRSAy)
@@ -4760,14 +4760,14 @@ while :; do
 	--batch)
 		empty_ok=1
 		export EASYRSA_BATCH=1 ;;
-	--silent)
+	-s|--silent)
 		empty_ok=1
 		export EASYRSA_SILENT=1 ;;
-	--silent-batch|--sbatch)
+	--sbatch|--silent-batch)
 		empty_ok=1
 		export EASYRSA_SILENT=1
 		export EASYRSA_BATCH=1 ;;
-	--quiet|-q)
+	-q|--quiet)
 		empty_ok=1
 		export EASYRSA_QUIET=1 ;;
 	--passin)
