@@ -3702,9 +3702,9 @@ detect_host() {
 
 	easyrsa_ver_test="${EASYRSA_version%%~*}"
 	if [ "$easyrsa_ver_test" ]; then
-		host_out="Version: $EASYRSA_version"
+		host_out="Host: $EASYRSA_version"
 	else
-		host_out="Version: dev"
+		host_out="Host: dev"
 	fi
 
 	host_out="${host_out} | $easyrsa_host_os | $easyrsa_uname | $easyrsa_shell"
@@ -3716,7 +3716,7 @@ detect_host() {
 show_host() {
 	print
 	print_version
-	print "$host_out | ${ssl_lib:-ssl_lib not set}"
+	print "$host_out | ${ssl_version:-ssl_version not currently set}"
 	[ ! "$EASYRSA_DEBUG" ] && return
 	case "$easyrsa_host_os" in
 	win) set ;;
