@@ -472,7 +472,7 @@ Distinguished Name mode:
   --dn-mode=MODE    : Distinguished Name mode to use 'cn_only' or 'org'
                       (Default: 'cn_only')
 
-  --req-cn=NAME     : default CN to use (DEPRECATED)
+  --req-cn=NAME     : Set commonNama for CA/SubCA ONLY. Default 'Easy-RSA CA'
 
   Distinguished Name Organizational options: (only used with '--dn-mode=org')
   --req-c=CC           : country code (2-letters)
