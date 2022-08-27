@@ -67,9 +67,9 @@ Here is the list of commands available with a short syntax reminder. Use the
 	pki_dir="${EASYRSA_PKI:-$err_source}"
 	print "\
 DIRECTORY STATUS (commands would take effect on these locations)
-  EASYRSA: $work_dir
-      PKI: $pki_dir
-"
+     EASYRSA: $work_dir
+         PKI: $pki_dir
+  x509-types: ${EASYRSA_EXT_DIR:-Missing or undefined}"
 } # => usage()
 
 # Detailed command help
@@ -1019,6 +1019,36 @@ The preferred location for 'vars' is within the PKI folder.
   or declare your 'vars' file with option: --vars=<FILE>"
 } # => prefer_vars_in_pki_msg()
 
+# Find x509-types dir, always prefer PKI location
+find_x509_types_dir() {
+	x509_types_dir='x509-types'
+	# if PKI/x509-types exists then it wins, except for command line
+	if [ -d "$EASYRSA_PKI/$x509_types_dir" ]; then
+		# use set_var to preserve command line
+		set_var EASYRSA_EXT_DIR "$EASYRSA_PKI/$x509_types_dir"
+		return
+	fi
+
+	# Find x509-types dir, in specific order
+	for area in \
+		'/usr/local/share/easy-rsa' \
+		'/usr/share/easy-rsa' \
+		"$PWD" \
+		"${0%/*}" \
+		'/etc/easy-rsa' \
+		# EOL - # Add more distros here
+	do
+		# Find x509-types
+		[ -e "${area}/$x509_types_dir" ] || continue
+
+		# Declare in preferred order, first wins, beaten by command line.
+		set_var EASYRSA_EXT_DIR "${area}/$x509_types_dir"
+	done
+
+	# EASYRSA_EXT_DIR must be defined
+	[ "${EASYRSA_EXT_DIR}" ] || return
+} # => find_x509_types_dir()
+
 # Copy data-files from various sources
 install_data_to_pki () {
 #
@@ -1061,7 +1091,6 @@ install_data_to_pki () {
 	vars_file='vars'
 	vars_file_example='vars.example'
 	ssl_cnf_file='openssl-easyrsa.cnf'
-	x509_types_dir='x509-types'
 
 	# PWD - Covers EasyRSA-Windows installed by OpenVPN, and git forks
 	# "prog_dir" - Old way (Who installs data files in /usr/bin ?)
@@ -1094,24 +1123,10 @@ install_data_to_pki () {
 				cp "${area}/${source}" "$EASYRSA_PKI" || return
 			fi
 		done
-
-		# Find x509-types
-		[ -e "${area}/${x509_types_dir}" ] || continue
-
-		# Declare in preferred order, first wins, beaten by command line.
-		# Only set if not in PKI; Same condition made in vars_setup()
-		if [ -d "$EASYRSA_PKI/x509-types" ]; then
-			continue
-		else
-			set_var EASYRSA_EXT_DIR "${area}/${x509_types_dir}"
-		fi
 	done
 
-	# if PKI/x509-types exists then it wins, except command line
-	# Same condition made in vars_setup()
-	if [ -d "$EASYRSA_PKI/x509-types" ]; then
-		set_var EASYRSA_EXT_DIR "$EASYRSA_PKI/x509-types"
-	fi
+	# Find x509-types or fail
+	find_x509_types_dir || die "Failed to find x509-types"
 
 	# Create PKI/vars from PKI/example
 	unset -v new_vars_true
@@ -1145,13 +1160,6 @@ install_data_to_pki () {
 	#[ -e "${EASYRSA_PKI}/${vars_file}" ] || return
 	#[ -e "${EASYRSA_PKI}/${vars_file_example}" ] || return
 	[ -e "${EASYRSA_PKI}/${ssl_cnf_file}" ] || return
-
-	# EASYRSA_EXT_DIR must be found! No exceptions!
-	# The shellcheck warning 2015 is valid, however, this code works correctly.
-	# Note that A && B || C is not if-then-else. C may run when A is true
-	# shellcheck disable=SC2015
-	[ "$EASYRSA_EXT_DIR" ] && [ -e "$EASYRSA_EXT_DIR" ] || \
-		die "x509-types folder cannot be found: $EASYRSA_EXT_DIR"
 
 	# Create a safe ssl file, Complete or error
 	require_safe_ssl_conf=1 # Always required
@@ -3868,7 +3876,8 @@ Priority should be given to your PKI vars file:
 	# If $EASYRSA_NO_VARS is defined (not blank) then do not use vars.
 	# If $no_pki_required then located vars files are not required.
 	if [ "$EASYRSA_NO_VARS" ] || [ "$no_pki_required" ]; then
-		: # ok
+		# Find x509-types but do not fail - Not fatal here
+		find_x509_types_dir || :
 
 	# If a vars file was located then source it
 	else
@@ -3911,7 +3920,6 @@ Sourcing the vars file and building certificates will probably fail ..'
 			# shellcheck disable=1090 # can't follow non-constant source. vars
 			. "$vars" 2>/dev/null
 			unset -v EASYRSA_CALLER
-
 		fi
 	fi
 
@@ -3989,7 +3997,6 @@ Sourcing the vars file and building certificates will probably fail ..'
 			else
 				prefer_vars_in_pki_msg
 			fi
-			information "Using x509-types directory: $EASYRSA_EXT_DIR"
 
 			# export OPENSSL_CONF for OpenSSL, OpenSSL config file MUST exist
 			# EASYRSA_SAFE_CONF is output by 'install_data_to_pki()'
