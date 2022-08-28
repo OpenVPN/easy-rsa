@@ -504,7 +504,7 @@ reinit_x509_types_dir() {
 		echo "${test_bt_vars}"|grep -q -e '`' && return
 		#reset EASYRSA_EXT_DIR which was defined before EASYRSA_PKI
 		unset EASYRSA_EXT_DIR
-		eval "${test_bt_vars}"
+		${test_bt_vars}
 		find_x509_types_dir
 	fi
 } # => reinit_x509_types_dir()
