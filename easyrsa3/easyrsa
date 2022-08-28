@@ -62,6 +62,7 @@ Here is the list of commands available with a short syntax reminder. Use the
 "
 
 	# collect/show dir status:
+	reinit_x509_types_dir
 	err_source="Not defined: vars autodetect failed and no value provided"
 	work_dir="${EASYRSA:-$err_source}"
 	pki_dir="${EASYRSA_PKI:-$err_source}"
@@ -489,6 +490,24 @@ Deprecated features:
 --ns-comment=COMMENT  : NS comment to include (value may be blank)
 "
 } # => opt_usage()
+
+# Reset EASYRSA_EXT_DIR if called from usage() to (potentially) pickup user configured dir
+reinit_x509_types_dir() {
+	#only reset if pki_dir AND vars exist
+	# (pki-init needs to have already run for a custom config to exist)
+	if [ -d "${EASYRSA_PKI}" ] && [ -e "${vars}" ]; then
+		# shellcheck disable=SC2016 # vars don't expand in single quotes (awk)
+		awkscript='/^[[:blank:]]*set_var[[:blank:]]*EASYRSA_EXT_DIR.*$/ {print}'
+		test_bt_vars="$(awk "${awkscript}" "${vars}")"
+		#silent return if EASYRSA_EXT_DIR in vars contains '`' (backtick)
+		# will leave to main vars_setup processing to warn user
+		echo "${test_bt_vars}"|grep -q -e '`' && return
+		#reset EASYRSA_EXT_DIR which was defined before EASYRSA_PKI
+		unset EASYRSA_EXT_DIR
+		eval "${test_bt_vars}"
+		find_x509_types_dir
+	fi
+} # => reinit_x509_types_dir()
 
 # Wrapper around printf - clobber print since it's not POSIX anyway
 # print() is used internally, so MUST NOT be silenced.
