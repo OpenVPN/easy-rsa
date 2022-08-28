@@ -472,7 +472,7 @@ Distinguished Name mode:
   --dn-mode=MODE    : Distinguished Name mode to use 'cn_only' or 'org'
                       (Default: 'cn_only')
 
-  --req-cn=NAME     : Set commonNama for CA/SubCA ONLY. Default 'Easy-RSA CA'
+  --req-cn=NAME     : Set commonName for CA/SubCA ONLY. Default 'Easy-RSA CA'
 
   Distinguished Name Organizational options: (only used with '--dn-mode=org')
   --req-c=CC           : country code (2-letters)
@@ -1249,13 +1249,20 @@ current CA keypair. If you intended to start a new CA, run init-pki first."
 	printf '%s\n' "01" > "$EASYRSA_PKI/serial" || die "$err_file"
 
 	# Default CA commonName
-	[ "$EASYRSA_REQ_CN" = ChangeMe ] && export EASYRSA_REQ_CN="Easy-RSA CA"
-
-	# Do not use prompting from SSL config
-	ssl_batch=1
+	if [ "$EASYRSA_REQ_CN" = ChangeMe ]; then
+		if [ "$sub_ca" ]; then
+			export EASYRSA_REQ_CN="Easy-RSA Sub-CA"
+		else
+			export EASYRSA_REQ_CN="Easy-RSA CA"
+		fi
+		unsest -v ssl_batch
+	else
+		# Do not use prompting from SSL config
+		ssl_batch=1
+	fi
 
 	# Get user confirmation here, not while in SSL
-	if [ "$EASYRSA_BATCH" ]; then
+	if [ "$EASYRSA_BATCH" ] || [ -z "$ssl_batch" ]; then
 		: # ok
 	else
 		case "$EASYRSA_DN" in
