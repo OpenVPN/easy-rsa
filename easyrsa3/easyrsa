@@ -1029,11 +1029,18 @@ find_x509_types_dir() {
 		return
 	fi
 
+	# if PKI/x509-types exists then it wins, except for command line
+	if [ -d "$PWD/pki/$x509_types_dir" ]; then
+		# use set_var to preserve command line
+		set_var EASYRSA_EXT_DIR "$PWD/pki/$x509_types_dir"
+		return
+	fi
+
 	# Find x509-types dir, in specific order
 	for area in \
+		"$PWD" \
 		'/usr/local/share/easy-rsa' \
 		'/usr/share/easy-rsa' \
-		"$PWD" \
 		"${0%/*}" \
 		'/etc/easy-rsa' \
 		# EOL - # Add more distros here
@@ -1046,7 +1053,7 @@ find_x509_types_dir() {
 	done
 
 	# EASYRSA_EXT_DIR must be defined
-	[ "${EASYRSA_EXT_DIR}" ] || return
+	[ -d "${EASYRSA_EXT_DIR}" ] || return
 } # => find_x509_types_dir()
 
 # Copy data-files from various sources
@@ -3883,8 +3890,7 @@ Priority should be given to your PKI vars file:
 	# If $EASYRSA_NO_VARS is defined (not blank) then do not use vars.
 	# If $no_pki_required then located vars files are not required.
 	if [ "$EASYRSA_NO_VARS" ] || [ "$no_pki_required" ]; then
-		# Find x509-types but do not fail - Not fatal here
-		find_x509_types_dir || :
+		: # ok
 
 	# If a vars file was located then source it
 	else
@@ -3893,6 +3899,7 @@ Priority should be given to your PKI vars file:
 		if [ -z "$vars" ]; then
 			information "No Easy-RSA configuration file exists!"
 			no_new_vars=1
+
 		else
 			# 'vars' now MUST exist
 			[ -e "$vars" ] || die "Missing vars file, expected: $vars"
@@ -3960,6 +3967,9 @@ Sourcing the vars file and building certificates will probably fail ..'
 	set_var OPENSSL_CONF			"$EASYRSA_SAFE_CONF"
 
 	set_var EASYRSA_KDC_REALM		"CHANGEME.EXAMPLE.COM"
+
+	# Find x509-types but do not fail - Not fatal here
+	find_x509_types_dir || :
 
 	# For commands which 'require a PKI' and the PKI exists
 	if  [ "$pki_is_required" ] && [ -d "$EASYRSA_PKI" ]; then
