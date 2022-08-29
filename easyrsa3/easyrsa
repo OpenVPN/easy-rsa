@@ -429,6 +429,7 @@ non-empty values to options are mandatory.
 
 General options:
 
+--version       : prints EasyRSA version and build information, then exits
 --batch         : set automatic (no-prompts when possible) mode
 -s|--silent     : Disable all Warnings and Notices
 --sbatch        : Combined --silent and --batch operating mode
@@ -442,7 +443,9 @@ General options:
 --pki-dir=DIR   : declare the PKI directory
 
 --tmp-dir=DIR   : declare the temporary directory
---version       : prints EasyRSA version and build information, then exits
+--keep-tmp=NAME : Keep the original temporary session by name: NAME
+                  NAME is a sub-directory of the dir declared by --tmp-dir
+                  This option ALWAYS over-writes a sub-dir of the same name.
 
 Certificate & Request options: (these impact cert/req field values)
 
@@ -629,9 +632,20 @@ easyrsa_mktemp() {
 
 # remove temp files and do terminal cleanups
 cleanup() {
-	if [ "${EASYRSA_TEMP_DIR_session%/*}" ] && [ -d "$EASYRSA_TEMP_DIR_session" ]
+	if [ "${EASYRSA_TEMP_DIR_session%/*}" ] && \
+		[ -d "$EASYRSA_TEMP_DIR_session" ]
 	then
-		rm -rf "$EASYRSA_TEMP_DIR_session"
+		if [ "$EASYRSA_KEEP_TEMP" ]; then
+			keep_tmp="$EASYRSA_TEMP_DIR/$EASYRSA_KEEP_TEMP"
+			# Remove previous keep dir, created by --keep-temp
+			[ -d "$keep_tmp" ] && rm -rf "$keep_tmp"
+
+			mv -f "$EASYRSA_TEMP_DIR_session" "$keep_tmp"
+			information \
+				"Temp session preserved: $keep_tmp"
+		else
+			rm -rf "$EASYRSA_TEMP_DIR_session"
+		fi
 	fi
 
 	if [ "${EASYRSA_EC_DIR%/*}" ] && [ -d "$EASYRSA_EC_DIR" ]
@@ -3742,7 +3756,7 @@ show_host() {
 	print
 	print_version
 	print "$host_out | ${ssl_version:-ssl_version not currently set}"
-	[ ! "$EASYRSA_DEBUG" ] && return
+	[ "$EASYRSA_DEBUG" ] || return 0
 	case "$easyrsa_host_os" in
 	win) set ;;
 	nix) env ;;
@@ -4033,7 +4047,7 @@ Sourcing the vars file and building certificates will probably fail ..'
 
 		else
 			# If the directory does not exist then we have not run init-pki
-			# The temp-dir is Always created by 'install_data_to_pki'
+			# The temp-dir is ALWAYS verified by secure_session()
 			die "Temporary directory does not exist: $EASYRSA_TEMP_DIR"
 		fi
 	fi
@@ -4740,6 +4754,8 @@ while :; do
 		export EASYRSA_TEMP_DIR="$val" ;;
 	--ssl-conf)
 		export EASYRSA_SSL_CONF="$val" ;;
+	--keep-temp)
+		export EASYRSA_KEEP_TEMP="$val" ;;
 	--use-algo)
 		export EASYRSA_ALGO="$val" ;;
 	--keysize)
