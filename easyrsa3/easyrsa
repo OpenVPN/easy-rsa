@@ -1021,7 +1021,10 @@ The preferred location for 'vars' is within the PKI folder.
 
 # Find x509-types dir, always prefer PKI location
 find_x509_types_dir() {
+	# if EASYRSA_EXT_DIR is set to a non-existent dir the reset it
+	[ -d "$EASYRSA_EXT_DIR" ] || unset -v EASYRSA_EXT_DIR
 	x509_types_dir='x509-types'
+
 	# if PKI/x509-types exists then it wins, except for command line
 	if [ -d "$EASYRSA_PKI/$x509_types_dir" ]; then
 		# use set_var to preserve command line
