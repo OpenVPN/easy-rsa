@@ -1273,7 +1273,7 @@ current CA keypair. If you intended to start a new CA, run init-pki first."
 		else
 			export EASYRSA_REQ_CN="Easy-RSA CA"
 		fi
-		unsest -v ssl_batch
+		unset -v ssl_batch
 	else
 		# Do not use prompting from SSL config
 		ssl_batch=1
