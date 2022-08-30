@@ -1482,8 +1482,10 @@ Run easyrsa without commands for usage and commands."
 	key_out="$EASYRSA_PKI/private/$1.key"
 	req_out="$EASYRSA_PKI/reqs/$1.req"
 
-	# Set the request commonName
-	EASYRSA_REQ_CN="$1"
+	# Set the request commonName to the "file base" when no commonName override is provided
+	if [ -z ${EASYRSA_REQ_CN} ]; then
+		EASYRSA_REQ_CN="$1"
+	fi
 	shift
 
 	# Verify PKI has been initialised
