@@ -4871,7 +4871,7 @@ case "$cmd" in
 		init_pki "$@"
 		;;
 	build-ca)
-		[ "$alias_days" ] && export EASYRSA_CA_EXPIRE="$alias_days"
+		[ "$alias_days" ] && export EASYRSA_CA_EXPIRE="$alias_days"; :
 		build_ca "$@"
 		;;
 	gen-dh)
