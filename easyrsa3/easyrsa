@@ -372,8 +372,9 @@ cmd_help() {
       * ca  - Upgrade EasyRSA v3.0.5 CA or older to EasyRSA v3.0.6 CA or later."
 	;;
 	altname|subjectaltname|san)
+		opt_only=1
 		text="
-* --subject-alt-name=SAN_FORMAT_STRING
+* Option: --subject-alt-name=SAN_FORMAT_STRING
 
       This global option adds a subjectAltName to the request or issued
       certificate. It MUST be in a valid format accepted by openssl or
@@ -388,6 +389,21 @@ cmd_help() {
       * IP:203.0.113.29
       * email:alternate@example.net"
 	;;
+	days)
+		opt_only=1
+		text="
+* Option: --days
+
+      This global option is an alias for one of the following:
+      * Expiry days for a new CA.
+        eg: '--days=3650 build-ca'
+      * Expiry days for new/renewed certificate.
+        eg: '--days=1095 renew server'
+      * Expiry days for certificate revokation list.
+        eg: '--days=180 gen-crl'
+      * Cutoff days for commands: show-expire or renewable.
+        eg: '--days=90 show-expire'"
+	;;
 	opts|options)
 		opt_usage
 	;;
@@ -400,7 +416,9 @@ cmd_help() {
 
 	# display the help text
 	[ "$text" ] && print "${text}${NL}"
-	if [ "$text" ] && [ "$opts" ]; then
+	if [ "$text" ] && [ "$opt_only" ]; then
+		: # ok - No opts message required
+	elif [ "$text" ] && [ "$opts" ]; then
 		print "\
     Available command-options (cmd-opts):
 $opts
@@ -447,9 +465,7 @@ General options:
 Certificate & Request options: (these impact cert/req field values)
 
 --days=#        : sets the signing validity to the specified number of days
---renew-days=#  : Number of days grace to search for expiring certificates
-                  Only effects reporting as a cut-off date for the commands
-                  'renewable' and 'show-expire' (Default: 90 days)
+                  Also applies to renewal period. For details, see: 'help days'
 --fix-offset=#  : Generate certificate with fixed start and end dates.
                   Range 1 to 365
                   start-date is 01 January 00:00:01 of the current year
@@ -3629,7 +3645,8 @@ status() {
 		case "$report" in
 		expire)
 			notice "\
-* Showing certificates which expire in less than $EASYRSA_CERT_RENEW days (--renew-days):"
+* Showing certificates which expire in less than \
+$EASYRSA_CERT_RENEW days (--days):"
 		;;
 		revoke)
 			notice "\
@@ -3900,7 +3917,7 @@ Priority should be given to your PKI vars file:
 		# $vars remains undefined .. no vars found
 		# 'install_data_to_pki vars-setup' will NOT create a default PKI/vars
 		if [ -z "$vars" ]; then
-			information "No Easy-RSA configuration file exists!"
+			information "No Easy-RSA 'vars' configuration file exists!"
 			no_new_vars=1
 
 		else
@@ -4692,7 +4709,8 @@ trap "exit 14" 15
 detect_host
 
 # Initialisation requirements
-unset -v easyrsa_error_exit user_san_true user_vars_true
+unset -v easyrsa_error_exit user_san_true user_vars_true \
+	alias_days opt_only
 
 # Parse options
 while :; do
@@ -4709,28 +4727,19 @@ while :; do
 
 	case "$opt" in
 	--days)
-		export EASYRSA_CERT_EXPIRE="$val"
-		export EASYRSA_CA_EXPIRE="$val"
-		export EASYRSA_CRL_DAYS="$val"
-		case "$EASYRSA_CERT_EXPIRE" in
+		case "$val" in
 			(*[!1234567890]*|0*)
-				print "--days - Number expected: $EASYRSA_CERT_EXPIRE"
+				print "$opt - Number expected: '$val'"
 				exit 1
 		esac
+		# Set the appropriate date variable when called by command later
+		alias_days="$val"
 		;;
 	--fix-offset)
 		export EASYRSA_FIX_OFFSET="$val"
-		case "$EASYRSA_FIX_OFFSET" in
+		case "$val" in
 			(*[!1234567890]*|0*)
-				print "--fix-offset - Number expected: $EASYRSA_FIX_OFFSET"
-				exit 1
-		esac
-		;;
-	--renew-days)
-		export EASYRSA_CERT_RENEW="$val"
-		case "$EASYRSA_CERT_RENEW" in
-			(*[!1234567890]*|0*)
-				print "--renew-days - Number expected: $EASYRSA_CERT_RENEW"
+				print "$opt - Number expected: '$val'"
 				exit 1
 		esac
 		;;
@@ -4744,9 +4753,9 @@ while :; do
 		export EASYRSA_ALGO="$val" ;;
 	--keysize)
 		export EASYRSA_KEY_SIZE="$val"
-		case "$EASYRSA_KEY_SIZE" in
+		case "$val" in
 			(*[!1234567890]*|0*)
-				print "--keysize - Number expected: $EASYRSA_KEY_SIZE"
+				print "$opt - Number expected: '$val'"
 				exit 1
 		esac
 		;;
@@ -4803,9 +4812,9 @@ while :; do
 		export EASYRSA_PASSOUT="$val";;
 	--subca-len)
 		export EASYRSA_SUBCA_LEN="$val"
-		case "$EASYRSA_SUBCA_LEN" in
+		case "$val" in
 			(*[!1234567890]*|0*)
-				print "--subca-len - Number expected: $EASYRSA_SUBCA_LEN"
+				print "$opt - Number expected: '$val'"
 				exit 1
 		esac
 		;;
@@ -4862,6 +4871,7 @@ case "$cmd" in
 		init_pki "$@"
 		;;
 	build-ca)
+		[ "$alias_days" ] && export EASYRSA_CA_EXPIRE="$alias_days"
 		build_ca "$@"
 		;;
 	gen-dh)
@@ -4874,18 +4884,23 @@ case "$cmd" in
 		renew_req "$@"
 		;;
 	sign|sign-req)
+		[ "$alias_days" ] && export EASYRSA_CERT_EXPIRE="$alias_days"; :
 		sign_req "$@"
 		;;
 	build-client-full)
+		[ "$alias_days" ] && export EASYRSA_CERT_EXPIRE="$alias_days"; :
 		build_full client "$@"
 		;;
 	build-server-full)
+		[ "$alias_days" ] && export EASYRSA_CERT_EXPIRE="$alias_days"; :
 		build_full server "$@"
 		;;
 	build-serverClient-full)
+		[ "$alias_days" ] && export EASYRSA_CERT_EXPIRE="$alias_days"; :
 		build_full serverClient "$@"
 		;;
 	gen-crl)
+		[ "$alias_days" ] && export EASYRSA_CRL_DAYS="$alias_days"; :
 		gen_crl
 		;;
 	revoke)
@@ -4895,9 +4910,11 @@ case "$cmd" in
 		revoke_renewed "$@"
 		;;
 	renew)
+		[ "$alias_days" ] && export EASYRSA_CERT_EXPIRE="$alias_days"; :
 		renew "$@"
 		;;
 	renewable)
+		[ "$alias_days" ] && export EASYRSA_CERT_RENEW="$alias_days"; :
 		renewable "$@"
 		;;
 	rewind-renew)
@@ -4946,6 +4963,7 @@ case "$cmd" in
 		verify_cert "$@" || :
 		;;
 	show-expire)
+		[ "$alias_days" ] && export EASYRSA_CERT_RENEW="$alias_days"; :
 		status expire "$@"
 		;;
 	show-revoke)
