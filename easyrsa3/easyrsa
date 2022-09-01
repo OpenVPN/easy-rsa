@@ -62,6 +62,7 @@ Here is the list of commands available with a short syntax reminder. Use the
 "
 
 	# collect/show dir status:
+	text_only=1
 	err_source="Not defined: vars autodetect failed and no value provided"
 	work_dir="${EASYRSA:-$err_source}"
 	pki_dir="${EASYRSA_PKI:-$err_source}"
@@ -69,7 +70,8 @@ Here is the list of commands available with a short syntax reminder. Use the
 DIRECTORY STATUS (commands would take effect on these locations)
      EASYRSA: $work_dir
          PKI: $pki_dir
-  x509-types: ${EASYRSA_EXT_DIR:-Missing or undefined}"
+  x509-types: ${EASYRSA_EXT_DIR:-Missing or undefined}
+"
 } # => usage()
 
 # Detailed command help
@@ -78,9 +80,7 @@ DIRECTORY STATUS (commands would take effect on these locations)
 # Commands are TAB indented, while text is SPACE indented.
 # 'case' indentation is minimalistic.
 cmd_help() {
-	text=""
-	err_text=""
-	opts=""
+	unset -v text err_text opts text_only
 	case "$1" in
 	init-pki|clean-all)
 		text="
@@ -372,7 +372,7 @@ cmd_help() {
       * ca  - Upgrade EasyRSA v3.0.5 CA or older to EasyRSA v3.0.6 CA or later."
 	;;
 	altname|subjectaltname|san)
-		opt_only=1
+		text_only=1
 		text="
 * Option: --subject-alt-name=SAN_FORMAT_STRING
 
@@ -390,7 +390,7 @@ cmd_help() {
       * email:alternate@example.net"
 	;;
 	days)
-		opt_only=1
+		text_only=1
 		text="
 * Option: --days
 
@@ -414,25 +414,27 @@ cmd_help() {
   Unknown command: '$1' (try without commands for a list of commands)"
 	esac
 
-	# display the help text
-	[ "$text" ] && print "${text}${NL}"
-	if [ "$text" ] && [ "$opt_only" ]; then
-		: # ok - No opts message required
-	elif [ "$text" ] && [ "$opts" ]; then
-		print "\
-    Available command-options (cmd-opts):
-$opts
-"
-	elif [ "$text" ] && [ -z "$opts" ]; then
-		print "\
-    Available command-options (cmd-opts):
-
-      * N/A - No supported command-options
-"
-	elif [ "$err_text" ]; then
+	if [ "$err_text" ]; then
 		print "${err_text}${NL}"
 	else
-		: # ok - No opts message required
+		# display the help text
+		[ "$text" ] && print "${text}${NL}"
+
+		if [ "$text_only" ]; then
+			: # ok - No opts message required
+
+		elif [ "$opts" ]; then
+				print "\
+Available command-options (cmd-opts):
+$opts
+"
+		else
+			print "\
+Available command-options (cmd-opts):
+
+  * N/A - No supported command-options
+"
+		fi
 	fi
 } # => cmd_help()
 
@@ -4710,7 +4712,7 @@ detect_host
 
 # Initialisation requirements
 unset -v easyrsa_error_exit user_san_true user_vars_true \
-	alias_days opt_only
+	alias_days
 
 # Parse options
 while :; do
