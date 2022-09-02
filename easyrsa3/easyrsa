@@ -4754,7 +4754,7 @@ while :; do
 		export EASYRSA_TEMP_DIR="$val" ;;
 	--ssl-conf)
 		export EASYRSA_SSL_CONF="$val" ;;
-	--keep-temp)
+	--keep-tmp)
 		export EASYRSA_KEEP_TEMP="$val" ;;
 	--use-algo)
 		export EASYRSA_ALGO="$val" ;;
