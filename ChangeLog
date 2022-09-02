@@ -1,6 +1,7 @@
 Easy-RSA 3 ChangeLog
 
 3.1.1 (TBD)
+   * Introduce --keep-tmp, keep temp files for debugging (#667)
    * Introduce Quiet mode option -q|--quiet, disable information output
        8b7e79096b18afc5c61bfbaee204c1f7401f0019
    * Introduce renew-req, create a new CSR for an existing key (#616)
