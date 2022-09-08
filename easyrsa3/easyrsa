@@ -389,10 +389,10 @@ cmd_help() {
       * IP:203.0.113.29
       * email:alternate@example.net"
 	;;
-	days)
+	--days|days)
 		text_only=1
 		text="
-* Option: --days
+* Option: --days=DAYS
 
       This global option is an alias for one of the following:
       * Expiry days for a new CA.
@@ -403,6 +403,19 @@ cmd_help() {
         eg: '--days=180 gen-crl'
       * Cutoff days for commands: show-expire or renewable.
         eg: '--days=90 show-expire'"
+	;;
+	--req-cn|req-cn)
+		text_only=1
+		text="
+* Option: --req-cn=NAME
+
+      This specific option can set the CSR commonName.
+
+      Can only be used in BATCH mode for the following commands:
+      * To build a new CA [or Sub-CA]:
+        eg: '--batch --req-cn=NAME build-ca [subca]'
+      * To generate a certificate signing request:
+        eg: '--batch --req-cn=NAME gen-req <file_name_base>'"
 	;;
 	opts|options)
 		opt_usage
@@ -440,6 +453,7 @@ Available command-options (cmd-opts):
 
 # Options usage
 opt_usage() {
+	text_only=1
 	print "
 Easy-RSA Global Option Flags
 
@@ -490,10 +504,9 @@ Certificate & Request options: (these impact cert/req field values)
 
 Distinguished Name mode:
 
-  --dn-mode=MODE    : Distinguished Name mode to use 'cn_only' or 'org'
-                      (Default: 'cn_only')
+--dn-mode=MODE  : Distinguished Name mode to use 'cn_only' (Default) or 'org'
 
-  --req-cn=NAME     : Set commonName for CA/SubCA ONLY. Default 'Easy-RSA CA'
+--req-cn=NAME   : Set CSR commonName to NAME. For details, see: 'help req-cn'
 
   Distinguished Name Organizational options: (only used with '--dn-mode=org')
   --req-c=CC           : country code (2-letters)
@@ -1298,6 +1311,14 @@ current CA keypair. If you intended to start a new CA, run init-pki first."
 	printf "" > "$EASYRSA_PKI/index.txt.attr" || die "$err_file"
 	printf '%s\n' "01" > "$EASYRSA_PKI/serial" || die "$err_file"
 
+	# Set ssl batch mode, as required
+	# --req-cn must be used with --batch, otherwise use default
+	if [ "$EASYRSA_BATCH" ]; then
+		ssl_batch=1
+	else
+		export EASYRSA_REQ_CN=ChangeMe
+	fi
+
 	# Default CA commonName
 	if [ "$EASYRSA_REQ_CN" = ChangeMe ]; then
 		if [ "$sub_ca" ]; then
@@ -1305,44 +1326,6 @@ current CA keypair. If you intended to start a new CA, run init-pki first."
 		else
 			export EASYRSA_REQ_CN="Easy-RSA CA"
 		fi
-		unset -v ssl_batch
-	else
-		# Do not use prompting from SSL config
-		ssl_batch=1
-	fi
-
-	# Get user confirmation here, not while in SSL
-	if [ "$EASYRSA_BATCH" ] || [ -z "$ssl_batch" ]; then
-		: # ok
-	else
-		case "$EASYRSA_DN" in
-		cn_only)
-			confirm "
-  Create CA certificate with these DN settings ? " yes "\
-EasyRSA DN 'commonName-Only' mode (cn_only)
-
-* Current CA Distinguished Name fields:
-
-  commonName                = $EASYRSA_REQ_CN"
-		;;
-		org)
-			confirm "
-  Create CA certificate with these DN settings ? " yes "\
-EasyRSA DN 'Organisation' mode (org)
-
-* Current CA Distinguished Name fields:
-
-  commonName                = $EASYRSA_REQ_CN
-  countryName               = $EASYRSA_REQ_COUNTRY
-  stateOrProvinceName       = $EASYRSA_REQ_PROVINCE
-  localityName              = $EASYRSA_REQ_CITY
-  organizationName          = $EASYRSA_REQ_ORG
-  0.organizationalUnitName  = $EASYRSA_REQ_OU
-  emailAddress              = $EASYRSA_REQ_EMAIL${EASYRSA_REQ_SERIAL:+"
-  serialNumber              = $EASYRSA_REQ_SERIAL"}"
-		;;
-		*) die "Unrecognised DN mode: $EASYRSA_DN"
-		esac
 	fi
 
 	out_key_tmp="$(easyrsa_mktemp)" || die "Failed to create temp-key file"
@@ -1511,18 +1494,28 @@ gen_req() {
 Error: gen-req must have a file base as the first argument.
 Run easyrsa without commands for usage and commands."
 
+	# Initialisation
+	unset -v text nopass ssl_batch
+
+	# Set ssl batch mode and Default commonName, as required
+	if [ "$EASYRSA_BATCH" ]; then
+		ssl_batch=1
+		[ "$EASYRSA_REQ_CN" = ChangeMe ] && export EASYRSA_REQ_CN="$1"
+	else
+		# --req-cn must be used with --batch, otherwise use default
+		export EASYRSA_REQ_CN="$1"
+	fi
+
+	# Output files
 	key_out="$EASYRSA_PKI/private/$1.key"
 	req_out="$EASYRSA_PKI/reqs/$1.req"
 
-	# Set the request commonName
-	EASYRSA_REQ_CN="$1"
-	shift
+	shift # scrape off file-name
 
 	# Verify PKI has been initialised
 	verify_pki_init
 
 	# function opts support
-	unset -v text nopass ssl_batch
 	while [ "$1" ]; do
 		case "$1" in
 			text) text=1 ;;
@@ -1567,11 +1560,6 @@ $EASYRSA_EXTRA_EXTS"
 	# Name temp files
 	key_out_tmp="$(easyrsa_mktemp)" || die "Failed to create temporary file"
 	req_out_tmp="$(easyrsa_mktemp)" || die "Failed to create temporary file"
-
-	# Set SSL non-interactive mode, otherwise allow full user interaction
-	if [ "$EASYRSA_BATCH" ] || [ "$ssl_batch" ]; then
-		ssl_batch=1
-	fi
 
 	# Set Edwards curve name or elliptic curve parameters file
 	algo_opts=""
@@ -1634,9 +1622,6 @@ sign_req() {
 		done
 	fi
 
-	# Support batch by internal caller:
-	[ "$3" = "batch" ] && EASYRSA_BATCH=1
-
 	verify_ca_init
 
 	# Check argument sanity:
@@ -1671,6 +1656,8 @@ File Path: $req_in"
 
 	# Display the request subject in an easy-to-read format
 	# Confirm the user wishes to sign this request
+	# Support batch by internal caller:
+	#[ "$3" = "batch" ] ||
 	confirm "Confirm request details: " "yes" "\
 You are about to sign the following certificate.
 Please check over the details shown below for accuracy. Note that this request
@@ -1778,7 +1765,7 @@ $ext_tmp"
 	rm -f "$ext_tmp"
 
 	# Success messages
-	unset -v EASYRSA_BATCH # This is why batch mode should not silence output
+	#unset -v EASYRSA_BATCH # This is why batch mode should not silence output
 	notice "Certificate created at: $crt_out"
 
 	return 0
@@ -1821,12 +1808,16 @@ Matching file found at: "
 	[ -e "$key_out" ] && die "Key $err_exists $key_out"
 	[ -e "$crt_out" ] && die "Certificate $err_exists $crt_out"
 
-	# create request
+	# Set commonName
+	[ "$EASYRSA_REQ_CN" = ChangeMe ] || die "\
+Option conflict: '$cmd' does not support setting an external commonName"
 	EASYRSA_REQ_CN="$name"
+
+	# create request
 	gen_req "$name" batch ${nopass+ nopass}
 
 	# Sign it
-	( sign_req "$crt_type" "$name" batch ) || {
+	( sign_req "$crt_type" "$name" ) || {
 		rm -f "$crt_out" "$req_out" "$key_out"
 		die "Failed to sign '$name' - See error messages above for details."
 	}
