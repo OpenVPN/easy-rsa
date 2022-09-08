@@ -1762,7 +1762,7 @@ $ext_tmp"
 			|| die "signing failed (openssl output above may have more detail)"
 
 	mv "$crt_out_tmp" "$crt_out"
-	rm -f "$ext_tmp"
+	#rm -f "$ext_tmp"
 
 	# Success messages
 	#unset -v EASYRSA_BATCH # This is why batch mode should not silence output
