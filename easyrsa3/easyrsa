@@ -1883,6 +1883,7 @@ Run easyrsa without commands for usage and commands."
 	while [ "$1" ]; do
 		case "$1" in
 			text) text=1 ;;
+			nopass) nopass=1 ;;
 			*) warn "Ignoring unknown command option: '$1'"
 		esac
 		shift
@@ -1935,6 +1936,7 @@ $EASYRSA_EXTRA_EXTS"
 	# Generate request
 	easyrsa_openssl req -utf8 -batch -new \
 		-key "$key_in" -out "$req_out_tmp" \
+		${nopass+ "$no_password"} \
 		${text+ -text} \
 		${EASYRSA_PASSIN:+-passin "$EASYRSA_PASSIN"} \
 			|| die "Failed to generate request"
