@@ -1288,6 +1288,13 @@ $EASYRSA_PKI
 Refusing to create a new CA keypair as this operation would overwrite your
 current CA keypair. If you intended to start a new CA, run init-pki first."
 
+	# Check for insert-marker in ssl config file
+	if ! grep -q '^#%CA_X509_TYPES_EXTRA_EXTS%' "$EASYRSA_SSL_CONF"; then
+		die "\
+The copy of openssl-easyrsa.cnf in your PKI does not have full support
+for X509-type CA. Please update your copy to the official release."
+	fi
+
 	# create necessary files and dirs:
 	err_file="Unable to create necessary PKI files (permissions?)"
 	for i in issued certs_by_serial \
@@ -1525,6 +1532,13 @@ Continuing with key generation will replace this key."
 
 	# When EASYRSA_EXTRA_EXTS is defined, append it to openssl's [req] section:
 	if [ "$EASYRSA_EXTRA_EXTS" ]; then
+		# Check for insert-marker in ssl config file
+		if ! grep -q '^#%EXTRA_EXTS%' "$EASYRSA_SSL_CONF"; then
+			die "\
+The copy of openssl-easyrsa.cnf in your PKI does not have full support
+for request extensions. Please update your copy to the official release."
+		fi
+
 		# Setup & insert the extra ext data keyed by a magic line
 		extra_exts="
 req_extensions = req_extra
@@ -1672,6 +1686,13 @@ $(display_dn req "$req_in")
 
 	# When EASYRSA_CP_EXT is defined, adjust openssl's [default_ca] section:
 	if [ "$EASYRSA_CP_EXT" ]; then
+		# Check for insert-marker in ssl config file
+		if ! grep -q '^#%COPY_EXTS%' "$EASYRSA_SSL_CONF"; then
+			die "\
+The copy of openssl-easyrsa.cnf in your PKI does not have full support
+for X509-type $crt_type. Please update your copy to the official release."
+		fi
+
 		# Setup & insert the copy_extensions data keyed by a magic line
 		copy_exts="copy_extensions = copy"
 		# shellcheck disable=SC2016 # vars don't expand in single quote
