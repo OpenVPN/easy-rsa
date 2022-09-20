@@ -1691,10 +1691,6 @@ $(display_dn req "$req_in")
 
 	# Generate the extensions file for this cert:
 	ext_tmp="$(easyrsa_mktemp)" || die "Failed to create temporary file"
-	# shellcheck disable=SC2016 # vars don't expand in single quotes (is awk)
-	# only check for critical in last instance of basicConstraints
-	awkchkcrit='/^[[:blank:]]*basicConstraints[[:blank:]]*=/ { bC=$0 }
-END { if (bC ~ /critical/) e=0; else e=1; exit e }'
 	{
 		# Append first any COMMON file (if present) then the cert-type extensions
 		cat "$EASYRSA_EXT_DIR/COMMON" || \
@@ -1704,12 +1700,11 @@ END { if (bC ~ /critical/) e=0; else e=1; exit e }'
 
 		# Support a dynamic CA path length when present:
 		if [ "$crt_type" = "ca" ] && [ "$EASYRSA_SUBCA_LEN" ]; then
-			# check for user set critical flag
-			if awk "${awkchkcrit}" "$EASYRSA_EXT_DIR/$crt_type"; then
-				print "basicConstraints = critical, CA:TRUE, pathlen:$EASYRSA_SUBCA_LEN"
-			else
-				print "basicConstraints = CA:TRUE, pathlen:$EASYRSA_SUBCA_LEN"
-			fi
+			# extract last occurrence of basicConstraints and append pathlen
+			# shellcheck disable=SC2016 # vars don't expand in single quotes
+			awkchkcrit='/^[[:blank:]]*basicConstraints[[:blank:]]*=/ { bC=$0 }
+END { if (length(bC) == 0 ) bC="basicConstraints = CA:TRUE"; print bC }'
+			print "$(awk "${awkchkcrit}" "$EASYRSA_EXT_DIR/$crt_type"), pathlen:$EASYRSA_SUBCA_LEN"
 		fi
 
 		# Deprecated Netscape extension support, if enabled
