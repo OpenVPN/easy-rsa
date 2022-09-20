@@ -13,8 +13,6 @@ Easy-RSA 3 ChangeLog
    * Introduce 'rewind-renew' (#579)
    * Expand status reports to include checking a single cert (#577)
    * update OpenSSL for Windows to 3.0.5
-   * Support user enabled critical flag in basicConstraints, if present,
-     for sub CA certificates (#692)
 
 3.1.0 (2022-05-18)
    * Introduce basic support for OpenSSL version 3 (#492)
