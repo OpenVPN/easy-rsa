@@ -1288,6 +1288,12 @@ $EASYRSA_PKI
 Refusing to create a new CA keypair as this operation would overwrite your
 current CA keypair. If you intended to start a new CA, run init-pki first."
 
+	# Cert type must exist under the EASYRSA_EXT_DIR
+	[ -e "$EASYRSA_EXT_DIR/ca" ] || die "\
+Missing X509-type 'ca'"
+	[ -e "$EASYRSA_EXT_DIR/COMMON" ] || die "\
+Missing X509-type 'COMMON'"
+
 	# Check for insert-marker in ssl config file
 	if ! grep -q '^#%CA_X509_TYPES_EXTRA_EXTS%' "$EASYRSA_SSL_CONF"; then
 		die "\
@@ -1635,9 +1641,9 @@ expected 2, got $# (see command help for usage)"
 
 	# Cert type must exist under the EASYRSA_EXT_DIR
 	[ -e "$EASYRSA_EXT_DIR/$crt_type" ] || die "\
-Unknown cert type '$crt_type'"
+Missing X509-type '$crt_type'"
 	[ -e "$EASYRSA_EXT_DIR/COMMON" ] || die "\
-Missing cert type 'COMMON'"
+Missing X509-type 'COMMON'"
 
 	# Cert type must NOT be COMMON
 	[ "$crt_type" != COMMON ] || die "\
