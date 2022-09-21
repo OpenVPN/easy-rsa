@@ -558,7 +558,13 @@ information() {
 	[ "$EASYRSA_QUIET" ] && return
 	print "* $1
 "
-} # => notice()
+} # => information()
+
+# Verbose status reports
+verbose() {
+	[ "$EASYRSA_VERBOSE" ] || return 0
+	print "$1"
+} # => verbose()
 
 # yes/no case-insensitive match (operates on stdin pipe)
 # Returns 0 when input contains yes, 1 for no, 2 for no match
@@ -3413,6 +3419,8 @@ ssl_cert_not_after_date() {
 read_db() {
 	TCT='	' # tab character
 	db_in="$EASYRSA_PKI/index.txt"
+	pki_r_issued="$EASYRSA_PKI/renewed/issued"
+	pki_r_by_sno="$EASYRSA_PKI/renewed/certs_by_serial"
 	while read -r db_status db_notAfter db_record; do
 
 		# Interpret the db/certificate record
@@ -3423,7 +3431,8 @@ read_db() {
 			db_record="${db_record#*${TCT}}"
 			db_cn="${db_record#*/CN=}"; db_cn="${db_cn%%/*}"
 			cert_issued="$EASYRSA_PKI/issued/$db_cn.crt"
-			cert_renewed="$EASYRSA_PKI/renewed/issued/$db_cn.crt"
+			cert_r_issued="$pki_r_issued/$db_cn.crt"
+			cert_r_by_sno="$pki_r_by_sno/$db_serial.crt"
 		;;
 		R)	# Revoked
 			db_revoke_date="${db_record%%${TCT}*}"
@@ -3483,8 +3492,14 @@ expire_status() {
 		cert_serial="${cert_serial##*=}"
 
 		# db serial must match certificate serial, otherwise this
-		# should be a renewed cert, which index.txt cannot differentiate
-		[ "$db_serial" = "$cert_serial" ] || return 0
+		# is a renewed cert which has been replaced by an issued cert
+		if [ "$db_serial" != "$cert_serial" ]; then
+			verbose "* serial mismatch:
+  db_serial:    $db_serial
+  cert_serial:  $cert_serial
+  cert_issued:  $cert_issued"
+			return 0
+		fi
 
 		#cert_source=issued
 		ssl_cert_not_after_date "$cert_issued" # Assigns cert_not_after_date
@@ -3532,21 +3547,51 @@ revoke_status() {
 # Only ONE renewed cert with unique CN can exist in the renewed folder
 renew_status() {
 	# Does a Renewed cert exist ?
-	if [ -e "$cert_renewed" ]; then
+	# files in issued are CommonName, files by-serial are SerialNumber
+	unset -v cert_file_in cert_is_issued cert_is_serial renew_is_old
+	# Find renewed/issued/CN
+	if [ -e "$cert_r_issued" ]; then
+		cert_file_in="$cert_r_issued"
+		cert_is_issued=1
+	fi
 
+	# Find renewed/cert_by_serial/SN
+	if [ -e "$cert_r_by_sno" ]; then
+		cert_file_in="$cert_r_by_sno"
+		cert_is_serial=1
+		renew_is_old=1
+	fi
+
+	# Both should not exist
+	[ "$cert_is_issued" ] && [ "$cert_is_serial" ] && die "Too many certs"
+
+	# If a renewed cert exists
+	if [ "$cert_file_in" ]; then
 		# get the serial number of the certificate
-		cert_serial="$(easyrsa_openssl x509 -in "$cert_renewed" -noout -serial)"
+		cert_serial="$(easyrsa_openssl x509 -in "$cert_file_in" -noout -serial)"
 		cert_serial="${cert_serial##*=}"
 
 		# db serial must match certificate serial, otherwise this
-		# should be an issued cert, which index.txt cannot differentiate
-		[ "$db_serial" = "$cert_serial" ] || return 0
+		# is an issued cert that replaces a renewed cert
+		if [ "$db_serial" != "$cert_serial" ]; then
+			verbose "* serial mismatch:
+  db_serial:    $db_serial
+  cert_serial:  $cert_serial
+  cert_file_in: $cert_file_in"
+			return 0
+		fi
 
 		# Use cert date
-		ssl_cert_not_after_date "$cert_renewed" # Assigns cert_not_after_date
+		ssl_cert_not_after_date "$cert_file_in" # Assigns cert_not_after_date
 
-		printf '%s%s\n' "$db_status | Serial: $db_serial | " \
-			"Expires: $cert_not_after_date | CN: $db_cn"
+		# Highlight renewed/cert_by_serial
+		if [ "$renew_is_old" ]; then
+			printf '%s%s\n' "*** $db_status | Serial: $db_serial | " \
+				"Expires: $cert_not_after_date | CN: $db_cn"
+		else
+			printf '%s%s\n' "$db_status | Serial: $db_serial | " \
+				"Expires: $cert_not_after_date | CN: $db_cn"
+		fi
 
 	else
 		# Cert is valid but not renewed
@@ -3581,7 +3626,9 @@ $EASYRSA_CERT_RENEW days (--days):"
 		;;
 		renew)
 			notice "\
-* Showing certificates which have been renewed but NOT revoked:"
+* Showing certificates which have been renewed but NOT revoked:
+
+*** Marks those which require 'rewind-renew' before they can be revoked."
 		;;
 		*) warn "Unrecognised report: $report"
 		esac
@@ -4735,6 +4782,9 @@ while :; do
 	-q|--quiet)
 		empty_ok=1
 		export EASYRSA_QUIET=1 ;;
+	-v|--verbose)
+		empty_ok=1
+		export EASYRSA_VERBOSE=1 ;;
 	--passin)
 		export EASYRSA_PASSIN="$val";;
 	--passout)
