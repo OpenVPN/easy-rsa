@@ -1,6 +1,9 @@
 Easy-RSA 3 ChangeLog
 
 3.1.1 (TBD)
+   * Expand 'show-renew', include 'renewed/certs_by_serial' (#700)
+   * Introduce 'renew' (version 3). Only renew cert (#688)
+   * Require 'openssl-easyrsa.cnf' is up to date (#695}
    * Always ensure X509-types files exist (#581 #696)
    * Remove renew-req (#684)
    * Re-enable use of '--vars=FILE init-pki' #640 (Revert #566)
