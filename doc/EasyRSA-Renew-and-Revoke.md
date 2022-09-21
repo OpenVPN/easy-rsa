@@ -8,6 +8,9 @@ Thanks to _good luck_, _hard work_ and _co-operation_, these version dependent
 differences have been _smoothed-over_. Since version 3.1.2, Easy-RSA has the
 tools required to renew and/or revoke all verified and Valid certifiicates.
 
+**UPDATE**:
+The changes noted for Easy-RSA version 3.1.2 have all been included with
+Easy-RSA version 3.1.1 - See https://github.com/OpenVPN/easy-rsa/pull/688
 
 Command Details: `renew`
 ------------------------
