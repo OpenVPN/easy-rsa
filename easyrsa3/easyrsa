@@ -128,6 +128,7 @@ cmd_help() {
 
       Sign a certificate request of the defined type. <type> must be a known type,
       such as: 'client', 'server', 'serverClient', or 'ca' (or a user-added type).
+      All supported types are listed in the x509-types directory.
 
       This request file must exist in the reqs/ dir and have a .req file
       extension. See import-req below for importing reqs from other sources."
