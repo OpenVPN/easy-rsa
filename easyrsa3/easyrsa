@@ -667,6 +667,7 @@ easyrsa_mktemp() {
 
 # remove temp files and do terminal cleanups
 cleanup() {
+	verbose "* Cleanup!"
 	if [ "${EASYRSA_TEMP_DIR_session%/*}" ] && \
 		[ -d "$EASYRSA_TEMP_DIR_session" ]
 	then
@@ -687,6 +688,9 @@ cleanup() {
 	then
 		rm -rf "$EASYRSA_EC_DIR"
 	fi
+
+	# Remove files when build_full()->sign_req() is interrupted
+	[ "$on_error_build_full_cleanup" ] && rm -f "$crt_out" "$req_out" "$key_out"
 
 	# Restore files when renew is interrupted
 	[ "$on_error_undo_renew_move" ] && renew_restore_move; :
@@ -1851,10 +1855,12 @@ Option conflict: '$cmd' does not support setting an external commonName"
 	gen_req "$name" batch ${nopass+ nopass}
 
 	# Sign it
-	( sign_req "$crt_type" "$name" ) || {
-		rm -f "$crt_out" "$req_out" "$key_out"
+	on_error_build_full_cleanup=1
+	if sign_req "$crt_type" "$name"; then
+		unset -v on_error_build_full_cleanup
+	else
 		die "Failed to sign '$name' - See error messages above for details."
-	}
+	fi
 
 	# inline it
 	if [ "$EASYRSA_INLINE" ]; then
