@@ -1738,7 +1738,7 @@ Please update openssl-easyrsa.cnf to the latest official release."
 			# Print the last occurence of basicContraints in x509-types/ca
 			# If basicContraints not defined then bail
 			awkscript='/^[[:blank:]]*basicConstraints[[:blank:]]*=/ { bC=$0 }
-				END { if (length(bC) == 0 ) exit 1;	print bC }'
+				END { if (length(bC) == 0 ) exit 1; print bC }'
 			basicConstraints="$(awk "$awkscript" "$ext_tmp")" || die "\
 basicConstraints is not defined, cannot use 'pathlen'"
 			print "$basicConstraints, pathlen:$EASYRSA_SUBCA_LEN"
