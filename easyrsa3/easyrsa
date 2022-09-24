@@ -1684,21 +1684,6 @@ at: $crt_out"
 The certificate request file is not in a valid X509 request format.
 File Path: $req_in"
 
-	# Display the request subject in an easy-to-read format
-	# Confirm the user wishes to sign this request
-	# Support batch by internal caller:
-	#[ "$3" = "batch" ] ||
-	confirm "Confirm request details: " "yes" "\
-You are about to sign the following certificate.
-Please check over the details shown below for accuracy. Note that this request
-has not been cryptographically verified. Please be sure it came from a trusted
-source or that you have verified the request checksum with the sender.
-
-Request subject, to be signed as a $crt_type certificate for $EASYRSA_CERT_EXPIRE days:
-
-$(display_dn req "$req_in")
-"	# => confirm end
-
 	# Get fixed dates by --fix-offset
 	if [ "$EASYRSA_FIX_OFFSET" ]; then
 		fixed_dates="$( # subshell for debug
@@ -1749,8 +1734,16 @@ Please update openssl-easyrsa.cnf to the latest official release."
 			die "Failed to read X509-type $crt_type"
 
 		# Support a dynamic CA path length when present:
-		[ "$crt_type" = "ca" ] && [ "$EASYRSA_SUBCA_LEN" ] && \
-			print "basicConstraints = CA:TRUE, pathlen:$EASYRSA_SUBCA_LEN"
+		if [ "$crt_type" = "ca" ] && [ "$EASYRSA_SUBCA_LEN" ]; then
+			# Print the last occurence of basicContraints in x509-types/ca
+			# If basicContraints not defined then bail
+			awkscript='/^[[:blank:]]*basicConstraints[[:blank:]]*=/ { bC=$0 }
+				END { if (length(bC) == 0 ) exit 1;	print bC }'
+			basicConstraints="$(awk "$awkscript" "$ext_tmp")" || die "\
+basicConstraints is not defined, cannot use 'pathlen'"
+			print "$basicConstraints, pathlen:$EASYRSA_SUBCA_LEN"
+			unset -v basicConstraints
+		fi
 
 		# Deprecated Netscape extension support, if enabled
 		if print "$EASYRSA_NS_SUPPORT" | awk_yesno; then
@@ -1789,6 +1782,21 @@ Please update openssl-easyrsa.cnf to the latest official release."
 	} > "$ext_tmp" || die "\
 Failed to create temp extension file (bad permissions?) at:
 $ext_tmp"
+
+	# Display the request subject in an easy-to-read format
+	# Confirm the user wishes to sign this request
+	# Support batch by internal caller:
+	#[ "$3" = "batch" ] ||
+	confirm "Confirm request details: " "yes" "\
+You are about to sign the following certificate.
+Please check over the details shown below for accuracy. Note that this request
+has not been cryptographically verified. Please be sure it came from a trusted
+source or that you have verified the request checksum with the sender.
+
+Request subject, to be signed as a $crt_type certificate for $EASYRSA_CERT_EXPIRE days:
+
+$(display_dn req "$req_in")
+"	# => confirm end
 
 	# sign request
 	crt_out_tmp="$(easyrsa_mktemp)" || die "Failed to create temporary file"
