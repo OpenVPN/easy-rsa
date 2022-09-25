@@ -1737,9 +1737,12 @@ Please update openssl-easyrsa.cnf to the latest official release."
 		if [ "$crt_type" = "ca" ] && [ "$EASYRSA_SUBCA_LEN" ]; then
 			# Print the last occurence of basicContraints in x509-types/ca
 			# If basicContraints not defined then bail
+			# shellcheck disable=SC2016 # vars don't expand in ''
 			awkscript='/^[[:blank:]]*basicConstraints[[:blank:]]*=/ { bC=$0 }
 				END { if (length(bC) == 0 ) exit 1; print bC }'
-			basicConstraints="$(awk "$awkscript" "$ext_tmp")" || die "\
+			basicConstraints="$(
+				awk "$awkscript" "$EASYRSA_EXT_DIR/$crt_type"
+				)" || die "\
 basicConstraints is not defined, cannot use 'pathlen'"
 			print "$basicConstraints, pathlen:$EASYRSA_SUBCA_LEN"
 			unset -v basicConstraints
