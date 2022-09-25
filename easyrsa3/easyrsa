@@ -533,10 +533,9 @@ die() {
 	print "
 Easy-RSA error:
 
-$1" 1>&2
-
-	show_host
-
+$1
+" 1>&2
+	die_error_exit=1
 	exit "${2:-1}"
 } # => die()
 
@@ -667,7 +666,6 @@ easyrsa_mktemp() {
 
 # remove temp files and do terminal cleanups
 cleanup() {
-	verbose "* Cleanup!"
 	if [ "${EASYRSA_TEMP_DIR_session%/*}" ] && \
 		[ -d "$EASYRSA_TEMP_DIR_session" ]
 	then
@@ -677,8 +675,7 @@ cleanup() {
 			[ -d "$keep_tmp" ] && rm -rf "$keep_tmp"
 
 			mv -f "$EASYRSA_TEMP_DIR_session" "$keep_tmp"
-			information \
-				"Temp session preserved: $keep_tmp"
+			information "Temp session preserved: $keep_tmp"
 		else
 			rm -rf "$EASYRSA_TEMP_DIR_session"
 		fi
@@ -690,7 +687,8 @@ cleanup() {
 	fi
 
 	# Remove files when build_full()->sign_req() is interrupted
-	[ "$on_error_build_full_cleanup" ] && rm -f "$crt_out" "$req_out" "$key_out"
+	[ "$on_error_build_full_cleanup" ] && \
+		rm -f "$crt_out" "$req_out" "$key_out"
 
 	# Restore files when renew is interrupted
 	[ "$on_error_undo_renew_move" ] && renew_restore_move; :
@@ -727,6 +725,8 @@ cleanup() {
 		exit 0
 	else
 		# if 'cleanup' is called without 'ok' then an error occurred
+		# Do not show_host() for confirm() aborted exit
+		[ "$die_error_exit" ] && show_host
 		exit 1
 	fi
 } # => cleanup()
@@ -3989,7 +3989,6 @@ detect_host() {
 
 # Extra diagnostics
 show_host() {
-	print
 	print_version
 	print "$host_out | ${ssl_version:-ssl_version not currently set}"
 	[ "$EASYRSA_DEBUG" ] || return 0
@@ -4938,12 +4937,9 @@ trap "exit 3" 3
 trap "exit 6" 6
 trap "exit 14" 15
 
-# Get host details - does not require vars_setup
-detect_host
-
 # Initialisation requirements
-unset -v easyrsa_error_exit user_san_true user_vars_true \
-	alias_days
+unset -v die_error_exit easyrsa_error_exit \
+	user_san_true user_vars_true alias_days
 
 # Parse options
 while :; do
@@ -5099,6 +5095,9 @@ case "$cmd" in
 		pki_is_required=1
 		unset -v no_pki_required
 esac
+
+# Get host details - does not require vars_setup
+detect_host
 
 # Intelligent env-var detection and auto-loading:
 vars_setup
