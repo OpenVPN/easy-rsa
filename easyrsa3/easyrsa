@@ -630,6 +630,7 @@ secure_session() {
 
 		mkdir "${EASYRSA_TEMP_DIR}/${rand}" || continue
 		EASYRSA_TEMP_DIR_session="${EASYRSA_TEMP_DIR}/${rand}"
+		EASYRSA_TEMP_DIR_session_rand="${rand}"
 		return
 	done
 	return 1
@@ -672,13 +673,18 @@ cleanup() {
 		[ -d "$EASYRSA_TEMP_DIR_session" ]
 	then
 		if [ "$EASYRSA_KEEP_TEMP" ]; then
-			keep_tmp="$EASYRSA_TEMP_DIR/$EASYRSA_KEEP_TEMP"
-			# Remove previous keep dir, created by --keep-temp
-			[ -d "$keep_tmp" ] && rm -rf "$keep_tmp"
+			keep_tmp="$EASYRSA_KEEP_TEMP.$EASYRSA_TEMP_DIR_session_rand"
+			keep_tmp="$EASYRSA_TEMP_DIR/$keep_tmp"
 
-			mv -f "$EASYRSA_TEMP_DIR_session" "$keep_tmp"
-			information \
-				"Temp session preserved: $keep_tmp"
+			# Remove any previous dir, created by --keep-temp
+			if [ "${#keep_tmp}" -gt 11 ]; then
+				rm -rf "$keep_tmp"
+				mv -f "$EASYRSA_TEMP_DIR_session" "$keep_tmp"
+				information \
+					"Temp session preserved: $keep_tmp"
+			else
+				warn "Temp session NOT preserved"
+			fi
 		else
 			rm -rf "$EASYRSA_TEMP_DIR_session"
 		fi
