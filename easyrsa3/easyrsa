@@ -494,7 +494,7 @@ Certificate & Request options: (these impact cert/req field values)
 --use-algo=ALG  : crypto alg to use: choose rsa (default), ec or ed
 --curve=NAME    : for elliptic curve, sets the named curve to use
 
---subca-len=#   : path length of signed intermediate CA certs; must be >= 0 if used
+--subca-len=#   : Path length of signed intermediate CA certificates
 --copy-ext      : Copy included request X509 extensions (namely subjAltName)
 --san|--subject-alt-name
                 : Add a subjectAltName.
@@ -517,8 +517,8 @@ Distinguished Name mode:
 
 Deprecated features:
 
---ns-cert=YES/NO      : yes or no to including deprecated NS extensions
---ns-comment=COMMENT  : NS comment to include (value may be blank)
+--ns-cert             : Include deprecated Netscape extensions
+--ns-comment=COMMENT  : Include deprecated Netscape comment (may be blank)
 "
 } # => opt_usage()
 
@@ -575,19 +575,6 @@ verbose() {
 	[ "$EASYRSA_VERBOSE" ] || return 0
 	print "$1"
 } # => verbose()
-
-# yes/no case-insensitive match (operates on stdin pipe)
-# Returns 0 when input contains yes, 1 for no, 2 for no match
-# If both strings are present, returns 1; first matching line returns.
-awk_yesno() {
-	# shellcheck disable=SC2016 # vars don't expand in single quotes
-	awkscript='
-BEGIN {IGNORECASE=1; r=2}
-{       if(match($0,"no")) {r=1; exit}
-        if(match($0,"yes")) {r=0; exit}
-} END {exit r}'
-	awk "$awkscript"
-} # => awk_yesno()
 
 # intent confirmation helper func
 # returns without prompting in EASYRSA_BATCH
@@ -1753,9 +1740,9 @@ Please update openssl-easyrsa.cnf to the latest official release."
 			print "basicConstraints = CA:TRUE, pathlen:$EASYRSA_SUBCA_LEN"
 
 		# Deprecated Netscape extension support, if enabled
-		if print "$EASYRSA_NS_SUPPORT" | awk_yesno; then
-			[ "$EASYRSA_NS_COMMENT" ] && \
-				print "nsComment = \"$EASYRSA_NS_COMMENT\""
+		case "$EASYRSA_NS_SUPPORT" in
+		[yY][eE][sS])
+			# Netscape extension
 			case "$crt_type" in
 				serverClient) print "nsCertType = serverClient" ;;
 				server) print "nsCertType = server" ;;
@@ -1763,7 +1750,13 @@ Please update openssl-easyrsa.cnf to the latest official release."
 				ca) print "nsCertType = sslCA" ;;
 				*) die "Unknown certificate type: $crt_type"
 			esac
-		fi
+			# Netscape comment
+			[ "$EASYRSA_NS_COMMENT" ] && \
+				print "nsComment = \"$EASYRSA_NS_COMMENT\""
+		;;
+		*)
+			: # ok No NS support required
+		esac
 
 		# Add user SAN from --subject-alt-name
 		if [ "$user_san_true" ]; then
@@ -5013,7 +5006,9 @@ while :; do
 		empty_ok=1
 		export EASYRSA_REQ_SERIAL="$val" ;;
 	--ns-cert)
-		export EASYRSA_NS_SUPPORT="$val" ;;
+		empty_ok=1
+		[ "$is_empty" ] && unset -v val
+		export EASYRSA_NS_SUPPORT="${val:-yes}" ;;
 	--ns-comment)
 		empty_ok=1
 		export EASYRSA_NS_COMMENT="$val" ;;
