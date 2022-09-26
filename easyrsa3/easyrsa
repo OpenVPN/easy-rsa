@@ -630,7 +630,7 @@ secure_session() {
 
 		mkdir "${EASYRSA_TEMP_DIR}/${rand}" || continue
 		EASYRSA_TEMP_DIR_session="${EASYRSA_TEMP_DIR}/${rand}"
-		EASYRSA_TEMP_DIR_session_rand="${rand}"
+		#EASYRSA_TEMP_DIR_session_rand="${rand}"
 		return
 	done
 	return 1
@@ -672,22 +672,27 @@ cleanup() {
 	if [ "${EASYRSA_TEMP_DIR_session%/*}" ] && \
 		[ -d "$EASYRSA_TEMP_DIR_session" ]
 	then
-		if [ "$EASYRSA_KEEP_TEMP" ]; then
-			keep_tmp="$EASYRSA_KEEP_TEMP.$EASYRSA_TEMP_DIR_session_rand"
-			keep_tmp="$EASYRSA_TEMP_DIR/$keep_tmp"
-
-			# Remove any previous dir, created by --keep-temp
-			if [ "${#keep_tmp}" -gt 11 ]; then
+		# Remove temp-session or create temp-snapshot
+		if [ "$EASYRSA_KEEP_TEMP" ]
+		then
+			# skip on black-listed directory names, with a warning
+			if [ -d "$EASYRSA_TEMP_DIR/$EASYRSA_KEEP_TEMP" ]
+			then
+				warn "\
+Prohibited value for --keep-tmp: '$EASYRSA_KEEP_TEMP'
+Temporary session not preserved."
+			else
+				# create temp-snapshot
+				keep_tmp="$EASYRSA_TEMP_DIR/tmp/$EASYRSA_KEEP_TEMP"
+				mkdir -p "$keep_tmp"
 				rm -rf "$keep_tmp"
 				mv -f "$EASYRSA_TEMP_DIR_session" "$keep_tmp"
-				information \
-					"Temp session preserved: $keep_tmp"
-			else
-				warn "Temp session NOT preserved"
+				print "Temp session preserved: $keep_tmp"
 			fi
-		else
-			rm -rf "$EASYRSA_TEMP_DIR_session"
 		fi
+
+		# Always remove temp-session
+		rm -rf "$EASYRSA_TEMP_DIR_session"
 	fi
 
 	if [ "${EASYRSA_EC_DIR%/*}" ] && [ -d "$EASYRSA_EC_DIR" ]
