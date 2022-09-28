@@ -1,6 +1,7 @@
 Easy-RSA 3 ChangeLog
 
 3.1.1 (TBD)
+   * Resolve long-standing issue with --subca-len=N (#691)
    * Expand 'show-renew', include 'renewed/certs_by_serial' (#700)
    * Introduce 'renew' (version 3). Only renew cert (#688)
    * Require 'openssl-easyrsa.cnf' is up to date (#695}
