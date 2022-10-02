@@ -37,7 +37,6 @@ Here is the list of commands available with a short syntax reminder. Use the
   build-serverClient-full <file_name_base> [ cmd-opts ]
   revoke <file_name_base> [cmd-opts]
   renew <file_name_base> [cmd-opts]
-  renewable [ <file_name_base> ]
   revoke-renewed <file_name_base> [cmd-opts]
   rewind-renew <certificate-serial-number>
   rebuild <file_name_base> [cmd-opts]
@@ -193,12 +192,6 @@ cmd_help() {
 		opts="
       * nopass  - do not encrypt the private key (default is encrypted)"
 	;;
-	renewable)
-		text="
-* renewable [ <file_name_base> ]
-
-      Check which certificates can be renewed"
-	;;
 	rewind|rewind-renew)
 		text="
 * rewind-renew <certificate-serial-number>
@@ -262,7 +255,7 @@ cmd_help() {
 * show-expire [ <file_name_base> ]
 
       Shows details of *all* expiring certificates
-      Use --renew-days=NN to extend the grace period (Default 30 days)
+      Use --renew-days=NN to extend the grace period (Default 90 days)
       Optionally, check *only* <file_name_base> certificate"
 	;;
 	show-revoke)
@@ -400,7 +393,7 @@ cmd_help() {
         eg: '--days=1095 renew server'
       * Expiry days for certificate revokation list.
         eg: '--days=180 gen-crl'
-      * Cutoff days for commands: show-expire or renewable.
+      * Cutoff days for command: show-expire.
         eg: '--days=90 show-expire'"
 	;;
 	--req-cn|req-cn)
@@ -2467,42 +2460,6 @@ revoke_renewed_move() {
 
 	return 0
 } # => revoke_renewed_move()
-
-# renewable backend
-renewable() {
-	verify_ca_init
-
-	in_dir="$EASYRSA_PKI"
-	MATCH=$(echo "$*" | sed -re 's/\s+/|/g')
-	DATE=$(date --date \
-               "+${EASYRSA_CERT_RENEW} days" \
-               +"%y%m%d%H%M%S")
-        { awkscript=$(cat) ; } <<EOF
-BEGIN { FS = "\t" };
-# Only report valid entries
-\$1 ~ /V/ {
-  # Only consider CN
-  gsub(".*/CN=", "",  \$6);
-  gsub("[^-0-9a-zA-Z.].*", "", \$6);
-  # Only report old enough candidates
-  if (\$2 < "${DATE}") {
-    # Only report matches
-    if (\$6 ~ /(${MATCH})/) {
-      print \$6;
-    }
-  }
-}
-EOF
-	matches=$(awk "$awkscript" "${in_dir}/index.txt")
-	if [ -z "$matches" ] ; then
-		: # ok - Nothing is renewable
-	else
-		print "$matches"
-	fi
-	[ "$EASYRSA_SILENT" ] || print # Separate output above
-
-	return 0
-} # => renewable
 
 # Move renewed certs_by_serial to the new renew layout
 rewind_renew() {
@@ -5154,10 +5111,6 @@ case "$cmd" in
 	renew)
 		[ "$alias_days" ] && export EASYRSA_CERT_EXPIRE="$alias_days"; :
 		renew "$@"
-		;;
-	renewable)
-		[ "$alias_days" ] && export EASYRSA_CERT_RENEW="$alias_days"; :
-		renewable "$@"
 		;;
 	rewind-renew)
 		rewind_renew "$@"
