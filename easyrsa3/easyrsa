@@ -3103,7 +3103,7 @@ display_san() {
 
 	if echo "$EASYRSA_EXTRA_EXTS" | grep -q subjectAltName; then
 		print "$(echo "$EASYRSA_EXTRA_EXTS" | grep subjectAltName |
-			sed 's/^\s*subjectAltName\s*=\s*//')"
+			sed 's/^[[:space:]]*subjectAltName[[:space:]]*=[[:space:]]*//')"
 	else
 		san="$(
 			x509v3san="X509v3 Subject Alternative Name:"
