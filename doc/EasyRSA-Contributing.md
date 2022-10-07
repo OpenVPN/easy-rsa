@@ -1,0 +1,120 @@
+Easy-RSA 3 Github Contributions Documentation
+=============================================
+
+This document explains how to contribute to Easy-RSA 3.
+
+Please follow these simple rules and make contributing easier.
+
+Intended audience: Everyone.
+
+Contributing Guide
+------------------
+
+-   **Do not** edit Easy-RSA `master` branch.
+
+-   **Do not** edit Easy-RSA `master` branch.
+
+    PRs submitted from `master` branch may be be squashed or rejected.
+
+-   Create a new branch:
+
+    Select a suitable name for the new branch. eg: `typo-doc-contrib`
+
+    ```
+    git checkout -b typo-doc-contrib
+    ```
+
+-   Make changes to the new branch.
+
+    Please use tabs to indent the code but only use tabs at the beginning of
+    the line.
+
+-   Review the changes:
+
+    ```
+    git diff
+    ```
+
+-   Stage the changes:
+
+    ```
+    git add -A
+    ```
+
+-   Show the extent of the changes:
+
+    ```
+    git status -v
+    ```
+
+-   Commit the changes:
+
+    ```
+    git commit -sS
+    ```
+
+    github `help` has details of creating a private key.
+
+    Using github `no-reply` email address is suitable for the `Signed-off-by:`
+    line.
+
+-   Push the changes:
+
+    ```
+    git push origin typo-doc-contrib
+    ```
+
+-   Share the changes:
+
+    Raise a Pull Request on github.
+
+Keeping your fork syncronised
+-----------------------------
+
+-   Configure the **upstream** remote for your fork:
+
+    ```
+    git remote add upstream https://github.com/OpenVPN/easy-rsa.git
+    ```
+
+-   Verify the remote sources:
+
+    ```
+    git remote -v
+    ```
+
+    Origin will have your repository:
+    ```
+    origin https://github.com/TinCanTech/easy-rsa.git (fetch)
+    origin https://github.com/TinCanTech/easy-rsa.git (push)
+    ```
+
+    Remote `upstream` will be `Openvpn/easy-rsa`:
+    ```
+    upstream https://github.com/Openvpn/easy-rsa.git (fetch)
+    upstream https://github.com/Openvpn/easy-rsa.git (push)
+    ```
+
+-   Syncronising your fork:
+
+    Select `master` branch:
+    ```
+    git checkout master
+    ```
+
+-   Fetch changes in `upstream`:
+    ```
+    git fetch upstream
+    ```
+
+-   Merge changes in `upstream`:
+    ```
+    git merge upstream/master
+    ```
+
+-   Update your fork on github:
+    ```
+    git push
+    ```
+
+    Your fork is now syncronised.
