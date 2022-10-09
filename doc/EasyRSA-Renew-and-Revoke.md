@@ -5,7 +5,7 @@ This document explains how the **differing versions** of Easy-RSA 3 work
 with Renewal and Revocation of Certificates and Private keys.
 
 Thanks to _good luck_, _hard work_ and _co-operation_, these version dependent
-differences have been _smoothed-over_. Since version 3.1.2, Easy-RSA has the
+differences have been _smoothed-over_. Since version `3.1.1`, Easy-RSA has the
 tools required to renew and/or revoke all verified and Valid certifiicates.
 
 **UPDATE**:
@@ -25,14 +25,14 @@ Command Details: `renew`
     - Both certificate and private key are rebuilt.
     - Once a certificate has been renewed it **cannot** be revoked.
 
- *  `renew` **Version 2**: Easy-RSA version `3.0.9`, `3.1.0` and `3.1.1`.
+ *  `renew` **Version 2**: Easy-RSA version `3.0.9` and `3.1.0`.
     - Both certificate and private key are rebuilt.
     - Once a certificate has been renewed it **can** be revoked.
     - Use command:
 
         `revoke-renewed file-name-base [ reason ]`
 
- *  `renew` **Version 3**: Easy-RSA version `3.1.2+`.
+ *  `renew` **Version 3**: Easy-RSA version `3.1.1+`.
     - Only certificate is renewed.
     - The original `renew` command has been renamed to `rebuild`, which
       rebuilds both certificate and private key.
@@ -41,7 +41,7 @@ Command Details: `renew`
 Resolving issues with `renew` version 1
 ---------------------------------------
 
-#### Upgrade Easy-RSA to version `3.1.1` or `3.1.2+` is required.
+#### Upgrade Easy-RSA to version `3.1.1+` is required.
 
 `renew` version 1 **rebuilds** the certificate and private key.
 
@@ -61,7 +61,7 @@ Once `rewind-renew` has recovered the files, the certificate can be revoked:
 Using `renew` version 2
 -----------------------
 
-#### Upgrade Easy-RSA to version `3.1.1` or `3.1.2+` is required.
+#### Upgrade Easy-RSA to version `3.1.1+` is required.
 
 `renew` version 2 **rebuilds** the certificate and private key.
 
@@ -73,7 +73,7 @@ Renewed certificate can be revoked:
 Using `renew` version 3
 -----------------------
 
-#### Upgrade Easy-RSA to version `3.1.2+` is required.
+#### Upgrade Easy-RSA to version `3.1.1+` is required.
 
 `renew` version 3 **renews** the certificate only.
 
@@ -84,7 +84,7 @@ Renewed certificate can be revoked:
 This is the preferred method to renew a certificate because the original
 private key is still valid.
 
-`renew` version 3 is **only** available since Easy-RSA version `3.1.2+`.
+`renew` version 3 is **only** available since Easy-RSA version `3.1.1+`.
 
 
 Easy-RSA Reporting tools for certificate status
