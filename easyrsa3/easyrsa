@@ -990,20 +990,26 @@ and initialize a fresh PKI here."
 		# now remove it:
 		case "$reset" in
 		hard)
-			rm -rf "$EASYRSA_PKI" || \
-				die "Removal of PKI dir failed. Check/correct errors above"
+				# # # shellcheck disable=SC2115 # Use "${var:?}" to ensure
+				rm -rf "$EASYRSA_PKI" || \
+					die "init-pki hard reset failed."
 		;;
 		soft)
-			for i in ca.crt certs_by_serial ecparams index.txt index.txt.attr \
-						index.txt.old issued private reqs serial serial.old; do
-				rm -rf "${EASYRSA_PKI:?}/$i" || \
-					die "Removal of PKI dir failed. Check/correct errors above"
+		# There is no unit test for a soft reset
+			for i in ca.crt \
+					issued private reqs certs_by_serial revoked renewed \
+					serial serial.old ecparams index.txt index.txt.old \
+					index.txt.attr index.txt.attr.old
+			do
+				# # # shellcheck disable=SC2115 # Use "${var:?}" to ensure
+				rm -rf "$EASYRSA_PKI/${i}" || \
+					die "init-pki soft reset failed."
 			done
 		;;
 		# More modes could be added here, e.g. only remove
 		# issued certs (and clean database), but keep CA intact.
 		*)
-			die "Removal of PKI dir failed. Unknown reset type: $reset"
+			die "Unknown reset type: $reset"
 		esac
 
 		# If vars was in the old pki then it has been removed
