@@ -4927,110 +4927,120 @@ while :; do
 
 	case "$opt" in
 	--days)
-		case "$val" in
-			(*[!1234567890]*|0*)
-				print "$opt - Number expected: '$val'"
-				exit 1
-		esac
+		number_only=1
 		# Set the appropriate date variable when called by command later
 		alias_days="$val"
 		;;
 	--fix-offset)
+		number_only=1
 		export EASYRSA_FIX_OFFSET="$val"
-		case "$val" in
-			(*[!1234567890]*|0*)
-				print "$opt - Number expected: '$val'"
-				exit 1
-		esac
 		;;
 	--pki-dir)
-		export EASYRSA_PKI="$val" ;;
+		export EASYRSA_PKI="$val"
+		;;
 	--tmp-dir)
-		export EASYRSA_TEMP_DIR="$val" ;;
+		export EASYRSA_TEMP_DIR="$val"
+		;;
 	--ssl-conf)
-		export EASYRSA_SSL_CONF="$val" ;;
+		export EASYRSA_SSL_CONF="$val"
+		;;
 	--keep-tmp)
-		export EASYRSA_KEEP_TEMP="$val" ;;
+		export EASYRSA_KEEP_TEMP="$val"
+		;;
 	--use-algo)
-		export EASYRSA_ALGO="$val" ;;
+		export EASYRSA_ALGO="$val"
+		;;
 	--keysize)
+		number_only=1
 		export EASYRSA_KEY_SIZE="$val"
-		case "$val" in
-			(*[!1234567890]*|0*)
-				print "$opt - Number expected: '$val'"
-				exit 1
-		esac
 		;;
 	--curve)
-		export EASYRSA_CURVE="$val" ;;
+		export EASYRSA_CURVE="$val"
+		;;
 	--dn-mode)
-		export EASYRSA_DN="$val" ;;
+		export EASYRSA_DN="$val"
+		;;
 	--req-cn)
-		export EASYRSA_REQ_CN="$val" ;;
+		export EASYRSA_REQ_CN="$val"
+		;;
 	--digest)
-		export EASYRSA_DIGEST="$val" ;;
+		export EASYRSA_DIGEST="$val"
+		;;
 	--req-c)
 		empty_ok=1
-		export EASYRSA_REQ_COUNTRY="$val" ;;
+		export EASYRSA_REQ_COUNTRY="$val"
+		;;
 	--req-st)
 		empty_ok=1
-		export EASYRSA_REQ_PROVINCE="$val" ;;
+		export EASYRSA_REQ_PROVINCE="$val"
+		;;
 	--req-city)
 		empty_ok=1
-		export EASYRSA_REQ_CITY="$val" ;;
+		export EASYRSA_REQ_CITY="$val"
+		;;
 	--req-org)
 		empty_ok=1
-		export EASYRSA_REQ_ORG="$val" ;;
+		export EASYRSA_REQ_ORG="$val"
+		;;
 	--req-email)
 		empty_ok=1
-		export EASYRSA_REQ_EMAIL="$val" ;;
+		export EASYRSA_REQ_EMAIL="$val"
+		;;
 	--req-ou)
 		empty_ok=1
-		export EASYRSA_REQ_OU="$val" ;;
+		export EASYRSA_REQ_OU="$val"
+		;;
 	--req-serial)
 		empty_ok=1
-		export EASYRSA_REQ_SERIAL="$val" ;;
+		export EASYRSA_REQ_SERIAL="$val"
+		;;
 	--ns-cert)
 		empty_ok=1
 		[ "$is_empty" ] && unset -v val
-		export EASYRSA_NS_SUPPORT="${val:-yes}" ;;
+		export EASYRSA_NS_SUPPORT="${val:-yes}"
+		;;
 	--ns-comment)
 		empty_ok=1
-		export EASYRSA_NS_COMMENT="$val" ;;
+		export EASYRSA_NS_COMMENT="$val"
+		;;
 	--batch)
 		empty_ok=1
-		export EASYRSA_BATCH=1 ;;
+		export EASYRSA_BATCH=1
+		;;
 	-s|--silent)
 		empty_ok=1
-		export EASYRSA_SILENT=1 ;;
+		export EASYRSA_SILENT=1
+		;;
 	--sbatch|--silent-batch)
 		empty_ok=1
 		export EASYRSA_SILENT=1
-		export EASYRSA_BATCH=1 ;;
+		export EASYRSA_BATCH=1
+		;;
 	-q|--quiet)
 		empty_ok=1
 		export EASYRSA_QUIET=1 ;;
 	-v|--verbose)
 		empty_ok=1
-		export EASYRSA_VERBOSE=1 ;;
+		export EASYRSA_VERBOSE=1
+		;;
 	--passin)
-		export EASYRSA_PASSIN="$val";;
+		export EASYRSA_PASSIN="$val"
+		;;
 	--passout)
-		export EASYRSA_PASSOUT="$val";;
+		export EASYRSA_PASSOUT="$val"
+		;;
 	--subca-len)
+		number_only=1
 		export EASYRSA_SUBCA_LEN="$val"
-		case "$val" in
-			(*[!1234567890]*|0*)
-				print "$opt - Number expected: '$val'"
-				exit 1
-		esac
 		;;
 	--vars)
 		user_vars_true=1
-		export EASYRSA_VARS_FILE="$val" ;;
+		export EASYRSA_VARS_FILE="$val"
+		;;
 	--copy-ext)
 		empty_ok=1
-		export EASYRSA_CP_EXT=1 ;;
+		export EASYRSA_CP_EXT=1
+		;;
 	--subject-alt-name|--san)
 		user_san_true=1
 		export EASYRSA_EXTRA_EXTS="\
@@ -5045,6 +5055,14 @@ subjectAltName = $val"
 	*)
 		break
 	esac
+
+	# fatal error when a number is expected but not provided
+	if [ "$number_only" ]; then
+		case "$val" in
+			(*[!1234567890]*|0*)
+				die "$opt - Number expected: '$val'"
+		esac
+	fi
 
 	# fatal error when no value was provided
 	if [ "$is_empty" ]; then
