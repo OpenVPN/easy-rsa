@@ -120,3 +120,11 @@ The follow is an exhaustive list of available `reason` codes:
 - `certificateHold`
 
   `reason` must be one of these codes, otherwise not be used.
+
+
+About command `rebuild`
+-----------------------
+
+If `rebuild` is used then the output directory of old certificate, key and
+request is also the `renewed` directory.  Use **`revoke-renewed`** to revoke
+an old certificate/key pair, which has been _rebuilt_ by command `rebuild`.

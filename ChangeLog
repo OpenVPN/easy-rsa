@@ -1,22 +1,21 @@
 Easy-RSA 3 ChangeLog
 
 3.1.1 (TBD)
-   * Resolve long-standing issue with --subca-len=N (#691)
+   * Remove command 'renewable' (#715)
    * Expand 'show-renew', include 'renewed/certs_by_serial' (#700)
-   * Introduce 'renew' (version 3). Only renew cert (#688)
+   * Resolve long-standing issue with --subca-len=N (#691)
+   *  ++ NOTICE: Add EasyRSA-Renew-and-Revoke.md (#690)
    * Require 'openssl-easyrsa.cnf' is up to date (#695}
+   * Introduce 'renew' (version 3). Only renew cert (#688)
    * Always ensure X509-types files exist (#581 #696)
-   * Remove renew-req (#684)
-   * Re-enable use of '--vars=FILE init-pki' #640 (Revert #566)
+   * Expand alias '--days' to all suitable options with a period (#674)
    * Introduce --keep-tmp, keep temp files for debugging (#667)
-   * Introduce Quiet mode option -q|--quiet, disable information output
-       8b7e79096b18afc5c61bfbaee204c1f7401f0019
-   * Introduce renew-req, create a new CSR for an existing key (#616)
-     Superseded by #684
+   * Introduce Option -q|--quiet, disable information output (#703)
    * Add serialNumber (OID 2.5.4.5) to DN 'org' mode (#606)
    * Support ampersand and dollar-sign in vars file (#590)
    * Introduce 'rewind-renew' (#579)
    * Expand status reports to include checking a single cert (#577)
+   * Introduce 'revoke-renewed' (#547)
    * update OpenSSL for Windows to 3.0.5
 
 3.1.0 (2022-05-18)
@@ -27,7 +26,6 @@ Easy-RSA 3 ChangeLog
    * Allow certificates to be created with fixed date offset (#550)
    * Add 'verify' to verify certificate against CA (#549)
    * Add PKCS#12 alias 'friendlyName' (#544)
-   * Disallow use of '--vars=FILE init-pki' (#566)
    * Support multiple IP-Addresses in SAN (#564)
    * Add option '--renew-days=NN', custom renew grace period (#557)
    * Add 'nopass' option to the 'export-pkcs' functions (#411)

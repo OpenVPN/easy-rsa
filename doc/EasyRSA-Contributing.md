@@ -53,6 +53,8 @@ Contributing Guide
     git commit -sS
     ```
 
+    Please write a detailed commit message.
+
     github `help` has details of creating a private key.
 
     Using github `no-reply` email address is suitable for the `Signed-off-by:`

@@ -1141,7 +1141,9 @@ install_data_to_pki () {
 # Currently, *if* 'vars' is copied to the PKI then the PKI 'vars' will take
 # priority over './vars'. But it will not be updated if './vars' is changed.
 #
-# Copying 'vars' to the PKI is complicated, code is included but DISABLED.
+# For that reason a vars file in the PKI is only created during init-pki.
+# For old PKIs where vars is elsewhere a warning is issued that the PKI
+# folder is the preferred location of vars.
 
 	# debug log on
 	if [ "$EASYRSA_DEBUG" ]; then print ">> DEBUG-ON <<"; set -x; fi
