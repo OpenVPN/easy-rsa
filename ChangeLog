@@ -1,6 +1,6 @@
 Easy-RSA 3 ChangeLog
 
-3.1.1 (TBD)
+3.1.1 (2022-10-13)
    * Remove command 'renewable' (#715)
    * Expand 'show-renew', include 'renewed/certs_by_serial' (#700)
    * Resolve long-standing issue with --subca-len=N (#691)
