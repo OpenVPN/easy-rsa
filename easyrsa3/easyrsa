@@ -1093,12 +1093,14 @@ find_x509_types_dir() {
 
 	# Find x509-types dir, in specific order
 	for area in \
+		"$EASYRSA_PKI" \
+		"$EASYRSA" \
 		"$PWD" \
+		"${0%/*}" \
 		'/usr/local/share/easy-rsa' \
 		'/usr/share/easy-rsa' \
-		"${0%/*}" \
 		'/etc/easy-rsa' \
-		# EOL - # Add more distros here
+		# EOL
 	do
 		# Find x509-types
 		[ -e "${area}/$x509_types_dir" ] || continue
@@ -1164,12 +1166,14 @@ install_data_to_pki () {
 
 	# Find and copy data-files, in specific order
 	for area in \
-		'/usr/local/share/easy-rsa' \
-		'/usr/share/easy-rsa' \
+		"$EASYRSA_PKI" \
+		"$EASYRSA" \
 		"$PWD" \
 		"${0%/*}" \
+		'/usr/local/share/easy-rsa' \
+		'/usr/share/easy-rsa' \
 		'/etc/easy-rsa' \
-		# EOL - # Add more distros here
+		# EOL
 	do
 		# Omitting "$vars_file"
 		for source in \
