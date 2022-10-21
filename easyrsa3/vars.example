@@ -157,12 +157,6 @@ fi
 
 #set_var EASYRSA_NS_COMMENT	"Easy-RSA Generated Certificate"
 
-# A temp file used to stage cert extensions during signing. The default should
-# be fine for most users; however, some users might want an alternative under a
-# RAM-based FS, such as /dev/shm or /tmp on some systems.
-
-#set_var EASYRSA_TEMP_FILE	"$EASYRSA_PKI/extensions.temp"
-
 # !!
 # NOTE: ADVANCED OPTIONS BELOW THIS POINT
 # PLAY WITH THEM AT YOUR OWN RISK
