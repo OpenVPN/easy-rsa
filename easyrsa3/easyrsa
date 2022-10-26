@@ -36,7 +36,7 @@ Here is the list of commands available with a short syntax reminder. Use the
   build-server-full <file_name_base> [ cmd-opts ]
   build-serverClient-full <file_name_base> [ cmd-opts ]
   revoke <file_name_base> [cmd-opts]
-  renew <file_name_base> [cmd-opts]
+  renew <file_name_base>
   revoke-renewed <file_name_base> [cmd-opts]
   rewind-renew <certificate-serial-number>
   rebuild <file_name_base> [cmd-opts]
@@ -185,12 +185,9 @@ cmd_help() {
 	;;
 	renew)
 		text="
-* renew <file_name_base> [ cmd-opts ]
+* renew <file_name_base>
 
       Renew a certificate specified by <file_name_base>"
-
-		opts="
-      * nopass  - do not encrypt the private key (default is encrypted)"
 	;;
 	rewind|rewind-renew)
 		text="
@@ -2133,8 +2130,12 @@ Run easyrsa without commands for usage and command help."
 	# Set 'nopass'
 	unset -v opt_nopass
 	case "$1" in
-		nopass) opt_nopass="$1"; shift ;;
-		'') : ;; # Empty ok
+		nopass)
+			warn "\
+Option 'nopass' is no longer supported by command 'renew'."
+			shift
+		;;
+		'') :; shift ;; # Empty ok
 		*) die "Unknown option: $1"
 	esac
 
@@ -2215,9 +2216,7 @@ These files will be moved to the 'renewed' storage sub-directory:
 These files will be DELETED:
 * All PKCS files for commonName : $file_name_base
 * The inline credentials file   : $creds_in
-* The duplicate certificate     : $duplicate_crt_by_serial
-
-IMPORTANT: The new key will${opt_nopass+ NOT} be password protected."
+* The duplicate certificate     : $duplicate_crt_by_serial"
 
 	confirm "  Continue with renewal: " "yes" "\
 Please confirm you wish to renew the certificate
