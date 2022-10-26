@@ -608,10 +608,8 @@ secure_session() {
 			"$EASYRSA_OPENSSL" rand -hex 4
 			)" || die "secure_session - rand '$rand'"
 
-		mkdir "${EASYRSA_TEMP_DIR}/${rand}" || continue
 		EASYRSA_TEMP_DIR_session="${EASYRSA_TEMP_DIR}/${rand}"
-		#EASYRSA_TEMP_DIR_session_rand="${rand}"
-		return
+		mkdir "$EASYRSA_TEMP_DIR_session" && return
 	done
 	return 1
 } # => secure_session()
@@ -619,10 +617,14 @@ secure_session() {
 # Create tempfile atomically or fail
 easyrsa_mktemp() {
 	# session directory must exist
-	if [ "$EASYRSA_TEMP_DIR_session" ] && [ -d "$EASYRSA_TEMP_DIR_session" ]; then
+	if [ "$EASYRSA_TEMP_DIR_session" ] && \
+		[ -d "$EASYRSA_TEMP_DIR_session" ]
+	then
 		: # ok
 	else
-		die "Non-existant temporary session: $EASYRSA_TEMP_DIR_session"
+		die "\
+Non-existant temporary session:
+* $EASYRSA_TEMP_DIR_session"
 	fi
 
 	for i in 1 2 3; do
@@ -640,8 +642,8 @@ easyrsa_mktemp() {
 
 		tempfile="${EASYRSA_TEMP_DIR_session}/temp.$rand"
 		mv "$shotfile" "$tempfile" || continue
-		printf '%s\n' "$tempfile" || die "easyrsa_mktemp - write temp"
-		return
+		# Print the new temporary file-name for the caller
+		printf '%s\n' "$tempfile" && return
 	done
 	return 1
 } # => easyrsa_mktemp()
