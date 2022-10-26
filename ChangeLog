@@ -1,6 +1,7 @@
 Easy-RSA 3 ChangeLog
 
 3.1.2 (TBD)
+   * Command 'help': For unknown command, exit with error (#737)
    * Find data-files in the correct order (#727 - Reported #725)
 
 3.1.1 (2022-10-13)

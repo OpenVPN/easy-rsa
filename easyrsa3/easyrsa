@@ -417,6 +417,7 @@ cmd_help() {
 	*)
 		err_text="
   Unknown command: '$1' (try without commands for a list of commands)"
+		easyrsa_error_exit=1
 	esac
 
 	if [ "$err_text" ]; then
