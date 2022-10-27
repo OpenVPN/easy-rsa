@@ -1077,20 +1077,6 @@ find_x509_types_dir() {
 	[ -d "$EASYRSA_EXT_DIR" ] || unset -v EASYRSA_EXT_DIR
 	x509_types_dir='x509-types'
 
-	# if PKI/x509-types exists then it wins, except for command line
-	if [ -d "$EASYRSA_PKI/$x509_types_dir" ]; then
-		# use set_var to preserve command line
-		set_var EASYRSA_EXT_DIR "$EASYRSA_PKI/$x509_types_dir"
-		return
-	fi
-
-	# if PKI/x509-types exists then it wins, except for command line
-	if [ -d "$PWD/pki/$x509_types_dir" ]; then
-		# use set_var to preserve command line
-		set_var EASYRSA_EXT_DIR "$PWD/pki/$x509_types_dir"
-		return
-	fi
-
 	# Find x509-types dir, in specific order
 	for area in \
 		"$EASYRSA_PKI" \
@@ -1103,14 +1089,14 @@ find_x509_types_dir() {
 		# EOL
 	do
 		# Find x509-types
-		[ -e "${area}/$x509_types_dir" ] || continue
+		[ -e "${area}/${x509_types_dir}" ] || continue
 
 		# Declare in preferred order, first wins, beaten by command line.
-		set_var EASYRSA_EXT_DIR "${area}/$x509_types_dir"
+		set_var EASYRSA_EXT_DIR "${area}/${x509_types_dir}"
 	done
 
 	# EASYRSA_EXT_DIR must be defined
-	[ -d "${EASYRSA_EXT_DIR}" ] || return
+	[ -d "$EASYRSA_EXT_DIR" ] && return
 } # => find_x509_types_dir()
 
 # Copy data-files from various sources
