@@ -1071,36 +1071,8 @@ The preferred location for 'vars' is within the PKI folder.
   or declare your 'vars' file with option: --vars=<FILE>"
 } # => prefer_vars_in_pki_msg()
 
-# Find x509-types dir, always prefer PKI location
-find_x509_types_dir() {
-	# if EASYRSA_EXT_DIR is set to a non-existent dir the reset it
-	[ -d "$EASYRSA_EXT_DIR" ] || unset -v EASYRSA_EXT_DIR
-	x509_types_dir='x509-types'
-
-	# Find x509-types dir, in specific order
-	for area in \
-		"$EASYRSA_PKI" \
-		"$EASYRSA" \
-		"$PWD" \
-		"${0%/*}" \
-		'/usr/local/share/easy-rsa' \
-		'/usr/share/easy-rsa' \
-		'/etc/easy-rsa' \
-		# EOL
-	do
-		# Find x509-types
-		[ -e "${area}/${x509_types_dir}" ] || continue
-
-		# Declare in preferred order, first wins, beaten by command line.
-		set_var EASYRSA_EXT_DIR "${area}/${x509_types_dir}"
-	done
-
-	# EASYRSA_EXT_DIR must be defined
-	[ -d "$EASYRSA_EXT_DIR" ] && return
-} # => find_x509_types_dir()
-
 # Copy data-files from various sources
-install_data_to_pki () {
+install_data_to_pki() {
 #
 # This function will explicitly find and optionally copy data-files to the PKI.
 # During 'init-pki' this is the new default.
@@ -1133,9 +1105,6 @@ install_data_to_pki () {
 # For old PKIs where vars is elsewhere a warning is issued that the PKI
 # folder is the preferred location of vars.
 
-	# debug log on
-	if [ "$EASYRSA_DEBUG" ]; then print ">> DEBUG-ON <<"; set -x; fi
-
 	context="$1"
 	shift
 
@@ -1143,14 +1112,18 @@ install_data_to_pki () {
 	vars_file='vars'
 	vars_file_example='vars.example'
 	ssl_cnf_file='openssl-easyrsa.cnf'
+	x509_types_dir='x509-types'
 
-	# PWD - Covers EasyRSA-Windows installed by OpenVPN, and git forks
-	# "prog_dir" - Old way (Who installs data files in /usr/bin ?)
-	# /etc/easy-rsa - possible default
-	# /usr/share/easy-rsa - usr
-	# /usr/local/share/easy-rsa - usr/local
+		# "$EASYRSA_PKI" - Preferred
+		# "$EASYRSA" - Old default and Windows
+		# "$PWD" - Usually the same as above, avoid
+		# "${0%/*}" - Usually the same as above, avoid
+		# '/usr/local/share/easy-rsa' - Default user installed
+		# '/usr/share/easy-rsa' - Default system installed
+		# Room for more..
+		# '/etc/easy-rsa' - Last resort
 
-	# Find and copy data-files, in specific order
+	# Find and optionally copy data-files, in specific order
 	for area in \
 		"$EASYRSA_PKI" \
 		"$EASYRSA" \
@@ -1161,26 +1134,41 @@ install_data_to_pki () {
 		'/etc/easy-rsa' \
 		# EOL
 	do
-		# Omitting "$vars_file"
-		for source in \
-			"$vars_file_example" \
-			"$ssl_cnf_file" \
-			# EOL - Do x509-types separately
-		do
-			# Find each item
-			[ -e "${area}/${source}" ] || continue
+		if [ "$context" = x509-types-only ]; then
+			# Find x509-types ONLY
+			# Declare in preferred order, first wins
+			# beaten by command line.
+			[ -e "${area}/${x509_types_dir}" ] && \
+				set_var EASYRSA_EXT_DIR "${area}/${x509_types_dir}"
+		else
+			# Find x509-types ALSO
+			# Declare in preferred order, first wins
+			# beaten by command line.
+			[ -e "${area}/${x509_types_dir}" ] && \
+				set_var EASYRSA_EXT_DIR "${area}/${x509_types_dir}"
 
-			# If the item does not exist in the PKI then copy it.
-			if [ -e "${EASYRSA_PKI}/${source}" ]; then
-				continue
-			else
-				cp "${area}/${source}" "$EASYRSA_PKI" || return
-			fi
-		done
+			# Find other files - Omitting "$vars_file"
+			for source in \
+				"$vars_file_example" \
+				"$ssl_cnf_file" \
+				# EOL
+			do
+				# Find each item
+				[ -e "${area}/${source}" ] || continue
+
+				# If the item does not exist in the PKI then copy it.
+				if [ -e "${EASYRSA_PKI}/${source}" ]; then
+					continue
+				else
+					cp "${area}/${source}" "$EASYRSA_PKI" || \
+						die "Failed to copy to PKI: ${area}/${source}"
+				fi
+			done
+		fi
 	done
 
-	# Find x509-types or fail
-	find_x509_types_dir || die "Failed to find x509-types"
+	# Short circuit for x509-types-only
+	[ "$context" = x509-types-only ] && return
 
 	# Create PKI/vars from PKI/example
 	unset -v new_vars_true
@@ -1203,6 +1191,8 @@ install_data_to_pki () {
 				fi
 			fi
 		;;
+		x509-types-only)
+			die "install_data_to_pki - unexpected context" ;;
 		'')
 			die "install_data_to_pki - unspecified context" ;;
 		*)
@@ -1211,17 +1201,15 @@ install_data_to_pki () {
 	fi
 
 	# Check PKI is updated - Omit unnecessary checks
-	#[ -e "${EASYRSA_PKI}/${vars_file}" ] || return
-	#[ -e "${EASYRSA_PKI}/${vars_file_example}" ] || return
-	[ -e "${EASYRSA_PKI}/${ssl_cnf_file}" ] || return
+	[ -e "${EASYRSA_PKI}/${ssl_cnf_file}" ] || \
+		die "install_data_to_pki - Missing: ${ssl_cnf_file}"
+	[ -d "$EASYRSA_EXT_DIR" ] || \
+		die "install_data_to_pki - Missing: $x509_types_dir"
 
 	# Create a safe ssl file, Complete or error
-	require_safe_ssl_conf=1 # Always required
-	[ -e "$EASYRSA_SAFE_CONF" ] || easyrsa_openssl makesafeconf || return
-
-	# debug log OFF
-	if [ "$EASYRSA_DEBUG" ]; then set +x; print ">> DEBUG-OFF <<"; fi
-
+	require_safe_ssl_conf=1 # Always required for libressl
+	[ -e "$EASYRSA_SAFE_CONF" ] || easyrsa_openssl makesafeconf || \
+		die "install_data_to_pki - Missing: $EASYRSA_SAFE_CONF"
 } # => install_data_to_pki ()
 
 # Disable terminal echo, if possible, otherwise warn
@@ -4183,8 +4171,8 @@ Sourcing the vars file and building certificates will probably fail ..'
 
 	set_var EASYRSA_KDC_REALM		"CHANGEME.EXAMPLE.COM"
 
-	# Find x509-types but do not fail - Not fatal here
-	find_x509_types_dir || :
+	# Find x509-types but do not fail - Not fatal here, used by 'help'
+	install_data_to_pki x509-types-only
 
 	# For commands which 'require a PKI' and the PKI exists
 	if  [ "$pki_is_required" ] && [ -d "$EASYRSA_PKI" ]; then
