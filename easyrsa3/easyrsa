@@ -993,6 +993,10 @@ and initialize a fresh PKI here."
 				# # # shellcheck disable=SC2115 # Use "${var:?}" to ensure
 				rm -rf "$EASYRSA_PKI" || \
 					die "init-pki hard reset failed."
+				# If vars was in the old pki then it has been removed
+				# If vars was somewhere else then it is user defined
+				# Clear found_vars because we MUST not find pki/vars
+				if [ "$vars_in_pki" ]; then unset -v found_vars; fi
 		;;
 		soft)
 		# There is no unit test for a soft reset
@@ -1011,11 +1015,6 @@ and initialize a fresh PKI here."
 		*)
 			die "Unknown reset type: $reset"
 		esac
-
-		# If vars was in the old pki then it has been removed
-		# If vars was somewhere else then it is user defined
-		# Clear found_vars because we MUST not find pki/vars
-		if [ "$vars_in_pki" ]; then unset -v found_vars; fi
 	fi
 
 	# new dirs:
@@ -1177,20 +1176,22 @@ install_data_to_pki() {
 		: # ok - Do not make a PKI/vars if another vars exists
 	else
 		case "$context" in
-		init-pki|vars-setup)
-			if [ -e "${EASYRSA_PKI}/${vars_file_example}" ]; then
-				if [ ! -e "${EASYRSA_PKI}/${vars_file}" ] && \
-					[ "$reset" = hard ]
-				then
-					# Failure means that no vars will exist and
-					# 'cp' will generate an error message
-					# This is not a fatal error
-					cp "${EASYRSA_PKI}/${vars_file_example}" \
-						"${EASYRSA_PKI}/${vars_file}" && \
-							new_vars_true=1
-				fi
+		init-pki)
+			# Only create for 'init-pki', if one does not exist
+			# 'init-pki soft' should have it's own 'vars' file
+			if [ -e "${EASYRSA_PKI}/${vars_file_example}" ] && \
+				[ ! -e "${EASYRSA_PKI}/${vars_file}" ]
+			then
+				# Failure means that no vars will exist and
+				# 'cp' will generate an error message
+				# This is not a fatal error
+				cp "${EASYRSA_PKI}/${vars_file_example}" \
+					"${EASYRSA_PKI}/${vars_file}" && \
+						new_vars_true=1
 			fi
 		;;
+		vars-setup)
+			: ;; # No change to current 'vars' required
 		x509-types-only)
 			die "install_data_to_pki - unexpected context" ;;
 		'')
