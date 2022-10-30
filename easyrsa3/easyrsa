@@ -473,6 +473,7 @@ General options:
 
 Certificate & Request options: (these impact cert/req field values)
 
+--no-text       : Create certificates without human readable text
 --days=#        : sets the signing validity to the specified number of days
                   Also applies to renewal period. For details, see: 'help days'
 --fix-offset=#  : Generate certificate with fixed start and end dates.
@@ -1792,6 +1793,7 @@ $(display_dn req "$req_in")
 	easyrsa_openssl ca -utf8 -in "$req_in" -out "$crt_out_tmp" \
 		-extfile "$ext_tmp" -days "$EASYRSA_CERT_EXPIRE" -batch \
 		${EASYRSA_PASSIN:+-passin "$EASYRSA_PASSIN"} \
+		${EASYRSA_NO_TEXT:+-notext} \
 		${EASYRSA_FIX_OFFSET+ -startdate "$start_fixdate"} \
 		${EASYRSA_FIX_OFFSET+ -enddate "$end_fixdate"} \
 			|| die "signing failed (openssl output above may have more detail)"
@@ -5009,6 +5011,10 @@ while :; do
 		;;
 	--passout)
 		export EASYRSA_PASSOUT="$val"
+		;;
+	--notext|--no-text)
+		empty_ok=1
+		export EASYRSA_NO_TEXT=1
 		;;
 	--subca-len)
 		number_only=1
