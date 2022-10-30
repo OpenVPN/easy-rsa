@@ -1243,8 +1243,7 @@ build_ca() {
 	unset -v nopass sub_ca ssl_batch date_stamp x509
 	while [ "$1" ]; do
 		case "$1" in
-			intca) sub_ca=1 ;;
-			subca) sub_ca=1 ;;
+			intca|subca) sub_ca=1 ;;
 			nopass) nopass=1 ;;
 			*) warn "Ignoring unknown command option: '$1'"
 		esac
