@@ -4897,7 +4897,7 @@ unset -v die_error_exit easyrsa_error_exit \
 # Parse options
 while :; do
 	# Separate option from value:
-	unset -v opt val is_empty empty_ok
+	unset -v opt val is_empty empty_ok number_only
 	opt="${1%%=*}"
 	val="${1#*=}"
 
