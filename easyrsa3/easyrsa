@@ -4857,7 +4857,7 @@ return 0
 
 print_version()
 {
-	ssl_version="$("${EASYRSA_OPENSSL:-openssl}" version)"
+	ssl_version="$("${EASYRSA_OPENSSL:-openssl}" version 2>/dev/null)"
 		cat << VERSION_TEXT
 EasyRSA Version Information
 Version:     $EASYRSA_version
