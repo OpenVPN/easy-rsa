@@ -1,6 +1,7 @@
 Easy-RSA 3 ChangeLog
 
 3.1.2 (TBD)
+   * Introduce global option '--nopass|--no-pass' (#752)
    * Introduce global option '--notext|--no-text' (#745)
    * Command 'help': For unknown command, exit with error (#737)
    * Find data-files in the correct order (#727 - Reported #725)
