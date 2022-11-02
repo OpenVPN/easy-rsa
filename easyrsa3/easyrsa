@@ -459,6 +459,7 @@ General options:
 --sbatch        : Combined --silent and --batch operating mode
 -q|--quiet      : Quiet mode, disable information messages only
 
+--nopass        : Do not use passwords, over-rides --passin and --passout
 --passin=ARG    : set -passin ARG for openssl (eg: pass:xEasyRSAy)
 --passout=ARG   : set -passout ARG for openssl (eg: pass:xEasyRSAy)
 --ssl-conf=FILE : define a specific OpenSSL config file for Easy-RSA to use
@@ -1240,11 +1241,11 @@ hide_read_pass()
 # build-ca backend:
 build_ca() {
 	cipher="-aes256"
-	unset -v nopass sub_ca ssl_batch date_stamp x509
+	unset -v sub_ca ssl_batch date_stamp x509
 	while [ "$1" ]; do
 		case "$1" in
 			intca|subca) sub_ca=1 ;;
-			nopass) nopass=1 ;;
+			nopass) EASYRSA_NO_PASS=1 ;;
 			*) warn "Ignoring unknown command option: '$1'"
 		esac
 		shift
@@ -1266,7 +1267,7 @@ build_ca() {
 	fi
 
 	# If encrypted then create the CA key using AES256 cipher
-	if [ "$nopass" ]; then
+	if [ "$EASYRSA_NO_PASS" ]; then
 		unset -v cipher
 	else
 		unset -v no_password
@@ -1334,9 +1335,11 @@ Please update openssl-easyrsa.cnf to the latest official release."
 	out_file_tmp="$(easyrsa_mktemp)" || die "Failed to create temp-cert file"
 
 	# Get password from user if necessary
-	if [ -z "$nopass" ] &&
-		{ [ -z "$EASYRSA_PASSOUT" ] || [ -z "$EASYRSA_PASSIN" ]; }
-	then
+	if [ "$EASYRSA_NO_PASS" ]; then
+		: # No password required
+	elif [ "$EASYRSA_PASSOUT" ] && [ "$EASYRSA_PASSIN" ]; then
+		: # Password defined
+	else
 		out_key_pass_tmp="$(easyrsa_mktemp)" || die "Failed to create temporary file"
 		echo
 		printf "Enter New CA Key Passphrase: "
@@ -1417,7 +1420,7 @@ Please update openssl-easyrsa.cnf to the latest official release."
 			${x509+ -x509} \
 			${date_stamp+ -days "$EASYRSA_CA_EXPIRE"} \
 			${EASYRSA_DIGEST+ -"$EASYRSA_DIGEST"} \
-			${no_password+ "$no_password"} \
+			${EASYRSA_NO_PASS+ "$no_password"} \
 			${EASYRSA_PASSIN:+ -passin "$EASYRSA_PASSIN"} \
 			${EASYRSA_PASSOUT:+ -passout "$EASYRSA_PASSOUT"} \
 			${out_key_pass_tmp:+ -passin file:"$out_key_pass_tmp"} \
@@ -1497,7 +1500,7 @@ Error: gen-req must have a file base as the first argument.
 Run easyrsa without commands for usage and commands."
 
 	# Initialisation
-	unset -v text nopass ssl_batch
+	unset -v text ssl_batch
 
 	# Set ssl batch mode and Default commonName, as required
 	if [ "$EASYRSA_BATCH" ]; then
@@ -1521,7 +1524,7 @@ Run easyrsa without commands for usage and commands."
 	while [ "$1" ]; do
 		case "$1" in
 			text) text=1 ;;
-			nopass) nopass=1 ;;
+			nopass) EASYRSA_NO_PASS=1 ;;
 			# batch flag supports internal callers needing silent operation
 			batch) ssl_batch=1 ;;
 			*) warn "Ignoring unknown command option: '$1'"
@@ -1582,7 +1585,7 @@ $EASYRSA_EXTRA_EXTS"
 	# Generate request
 	easyrsa_openssl req -utf8 -new -newkey "$algo_opts" \
 		-keyout "$key_out_tmp" -out "$req_out_tmp" \
-		${nopass+ "$no_password"} \
+		${EASYRSA_NO_PASS+ "$no_password"} \
 		${text+ -text} \
 		${ssl_batch+ -batch} \
 		${EASYRSA_PASSOUT:+ -passout "$EASYRSA_PASSOUT"} \
@@ -1828,7 +1831,7 @@ Run easyrsa without commands for usage and commands."
 	# function opts support
 	while [ "$1" ]; do
 		case "$1" in
-			nopass) nopass=1 ;;
+			nopass) EASYRSA_NO_PASS=1 ;;
 			inline) EASYRSA_INLINE=1 ;;
 			*) warn "Ignoring unknown command option: '$1'"
 		esac
@@ -1850,7 +1853,7 @@ Option conflict: '$cmd' does not support setting an external commonName"
 	EASYRSA_REQ_CN="$name"
 
 	# create request
-	gen_req "$name" batch ${nopass+ nopass}
+	gen_req "$name" batch
 
 	# Sign it
 	on_error_build_full_cleanup=1
@@ -2104,7 +2107,6 @@ Run easyrsa without commands for usage and command help."
 	up23_upgrade_ca || die "Failed to upgrade CA to support renewal."
 
 	# Set 'nopass'
-	unset -v opt_nopass
 	case "$1" in
 		nopass)
 			warn "\
@@ -2590,9 +2592,8 @@ Run easyrsa without commands for usage and command help."
 	up23_upgrade_ca || die "Failed to upgrade CA to support renewal."
 
 	# Set 'nopass'
-	unset -v opt_nopass
 	case "$1" in
-		nopass) opt_nopass="$1"; shift ;;
+		nopass) EASYRSA_NO_PASS=1; shift ;;
 		'') : ;; # Empty ok
 		*) die "Unknown option: $1"
 	esac
@@ -2692,7 +2693,7 @@ These files will be DELETED:
 * The inline credentials file   : $creds_in
 * The duplicate certificate     : $duplicate_crt_by_serial
 
-IMPORTANT: The new key will${opt_nopass+ NOT} be password protected."
+IMPORTANT: The new key will${EASYRSA_NO_PASS+ NOT} be password protected."
 
 	confirm "  Continue with rebuild: " "yes" "\
 Please confirm you wish to renew the certificate
@@ -2707,7 +2708,7 @@ with the following subject:
 	on_error_undo_rebuild_move=1
 
 	# rebuild certificate
-	if EASYRSA_BATCH=1 build_full "$cert_type" "$file_name_base" "$opt_nopass"; then
+	if EASYRSA_BATCH=1 build_full "$cert_type" "$file_name_base"; then
 		unset on_error_undo_rebuild_move
 	else
 		# If rebuild failed then restore cert, key and req. Otherwise,
@@ -2913,13 +2914,12 @@ Run easyrsa without commands for usage and command help."
 	cipher=-aes256
 	want_ca=1
 	want_key=1
-	want_pass=1
 	unset -v pkcs_friendly_name
 	while [ "$1" ]; do
 		case "$1" in
 			noca) want_ca="" ;;
 			nokey) want_key="" ;;
-			nopass) want_pass="" ;;
+			nopass) EASYRSA_NO_PASS=1 ;;
 			usefn) pkcs_friendly_name="$short_name" ;;
 			*) warn "Ignoring unknown command option: '$1'"
 		esac
@@ -2940,7 +2940,7 @@ Unable to export $pkcs_type for short name '$short_name' without the certificate
 Missing cert expected at: $crt_in"
 
 	# For 'nopass' PKCS requires an explicit empty password 'pass:'
-	if [ -z "$want_pass" ]; then
+	if [ "$EASYRSA_NO_PASS" ]; then
 		EASYRSA_PASSIN=pass:
 		EASYRSA_PASSOUT=pass:
 		unset -v cipher # pkcs#1 only
@@ -3033,7 +3033,7 @@ See help output for usage details."
 	unset nopass
 	while [ "$1" ]; do
 		case "$1" in
-			nopass) nopass=1 ;;
+			nopass) EASYRSA_NO_PASS=1 ;;
 			file) file="$raw_file" ;;
 			*) warn "Ignoring unknown command option: '$1'"
 		esac
@@ -3041,7 +3041,7 @@ See help output for usage details."
 	done
 
 	# If nopass then do not encrypt else encrypt with password.
-	if [ "$nopass" ]; then
+	if [ "$EASYRSA_NO_PASS" ]; then
 		unset -v cipher
 	else
 		unset -v no_password
@@ -3059,7 +3059,7 @@ ${crypto:+You will then enter a new PEM passphrase for this key.$NL}"
 	out_key_tmp="$(easyrsa_mktemp)" || die "Failed to create temporary file"
 	easyrsa_openssl "$key_type" -in "$file" -out "$out_key_tmp" \
 		${cipher:+ "$cipher"} \
-		${no_password:+ "$no_password"} \
+		${EASYRSA_NO_PASS:+ "$no_password"} \
 		${EASYRSA_PASSIN:+ -passin "$EASYRSA_PASSIN"} \
 		${EASYRSA_PASSOUT:+ -passout "$EASYRSA_PASSOUT"} || die "\
 Failed to change the private key passphrase. See above for possible openssl
@@ -5005,6 +5005,10 @@ while :; do
 		empty_ok=1
 		export EASYRSA_VERBOSE=1
 		;;
+	--nopass|--no-pass)
+		empty_ok=1
+		export EASYRSA_NO_PASS=1
+		;;
 	--passin)
 		export EASYRSA_PASSIN="$val"
 		;;
@@ -5075,6 +5079,14 @@ esac
 
 # Get host details - does not require vars_setup
 detect_host
+
+# Mutual exclusions
+# --nopass cannot be used with --passin and --passout
+if [ "$EASYRSA_NO_PASS" ] && \
+	{ [ "$EASYRSA_PASSIN" ] || [ "$EASYRSA_PASSOUT" ]; }
+then
+	die "* Cannot use --nopass with --passin or --passout"
+fi
 
 # Intelligent env-var detection and auto-loading:
 vars_setup
