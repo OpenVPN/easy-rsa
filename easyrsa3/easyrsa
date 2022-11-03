@@ -3920,7 +3920,7 @@ detect_host() {
 			easyrsa_shell="$SHELL (Git)"
 			easyrsa_win_git_bash="${EXEPATH}"
 			# If found then set openssl NOW!
-			[ -e /usr/bin/openssl ] && set_var EASYRSA_OPENSSL /usr/bin/openssl
+			#[ -e /usr/bin/openssl ] && set_var EASYRSA_OPENSSL /usr/bin/openssl
 		fi
 	else
 		easyrsa_host_os=nix
@@ -3943,7 +3943,8 @@ detect_host() {
 # Extra diagnostics
 show_host() {
 	print_version
-	print "$host_out | ${ssl_version:-ssl_version not currently set}"
+	[ "$EASYRSA_VERBOSE" ] || return 0
+	print "$host_out"
 	[ "$EASYRSA_DEBUG" ] || return 0
 	case "$easyrsa_host_os" in
 	win) set ;;
@@ -4890,6 +4891,9 @@ trap "exit 3" 3
 trap "exit 6" 6
 trap "exit 14" 15
 
+# Get host details - No configurable input allowed
+detect_host
+
 # Initialisation requirements
 unset -v die_error_exit easyrsa_error_exit \
 	user_san_true user_vars_true alias_days
@@ -5076,9 +5080,6 @@ case "$cmd" in
 		pki_is_required=1
 		unset -v no_pki_required
 esac
-
-# Get host details - does not require vars_setup
-detect_host
 
 # Mutual exclusions
 # --nopass cannot be used with --passin and --passout
