@@ -616,7 +616,8 @@ secure_session() {
 	[ "$EASYRSA_TEMP_DIR_session" ] && die "session overload"
 
 	# temporary directory must exist
-	if [ "$EASYRSA_TEMP_DIR" ] && [ -d "$EASYRSA_TEMP_DIR" ]; then
+	if [ "$EASYRSA_TEMP_DIR" ] && [ -d "$EASYRSA_TEMP_DIR" ]
+	then
 		: # ok
 	else
 		die "Non-existant temporary directory: $EASYRSA_TEMP_DIR"
@@ -628,6 +629,7 @@ secure_session() {
 			)" || die "secure_session - random_session '$random_session'"
 
 		EASYRSA_TEMP_DIR_session="${EASYRSA_TEMP_DIR}/${random_session}"
+		# atomic:
 		mkdir "$EASYRSA_TEMP_DIR_session" && return
 	done
 	die "secure_session failed"
@@ -659,9 +661,11 @@ Non-existant temporary session:
 		fi
 
 		tempfile="${EASYRSA_TEMP_DIR_session}/temp.$random_file"
-		mv "$shotfile" "$tempfile" || continue
-		# Print the new temporary file-name for the caller
-		printf '%s\n' "$tempfile" && return
+		# atomic:
+		if mv "$shotfile" "$tempfile"; then
+			# Print the new temporary file-name for the caller
+			printf '%s\n' "$tempfile" && return
+		fi
 	done
 	die "easyrsa_mktemp failed"
 } # => easyrsa_mktemp()
