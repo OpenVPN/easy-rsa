@@ -590,6 +590,26 @@ Type the word '$value' to continue, or any other input to abort."
 	exit 9
 } # => confirm()
 
+# Generate random hex
+# Can ony be used after a SAFE SSL config exists.
+# Otherwise, LibreSSL complains about the config file.
+easyrsa_random() {
+	if [ "$EASYRSA_SAFE_CONF" ] && [ -e "$EASYRSA_SAFE_CONF" ]
+	then
+		: # ok
+	else
+		die "easyrsa_random - safe conf"
+	fi
+
+	case "$1" in
+	(*[!1234567890]*|0*|"") : ;; # invalid input
+	(*)
+		# Only return on success
+		"$EASYRSA_OPENSSL" rand -hex "$1" && return
+	esac
+	die "easyrsa_random failed"
+} # => easyrsa_random()
+
 # Create session directory atomically or fail
 secure_session() {
 	# Session is already defined
@@ -603,22 +623,20 @@ secure_session() {
 	fi
 
 	for i in 1 2 3; do
-		# Always use openssl directly for rand
-		rand="$(
-			"$EASYRSA_OPENSSL" rand -hex 4
-			)" || die "secure_session - rand '$rand'"
+		random_session="$(
+			easyrsa_random 4
+			)" || die "secure_session - random_session '$random_session'"
 
-		EASYRSA_TEMP_DIR_session="${EASYRSA_TEMP_DIR}/${rand}"
+		EASYRSA_TEMP_DIR_session="${EASYRSA_TEMP_DIR}/${random_session}"
 		mkdir "$EASYRSA_TEMP_DIR_session" && return
 	done
-	return 1
+	die "secure_session failed"
 } # => secure_session()
 
 # Create tempfile atomically or fail
 easyrsa_mktemp() {
 	# session directory must exist
-	if [ "$EASYRSA_TEMP_DIR_session" ] && \
-		[ -d "$EASYRSA_TEMP_DIR_session" ]
+	if [ "$EASYRSA_TEMP_DIR_session" ] && [ -d "$EASYRSA_TEMP_DIR_session" ]
 	then
 		: # ok
 	else
@@ -629,23 +647,23 @@ Non-existant temporary session:
 
 	for i in 1 2 3; do
 		# Always use openssl directly for rand
-		rand="$(
-			"$EASYRSA_OPENSSL" rand -hex 4
-			)" || die "easyrsa_mktemp - rand '$rand'"
+		random_file="$(
+			easyrsa_random 4
+			)" || die "easyrsa_mktemp - random_file '$random_file'"
 
-		shotfile="${EASYRSA_TEMP_DIR_session}/shot.$rand"
+		shotfile="${EASYRSA_TEMP_DIR_session}/shot.$random_file"
 		if [ -e "$shotfile" ]; then
 			continue
 		else
 			printf "" > "$shotfile" || continue
 		fi
 
-		tempfile="${EASYRSA_TEMP_DIR_session}/temp.$rand"
+		tempfile="${EASYRSA_TEMP_DIR_session}/temp.$random_file"
 		mv "$shotfile" "$tempfile" || continue
 		# Print the new temporary file-name for the caller
 		printf '%s\n' "$tempfile" && return
 	done
-	return 1
+	die "easyrsa_mktemp failed"
 } # => easyrsa_mktemp()
 
 # remove temp files and do terminal cleanups
@@ -1616,11 +1634,12 @@ sign_req() {
 		serial=""
 		check_serial=""
 		for i in 1 2 3 4 5; do
-			# Always use openssl directly for rand
-			"$EASYRSA_OPENSSL" rand -hex -out "$EASYRSA_PKI/serial" 16 \
-				|| die "sign_req - rand"
+			serial="$(
+				easyrsa_random 16
+				)" || die "sign_req - easyrsa_random"
 
-			serial="$(cat "$EASYRSA_PKI/serial")"
+			# Print random $serial to pki/serial file for use by SSL config
+			print "$serial" > "$EASYRSA_PKI/serial" || die "sign_req - serial"
 
 			# Calls LibreSSL directly with a broken config and still works
 			check_serial="$(
