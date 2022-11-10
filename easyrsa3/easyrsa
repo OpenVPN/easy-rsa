@@ -337,16 +337,18 @@ cmd_help() {
 		opts="
       * nopass  - do not encrypt the private key (default is encrypted)"
 	;;
-	set-rsa-pass|set-ec-pass)
+	set-pass|set-ed-pass|set-rsa-pass|set-ec-pass)
 		text="
-* set-rsa-pass <file_name_base> [ cmd-opts ]
-* set-ec-pass <file_name_base> [ cmd-opts ]
+* set-pass <file_name_base> [ cmd-opts ]
+* set-rsa-pass <file_name_base> [ cmd-opts ] (Deprecated)
+* set-ec-pass <file_name_base> [ cmd-opts ] (Deprecated)
+* set-ed-pass <file_name_base> [ cmd-opts ] (Deprecated)
 
-      Set a new passphrase on an RSA or EC key
-      for the key specified by <file_name_base>."
+      Set a new passphrase for the private key specified by <file_name_base>"
 
 		opts="
       * nopass  - use no password and leave the key unencrypted
+        (Equivalent to global option '--nopass|--no-pass')
       * file    - (advanced) treat the file as a raw path, not a short-name"
 	;;
 	upgrade)
@@ -3010,7 +3012,7 @@ location: $pkcs_out"
 } # => export_pkcs()
 
 # set-pass backend
-set_pass() {
+set_pass_legacy() {
 	# Verify PKI has been initialised
 	verify_pki_init
 
@@ -3053,7 +3055,7 @@ $file"
 
 	notice "\
 If the key is currently encrypted you must supply the decryption passphrase.
-${crypto:+You will then enter a new PEM passphrase for this key.$NL}"
+${cipher:+You will then enter a new PEM passphrase for this key.$NL}"
 
 	# Set password
 	out_key_tmp="$(easyrsa_mktemp)" || die "Failed to create temporary file"
@@ -3071,6 +3073,65 @@ Failed to change the private key passphrase. See above for error messages."
 	notice "Key passphrase successfully changed"
 
 	return 0
+} # => set_pass()
+
+# set-pass backend
+set_pass() {
+	# Verify PKI has been initialised
+	verify_pki_init
+
+	# values supplied by the user:
+	raw_file="$1"
+	file="$EASYRSA_PKI/private/$raw_file.key"
+
+	if [ "$raw_file" ]; then
+		shift
+	else
+		die "\
+Missing argument: no name/file supplied."
+	fi
+
+	# parse command options
+	cipher="-aes256"
+	while [ "$1" ]; do
+		case "$1" in
+			nopass) EASYRSA_NO_PASS=1 ;;
+			file) file="$raw_file" ;;
+			*) warn "Ignoring unknown command option: '$1'"
+		esac
+		shift
+	done
+
+	# If nopass then do not encrypt else encrypt with password.
+	if [ "$EASYRSA_NO_PASS" ]; then
+		unset -v cipher
+	else
+		unset -v no_password
+	fi
+
+	[ -e "$file" ] || die "\
+Missing private key: expected to find the private key component at:
+$file"
+
+	warn "\
+If the key is encrypted then you must supply the decryption pass phrase.
+${cipher:+You will then enter and verify a new PEM pass phrase for this key.}"
+
+	# Set password
+	out_key_tmp="$(easyrsa_mktemp)" || die "Failed to create temporary file"
+
+	easyrsa_openssl pkey -in "$file" -out "$out_key_tmp" \
+		${cipher:+ "$cipher"} \
+		${EASYRSA_PASSIN:+ -passin "$EASYRSA_PASSIN"} \
+		${EASYRSA_PASSOUT:+ -passout "$EASYRSA_PASSOUT"} || die "\
+Failed to change the private key passphrase."
+
+	mv "$out_key_tmp" "$file" || die "\
+Failed to update the private key file."
+
+	key_update=changed
+	[ "$EASYRSA_NO_PASS" ] && key_update=removed
+	notice "Key passphrase successfully $key_update"
 } # => set_pass()
 
 # update-db backend
@@ -5160,10 +5221,14 @@ case "$cmd" in
 		export_pkcs p1 "$@"
 		;;
 	set-rsa-pass)
-		set_pass rsa "$@"
+		set_pass_legacy rsa "$@"
 		;;
 	set-ec-pass)
-		set_pass ec "$@"
+		set_pass_legacy ec "$@"
+		;;
+	# Allow shellcheck to complain, 'set-pass' irregularity is understood
+	set-pass|set-ed-pass|set-rsa-pass|set-ec-pass)
+		set_pass "$@"
 		;;
 	update-db)
 		update_db
