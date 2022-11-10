@@ -1637,6 +1637,7 @@ sign_req() {
 		i=""
 		serial=""
 		check_serial=""
+		unset -v unique_serial
 		for i in 1 2 3 4 5; do
 			serial="$(
 				easyrsa_random 16
@@ -1645,17 +1646,23 @@ sign_req() {
 			# Print random $serial to pki/serial file for use by SSL config
 			print "$serial" > "$EASYRSA_PKI/serial" || die "sign_req - serial"
 
-			# Calls LibreSSL directly with a broken config and still works
+			# Check for duplicate serial in CA db
 			check_serial="$(
-				"$EASYRSA_OPENSSL" ca -config "$EASYRSA_SSL_CONF" \
-					-status "$serial" 2>&1
-				)"
+				easyrsa_openssl ca -status "$serial" 2>&1
+				)" # Always errors out - Do not capture error
 
 			case "$check_serial" in
-				*"not present in db"*) break ;;
-				*) continue
+				*"not present in db"*)
+					unique_serial=1
+					break
 			esac
 		done
+
+		# Check for unique_serial
+		[ "$unique_serial" ] || die "\
+sign_req - Randomize Serial number failed:
+
+$check_serial"
 	fi
 
 	verify_ca_init
