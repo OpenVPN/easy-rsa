@@ -3011,7 +3011,7 @@ location: $pkcs_out"
 	return 0
 } # => export_pkcs()
 
-# set-pass backend
+# set-pass backend legacy
 set_pass_legacy() {
 	# Verify PKI has been initialised
 	verify_pki_init
@@ -3045,8 +3045,6 @@ See help output for usage details."
 	# If nopass then do not encrypt else encrypt with password.
 	if [ "$EASYRSA_NO_PASS" ]; then
 		unset -v cipher
-	else
-		unset -v no_password
 	fi
 
 	[ -e "$file" ] || die "\
@@ -3061,7 +3059,6 @@ ${cipher:+You will then enter a new PEM passphrase for this key.$NL}"
 	out_key_tmp="$(easyrsa_mktemp)" || die "Failed to create temporary file"
 	easyrsa_openssl "$key_type" -in "$file" -out "$out_key_tmp" \
 		${cipher:+ "$cipher"} \
-		${EASYRSA_NO_PASS:+ "$no_password"} \
 		${EASYRSA_PASSIN:+ -passin "$EASYRSA_PASSIN"} \
 		${EASYRSA_PASSOUT:+ -passout "$EASYRSA_PASSOUT"} || die "\
 Failed to change the private key passphrase. See above for possible openssl
@@ -3073,7 +3070,7 @@ Failed to change the private key passphrase. See above for error messages."
 	notice "Key passphrase successfully changed"
 
 	return 0
-} # => set_pass()
+} # => set_pass_legacy()
 
 # set-pass backend
 set_pass() {
@@ -3105,8 +3102,6 @@ Missing argument: no name/file supplied."
 	# If nopass then do not encrypt else encrypt with password.
 	if [ "$EASYRSA_NO_PASS" ]; then
 		unset -v cipher
-	else
-		unset -v no_password
 	fi
 
 	[ -e "$file" ] || die "\
