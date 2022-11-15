@@ -580,6 +580,8 @@ confirm() {
 	msg="$3"
 	input=""
 	print "
+Administrator approval required
+===============================
 $msg
 
 Type the word '$value' to continue, or any other input to abort."
@@ -591,6 +593,33 @@ Type the word '$value' to continue, or any other input to abort."
 	notice "Aborting without confirmation."
 	exit 9
 } # => confirm()
+
+# Confirmation - Always expect simple positive input (y..) to succeed
+simple_confirm() {
+	[ "$EASYRSA_BATCH" ] && return
+	msg="$1"
+	input=""
+
+	# Get confirmation
+	printf "%s" "
+User confirmation required
+==========================
+$msg
+
+* Do you wish to continue? (Default: No) [y/N]: "
+
+	# shellcheck disable=SC2162 # read without -r will mangle backslashes
+	read input
+	printf '\n'
+
+	# Allow simple answer
+	case "$input" in
+	[yY]|[yY][eE][sS]) : ;; # ok
+	*)
+		notice "Aborting without confirmation."
+		exit 9
+	esac
+} # => simple_confirm()
 
 # Generate random hex
 # Can ony be used after a SAFE SSL config exists.
@@ -1811,7 +1840,7 @@ $ext_tmp"
 	# Confirm the user wishes to sign this request
 	# Support batch by internal caller:
 	#[ "$3" = "batch" ] ||
-	confirm "Confirm request details: " "yes" "\
+	simple_confirm "\
 You are about to sign the following certificate.
 Please check over the details shown below for accuracy. Note that this request
 has not been cryptographically verified. Please be sure it came from a trusted
