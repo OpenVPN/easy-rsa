@@ -681,7 +681,7 @@ cleanup() {
 		if [ "$EASYRSA_KEEP_TEMP" ]
 		then
 			# skip on black-listed directory names, with a warning
-			if [ -d "$EASYRSA_TEMP_DIR/$EASYRSA_KEEP_TEMP" ]
+			if [ -e "$EASYRSA_TEMP_DIR/$EASYRSA_KEEP_TEMP" ]
 			then
 				warn "\
 Prohibited value for --keep-tmp: '$EASYRSA_KEEP_TEMP'
