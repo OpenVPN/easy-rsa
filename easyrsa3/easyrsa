@@ -5111,6 +5111,7 @@ while :; do
 		;;
 	--subca-len)
 		number_only=1
+		zero_allowed=1
 		export EASYRSA_SUBCA_LEN="$val"
 		;;
 	--vars)
@@ -5138,10 +5139,17 @@ subjectAltName = $val"
 
 	# fatal error when a number is expected but not provided
 	if [ "$number_only" ]; then
-		case "$val" in
-			(*[!1234567890]*|0*)
-				die "$opt - Number expected: '$val'"
-		esac
+		if [ "$zero_allowed" ]; then
+			case "$val" in
+				(*[!1234567890]*)
+					die "$opt - Number expected: '$val'"
+			esac
+		else
+			case "$val" in
+				(*[!1234567890]*|0*)
+					die "$opt - Number expected: '$val'"
+			esac
+		fi
 	fi
 
 	# fatal error when no value was provided
