@@ -760,27 +760,23 @@ make_safe_ssl_copy() {
 
 # Escape hazardous characters
 escape_hazard() {
-	# escape '&' and '$' and write free form fields to org temp-file
-	( # subshell for local debug
-		# debug log on
-		if [ "$EASYRSA_DEBUG" ]; then print "<< DEBUG-ON >>"; set -x; fi
-		print "\
+	# write org fields to org temp-file and escape '&' and '$'
+	print "\
 export EASYRSA_REQ_COUNTRY=\"$EASYRSA_REQ_COUNTRY\"
 export EASYRSA_REQ_PROVINCE=\"$EASYRSA_REQ_PROVINCE\"
 export EASYRSA_REQ_CITY=\"$EASYRSA_REQ_CITY\"
 export EASYRSA_REQ_ORG=\"$EASYRSA_REQ_ORG\"
 export EASYRSA_REQ_OU=\"$EASYRSA_REQ_OU\"
 export EASYRSA_REQ_EMAIL=\"$EASYRSA_REQ_EMAIL\"
-" | sed		-e s\`'&'\`'\\\&'\`g \
-			-e s\`'\$'\`'\\\$'\`g > "$easyrsa_openssl_conf_org" || \
-				die "Failed to write 'easyrsa_openssl_conf_org' temp file"
-		# debug log off
-		if [ "$EASYRSA_DEBUG" ]; then set +x; print ">> DEBUG-OFF <<"; fi
-	) # Close subshell
+" | sed -e s\`'\&'\`'\\\&'\`g \
+		-e s\`'\$'\`'\\\$'\`g \
+			> "$easyrsa_openssl_conf_org" || die "\
+escape_hazard - Failed to write temp-file"
 
-	# Reload fields from fully escaped org temp-file
+	# Reload fields from fully escaped temp-file
 	# shellcheck disable=SC1090 # can't follow non-constant source.
-	. "$easyrsa_openssl_conf_org" || die "escape_hazard - Failed to source 'org'"
+	. "$easyrsa_openssl_conf_org" || die "\
+escape_hazard - Failed to source temp-file"
 
 	# Clean up
 	rm -f "$easyrsa_openssl_conf_org"
