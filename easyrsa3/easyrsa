@@ -490,6 +490,7 @@ Certificate & Request options: (these impact cert/req field values)
 --use-algo=ALG  : crypto alg to use: choose rsa (default), ec or ed
 --curve=NAME    : for elliptic curve, sets the named curve to use
 
+--ca-len=#      : Path length of signed root CA certificate
 --subca-len=#   : Path length of signed intermediate CA certificates
 --copy-ext      : Copy included request X509 extensions (namely subjAltName)
 --san|--subject-alt-name
@@ -1376,6 +1377,31 @@ Please update openssl-easyrsa.cnf to the latest official release."
 		fi
 	fi
 
+	# Set variable for x509-types/ca file
+	x509_types_ca="$EASYRSA_EXT_DIR/ca"
+
+	# Support a dynamic CA path length when present:
+	if [ "$EASYRSA_PATH_LEN" ]; then
+		# Replace occurence of basicContraints in x509-types/ca
+		srch='^[[:blank:]]*basicConstraints[[:blank:]]*=[[:blank:]]*CA:TRUE'
+		repl="basicConstraints = CA:TRUE, pathlen:$EASYRSA_PATH_LEN"
+
+		# If basicContraints not defined then bail
+		grep -q "$srch" "$x509_types_ca" || die "\
+basicConstraints is not defined, cannot use 'pathlen'"
+
+		# Use a temp file replacement of x509-type/ca
+		x509_types_ca="$(easyrsa_mktemp)" || die "\
+Failed to create temporary file"
+
+		# Insert 'pathlen:N' into x509-types/ca temp-file
+		sed "s/${srch}/${repl}/" "$EASYRSA_EXT_DIR/ca" \
+			> "$x509_types_ca" ||  die "\
+Failed to write path length to temp file."
+
+		unset -v srch repl
+	fi
+
 	# Insert x509-types COMMON and 'ca' and EASYRSA_EXTRA_EXTS, if defined.
 	# shellcheck disable=SC2016 # vars don't expand in single quote
 	awkscript='
@@ -1386,7 +1412,7 @@ Please update openssl-easyrsa.cnf to the latest official release."
 
 	conf_tmp="$(easyrsa_mktemp)" || die "Failed to create temporary file"
 	{
-		cat "$EASYRSA_EXT_DIR/ca" "$EASYRSA_EXT_DIR/COMMON"
+		cat "$x509_types_ca" "$EASYRSA_EXT_DIR/COMMON"
 		[ "$EASYRSA_EXTRA_EXTS" ] && print "$EASYRSA_EXTRA_EXTS"
 	} | \
 		awk "$awkscript" "$EASYRSA_SSL_CONF" \
@@ -1745,7 +1771,7 @@ Please update openssl-easyrsa.cnf to the latest official release."
 			die "Failed to read X509-type $crt_type"
 
 		# Support a dynamic CA path length when present:
-		if [ "$crt_type" = "ca" ] && [ "$EASYRSA_SUBCA_LEN" ]; then
+		if [ "$crt_type" = "ca" ] && [ "$EASYRSA_PATH_LEN" ]; then
 			# Print the last occurence of basicContraints in x509-types/ca
 			# If basicContraints not defined then bail
 			# shellcheck disable=SC2016 # vars don't expand in ''
@@ -1755,7 +1781,7 @@ Please update openssl-easyrsa.cnf to the latest official release."
 				awk "$awkscript" "$EASYRSA_EXT_DIR/$crt_type"
 				)" || die "\
 basicConstraints is not defined, cannot use 'pathlen'"
-			print "$basicConstraints, pathlen:$EASYRSA_SUBCA_LEN"
+			print "$basicConstraints, pathlen:$EASYRSA_PATH_LEN"
 			unset -v basicConstraints
 		fi
 
@@ -5107,10 +5133,10 @@ while :; do
 		empty_ok=1
 		export EASYRSA_NO_TEXT=1
 		;;
-	--subca-len)
+	--subca-len|--ca-len)
 		number_only=1
 		zero_allowed=1
-		export EASYRSA_SUBCA_LEN="$val"
+		export EASYRSA_PATH_LEN="$val"
 		;;
 	--vars)
 		user_vars_true=1
