@@ -4986,8 +4986,10 @@ unset -v die_error_exit easyrsa_error_exit \
 
 # Parse options
 while :; do
+	# Reset per pass flags
+	unset -v opt val is_empty empty_ok number_only zero_allowed
+
 	# Separate option from value:
-	unset -v opt val is_empty empty_ok number_only
 	opt="${1%%=*}"
 	val="${1#*=}"
 
@@ -5111,6 +5113,7 @@ while :; do
 		;;
 	--subca-len)
 		number_only=1
+		zero_allowed=1
 		export EASYRSA_SUBCA_LEN="$val"
 		;;
 	--vars)
@@ -5136,17 +5139,22 @@ subjectAltName = $val"
 		break
 	esac
 
-	# fatal error when a number is expected but not provided
-	if [ "$number_only" ]; then
-		case "$val" in
-			(*[!1234567890]*|0*)
-				die "$opt - Number expected: '$val'"
-		esac
-	fi
-
 	# fatal error when no value was provided
 	if [ "$is_empty" ]; then
 		[ "$empty_ok" ] || die "Missing value to option: $opt"
+	fi
+
+	# fatal error when a number is expected but not provided
+	if [ "$number_only" ]; then
+		case "$val" in
+			(0)
+				# Allow zero only
+				[ "$zero_allowed" ] || \
+					die "$opt - Number expected: '$val'"
+			;;
+			(*[!1234567890]*|0*)
+				die "$opt - Number expected: '$val'"
+		esac
 	fi
 
 	shift
