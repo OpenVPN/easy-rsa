@@ -465,6 +465,7 @@ General options:
 --passin=ARG    : set -passin ARG for openssl (eg: pass:xEasyRSAy)
 --passout=ARG   : set -passout ARG for openssl (eg: pass:xEasyRSAy)
 --ssl-conf=FILE : define a specific OpenSSL config file for Easy-RSA to use
+--safe-ssl      : Always use a safe SSL config file for OpenSSL
 
 --vars=FILE     : define a specific 'vars' file to use for Easy-RSA config
 --pki-dir=DIR   : declare the PKI directory
@@ -826,26 +827,27 @@ easyrsa_openssl() {
 		# require_safe_ssl_conf is ALWAYS set by verify_ssl_lib()
 		if [ "$require_safe_ssl_conf" ]; then
 
-			# Make a safe SSL config file
-			# shellcheck disable=SC2016 # No expansion inside ' single quote
-			sed \
-			-e s\`'$dir'\`\""$EASYRSA_PKI"\"\`g \
-			-e s\`'$ENV::EASYRSA_PKI'\`\""$EASYRSA_PKI"\"\`g \
-			-e s\`'$ENV::EASYRSA_CERT_EXPIRE'\`\""$EASYRSA_CERT_EXPIRE"\"\`g \
-			-e s\`'$ENV::EASYRSA_CRL_DAYS'\`\""$EASYRSA_CRL_DAYS"\"\`g \
-			-e s\`'$ENV::EASYRSA_DIGEST'\`\""$EASYRSA_DIGEST"\"\`g \
-			-e s\`'$ENV::EASYRSA_KEY_SIZE'\`\""$EASYRSA_KEY_SIZE"\"\`g \
-			-e s\`'$ENV::EASYRSA_DN'\`\""$EASYRSA_DN"\"\`g \
-			-e s\`'$ENV::EASYRSA_REQ_CN'\`\""$EASYRSA_REQ_CN"\"\`g \
-			-e s\`'$ENV::EASYRSA_REQ_COUNTRY'\`\""$EASYRSA_REQ_COUNTRY"\"\`g \
-			-e s\`'$ENV::EASYRSA_REQ_PROVINCE'\`\""$EASYRSA_REQ_PROVINCE"\"\`g \
-			-e s\`'$ENV::EASYRSA_REQ_CITY'\`\""$EASYRSA_REQ_CITY"\"\`g \
-			-e s\`'$ENV::EASYRSA_REQ_ORG'\`\""$EASYRSA_REQ_ORG"\"\`g \
-			-e s\`'$ENV::EASYRSA_REQ_OU'\`\""$EASYRSA_REQ_OU"\"\`g \
-			-e s\`'$ENV::EASYRSA_REQ_EMAIL'\`\""$EASYRSA_REQ_EMAIL"\"\`g \
-			-e s\`'$ENV::EASYRSA_REQ_SERIAL'\`\""$EASYRSA_REQ_SERIAL"\"\`g \
-				"$EASYRSA_SSL_CONF" > "$easyrsa_openssl_conf" || \
-					die "easyrsa_openssl - Failed to make temporary config (1)"
+	# Make a safe SSL config file
+	# Break indent
+	# shellcheck disable=SC2016 # No expansion inside ' single quote
+	sed \
+	-e s\`'$dir'\`\""$EASYRSA_PKI"\"\`g \
+	-e s\`'$ENV::EASYRSA_PKI'\`\""$EASYRSA_PKI"\"\`g \
+	-e s\`'$ENV::EASYRSA_CERT_EXPIRE'\`\""$EASYRSA_CERT_EXPIRE"\"\`g \
+	-e s\`'$ENV::EASYRSA_CRL_DAYS'\`\""$EASYRSA_CRL_DAYS"\"\`g \
+	-e s\`'$ENV::EASYRSA_DIGEST'\`\""$EASYRSA_DIGEST"\"\`g \
+	-e s\`'$ENV::EASYRSA_KEY_SIZE'\`\""$EASYRSA_KEY_SIZE"\"\`g \
+	-e s\`'$ENV::EASYRSA_DN'\`\""$EASYRSA_DN"\"\`g \
+	-e s\`'$ENV::EASYRSA_REQ_CN'\`\""$EASYRSA_REQ_CN"\"\`g \
+	-e s\`'$ENV::EASYRSA_REQ_COUNTRY'\`\""$EASYRSA_REQ_COUNTRY"\"\`g \
+	-e s\`'$ENV::EASYRSA_REQ_PROVINCE'\`\""$EASYRSA_REQ_PROVINCE"\"\`g \
+	-e s\`'$ENV::EASYRSA_REQ_CITY'\`\""$EASYRSA_REQ_CITY"\"\`g \
+	-e s\`'$ENV::EASYRSA_REQ_ORG'\`\""$EASYRSA_REQ_ORG"\"\`g \
+	-e s\`'$ENV::EASYRSA_REQ_OU'\`\""$EASYRSA_REQ_OU"\"\`g \
+	-e s\`'$ENV::EASYRSA_REQ_EMAIL'\`\""$EASYRSA_REQ_EMAIL"\"\`g \
+	-e s\`'$ENV::EASYRSA_REQ_SERIAL'\`\""$EASYRSA_REQ_SERIAL"\"\`g \
+		"$EASYRSA_SSL_CONF" > "$easyrsa_openssl_conf" || \
+			die "easyrsa_openssl - Failed to make temporary config (1)"
 
 		else
 			# Do NOT Make a safe SSL config file
@@ -894,8 +896,14 @@ verify_ssl_lib() {
 		# SSL lib name
 		case "${val%% *}" in
 			# OpenSSL does require a safe config-file for ampersand
-			OpenSSL) ssl_lib=openssl; require_safe_ssl_conf=1 ;;
-			LibreSSL) ssl_lib=libressl; require_safe_ssl_conf=1 ;;
+			OpenSSL)
+				ssl_lib=openssl
+				#require_safe_ssl_conf=1
+			;;
+			LibreSSL)
+				ssl_lib=libressl
+				require_safe_ssl_conf=1
+			;;
 			*) die "\
 Missing SSL binary or invalid SSL output for 'version':
 * '${val%% *}'
@@ -5106,6 +5114,10 @@ while :; do
 	--notext|--no-text)
 		empty_ok=1
 		export EASYRSA_NO_TEXT=1
+		;;
+	--safe|--safe-ssl|--safe-conf|--safe-ssl-conf)
+		empty_ok=1		
+		require_safe_ssl_conf=1
 		;;
 	--subca-len)
 		number_only=1
