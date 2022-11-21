@@ -55,9 +55,13 @@ Here is the list of commands available with a short syntax reminder. Use the
   export-p7 <file_name_base> [ cmd-opts ]
   export-p8 <file_name_base> [ cmd-opts ]
   export-p12 <file_name_base> [ cmd-opts ]
+  set-pass  <file_name_base> [ cmd-opts ]
+  upgrade <type>
+
+Deprecated commands:
   set-rsa-pass <file_name_base> [ cmd-opts ]
   set-ec-pass <file_name_base> [ cmd-opts ]
-  upgrade <type>
+  set-ed-pass <file_name_base> [ cmd-opts ]
 "
 
 	# collect/show dir status:
@@ -99,6 +103,7 @@ cmd_help() {
 
 		opts="
       * nopass  - do not encrypt the CA key (default is encrypted)
+                  Equivalent to global option '--nopass|--no-pass'
       * subca   - create an intermediate CA keypair and request
                   (default is a root CA)
       * intca   - alias to the above"
@@ -118,8 +123,9 @@ cmd_help() {
       This request is suitable for sending to a remote CA for signing."
 
 		opts="
-      * text    - Include certificate text in request
-      * nopass  - do not encrypt the private key (default is encrypted)"
+      * nopass  - do not encrypt the private key (default is encrypted)
+                  Equivalent to global option '--nopass|--no-pass'
+      * text    - Include certificate text in request"
 	;;
 	sign|sign-req)
 		text="
@@ -144,6 +150,7 @@ cmd_help() {
 
 		opts="
       * nopass  - do not encrypt the private key (default is encrypted)
+                  Equivalent to global option '--nopass|--no-pass'
       * inline  - create an inline credentials file for this node"
 	;;
 	revoke)
@@ -181,7 +188,8 @@ cmd_help() {
       Rebuild a certificate and key specified by <file_name_base>"
 
 		opts="
-      * nopass  - do not encrypt the private key (default is encrypted)"
+      * nopass  - do not encrypt the private key (default is encrypted)
+                  Equivalent to global option '--nopass|--no-pass'"
 	;;
 	renew)
 		text="
@@ -340,11 +348,14 @@ cmd_help() {
 	set-pass|set-ed-pass|set-rsa-pass|set-ec-pass)
 		text="
 * set-pass <file_name_base> [ cmd-opts ]
-* set-rsa-pass <file_name_base> [ cmd-opts ] (Deprecated)
-* set-ec-pass <file_name_base> [ cmd-opts ] (Deprecated)
-* set-ed-pass <file_name_base> [ cmd-opts ] (Deprecated)
 
-      Set a new passphrase for the private key specified by <file_name_base>"
+      Set a new passphrase for the private key specified by <file_name_base>
+
+  NOTE: 'set-pass' replaces the following deprecated commands:
+
+    * set-rsa-pass <file_name_base> [ cmd-opts ]
+    * set-ec-pass <file_name_base> [ cmd-opts ]
+    * set-ed-pass <file_name_base> [ cmd-opts ]"
 
 		opts="
       * nopass  - use no password and leave the key unencrypted
