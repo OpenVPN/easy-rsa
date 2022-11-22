@@ -538,7 +538,6 @@ Easy-RSA error:
 
 $1
 " 1>&2
-	die_error_exit=1
 	exit "${2:-1}"
 } # => die()
 
@@ -595,6 +594,7 @@ Type the word '$value' to continue, or any other input to abort."
 	read input
 	printf '\n'
 	[ "$input" = "$value" ] && return
+	confirm_aborted=1
 	notice "Aborting without confirmation."
 	exit 9
 } # => confirm()
@@ -749,10 +749,13 @@ Temporary session not preserved."
 	elif [ "$1" = ok ]; then
 		# if there is no error then 'cleanup ok' is called
 		exit 0
+	elif [ "$1" = 2 ]; then
+		# SIGINT
+		kill -2 "$$"
 	else
 		# if 'cleanup' is called without 'ok' then an error occurred
 		# Do not show_host() for confirm() aborted exit
-		[ "$die_error_exit" ] && show_host
+		[ "$confirm_aborted" ] || show_host
 		exit 1
 	fi
 } # => cleanup()
@@ -4971,7 +4974,7 @@ NL='
 [ "$EASYRSA_NO_UMASK" ] || umask "${EASYRSA_UMASK:-077}"
 
 # Register cleanup on EXIT
-trap "cleanup" EXIT
+trap 'cleanup $?' EXIT
 # When SIGHUP, SIGINT, SIGQUIT, SIGABRT and SIGTERM,
 # explicitly exit to signal EXIT (non-bash shells)
 trap "exit 1" 1
@@ -4984,7 +4987,7 @@ trap "exit 14" 15
 detect_host
 
 # Initialisation requirements
-unset -v die_error_exit easyrsa_error_exit \
+unset -v confirm_aborted easyrsa_error_exit \
 	user_san_true user_vars_true alias_days
 
 # Parse options
