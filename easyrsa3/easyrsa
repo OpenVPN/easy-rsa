@@ -351,11 +351,7 @@ cmd_help() {
 
       Set a new passphrase for the private key specified by <file_name_base>
 
-  NOTE: 'set-pass' replaces the following deprecated commands:
-
-    * set-rsa-pass <file_name_base> [ cmd-opts ]
-    * set-ec-pass <file_name_base> [ cmd-opts ]
-    * set-ed-pass <file_name_base> [ cmd-opts ]"
+  DEPRECATED: 'set-rsa-pass' and 'set-ec-pass'"
 
 		opts="
       * nopass  - use no password and leave the key unencrypted
@@ -5266,8 +5262,7 @@ case "$cmd" in
 	set-ec-pass)
 		set_pass_legacy ec "$@"
 		;;
-	# Allow shellcheck to complain, 'set-pass' irregularity is understood
-	set-pass|set-ed-pass|set-rsa-pass|set-ec-pass)
+	set-pass|set-ed-pass)
 		set_pass "$@"
 		;;
 	update-db)
