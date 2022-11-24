@@ -112,6 +112,11 @@ fi
 #
 #set_var EASYRSA_NO_PASS	1
 
+# Always create inline files when builing cerificates. This is the
+# same as global option '--inline' and/or command option 'inline'
+#
+#set_var EASYRSA_INLINE		1
+
 # Choose a size in bits for your keypairs. The recommended value is 2048.
 # Using 2048-bit keys is considered more than sufficient for many years into
 # the future. Larger keysizes will slow down TLS negotiation and make key/DH
