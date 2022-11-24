@@ -35,6 +35,7 @@ Here is the list of commands available with a short syntax reminder. Use the
   build-client-full <file_name_base> [ cmd-opts ]
   build-server-full <file_name_base> [ cmd-opts ]
   build-serverClient-full <file_name_base> [ cmd-opts ]
+  inline <file_name_base>
   revoke <file_name_base> [ cmd-opts ]
   renew <file_name_base>
   revoke-renewed <file_name_base> [ cmd-opts ]
@@ -147,6 +148,12 @@ cmd_help() {
       * nopass  - Do not encrypt the private key (default is encrypted)
                   (Equivalent to global option '--nopass|--no-pass')
       * inline  - Create an inline credentials file for this node"
+	;;
+	inline)
+		text="
+* inline <file_name_base>
+
+      Create an inline file for <file_name_base>"
 	;;
 	revoke)
 		text="
@@ -1894,42 +1901,62 @@ Option conflict: '$cmd' does not support setting an external commonName"
 	fi
 
 	# inline it
-	if [ "$EASYRSA_INLINE" ]; then
-		inline_file="$EASYRSA_PKI/$name.creds"
-		if [ -e "$inline_file" ]; then
-			warn "Inline file exists not over-writing: $inline_file"
-		else
-			if inline_creds; then
-				notice "Inline file created: $inline_file"
-			else
-				warn "Failed to write inline file: $inline_file"
-			fi
-		fi
-	fi
+	[ "$EASYRSA_INLINE" ] && inline "$name"
 
 	return 0
 } # => build_full()
 
+# inline-file creation
+inline() {
+	# Require file-name because Cert-file-name may not be commonName
+	file_name_in="$1"
+	cert_in="$EASYRSA_PKI/issued/${file_name_in}.crt"
+	[ -f "$cert_in" ] || die "Certificate missing: $cert_in"
+
+	# confirm over-write.  Batch mode will ignore.
+	inline_file="$EASYRSA_PKI/${file_name_in}.inline"
+	if [ -e "$inline_file" ]; then
+		confirm "
+  Over-write file ? " yes "Inline file exists: $inline_file"
+	fi
+
+	# Create inline file
+	if print_inline > "$inline_file"; then
+		notice "Inline file created: $inline_file"
+	else
+		warn "Failed to write inline file: $inline_file"
+	fi
+} # => inline()
+
 # Create inline credentials file for this node
-inline_creds ()
+print_inline()
 {
-	{
-		printf "%s\n" "# $crt_type: $EASYRSA_REQ_CN"
-		printf "%s\n" ""
-		printf "%s\n" "<ca>"
-		cat "$EASYRSA_PKI/ca.crt"
-		printf "%s\n" "</ca>"
-		printf "%s\n" ""
-		printf "%s\n" "<cert>"
-		cat "$crt_out"
-		printf "%s\n" "</cert>"
-		printf "%s\n" ""
+	printf "%s\n" "# Type: $crt_type"
+	printf "%s\n" "# Name: $EASYRSA_REQ_CN"
+	printf "%s\n" ""
+
+	printf "%s\n" "<ca>"
+	cat "$EASYRSA_PKI/ca.crt"
+	printf "%s\n" "</ca>"
+	printf "%s\n" ""
+
+	printf "%s\n" "<cert>"
+	cat "$EASYRSA_PKI/issued/${file_name_in}.crt"
+	printf "%s\n" "</cert>"
+	printf "%s\n" ""
+
+	if [ -f "$EASYRSA_PKI/private/${file_name_in}.key" ]; then
 		printf "%s\n" "<key>"
-		cat "$key_out"
+		cat "$EASYRSA_PKI/private/${file_name_in}.key"
 		printf "%s\n" "</key>"
-		printf "%s\n" ""
-	} > "$inline_file"
-} # => inline_creds ()
+	else
+		printf "%s\n" "#<key>" "" "#</key>"
+	fi
+	printf "%s\n" ""
+
+	printf "%s\n" "#<tls-auth>" "" "#</tls-auth>" ""
+	printf "%s\n" "#<tls-crypt>" "" "#</tls-crypt>" ""
+} # => print_inline()
 
 # revoke backend
 revoke() {
@@ -5214,6 +5241,9 @@ case "$cmd" in
 	build-serverClient-full)
 		[ "$alias_days" ] && export EASYRSA_CERT_EXPIRE="$alias_days"; :
 		build_full serverClient "$@"
+		;;
+	inline)
+		inline "$@"
 		;;
 	gen-crl)
 		[ "$alias_days" ] && export EASYRSA_CRL_DAYS="$alias_days"; :
