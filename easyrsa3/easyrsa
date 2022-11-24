@@ -1906,15 +1906,21 @@ Option conflict: '$cmd' does not support setting an external commonName"
 	return 0
 } # => build_full()
 
-# inline-file creation
 inline() {
+	# All inline files require ca.crt
+	verify_ca_init
+
 	# Require file-name because Cert-file-name may not be commonName
 	file_name_in="$1"
-	cert_in="$EASYRSA_PKI/issued/${file_name_in}.crt"
-	[ -f "$cert_in" ] || die "Certificate missing: $cert_in"
+	crt_in="$EASYRSA_PKI/issued/${file_name_in}.crt"
+	[ -f "$crt_in" ] || die "Certificate missing: $crt_in"
+	key_in="$EASYRSA_PKI/private/${file_name_in}.key"
+
+	# Create inline directory
+	mkdir -p "$EASYRSA_PKI/inline"
 
 	# confirm over-write.  Batch mode will ignore.
-	inline_file="$EASYRSA_PKI/${file_name_in}.inline"
+	inline_file="$EASYRSA_PKI/inline/${file_name_in}.inline"
 	if [ -e "$inline_file" ]; then
 		confirm "
   Over-write file ? " yes "Inline file exists: $inline_file"
@@ -1941,13 +1947,13 @@ print_inline()
 	printf "%s\n" ""
 
 	printf "%s\n" "<cert>"
-	cat "$EASYRSA_PKI/issued/${file_name_in}.crt"
+	cat "$crt_in"
 	printf "%s\n" "</cert>"
 	printf "%s\n" ""
 
-	if [ -f "$EASYRSA_PKI/private/${file_name_in}.key" ]; then
+	if [ -f "$key_in" ]; then
 		printf "%s\n" "<key>"
-		cat "$EASYRSA_PKI/private/${file_name_in}.key"
+		cat "$key_in"
 		printf "%s\n" "</key>"
 	else
 		printf "%s\n" "#<key>" "" "#</key>"
