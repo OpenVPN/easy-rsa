@@ -35,11 +35,11 @@ Here is the list of commands available with a short syntax reminder. Use the
   build-client-full <file_name_base> [ cmd-opts ]
   build-server-full <file_name_base> [ cmd-opts ]
   build-serverClient-full <file_name_base> [ cmd-opts ]
-  revoke <file_name_base> [cmd-opts]
+  revoke <file_name_base> [ cmd-opts ]
   renew <file_name_base>
-  revoke-renewed <file_name_base> [cmd-opts]
+  revoke-renewed <file_name_base> [ cmd-opts ]
   rewind-renew <certificate-serial-number>
-  rebuild <file_name_base> [cmd-opts]
+  rebuild <file_name_base> [ cmd-opts ]
   gen-crl
   update-db
   show-req <file_name_base> [ cmd-opts ]
@@ -57,11 +57,6 @@ Here is the list of commands available with a short syntax reminder. Use the
   export-p12 <file_name_base> [ cmd-opts ]
   set-pass  <file_name_base> [ cmd-opts ]
   upgrade <type>
-
-Deprecated commands:
-  set-rsa-pass <file_name_base> [ cmd-opts ]
-  set-ec-pass <file_name_base> [ cmd-opts ]
-  set-ed-pass <file_name_base> [ cmd-opts ]
 "
 
 	# collect/show dir status:
@@ -89,11 +84,11 @@ cmd_help() {
 		text="
 * init-pki [ cmd-opts ]
 
-      Removes & re-initializes the PKI dir for a clean PKI"
+      Removes & re-initializes the PKI directory for a new PKI"
 
 		opts="
-      * hard-reset - Recursively deletes the PKI directory if it exists.
-      * soft-reset - Keeps the vars file and the PKI directory itself intact."
+      * hard    - Recursively delete the PKI directory (default).
+      * soft    - Keep the named PKI directory and PKI 'vars' file intact."
 	;;
 	build-ca)
 		text="
@@ -102,11 +97,11 @@ cmd_help() {
       Creates a new CA"
 
 		opts="
-      * nopass  - do not encrypt the CA key (default is encrypted)
-                  Equivalent to global option '--nopass|--no-pass'
-      * subca   - create an intermediate CA keypair and request
+      * nopass  - Do not encrypt the private key (default is encrypted)
+                  (Equivalent to global option '--nopass|--no-pass')
+      * subca   - Create an intermediate CA keypair and request
                   (default is a root CA)
-      * intca   - alias to the above"
+      * intca   - Alias to the above"
 	;;
 	gen-dh)
 		text="
@@ -123,8 +118,8 @@ cmd_help() {
       This request is suitable for sending to a remote CA for signing."
 
 		opts="
-      * nopass  - do not encrypt the private key (default is encrypted)
-                  Equivalent to global option '--nopass|--no-pass'
+      * nopass  - Do not encrypt the private key (default is encrypted)
+                  (Equivalent to global option '--nopass|--no-pass')
       * text    - Include certificate text in request"
 	;;
 	sign|sign-req)
@@ -149,9 +144,9 @@ cmd_help() {
       This mode uses the <file_name_base> as the X509 CN."
 
 		opts="
-      * nopass  - do not encrypt the private key (default is encrypted)
-                  Equivalent to global option '--nopass|--no-pass'
-      * inline  - create an inline credentials file for this node"
+      * nopass  - Do not encrypt the private key (default is encrypted)
+                  (Equivalent to global option '--nopass|--no-pass')
+      * inline  - Create an inline credentials file for this node"
 	;;
 	revoke)
 		text="
@@ -188,8 +183,8 @@ cmd_help() {
       Rebuild a certificate and key specified by <file_name_base>"
 
 		opts="
-      * nopass  - do not encrypt the private key (default is encrypted)
-                  Equivalent to global option '--nopass|--no-pass'"
+      * nopass  - Do not encrypt the private key (default is encrypted)
+                  (Equivalent to global option '--nopass|--no-pass')"
 	;;
 	renew)
 		text="
@@ -310,10 +305,11 @@ cmd_help() {
       specified by <file_name_base>"
 
 		opts="
-      * nopass  - use no password and leave the key unencrypted
-      * noca    - do not include the ca.crt file in the PKCS12 output
-      * nokey   - do not include the private key in the PKCS12 output
-      * usefn   - use <file_name_base> as friendly name"
+      * nopass  - Do not encrypt the private key (default is encrypted)
+                  (Equivalent to global option '--nopass|--no-pass')
+      * noca    - Do not include the ca.crt file in the PKCS12 output
+      * nokey   - Do not include the private key in the PKCS12 output
+      * usefn   - Use <file_name_base> as friendly name"
 	;;
 	export-p7)
 		text="
@@ -323,7 +319,7 @@ cmd_help() {
       specified by <file_name_base>"
 
 		opts="
-      * noca    - do not include the ca.crt file in the PKCS7 output"
+      * noca    - Do not include the ca.crt file in the PKCS7 output"
 	;;
 	export-p8)
 		text="
@@ -333,7 +329,8 @@ cmd_help() {
       specified by <file_name_base>"
 
 		opts="
-      * nopass  - do not encrypt the private key (default is encrypted)"
+      * nopass  - Do not encrypt the private key (default is encrypted)
+                  (Equivalent to global option '--nopass|--no-pass')"
 	;;
 	export-p1)
 		text="
@@ -343,7 +340,8 @@ cmd_help() {
       specified by <file_name_base>"
 
 		opts="
-      * nopass  - do not encrypt the private key (default is encrypted)"
+      * nopass  - Do not encrypt the private key (default is encrypted)
+                  (Equivalent to global option '--nopass|--no-pass')"
 	;;
 	set-pass|set-ed-pass|set-rsa-pass|set-ec-pass)
 		text="
@@ -354,9 +352,9 @@ cmd_help() {
   DEPRECATED: 'set-rsa-pass' and 'set-ec-pass'"
 
 		opts="
-      * nopass  - use no password and leave the key unencrypted
-        (Equivalent to global option '--nopass|--no-pass')
-      * file    - (advanced) treat the file as a raw path, not a short-name"
+      * nopass  - Do not encrypt the private key (default is encrypted)
+                  (Equivalent to global option '--nopass|--no-pass')
+      * file    - (Advanced) Treat the file as a raw path, not a short-name"
 	;;
 	upgrade)
 		text="
@@ -430,22 +428,15 @@ cmd_help() {
 		print "${err_text}${NL}"
 	else
 		# display the help text
-		[ "$text" ] && print "${text}${NL}"
+		[ "$text" ] && print "${text}"
 
 		if [ "$text_only" ]; then
 			: # ok - No opts message required
-
-		elif [ "$opts" ]; then
-				print "\
-Available command-options (cmd-opts):
-$opts
-"
 		else
-			print "\
-Available command-options (cmd-opts):
-
-  * No supported command-options
-"
+			print "
+Available command options [ cmd-opts ]:
+${opts:-
+      * No supported command options}"
 		fi
 	fi
 } # => cmd_help()
@@ -462,21 +453,26 @@ non-empty values to options are mandatory.
 
 General options:
 
---version       : prints EasyRSA version and build information, then exits
---batch         : set automatic (no-prompts when possible) mode
--s|--silent     : Disable all Warnings and Notices
+--version       : Prints EasyRSA version and build information
+--batch         : Set automatic (no-prompts when possible) mode
+--silent|-s     : Disable all warnings, notices and information
 --sbatch        : Combined --silent and --batch operating mode
--q|--quiet      : Quiet mode, disable information messages only
+--quiet|-q      : Quiet mode, disable information messages only
 
---nopass        : Do not use passwords, over-rides --passin and --passout
---passin=ARG    : set -passin ARG for openssl (eg: pass:xEasyRSAy)
---passout=ARG   : set -passout ARG for openssl (eg: pass:xEasyRSAy)
---ssl-conf=FILE : define a specific OpenSSL config file for Easy-RSA to use
+--no-pass       : Do not use passwords
+                  Can not be used with --passin or --passout
+--passin=ARG    : Set -passin ARG for openssl (eg: pass:xEasyRSAy)
+--passout=ARG   : Set -passout ARG for openssl (eg: pass:xEasyRSAy)
 
---vars=FILE     : define a specific 'vars' file to use for Easy-RSA config
---pki-dir=DIR   : declare the PKI directory
+--vars=FILE     : Define a specific 'vars' file to use for Easy-RSA config
+                  (Default vars file is in the EasyRSA PKI directory)
+--pki-dir=DIR   : Declare the PKI directory
+                  (Default PKI directory is sub-directory 'pki')
+--ssl-conf=FILE : Define a specific OpenSSL config file for Easy-RSA to use
+                  (Default config file is in the EasyRSA PKI directory)
 
---tmp-dir=DIR   : declare the temporary directory
+--tmp-dir=DIR   : Declare the temporary directory
+                  (Default temporary directory is the EasyRSA PKI directory)
 --keep-tmp=NAME : Keep the original temporary session by name: NAME
                   NAME is a sub-directory of the dir declared by --tmp-dir
                   This option ALWAYS over-writes a sub-dir of the same name.
@@ -484,18 +480,17 @@ General options:
 Certificate & Request options: (these impact cert/req field values)
 
 --no-text       : Create certificates without human readable text
---days=#        : sets the signing validity to the specified number of days
+--days=#        : Sets the signing validity to the specified number of days
                   Also applies to renewal period. For details, see: 'help days'
---fix-offset=#  : Generate certificate with fixed start and end dates.
-                  Range 1 to 365
-                  start-date is 01 January 00:00:01 of the current year
-                  plus the --fix-offset=# number of days.
+--fix-offset=#  : Generate certificate with fixed start and end dates
+                  Start-date is 01 January 00:00:01 of the current year
+                  plus the --fix-offset=# number of days (Range 1 to 365)
                   end-date is configured via --days=# (Default: 825 days)
 
---digest=ALG    : digest to use in the requests & certificates
---keysize=#     : size in bits of keypair to generate (RSA Only)
---use-algo=ALG  : crypto alg to use: choose rsa (default), ec or ed
---curve=NAME    : for elliptic curve, sets the named curve to use
+--digest=ALG    : Digest to use in the requests & certificates
+--keysize=#     : Size in bits of keypair to generate (RSA Only)
+--use-algo=ALG  : Crypto alg to use: choose rsa (default), ec or ed
+--curve=NAME    : For elliptic curve, sets the named curve (Default: secp384r1)
 
 --subca-len=#   : Path length of signed intermediate CA certificates
 --copy-ext      : Copy included request X509 extensions (namely subjAltName)
@@ -510,7 +505,7 @@ Distinguished Name mode:
 --req-cn=NAME   : Set CSR commonName to NAME. For details, see: 'help req-cn'
 
   Distinguished Name Organizational options: (only used with '--dn-mode=org')
-  --req-c=CC           : country code (2-letters)
+  --req-c=CC           : Country code (2-letters)
   --req-st=NAME        : State/Province
   --req-city=NAME      : City/Locality
   --req-org=NAME       : Organization
@@ -521,8 +516,7 @@ Distinguished Name mode:
 Deprecated features:
 
 --ns-cert             : Include deprecated Netscape extensions
---ns-comment=COMMENT  : Include deprecated Netscape comment (may be blank)
-"
+--ns-comment=COMMENT  : Include deprecated Netscape comment (may be blank)"
 } # => opt_usage()
 
 # Wrapper around printf - clobber print since it's not POSIX anyway
@@ -567,8 +561,8 @@ information() {
 	[ "$EASYRSA_SILENT" ] && return
 	[ "$EASYRSA_BATCH" ] && return
 	[ "$EASYRSA_QUIET" ] && return
-	print "* $1
-"
+	print "
+* $1"
 } # => information()
 
 # Verbose status reports
@@ -734,12 +728,10 @@ Temporary session not preserved."
 		*) warn "Host OS undefined."
 	esac
 
-	if [ "$1" = ok ] || [ "$EASYRSA_BATCH" ] || \
-		[ "$EASYRSA_SILENT" ] || [ "$EASYRSA_QUIET" ]
-	then
+	if [ "$EASYRSA_BATCH" ] || [ "$EASYRSA_SILENT" ]; then
 		: # ok
 	else
-		print # just to get a clean line
+		print # To get a clean line after terminal echo is disabled
 	fi
 
 	# Exit with error 1, if an error ocured...
