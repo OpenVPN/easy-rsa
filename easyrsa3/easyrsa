@@ -2240,7 +2240,7 @@ with the following subject:
 
 	# renew certificate
 	if EASYRSA_BATCH=1 sign_req "$cert_type" "$file_name_base"; then
-		unset on_error_undo_renew_move
+		unset -v on_error_undo_renew_move
 	else
 		# If renew failed then restore cert. Otherwise, issue a warning
 		renew_restore_move
@@ -2697,8 +2697,8 @@ Cannot rebuild this certificate because a conflicting file exists.
 		: # ok - Use current subjectAltName
 	else
 		san="$(
-			easyrsa_openssl x509 -in "$crt_in" -noout -text | sed -n \
-			"/X509v3 Subject Alternative Name:/{n;s/IP Address:/IP:/g;s/ //g;p;}"
+		easyrsa_openssl x509 -in "$crt_in" -noout -text | sed -n \
+		"/X509v3 Subject Alternative Name:/{n;s/IP Address:/IP:/g;s/ //g;p;}"
 			)"
 
 		[ "$san" ] && export EASYRSA_EXTRA_EXTS="\
@@ -2739,7 +2739,7 @@ with the following subject:
 
 	# rebuild certificate
 	if EASYRSA_BATCH=1 build_full "$cert_type" "$file_name_base"; then
-		unset on_error_undo_rebuild_move
+		unset -v on_error_undo_rebuild_move
 	else
 		# If rebuild failed then restore cert, key and req. Otherwise,
 		# issue a warning. If *restore* fails then at least the file-names
@@ -3060,7 +3060,7 @@ See help output for usage details."
 
 	# parse command options
 	cipher="-aes256"
-	unset nopass
+	unset -v nopass
 	while [ "$1" ]; do
 		case "$1" in
 			nopass) EASYRSA_NO_PASS=1 ;;
@@ -3339,7 +3339,7 @@ Run easyrsa without commands for usage help."
 		verify_ca_init
 		in_file="$EASYRSA_PKI/$name.pem"
 		format="crl"
-		unset type_opts out_opts name_opts
+		unset -v type_opts out_opts name_opts
 	;;
 	*) die "Unrecognised type: $type"
 	esac
@@ -4352,7 +4352,7 @@ set_var() {
 up23_fail_upgrade ()
 {
 	# Replace die()
-	unset EASYRSA_BATCH
+	unset -v EASYRSA_BATCH
 	notice "
 ============================================================================
 The update has failed but NOTHING has been lost.
@@ -4603,8 +4603,8 @@ up23_create_openssl_cnf ()
 
 	# Create secure session
 	# Because the upgrade runs twice, once as a test and then for real
-	# EASYRSA_TEMP_DIR_session must be unset to avoid overload error
-	[ "$EASYRSA_TEMP_DIR_session" ] && unset EASYRSA_TEMP_DIR_session
+	# EASYRSA_TEMP_DIR_session must be cleared to avoid overload error
+	[ "$EASYRSA_TEMP_DIR_session" ] && unset -v EASYRSA_TEMP_DIR_session
 	up23_verbose "> Create secure session"
 	secure_session || die "up23_create_openssl_cnf - secure_session failed."
 	up23_verbose "> OK"
@@ -4823,7 +4823,7 @@ up23_manage_upgrade_23 ()
 		then
 			# v3 ensure index.txt.attr "unique_subject = no"
 			up23_upgrade_ca
-			unset EASYRSA_BATCH
+			unset -v EASYRSA_BATCH
 			notice "Your CA is fully up to date."
 			return 0
 		else
@@ -4835,7 +4835,7 @@ up23_manage_upgrade_23 ()
 	then
 		if [ "$EASYRSA_VARS_IS_VER3" ]
 		then
-			unset EASYRSA_BATCH
+			unset -v EASYRSA_BATCH
 			notice "Your PKI is fully up to date."
 			return 0
 		fi
