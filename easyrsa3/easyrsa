@@ -1267,9 +1267,7 @@ get_passphrase() {
 		printf '\n%s' "$prompt"
 		hide_read_pass r
 
-		if [ -z "$r" ]; then
-			printf '\n%s\n' "Passphrase must not be empty!"
-		elif [ "${#r}" -lt 4 ]; then
+		if [ "${#r}" -lt 4 ]; then
 			printf '\n%s\n' "Passphrase must be at least 4 characters!"
 		else
 			unset -v "$@"
