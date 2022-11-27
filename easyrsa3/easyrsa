@@ -1260,6 +1260,27 @@ hide_read_pass()
 	return 0
 } # => hide_read_pass()
 
+# Get passphrase
+get_passphrase() {
+	while :; do
+		r=""
+		printf '\n%s' "$prompt"
+		hide_read_pass r
+
+		if [ -z "$r" ]; then
+			printf '\n%s\n' "Passphrase must not be empty!"
+		elif [ "${#r}" -lt 4 ]; then
+			printf '\n%s\n' "Passphrase must be at least 4 characters!"
+		else
+			unset -v "$@"
+			set_var "$@" "$r" || die "Passphrase error!"
+			unset -v r
+			print
+			return 0
+		fi
+	done
+} # => get_passphrase()
+
 # build-ca backend:
 build_ca() {
 	cipher="-aes256"
@@ -1353,28 +1374,38 @@ Please update openssl-easyrsa.cnf to the latest official release."
 		fi
 	fi
 
-	out_key_tmp="$(easyrsa_mktemp)" || die "Failed to create temp-key file"
-	out_file_tmp="$(easyrsa_mktemp)" || die "Failed to create temp-cert file"
+	# Assign cert and key temp files
+	out_key_tmp="$(easyrsa_mktemp)" || \
+		die "Failed to create temp-key file"
+	out_file_tmp="$(easyrsa_mktemp)" || \
+		die "Failed to create temp-cert file"
 
-	# Get password from user if necessary
+	# Get passphrase from user if necessary
 	if [ "$EASYRSA_NO_PASS" ]; then
-		: # No password required
+		: # No passphrase required
 	elif [ "$EASYRSA_PASSOUT" ] && [ "$EASYRSA_PASSIN" ]; then
-		: # Password defined
+		: # passphrase defined
 	else
-		out_key_pass_tmp="$(easyrsa_mktemp)" || die "Failed to create temporary file"
-		echo
-		printf "Enter New CA Key Passphrase: "
-		hide_read_pass kpass
-		echo
-		printf "Re-Enter New CA Key Passphrase: "
-		hide_read_pass kpass2
-		echo
-		# shellcheck disable=2154 # var is referenced but not assigned
-		if [ "$kpass" = "$kpass2" ]; then
-			printf "%s" "$kpass" > "$out_key_pass_tmp"
+		# Assign passphrase vars and temp file
+		p=""
+		q=""
+		out_key_pass_tmp="$(easyrsa_mktemp)" || \
+			die "Failed to create temporary file"
+
+		# Get passphrase
+		prompt="Enter New CA Key Passphrase: "
+		get_passphrase p
+
+		# Confirm passphrase
+		prompt="Confirm New CA Key Passphrase: "
+		get_passphrase q
+
+		# Validate passphrase
+		if [ "$p" = "$q" ]; then
+			printf "%s" "$p" > "$out_key_pass_tmp"
+			unset -v p q
 		else
-			die "Passphrases do not match."
+			die "Passphrases do not match!"
 		fi
 	fi
 
@@ -1451,9 +1482,14 @@ Please update openssl-easyrsa.cnf to the latest official release."
 	*)	die "build-ca ssl lib: $osslv_major"
 	esac
 
+	# Remove passphrase temp-file
+	if [ -f "$out_key_pass_tmp" ]; then
+		rm "$out_key_pass_tmp" || die "\
+Failed to remove the CA passphrase temp-file!"
+	fi
+
 	mv "$out_key_tmp" "$out_key"
 	mv "$out_file_tmp" "$out_file"
-	[ -f "$out_key_pass_tmp" ] && rm "$out_key_pass_tmp"
 
 	# Success messages
 	if [ "$sub_ca" ]; then
