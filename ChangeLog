@@ -17,7 +17,6 @@ Easy-RSA 3 ChangeLog
    * Always ensure X509-types files exist (#581 #696)
    * Expand alias '--days' to all suitable options with a period (#674)
    * Introduce --keep-tmp, keep temp files for debugging (#667)
-   * Introduce Option -q|--quiet, disable information output (#703)
    * Add serialNumber (OID 2.5.4.5) to DN 'org' mode (#606)
    * Support ampersand and dollar-sign in vars file (#590)
    * Introduce 'rewind-renew' (#579)
