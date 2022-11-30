@@ -457,7 +457,6 @@ General options:
 --batch         : Set automatic (no-prompts when possible) mode
 --silent|-s     : Disable all warnings, notices and information
 --sbatch        : Combined --silent and --batch operating mode
---quiet|-q      : Quiet mode, disable information messages only
 
 --no-pass       : Do not use passwords
                   Can not be used with --passin or --passout
@@ -548,28 +547,18 @@ $1
 # informational notices to stdout
 notice() {
 	[ "$EASYRSA_SILENT" ] && return
-	[ "$EASYRSA_BATCH" ] && return
 	print "
 Notice
 ------
-$1
-"
+$1"
 } # => notice()
 
 # Helpful information
 information() {
 	[ "$EASYRSA_SILENT" ] && return
-	[ "$EASYRSA_BATCH" ] && return
-	[ "$EASYRSA_QUIET" ] && return
 	print "
 * $1"
 } # => information()
-
-# Verbose status reports
-verbose() {
-	[ "$EASYRSA_VERBOSE" ] || return 0
-	print "$1"
-} # => verbose()
 
 # intent confirmation helper func
 # returns without prompting in EASYRSA_BATCH
@@ -1074,7 +1063,8 @@ Your newly created PKI dir is:
 	if [ "$new_vars_true" ]; then
 		information "\
 IMPORTANT: Easy-RSA 'vars' template file has been created in your new PKI.
-             Edit this 'vars' file to customise the settings for your PKI."
+             Edit this 'vars' file to customise the settings for your PKI.
+             To use a global vars file, use global option --vars=<YOUR_VARS>"
 
 	elif [ "$user_vars_true" ] || [ "$old_vars_true" ] || [ "$no_new_vars" ]
 	then
@@ -3824,7 +3814,8 @@ expire_status() {
 		# db serial must match certificate serial, otherwise this
 		# is a renewed cert which has been replaced by an issued cert
 		if [ "$db_serial" != "$cert_serial" ]; then
-			verbose "* serial mismatch:
+			information "\
+serial mismatch:
   db_serial:    $db_serial
   cert_serial:  $cert_serial
   cert_issued:  $cert_issued"
@@ -3904,7 +3895,8 @@ renew_status() {
 		# db serial must match certificate serial, otherwise this
 		# is an issued cert that replaces a renewed cert
 		if [ "$db_serial" != "$cert_serial" ]; then
-			verbose "* serial mismatch:
+			information "\
+serial mismatch:
   db_serial:    $db_serial
   cert_serial:  $cert_serial
   cert_file_in: $cert_file_in"
@@ -4060,8 +4052,8 @@ detect_host() {
 
 # Extra diagnostics
 show_host() {
+	[ "$EASYRSA_SILENT" ] && return
 	print_version
-	[ "$EASYRSA_VERBOSE" ] || return 0
 	print "$host_out"
 	[ "$EASYRSA_DEBUG" ] || return 0
 	case "$easyrsa_host_os" in
@@ -5121,13 +5113,6 @@ while :; do
 		empty_ok=1
 		export EASYRSA_SILENT=1
 		export EASYRSA_BATCH=1
-		;;
-	-q|--quiet)
-		empty_ok=1
-		export EASYRSA_QUIET=1 ;;
-	-v|--verbose)
-		empty_ok=1
-		export EASYRSA_VERBOSE=1
 		;;
 	--nopass|--no-pass)
 		empty_ok=1
