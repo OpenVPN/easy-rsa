@@ -752,6 +752,10 @@ Generated safe SSL config file:
 
 # Escape hazardous characters
 escape_hazard() {
+	# Assign temp file
+	easyrsa_vars_org="$(easyrsa_mktemp)" || \
+		die "escape_hazard - easyrsa_mktemp failed"
+
 	# write org fields to org temp-file and escape '&' and '$'
 	print "\
 export EASYRSA_REQ_COUNTRY=\"$EASYRSA_REQ_COUNTRY\"
@@ -762,16 +766,13 @@ export EASYRSA_REQ_OU=\"$EASYRSA_REQ_OU\"
 export EASYRSA_REQ_EMAIL=\"$EASYRSA_REQ_EMAIL\"
 " | sed -e s\`'\&'\`'\\\&'\`g \
 		-e s\`'\$'\`'\\\$'\`g \
-			> "$easyrsa_openssl_conf_org" || die "\
+			> "$easyrsa_vars_org" || die "\
 escape_hazard - Failed to write temp-file"
 
 	# Reload fields from fully escaped temp-file
 	# shellcheck disable=SC1090 # can't follow non-constant source.
-	. "$easyrsa_openssl_conf_org" || die "\
+	. "$easyrsa_vars_org" || die "\
 escape_hazard - Failed to source temp-file"
-
-	# Clean up
-	rm -f "$easyrsa_openssl_conf_org"
 } # => escape_hazard()
 
 # Easy-RSA meta-wrapper for SSL
@@ -798,50 +799,49 @@ easyrsa_openssl() {
 	if [ "$has_config" ]; then
 		# Make LibreSSL safe config file from OpenSSL config file
 
-		# Assign temp files
-		easyrsa_openssl_conf="$(easyrsa_mktemp)" || \
-			die "easyrsa_openssl - Failed to create temporary file (1)"
-		easyrsa_openssl_conf_org="$(easyrsa_mktemp)" || \
-			die "easyrsa_openssl - Failed to create temporary file (2)"
-
 		# Auto-escape hazardous characters:
 		# '&' - Workaround 'sed' behavior
 		# '$' - Workaround 'easyrsa' based limitation
 		escape_hazard
 
+		# Assign temp file
+		easyrsa_safe_ssl_conf="$(easyrsa_mktemp)" || \
+			die "easyrsa_openssl - easyrsa_mktemp failed"
+
 		# require_safe_ssl_conf is ALWAYS set by verify_ssl_lib()
 		if [ "$require_safe_ssl_conf" ]; then
 
-			# Make a safe SSL config file
-			# shellcheck disable=SC2016 # No expansion inside ' single quote
-			sed \
-			-e s\`'$dir'\`\""$EASYRSA_PKI"\"\`g \
-			-e s\`'$ENV::EASYRSA_PKI'\`\""$EASYRSA_PKI"\"\`g \
-			-e s\`'$ENV::EASYRSA_CERT_EXPIRE'\`\""$EASYRSA_CERT_EXPIRE"\"\`g \
-			-e s\`'$ENV::EASYRSA_CRL_DAYS'\`\""$EASYRSA_CRL_DAYS"\"\`g \
-			-e s\`'$ENV::EASYRSA_DIGEST'\`\""$EASYRSA_DIGEST"\"\`g \
-			-e s\`'$ENV::EASYRSA_KEY_SIZE'\`\""$EASYRSA_KEY_SIZE"\"\`g \
-			-e s\`'$ENV::EASYRSA_DN'\`\""$EASYRSA_DN"\"\`g \
-			-e s\`'$ENV::EASYRSA_REQ_CN'\`\""$EASYRSA_REQ_CN"\"\`g \
-			-e s\`'$ENV::EASYRSA_REQ_COUNTRY'\`\""$EASYRSA_REQ_COUNTRY"\"\`g \
-			-e s\`'$ENV::EASYRSA_REQ_PROVINCE'\`\""$EASYRSA_REQ_PROVINCE"\"\`g \
-			-e s\`'$ENV::EASYRSA_REQ_CITY'\`\""$EASYRSA_REQ_CITY"\"\`g \
-			-e s\`'$ENV::EASYRSA_REQ_ORG'\`\""$EASYRSA_REQ_ORG"\"\`g \
-			-e s\`'$ENV::EASYRSA_REQ_OU'\`\""$EASYRSA_REQ_OU"\"\`g \
-			-e s\`'$ENV::EASYRSA_REQ_EMAIL'\`\""$EASYRSA_REQ_EMAIL"\"\`g \
-			-e s\`'$ENV::EASYRSA_REQ_SERIAL'\`\""$EASYRSA_REQ_SERIAL"\"\`g \
-				"$EASYRSA_SSL_CONF" > "$easyrsa_openssl_conf" || \
-					die "easyrsa_openssl - Failed to make temporary config (1)"
+		# Make a safe SSL config file
+		# Break indentation for long lines
+		# shellcheck disable=SC2016 # No expansion inside ' single quote
+		sed \
+		-e s\`'$dir'\`\""$EASYRSA_PKI"\"\`g \
+		-e s\`'$ENV::EASYRSA_PKI'\`\""$EASYRSA_PKI"\"\`g \
+		-e s\`'$ENV::EASYRSA_CERT_EXPIRE'\`\""$EASYRSA_CERT_EXPIRE"\"\`g \
+		-e s\`'$ENV::EASYRSA_CRL_DAYS'\`\""$EASYRSA_CRL_DAYS"\"\`g \
+		-e s\`'$ENV::EASYRSA_DIGEST'\`\""$EASYRSA_DIGEST"\"\`g \
+		-e s\`'$ENV::EASYRSA_KEY_SIZE'\`\""$EASYRSA_KEY_SIZE"\"\`g \
+		-e s\`'$ENV::EASYRSA_DN'\`\""$EASYRSA_DN"\"\`g \
+		-e s\`'$ENV::EASYRSA_REQ_CN'\`\""$EASYRSA_REQ_CN"\"\`g \
+		-e s\`'$ENV::EASYRSA_REQ_COUNTRY'\`\""$EASYRSA_REQ_COUNTRY"\"\`g \
+		-e s\`'$ENV::EASYRSA_REQ_PROVINCE'\`\""$EASYRSA_REQ_PROVINCE"\"\`g \
+		-e s\`'$ENV::EASYRSA_REQ_CITY'\`\""$EASYRSA_REQ_CITY"\"\`g \
+		-e s\`'$ENV::EASYRSA_REQ_ORG'\`\""$EASYRSA_REQ_ORG"\"\`g \
+		-e s\`'$ENV::EASYRSA_REQ_OU'\`\""$EASYRSA_REQ_OU"\"\`g \
+		-e s\`'$ENV::EASYRSA_REQ_EMAIL'\`\""$EASYRSA_REQ_EMAIL"\"\`g \
+		-e s\`'$ENV::EASYRSA_REQ_SERIAL'\`\""$EASYRSA_REQ_SERIAL"\"\`g \
+			"$EASYRSA_SSL_CONF" > "$easyrsa_safe_ssl_conf" || \
+				die "easyrsa_openssl - sed failed"
 
 		else
 			# Do NOT Make a safe SSL config file
-			cp -f "$EASYRSA_SSL_CONF" "$easyrsa_openssl_conf" || \
-				die "easyrsa_openssl - Failed to copy temporary config"
+			cp -f "$EASYRSA_SSL_CONF" "$easyrsa_safe_ssl_conf" || \
+				die "easyrsa_openssl - copy failed"
 		fi
 
 		if [ "$openssl_command" = "makesafeconf" ]; then
 			# move temp file to safessl-easyrsa.cnf
-			mv -f "$easyrsa_openssl_conf" "$EASYRSA_SAFE_CONF" || \
+			mv -f "$easyrsa_safe_ssl_conf" "$EASYRSA_SAFE_CONF" || \
 				die "easyrsa_openssl - makesafeconf failed"
 		else
 			# debug log on
@@ -849,7 +849,7 @@ easyrsa_openssl() {
 
 			# Exec SSL with -config temp-file
 			"$EASYRSA_OPENSSL" "$openssl_command" \
-				-config "$easyrsa_openssl_conf" "$@" || return
+				-config "$easyrsa_safe_ssl_conf" "$@" || return
 
 			# debug log off
 			if [ "$EASYRSA_DEBUG" ]; then set +x; print ">> DEBUG-OFF <<"; fi
