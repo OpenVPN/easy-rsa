@@ -878,7 +878,7 @@ verify_ssl_lib() {
 			OpenSSL) ssl_lib=openssl; require_safe_ssl_conf=1 ;;
 			LibreSSL) ssl_lib=libressl; require_safe_ssl_conf=1 ;;
 			*)
-				error_msg="$("$EASYRSA_OPENSSL" version)"
+				error_msg="$("$EASYRSA_OPENSSL" version 2>&1)"
 				die "\
 Invalid SSL output for 'version':
 
