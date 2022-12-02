@@ -42,6 +42,7 @@ Here is the list of commands available with a short syntax reminder. Use the
   rebuild <file_name_base> [ cmd-opts ]
   gen-crl
   update-db
+  make-safe-ssl
   show-req <file_name_base> [ cmd-opts ]
   show-cert <file_name_base> [ cmd-opts ]
   show-ca [ cmd-opts ]
@@ -217,6 +218,12 @@ cmd_help() {
 
       This command will use the system time to update the status of
       issued certificates."
+	;;
+	make-safe-ssl)
+		text="
+* make-safe-ssl
+
+      Generate a safe SSL config file"
 	;;
 	show-req|show-cert)
 		text="
@@ -586,18 +593,11 @@ Type the word '$value' to continue, or any other input to abort."
 # Can ony be used after a SAFE SSL config exists.
 # Otherwise, LibreSSL complains about the config file.
 easyrsa_random() {
-	if [ "$EASYRSA_SAFE_CONF" ] && [ -e "$EASYRSA_SAFE_CONF" ]
-	then
-		: # ok
-	else
-		die "easyrsa_random - safe conf"
-	fi
-
 	case "$1" in
 	(*[!1234567890]*|0*|"") : ;; # invalid input
 	(*)
 		# Only return on success
-		"$EASYRSA_OPENSSL" rand -hex "$1" && return
+		"$EASYRSA_OPENSSL" rand -hex "$1" 2>/dev/null && return
 	esac
 	die "easyrsa_random failed"
 } # => easyrsa_random()
@@ -741,12 +741,13 @@ Temporary session not preserved."
 	fi
 } # => cleanup()
 
-# Make a copy safe SSL config file for comparison (undocumented)
-make_safe_ssl_copy() {
-	no_pki_required=1
-	require_safe_ssl_conf=1
-	make_copy_ssl_conf=1
+# Make a copy safe SSL config file
+make_safe_ssl() {
+	verify_pki_init
 	easyrsa_openssl makesafeconf
+	notice "\
+Generated safe SSL config file:
+* $EASYRSA_SAFE_CONF"
 } # => make_safe_ssl_copy()
 
 # Escape hazardous characters
@@ -780,7 +781,7 @@ easyrsa_openssl() {
 	# Do not allow 'rand' here because it interferes with EASYRSA_DEBUG
 	case "$openssl_command" in
 		rand) die "easyrsa_openssl: Illegal SSL command: rand" ;;
-		makesafeconf) has_config=1 ;;
+		makesafeconf) has_config=1; require_safe_ssl_conf=1 ;;
 		ca|req|srp|ts) has_config=1 ;;
 		*) unset -v has_config
 	esac
@@ -797,21 +798,15 @@ easyrsa_openssl() {
 	if [ "$has_config" ]; then
 		# Make LibreSSL safe config file from OpenSSL config file
 
-		# Do not use easyrsa_mktemp() for init-pki
-		# LibreSSL cannot generate random without a PKI and safe-conf
-		if [ "$no_pki_required" ]; then
-			# for init-pki $EASYRSA_SAFE_CONF is always set in the PKI, use it.
-			easyrsa_openssl_conf="${EASYRSA_SAFE_CONF}.init-tmp"
-			easyrsa_openssl_conf_org="${EASYRSA_SAFE_CONF}.org"
-		else
-			easyrsa_openssl_conf="$(easyrsa_mktemp)" || \
-				die "easyrsa_openssl - Failed to create temporary file (1)"
-			easyrsa_openssl_conf_org="$(easyrsa_mktemp)" || \
-				die "easyrsa_openssl - Failed to create temporary file (2)"
-		fi
+		# Assign temp files
+		easyrsa_openssl_conf="$(easyrsa_mktemp)" || \
+			die "easyrsa_openssl - Failed to create temporary file (1)"
+		easyrsa_openssl_conf_org="$(easyrsa_mktemp)" || \
+			die "easyrsa_openssl - Failed to create temporary file (2)"
 
 		# Auto-escape hazardous characters:
-		# '&' - Workaround 'sed' demented behavior
+		# '&' - Workaround 'sed' behavior
+		# '$' - Workaround 'easyrsa' based limitation
 		escape_hazard
 
 		# require_safe_ssl_conf is ALWAYS set by verify_ssl_lib()
@@ -848,11 +843,6 @@ easyrsa_openssl() {
 			# move temp file to safessl-easyrsa.cnf
 			mv -f "$easyrsa_openssl_conf" "$EASYRSA_SAFE_CONF" || \
 				die "easyrsa_openssl - makesafeconf failed"
-			if [ "$make_copy_ssl_conf" ]; then
-				print
-				cp -v "$EASYRSA_SAFE_CONF" "${EASYRSA_SAFE_CONF}.temp"
-				print
-			fi
 		else
 			# debug log on
 			if [ "$EASYRSA_DEBUG" ]; then print "<< DEBUG-ON >>"; set -x; fi
@@ -887,10 +877,12 @@ verify_ssl_lib() {
 			# OpenSSL does require a safe config-file for ampersand
 			OpenSSL) ssl_lib=openssl; require_safe_ssl_conf=1 ;;
 			LibreSSL) ssl_lib=libressl; require_safe_ssl_conf=1 ;;
-			*) die "\
-Missing SSL binary or invalid SSL output for 'version':
-* '${val%% *}'
-Expected to find openssl command at: $EASYRSA_OPENSSL"
+			*)
+				error_msg="$("$EASYRSA_OPENSSL" version)"
+				die "\
+Invalid SSL output for 'version':
+
+$error_msg"
 		esac
 
 		# Set SSL version dependent $no_password option
@@ -1036,17 +1028,12 @@ and initialize a fresh PKI here."
 			die "Failed to create PKI file structure (permissions?)"
 	done
 
+	# for 'init-pki' create a secure_session
+	secure_session || die "init_pki - secure_session failed."
+
 	# Install data-files into ALL new PKIs
 	install_data_to_pki init-pki || \
 		warn "Failed to install required data-files to PKI. (init)"
-
-	# Verify that $EASYRSA_SAFE_CONF exists ($OPENSSL_CONF)
-	# Prevents bogus warnings (especially useful on win32)
-	if [ "$EASYRSA_SAFE_CONF" ] && [ -e "$EASYRSA_SAFE_CONF" ]; then
-		: # ok
-	else
-		die "init-pki failed to create safe SSL conf: $EASYRSA_SAFE_CONF"
-	fi
 
 	notice "\
 'init-pki' complete; you may now create a CA or requests.
@@ -1221,10 +1208,6 @@ install_data_to_pki() {
 	[ -d "$EASYRSA_EXT_DIR" ] || \
 		die "install_data_to_pki - Missing: $x509_types_dir"
 
-	# Create a safe ssl file, Complete or error
-	require_safe_ssl_conf=1 # Always required for libressl
-	[ -e "$EASYRSA_SAFE_CONF" ] || easyrsa_openssl makesafeconf || \
-		die "install_data_to_pki - Missing: $EASYRSA_SAFE_CONF"
 } # => install_data_to_pki ()
 
 # Disable terminal echo, if possible, otherwise warn
@@ -4293,17 +4276,7 @@ Sourcing the vars file and building certificates will probably fail ..'
 		# Verify SSL Lib - One time ONLY
 		verify_ssl_lib
 
-		# Make a safe SSL config for LibreSSL
-		# Must specify 'no_pki_required' here, otherwise temp-files cannot
-		# be created because secure_session has not created a temp-dir
-		{	# Scope conditions to this single command
-			no_pki_required=1 easyrsa_openssl makesafeconf || \
-				die "Failed to create safe ssl conf (vars_setup)"
-		} # End scope
-
 		# mkdir Temp dir session
-		# Must be run after 'Make a safe SSL config for LibreSSL' above,
-		# otherwise LibreSSL chokes without a safe config file
 		secure_session || die "Temporary directory secure-session failed."
 
 		if [ -d "$EASYRSA_TEMP_DIR" ]; then
@@ -4329,16 +4302,6 @@ Sourcing the vars file and building certificates will probably fail ..'
 				: # ok - No message required
 			else
 				prefer_vars_in_pki_msg
-			fi
-
-			# export OPENSSL_CONF for OpenSSL, OpenSSL config file MUST exist
-			# EASYRSA_SAFE_CONF is output by 'install_data_to_pki()'
-			# via 'easyrsa_openssl() makesafeconf' above.
-			# Setting EasyRSA specific OPENSSL_CONF to sanatized safe conf
-			if [ -e "$EASYRSA_SAFE_CONF" ]; then
-				export OPENSSL_CONF="$EASYRSA_SAFE_CONF"
-			else
-				die "Failed to find Safe-SSL config file."
 			fi
 
 			# Verify selected algorithm and parameters
@@ -5314,7 +5277,7 @@ case "$cmd" in
 		show_host "$@"
 		;;
 	make-safe-ssl)
-		make_safe_ssl_copy "$@"
+		make_safe_ssl "$@"
 		;;
 	upgrade)
 		up23_manage_upgrade_23 "$@"
