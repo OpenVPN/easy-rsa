@@ -752,6 +752,10 @@ Generated safe SSL config file:
 
 # Escape hazardous characters
 escape_hazard() {
+	# Assign temp file
+	easyrsa_vars_org="$(easyrsa_mktemp)" || \
+		die "escape_hazard - easyrsa_mktemp failed"
+
 	# write org fields to org temp-file and escape '&' and '$'
 	print "\
 export EASYRSA_REQ_COUNTRY=\"$EASYRSA_REQ_COUNTRY\"
@@ -762,16 +766,13 @@ export EASYRSA_REQ_OU=\"$EASYRSA_REQ_OU\"
 export EASYRSA_REQ_EMAIL=\"$EASYRSA_REQ_EMAIL\"
 " | sed -e s\`'\&'\`'\\\&'\`g \
 		-e s\`'\$'\`'\\\$'\`g \
-			> "$easyrsa_openssl_conf_org" || die "\
+			> "$easyrsa_vars_org" || die "\
 escape_hazard - Failed to write temp-file"
 
 	# Reload fields from fully escaped temp-file
 	# shellcheck disable=SC1090 # can't follow non-constant source.
-	. "$easyrsa_openssl_conf_org" || die "\
+	. "$easyrsa_vars_org" || die "\
 escape_hazard - Failed to source temp-file"
-
-	# Clean up
-	rm -f "$easyrsa_openssl_conf_org"
 } # => escape_hazard()
 
 # Easy-RSA meta-wrapper for SSL
@@ -798,11 +799,9 @@ easyrsa_openssl() {
 	if [ "$has_config" ]; then
 		# Make LibreSSL safe config file from OpenSSL config file
 
-		# Assign temp files
+		# Assign temp file
 		easyrsa_openssl_conf="$(easyrsa_mktemp)" || \
 			die "easyrsa_openssl - Failed to create temporary file (1)"
-		easyrsa_openssl_conf_org="$(easyrsa_mktemp)" || \
-			die "easyrsa_openssl - Failed to create temporary file (2)"
 
 		# Auto-escape hazardous characters:
 		# '&' - Workaround 'sed' behavior
