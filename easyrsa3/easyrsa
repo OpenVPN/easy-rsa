@@ -782,7 +782,7 @@ easyrsa_openssl() {
 	# Do not allow 'rand' here because it interferes with EASYRSA_DEBUG
 	case "$openssl_command" in
 		rand) die "easyrsa_openssl: Illegal SSL command: rand" ;;
-		makesafeconf) has_config=1; require_safe_ssl_conf=1 ;;
+		makesafeconf) require_safe_ssl_conf=1 ;;
 		ca|req|srp|ts) has_config=1 ;;
 		*) unset -v has_config
 	esac
@@ -796,64 +796,68 @@ easyrsa_openssl() {
 		has_config=1
 	fi
 
-	if [ "$has_config" ]; then
-		# Make LibreSSL safe config file from OpenSSL config file
+	# Make LibreSSL safe config file from OpenSSL config file
 
-		# Auto-escape hazardous characters:
-		# '&' - Workaround 'sed' behavior
-		# '$' - Workaround 'easyrsa' based limitation
-		escape_hazard
+	# Auto-escape hazardous characters:
+	# '&' - Workaround 'sed' behavior
+	# '$' - Workaround 'easyrsa' based limitation
+	escape_hazard
 
-		# Assign temp file
-		easyrsa_safe_ssl_conf="$(easyrsa_mktemp)" || \
-			die "easyrsa_openssl - easyrsa_mktemp failed"
+	# Assign temp file
+	easyrsa_safe_ssl_conf="$(easyrsa_mktemp)" || \
+		die "easyrsa_openssl - easyrsa_mktemp failed"
 
-		# require_safe_ssl_conf is ALWAYS set by verify_ssl_lib()
-		if [ "$require_safe_ssl_conf" ]; then
+	# set $OPENSSL_CONF - Does not effect 'openssl-easyrsa.cnf'
+	export OPENSSL_CONF="$easyrsa_safe_ssl_conf"
 
-		# Make a safe SSL config file
-		# Break indentation for long lines
-		# shellcheck disable=SC2016 # No expansion inside ' single quote
-		sed \
-		-e s\`'$dir'\`\""$EASYRSA_PKI"\"\`g \
-		-e s\`'$ENV::EASYRSA_PKI'\`\""$EASYRSA_PKI"\"\`g \
-		-e s\`'$ENV::EASYRSA_CERT_EXPIRE'\`\""$EASYRSA_CERT_EXPIRE"\"\`g \
-		-e s\`'$ENV::EASYRSA_CRL_DAYS'\`\""$EASYRSA_CRL_DAYS"\"\`g \
-		-e s\`'$ENV::EASYRSA_DIGEST'\`\""$EASYRSA_DIGEST"\"\`g \
-		-e s\`'$ENV::EASYRSA_KEY_SIZE'\`\""$EASYRSA_KEY_SIZE"\"\`g \
-		-e s\`'$ENV::EASYRSA_DN'\`\""$EASYRSA_DN"\"\`g \
-		-e s\`'$ENV::EASYRSA_REQ_CN'\`\""$EASYRSA_REQ_CN"\"\`g \
-		-e s\`'$ENV::EASYRSA_REQ_COUNTRY'\`\""$EASYRSA_REQ_COUNTRY"\"\`g \
-		-e s\`'$ENV::EASYRSA_REQ_PROVINCE'\`\""$EASYRSA_REQ_PROVINCE"\"\`g \
-		-e s\`'$ENV::EASYRSA_REQ_CITY'\`\""$EASYRSA_REQ_CITY"\"\`g \
-		-e s\`'$ENV::EASYRSA_REQ_ORG'\`\""$EASYRSA_REQ_ORG"\"\`g \
-		-e s\`'$ENV::EASYRSA_REQ_OU'\`\""$EASYRSA_REQ_OU"\"\`g \
-		-e s\`'$ENV::EASYRSA_REQ_EMAIL'\`\""$EASYRSA_REQ_EMAIL"\"\`g \
-		-e s\`'$ENV::EASYRSA_REQ_SERIAL'\`\""$EASYRSA_REQ_SERIAL"\"\`g \
-			"$EASYRSA_SSL_CONF" > "$easyrsa_safe_ssl_conf" || \
-				die "easyrsa_openssl - sed failed"
+	# Currently, $require_safe_ssl_conf is ALWAYS set by verify_ssl_lib()
+	if [ "$require_safe_ssl_conf" ]; then
 
-		else
-			# Do NOT Make a safe SSL config file
-			cp -f "$EASYRSA_SSL_CONF" "$easyrsa_safe_ssl_conf" || \
-				die "easyrsa_openssl - copy failed"
-		fi
+	# Make a safe SSL config file
+	# Break indentation for long lines
+	# shellcheck disable=SC2016 # No expansion inside ' single quote
+	sed \
+	-e s\`'$dir'\`\""$EASYRSA_PKI"\"\`g \
+	-e s\`'$ENV::EASYRSA_PKI'\`\""$EASYRSA_PKI"\"\`g \
+	-e s\`'$ENV::EASYRSA_CERT_EXPIRE'\`\""$EASYRSA_CERT_EXPIRE"\"\`g \
+	-e s\`'$ENV::EASYRSA_CRL_DAYS'\`\""$EASYRSA_CRL_DAYS"\"\`g \
+	-e s\`'$ENV::EASYRSA_DIGEST'\`\""$EASYRSA_DIGEST"\"\`g \
+	-e s\`'$ENV::EASYRSA_KEY_SIZE'\`\""$EASYRSA_KEY_SIZE"\"\`g \
+	-e s\`'$ENV::EASYRSA_DN'\`\""$EASYRSA_DN"\"\`g \
+	-e s\`'$ENV::EASYRSA_REQ_CN'\`\""$EASYRSA_REQ_CN"\"\`g \
+	-e s\`'$ENV::EASYRSA_REQ_COUNTRY'\`\""$EASYRSA_REQ_COUNTRY"\"\`g \
+	-e s\`'$ENV::EASYRSA_REQ_PROVINCE'\`\""$EASYRSA_REQ_PROVINCE"\"\`g \
+	-e s\`'$ENV::EASYRSA_REQ_CITY'\`\""$EASYRSA_REQ_CITY"\"\`g \
+	-e s\`'$ENV::EASYRSA_REQ_ORG'\`\""$EASYRSA_REQ_ORG"\"\`g \
+	-e s\`'$ENV::EASYRSA_REQ_OU'\`\""$EASYRSA_REQ_OU"\"\`g \
+	-e s\`'$ENV::EASYRSA_REQ_EMAIL'\`\""$EASYRSA_REQ_EMAIL"\"\`g \
+	-e s\`'$ENV::EASYRSA_REQ_SERIAL'\`\""$EASYRSA_REQ_SERIAL"\"\`g \
+		"$EASYRSA_SSL_CONF" > "$easyrsa_safe_ssl_conf" || \
+			die "easyrsa_openssl - sed failed"
 
-		if [ "$openssl_command" = "makesafeconf" ]; then
-			# move temp file to safessl-easyrsa.cnf
-			mv -f "$easyrsa_safe_ssl_conf" "$EASYRSA_SAFE_CONF" || \
-				die "easyrsa_openssl - makesafeconf failed"
-		else
-			# debug log on
-			if [ "$EASYRSA_DEBUG" ]; then print "<< DEBUG-ON >>"; set -x; fi
+	else
+		# Do NOT Make a SAFE SSL config, only copy the standard config
+		cp -f "$EASYRSA_SSL_CONF" "$easyrsa_safe_ssl_conf" || \
+			die "easyrsa_openssl - copy failed"
+	fi
 
-			# Exec SSL with -config temp-file
-			"$EASYRSA_OPENSSL" "$openssl_command" \
-				-config "$easyrsa_safe_ssl_conf" "$@" || return
+	# Execute command
+	if [ "$openssl_command" = "makesafeconf" ]; then
+		# move temp file to safessl-easyrsa.cnf
+		mv -f "$easyrsa_safe_ssl_conf" "$EASYRSA_SAFE_CONF" || \
+			die "easyrsa_openssl - makesafeconf failed"
 
-			# debug log off
-			if [ "$EASYRSA_DEBUG" ]; then set +x; print ">> DEBUG-OFF <<"; fi
-		fi
+	elif [ "$has_config" ]; then
+		# debug log on
+		if [ "$EASYRSA_DEBUG" ]; then print "<< DEBUG-ON >>"; set -x; fi
+
+		# Exec SSL with -config temp-file
+		"$EASYRSA_OPENSSL" "$openssl_command" \
+			-config "$easyrsa_safe_ssl_conf" "$@" || return
+
+		# debug log off
+		if [ "$EASYRSA_DEBUG" ]; then set +x; print ">> DEBUG-OFF <<"; fi
+
 	else
 		# debug log on
 		if [ "$EASYRSA_DEBUG" ]; then print "<< DEBUG-ON >>"; set -x; fi
@@ -4263,7 +4267,6 @@ Sourcing the vars file and building certificates will probably fail ..'
 
 	set_var EASYRSA_SSL_CONF		"$EASYRSA_PKI/openssl-easyrsa.cnf"
 	set_var EASYRSA_SAFE_CONF		"$EASYRSA_PKI/safessl-easyrsa.cnf"
-	set_var OPENSSL_CONF			"$EASYRSA_SAFE_CONF"
 
 	set_var EASYRSA_KDC_REALM		"CHANGEME.EXAMPLE.COM"
 
