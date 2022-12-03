@@ -38,7 +38,7 @@ Here is the list of commands available with a short syntax reminder. Use the
   revoke <file_name_base> [ cmd-opts ]
   renew <file_name_base>
   revoke-renewed <file_name_base> [ cmd-opts ]
-  rewind-renew <certificate-serial-number>
+  rewind-renew <certificate_serial_number>
   rebuild <file_name_base> [ cmd-opts ]
   gen-crl
   update-db
@@ -195,7 +195,7 @@ cmd_help() {
 	;;
 	rewind|rewind-renew)
 		text="
-* rewind-renew <certificate-serial-number>
+* rewind-renew <certificate_serial_number>
 
       Rewind an EasyRSA version 3.0 'style' renewed certificate.
       Once 'rewind' has completed the certificate can be revoked
@@ -2002,10 +2002,9 @@ Unable to verify request. The file is not a valid request.
 Unexpected input in file: $req_in"
 	fi
 
-	# get the serial number of the certificate -> serial=XXXX
-	cert_serial="$(easyrsa_openssl x509 -in "$crt_in" -noout -serial)"
-	# remove the serial= part -> we only need the XXXX part
-	cert_serial="${cert_serial##*=}"
+	# get the serial number of the certificate
+	ssl_cert_serial "$crt_in" cert_serial
+
 	duplicate_crt_by_serial="$EASYRSA_PKI/certs_by_serial/$cert_serial.pem"
 
 	# Set out_dir
@@ -2175,10 +2174,9 @@ Unable to verify request. The file is not a valid request.
 Unexpected input in file: $req_in"
 	fi
 
-	# get the serial number of the certificate -> serial=XXXX
-	cert_serial="$(easyrsa_openssl x509 -in "$crt_in" -noout -serial)"
-	# remove the serial= part -> we only need the XXXX part
-	cert_serial="${cert_serial##*=}"
+	# get the serial number of the certificate
+	ssl_cert_serial "$crt_in" cert_serial
+
 	duplicate_crt_by_serial="$EASYRSA_PKI/certs_by_serial/$cert_serial.pem"
 
 	# Set out_dir
@@ -2403,11 +2401,9 @@ Unable to verify request. The file is not a valid request.
 Unexpected input in file: $req_in"
 	fi
 
-	# get the serial number of the certificate -> serial=XXXX
-	cert_serial="$(easyrsa_openssl x509 -in "$crt_in" -noout -serial)" \
-		|| die "renew-revoked - Failed to retrieve certificate serial number"
-	# remove the serial= part -> we only need the XXXX part
-	cert_serial="${cert_serial##*=}"
+	# get the serial number of the certificate
+	ssl_cert_serial "$crt_in" cert_serial
+
 	duplicate_crt_by_serial="$EASYRSA_PKI/certs_by_serial/$cert_serial.pem"
 
 	# output
@@ -2656,10 +2652,9 @@ Unable to verify request. The file is not a valid request.
 Unexpected input in file: $req_in"
 	fi
 
-	# get the serial number of the certificate -> serial=XXXX
-	cert_serial="$(easyrsa_openssl x509 -in "$crt_in" -noout -serial)"
-	# remove the serial= part -> we only need the XXXX part
-	cert_serial="${cert_serial##*=}"
+	# get the serial number of the certificate
+	ssl_cert_serial "$crt_in" cert_serial
+
 	duplicate_crt_by_serial="$EASYRSA_PKI/certs_by_serial/$cert_serial.pem"
 
 	# Set out_dir
@@ -3694,12 +3689,33 @@ db_date_to_ff_date() {
 	ff_date="${yy}-${mm}-${dd} ${HH}:${MM}:${SS}${TZ}"
 } # => build_ff_date_string()
 
+# get the serial number of the certificate -> serial=XXXX
+ssl_cert_serial() {
+	[ "$#" = 2 ] || die "ssl_cert_serial - invalid input"
+	[ -f "$1" ] || die "ssl_cert_serial - missing cert"
+	verify_file x509 "$1" || die "ssl_cert_serial - invalid cert"
+
+	f_ssl_out="$(
+		easyrsa_openssl x509 -in "$1" -noout -serial
+		)"  || die "ssl_cert_serial - failed to get serial"
+	shift
+
+	# remove the serial= part -> we only need the XXXX part
+	f_ssl_out="${f_ssl_out##*=}"
+
+	unset -v "$@"
+	set_var "$@" "$f_ssl_out" || \
+		die "ssl_cert_serial - failed to set variable '$@'"
+	unset -v f_ssl_out
+} # => ssl_cert_serial()
+
 # Get certificate start date
 ssl_cert_not_before_date() {
 	[ "$1" ] || die "ssl_cert_not_before_date - Invalid input"
 	unset -v ssl_out cert_not_before_date
-	ssl_out="$("$EASYRSA_OPENSSL" x509 -in "$1" -noout -startdate)" \
-		|| die "ssl_cert_not_before_date - ssl_out: $ssl_out"
+	ssl_out="$(
+		easyrsa_openssl x509 -in "$1" -noout -startdate
+		)" || die "ssl_cert_not_before_date - ssl_out: $ssl_out"
 	# 'cert_not_before_date' is *not* used, at this time..
 	# disable #shellcheck disable=SC2034 # Prefer to keep the warning
 	cert_not_before_date="${ssl_out#*=}"
@@ -3710,8 +3726,9 @@ ssl_cert_not_before_date() {
 ssl_cert_not_after_date() {
 	[ "$1" ] || die "ssl_cert_not_after_date - Invalid input"
 	unset -v ssl_out cert_not_after_date
-	ssl_out="$("$EASYRSA_OPENSSL" x509 -in "$1" -noout -enddate)" \
-		|| die "ssl_cert_not_after_date - ssl_out: $ssl_out"
+	ssl_out="$(
+		easyrsa_openssl x509 -in "$1" -noout -enddate
+		)" || die "ssl_cert_not_after_date - ssl_out: $ssl_out"
 	cert_not_after_date="${ssl_out#*=}"
 	unset -v ssl_out
 } # => ssl_cert_not_after_date()
@@ -3795,8 +3812,7 @@ expire_status() {
 	if [ -e "$cert_issued" ]; then
 
 		# get the serial number of the certificate
-		cert_serial="$(easyrsa_openssl x509 -in "$cert_issued" -noout -serial)"
-		cert_serial="${cert_serial##*=}"
+		ssl_cert_serial "$cert_issued" cert_serial
 
 		# db serial must match certificate serial, otherwise this
 		# is a renewed cert which has been replaced by an issued cert
@@ -3855,7 +3871,7 @@ revoke_status() {
 # Only ONE renewed cert with unique CN can exist in the renewed folder
 renew_status() {
 	# Does a Renewed cert exist ?
-	# files in issued are CommonName, files by-serial are SerialNumber
+	# files in issued are CommonName, files by serial are SerialNumber
 	unset -v cert_file_in cert_is_issued cert_is_serial renew_is_old
 	# Find renewed/issued/CN
 	if [ -e "$cert_r_issued" ]; then
@@ -3876,8 +3892,7 @@ renew_status() {
 	# If a renewed cert exists
 	if [ "$cert_file_in" ]; then
 		# get the serial number of the certificate
-		cert_serial="$(easyrsa_openssl x509 -in "$cert_file_in" -noout -serial)"
-		cert_serial="${cert_serial##*=}"
+		ssl_cert_serial "$cert_file_in" cert_serial
 
 		# db serial must match certificate serial, otherwise this
 		# is an issued cert that replaces a renewed cert
