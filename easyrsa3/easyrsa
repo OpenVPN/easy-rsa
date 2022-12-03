@@ -3182,15 +3182,21 @@ display_san() {
 	shift 2
 
 	if echo "$EASYRSA_EXTRA_EXTS" | grep -q subjectAltName; then
-		print "$(echo "$EASYRSA_EXTRA_EXTS" | grep subjectAltName |
-			sed 's/^[[:space:]]*subjectAltName[[:space:]]*=[[:space:]]*//')"
-	else
-		san="$(
-			x509v3san="X509v3 Subject Alternative Name:"
-			"$EASYRSA_OPENSSL" "$format" -in "$path" -noout -text |
-			sed -n "/${x509v3san}/{n;s/ //g;s/IPAddress:/IP:/g;s/RegisteredID/RID/;p;}"
-			)"
+		# Print user defined SAN
+			print "$(\
+		echo "$EASYRSA_EXTRA_EXTS" | grep subjectAltName | \
+		sed 's/^[[:space:]]*subjectAltName[[:space:]]*=[[:space:]]*//'
+		)"
 
+	else
+		# Generate a SAN
+			san="$(
+		x509v3san="X509v3 Subject Alternative Name:"
+		easyrsa_openssl "$format" -in "$path" -noout -text | sed -n \
+		"/${x509v3san}/{n;s/ //g;s/IPAddress:/IP:/g;s/RegisteredID/RID/;p;}"
+		)"
+
+		# Print auto SAN
 		[ "$san" ] && print "$san"
 	fi
 } # => display_san()
@@ -3205,7 +3211,7 @@ display_dn() {
 	# Display DN
 	name_opts="utf8,sep_multiline,space_eq,lname,align"
 	print "$(
-		"$EASYRSA_OPENSSL" "$format" -in "$path" -noout -subject \
+		easyrsa_openssl "$format" -in "$path" -noout -subject \
 			-nameopt "$name_opts"
 		)"
 
@@ -3226,13 +3232,15 @@ default_server_san() {
 
 	# Extract CN from DN
 	cn="$(
-		easyrsa_openssl req -in "$path" -noout -subject -nameopt sep_multiline |
-		awk -F'=' '/^  *CN=/{print $2}'
+		easyrsa_openssl req -in "$path" -noout -subject \
+			-nameopt sep_multiline |
+				awk -F'=' '/^  *CN=/{print $2}'
 		)"
 
 	# See: https://github.com/OpenVPN/easy-rsa/issues/576
 	# Select default SAN
-	if echo "$cn" | grep -E -q '^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$'
+	if echo "$cn" | grep -q \
+		-E '^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$'
 	then
 		print "subjectAltName = IP:$cn"
 	else
@@ -3281,7 +3289,8 @@ No certificate found for the input: '$crt_in'"
 Input is not a valid certificate: $crt_in"
 
 	# Test SSL out
-	if easyrsa_openssl verify -CAfile "$ca_crt" "$crt_in" 1>/dev/null; then
+	if easyrsa_openssl verify -CAfile "$ca_crt" "$crt_in" 1>/dev/null
+	then
 		notice "\
   Certificate name:   $file_name_base
   Verfication status: GOOD"
@@ -3290,7 +3299,7 @@ Input is not a valid certificate: $crt_in"
 		notice "\
   Certificate name:   $file_name_base
   Verfication status: FAILED"
-		# Exit with error (cmd-opt: batch), otherwise terminal msg only
+		# Exit with error (batch mode), otherwise term msg only
 		[ "$exit_with_error" ] && easyrsa_error_exit=1
 		# Return error for internal callers (status reports)
 		return 1
@@ -3301,8 +3310,7 @@ Input is not a valid certificate: $crt_in"
 verify_file() {
 	format="$1"
 	path="$2"
-	easyrsa_openssl "$format" -in "$path" -noout 2>/dev/null || return 1
-	return 0
+	easyrsa_openssl "$format" -in "$path" -noout 2>/dev/null
 } # => verify_file()
 
 # show-* command backend
