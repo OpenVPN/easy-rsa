@@ -3703,18 +3703,18 @@ ssl_cert_serial() {
 	[ -f "$1" ] || die "ssl_cert_serial - missing cert"
 	verify_file x509 "$1" || die "ssl_cert_serial - invalid cert"
 
-	f_ssl_out="$(
+	fn_ssl_out="$(
 		easyrsa_openssl x509 -in "$1" -noout -serial
 		)"  || die "ssl_cert_serial - failed to get serial"
 	shift
 
 	# remove the serial= part -> we only need the XXXX part
-	f_ssl_out="${f_ssl_out##*=}"
+	fn_ssl_out="${fn_ssl_out##*=}"
 
 	unset -v "$@"
-	set_var "$@" "$f_ssl_out" || \
+	set_var "$@" "$fn_ssl_out" || \
 		die "ssl_cert_serial - failed to set variable '$@'"
-	unset -v f_ssl_out
+	unset -v fn_ssl_out
 } # => ssl_cert_serial()
 
 # Get certificate start date
