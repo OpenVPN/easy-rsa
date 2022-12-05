@@ -4345,10 +4345,12 @@ Sourcing the vars file and building certificates will probably fail ..'
 # the variable when it is already defined (even if currently null)
 # Sets $1 as the value contained in $2 and exports (may be blank)
 set_var() {
-	var=$1
-	shift
-	value="$*"
-	eval "export $var=\"\${$var-$value}\""
+	[ "$#" -lt 3 ] || die "set_var - invalid input"
+	var="$1"
+	test_var="${var%% *}"
+	[ "$var" = "$test_var" ] || die "set_var - invalid var"
+	value="$2"
+	eval "export $var=\"\${$var-\"$value\"}\""
 } #=> set_var()
 
 
