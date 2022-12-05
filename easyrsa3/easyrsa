@@ -476,6 +476,7 @@ General options:
                   (Default PKI directory is sub-directory 'pki')
 --ssl-conf=FILE : Define a specific OpenSSL config file for Easy-RSA to use
                   (Default config file is in the EasyRSA PKI directory)
+--no-safe-ssl   : OpenSSL Only: Do not use a safe SSL config file
 
 --tmp-dir=DIR   : Declare the temporary directory
                   (Default temporary directory is the EasyRSA PKI directory)
@@ -803,18 +804,15 @@ easyrsa_openssl() {
 	# '$' - Workaround 'easyrsa' based limitation
 	escape_hazard
 
-	# Assign temp file
-	easyrsa_safe_ssl_conf="$(easyrsa_mktemp)" || \
-		die "easyrsa_openssl - easyrsa_mktemp failed"
-
-	# set $OPENSSL_CONF - Does not effect 'openssl-easyrsa.cnf'
-	export OPENSSL_CONF="$easyrsa_safe_ssl_conf"
-
 	# Currently, $require_safe_ssl_conf is ALWAYS set by verify_ssl_lib()
 	if [ "$require_safe_ssl_conf" ]; then
 
-	# Make a safe SSL config file
+		# Assign safe temp file
+		easyrsa_safe_ssl_conf="$(easyrsa_mktemp)" || \
+			die "easyrsa_openssl - easyrsa_mktemp failed"
+
 	# Break indentation for long lines
+	# Make a safe SSL config file
 	# shellcheck disable=SC2016 # No expansion inside ' single quote
 	sed \
 	-e s\`'$dir'\`\""$EASYRSA_PKI"\"\`g \
@@ -835,11 +833,14 @@ easyrsa_openssl() {
 		"$EASYRSA_SSL_CONF" > "$easyrsa_safe_ssl_conf" || \
 			die "easyrsa_openssl - sed failed"
 
+	# Restore standard indentation
 	else
-		# Do NOT Make a SAFE SSL config, only copy the standard config
-		cp -f "$EASYRSA_SSL_CONF" "$easyrsa_safe_ssl_conf" || \
-			die "easyrsa_openssl - copy failed"
+		# Assign safe temp file - Use original EasyRSA-OpenSSL conf
+		easyrsa_safe_ssl_conf="$EASYRSA_SSL_CONF"
 	fi
+
+	# set $OPENSSL_CONF - Use safe temp-file previously assigned
+	export OPENSSL_CONF="$easyrsa_safe_ssl_conf"
 
 	# Execute command
 	if [ "$openssl_command" = "makesafeconf" ]; then
@@ -879,8 +880,14 @@ verify_ssl_lib() {
 		# SSL lib name
 		case "${val%% *}" in
 			# OpenSSL does require a safe config-file for ampersand
-			OpenSSL) ssl_lib=openssl; require_safe_ssl_conf=1 ;;
-			LibreSSL) ssl_lib=libressl; require_safe_ssl_conf=1 ;;
+			OpenSSL)
+				ssl_lib=openssl
+				[ "$EASYRSA_NO_SAFE_SSL" ] || require_safe_ssl_conf=1
+			;;
+			LibreSSL)
+				ssl_lib=libressl
+				require_safe_ssl_conf=1
+			;;
 			*)
 				error_msg="$("$EASYRSA_OPENSSL" version 2>&1)"
 				die "\
@@ -5102,6 +5109,10 @@ while :; do
 		empty_ok=1
 		export EASYRSA_SILENT=1
 		export EASYRSA_BATCH=1
+		;;
+	--no-safe-ssl)
+		empty_ok=1
+		export EASYRSA_NO_SAFE_SSL=1
 		;;
 	--nopass|--no-pass)
 		empty_ok=1
