@@ -873,54 +873,53 @@ easyrsa_openssl() {
 
 # Verify the SSL library is functional and establish version dependencies
 verify_ssl_lib() {
-	if [ -z "$EASYRSA_SSL_OK" ]; then
-		# redirect std-err to ignore missing etc/ssl/openssl.cnf file
-		val="$("$EASYRSA_OPENSSL" version 2>/dev/null)"
+	# Run once only
+	[ "$EASYRSA_SSL_OK" ] && die "verify_ssl_lib - Overloaded"
 
-		# SSL lib name
-		case "${val%% *}" in
-			# OpenSSL does require a safe config-file for ampersand
-			OpenSSL)
-				ssl_lib=openssl
-				[ "$EASYRSA_NO_SAFE_SSL" ] || require_safe_ssl_conf=1
-			;;
-			LibreSSL)
-				ssl_lib=libressl
-				require_safe_ssl_conf=1
-			;;
-			*)
-				error_msg="$("$EASYRSA_OPENSSL" version 2>&1)"
-				die "\
+	# redirect std-err to ignore missing etc/ssl/openssl.cnf file
+	val="$("$EASYRSA_OPENSSL" version 2>/dev/null)"
+
+	# SSL lib name
+	case "${val%% *}" in
+		# OpenSSL does require a safe config-file for ampersand
+		OpenSSL)
+			ssl_lib=openssl
+			[ "$EASYRSA_NO_SAFE_SSL" ] || require_safe_ssl_conf=1
+		;;
+		LibreSSL)
+			ssl_lib=libressl
+			require_safe_ssl_conf=1
+		;;
+		*)
+			error_msg="$("$EASYRSA_OPENSSL" version 2>&1)"
+			die "\
 Invalid SSL output for 'version':
 
 $error_msg"
-		esac
+	esac
 
-		# Set SSL version dependent $no_password option
-		osslv_major="${val#* }"
-		osslv_major="${osslv_major%%.*}"
-		case "$osslv_major" in
-			1) no_password='-nodes' ;;
-			2) no_password='-nodes' ;;
-			3)
-				case "$ssl_lib" in
-					openssl) no_password='-noenc' ;;
-					libressl) no_password='-nodes' ;;
-					*) die "Unsupported SSL library: $ssl_lib"
-				esac
-			;;
-			*) die "Unsupported SSL library: $osslv_major"
-		esac
-		information "Using SSL: $EASYRSA_OPENSSL ${val}"
-		EASYRSA_SSL_OK=1
+	# Set SSL version dependent $no_password option
+	osslv_major="${val#* }"
+	osslv_major="${osslv_major%%.*}"
+	case "$osslv_major" in
+		1) no_password='-nodes' ;;
+		2) no_password='-nodes' ;;
+		3)
+			case "$ssl_lib" in
+				openssl) no_password='-noenc' ;;
+				libressl) no_password='-nodes' ;;
+				*) die "Unsupported SSL library: $ssl_lib"
+			esac
+		;;
+		*) die "Unsupported SSL library: $osslv_major"
+	esac
+	information "Using SSL: $EASYRSA_OPENSSL ${val}"
+	EASYRSA_SSL_OK=1
 
-		# Verify EASYRSA_SSL_CONF file exists
-		[ -f "$EASYRSA_SSL_CONF" ] || die "\
+	# Verify EASYRSA_SSL_CONF file exists
+	[ -f "$EASYRSA_SSL_CONF" ] || die "\
 The OpenSSL config file cannot be found.
 Expected location: $EASYRSA_SSL_CONF"
-	else
-		die "verify_ssl_lib - Overloaded"
-	fi
 } # => verify_ssl_lib()
 
 # Basic sanity-check of PKI init and complain if missing
