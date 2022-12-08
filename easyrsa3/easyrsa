@@ -591,8 +591,9 @@ Type the word '$value' to continue, or any other input to abort."
 } # => confirm()
 
 # Generate random hex
-# Can ony be used after a SAFE SSL config exists.
-# Otherwise, LibreSSL complains about the config file.
+# Cannot use easyrsa-openssl() due to chicken vs egg,
+# easyrsa_openssl() creates temp-files, which needs `openssl rand`.
+# Redirect error-out, because LibreSSL complains of missing conf.
 easyrsa_random() {
 	case "$1" in
 	(*[!1234567890]*|0*|"") : ;; # invalid input
@@ -636,7 +637,7 @@ easyrsa_mktemp() {
 		: # ok
 	else
 		die "\
-Non-existant temporary session:
+easyrsa_mktemp - Non-existant temporary session:
 * $EASYRSA_TEMP_DIR_session"
 	fi
 
@@ -3714,6 +3715,7 @@ ssl_cert_serial() {
 	verify_file x509 "$1" || die "ssl_cert_serial - invalid cert"
 
 	fn_ssl_out="$(
+		unset -v EASYRSA_DEBUG
 		easyrsa_openssl x509 -in "$1" -noout -serial
 		)"  || die "ssl_cert_serial - failed to get serial"
 	shift
@@ -3730,25 +3732,25 @@ ssl_cert_serial() {
 # Get certificate start date
 ssl_cert_not_before_date() {
 	[ "$1" ] || die "ssl_cert_not_before_date - Invalid input"
-	unset -v ssl_out cert_not_before_date
-	ssl_out="$(
+	fn_ssl_out="$(
+		unset -v EASYRSA_DEBUG
 		easyrsa_openssl x509 -in "$1" -noout -startdate
-		)" || die "ssl_cert_not_before_date - ssl_out error"
+		)" || die "ssl_cert_not_before_date - failed to get startdate"
 	# 'cert_not_before_date' is *not* used, at this time..
 	# disable #shellcheck disable=SC2034 # Prefer to keep the warning
-	cert_not_before_date="${ssl_out#*=}"
-	unset -v ssl_out
+	cert_not_before_date="${fn_ssl_out#*=}"
+	unset -v fn_ssl_out
 } # => ssl_cert_not_before_date()
 
 # Get certificate end date
 ssl_cert_not_after_date() {
 	[ "$1" ] || die "ssl_cert_not_after_date - Invalid input"
-	unset -v ssl_out cert_not_after_date
-	ssl_out="$(
+	fn_ssl_out="$(
+		unset -v EASYRSA_DEBUG
 		easyrsa_openssl x509 -in "$1" -noout -enddate
-		)" || die "ssl_cert_not_after_date - ssl_out error"
-	cert_not_after_date="${ssl_out#*=}"
-	unset -v ssl_out
+		)" || die "ssl_cert_not_after_date - failed to get enddate"
+	cert_not_after_date="${fn_ssl_out#*=}"
+	unset -v fn_ssl_out
 } # => ssl_cert_not_after_date()
 
 # SC2295: (info): Expansions inside ${..} need to be quoted separately,
