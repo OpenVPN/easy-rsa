@@ -781,7 +781,7 @@ escape_hazard - Failed to source temp-file"
 easyrsa_openssl() {
 	openssl_command="$1"; shift
 
-	# Do not allow 'rand' here because it interferes with EASYRSA_DEBUG
+	# Do not allow 'rand' here, see easyrsa_random()
 	case "$openssl_command" in
 		rand) die "easyrsa_openssl: Illegal SSL command: rand" ;;
 		makesafeconf) require_safe_ssl_conf=1 ;;
