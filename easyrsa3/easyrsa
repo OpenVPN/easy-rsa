@@ -3652,25 +3652,27 @@ ff_date_to_cert_date() {
 	if busybox date --help > /dev/null 2>&1
 	then
 		cert_type_date="$(
-		busybox date -u -D "%b %e %H:%M:%S %Y" -d "$in_date" \
-			"+%b %d %H:%M:%S %Y %Z" 2>/dev/null
-		)"
+			busybox date -u -D "%y-%m-%d %H:%M:%S%Z" \
+				-d "$in_date" \
+				"+%b %d %H:%M:%S %Y %Z" 2>/dev/null
+			)"
 		return
 
 	# Darwin, BSD
 	elif cert_type_date="$(
-		date -u -j -f '%y-%m-%d %TZ' "$in_date" "+%b %d %H:%M:%S %Y %Z" \
-			2>/dev/null
-		)"
+			date -u -j -f '%y-%m-%d %TZ' "$in_date" \
+				"+%b %d %H:%M:%S %Y %Z" 2>/dev/null
+			)"
 	then return
 
 	# OS dependencies
-	# Linux and Windows (FTR: date.exe does not support format +%s as input)
+	# Linux and Windows
+	# * date.exe does not support format +%s as input
 	# MacPorts GNU date
 	elif cert_type_date="$(
-		date -u -d "$in_date" "+%b %d %H:%M:%S %Y %Z" \
-			2>/dev/null
-		)"
+			date -u -d "$in_date" \
+				"+%b %d %H:%M:%S %Y %Z" 2>/dev/null
+			)"
 	then return
 
 	# Something else
