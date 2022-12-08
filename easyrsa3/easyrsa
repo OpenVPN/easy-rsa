@@ -797,19 +797,21 @@ easyrsa_openssl() {
 		has_config=1
 	fi
 
-	# Make LibreSSL safe config file from OpenSSL config file
+	# Assign safe temp file to create, may not be used
+	easyrsa_safe_ssl_conf="$(easyrsa_mktemp)" || \
+		die "easyrsa_openssl - easyrsa_mktemp failed"
 
 	# Auto-escape hazardous characters:
 	# '&' - Workaround 'sed' behavior
 	# '$' - Workaround 'easyrsa' based limitation
+	# This is required for all SSL libs, otherwise,
+	# there are unacceptable differences in behavior
 	escape_hazard
 
-	# Currently, $require_safe_ssl_conf is ALWAYS set by verify_ssl_lib()
+	# Make LibreSSL safe config file from OpenSSL config file
+	# $require_safe_ssl_conf is ALWAYS set by verify_ssl_lib()
+	# Can be over-ruled for OpenSSL by option --no-safe-ssl
 	if [ "$require_safe_ssl_conf" ]; then
-
-		# Assign safe temp file
-		easyrsa_safe_ssl_conf="$(easyrsa_mktemp)" || \
-			die "easyrsa_openssl - easyrsa_mktemp failed"
 
 	# Break indentation for long lines
 	# Make a safe SSL config file
@@ -835,11 +837,11 @@ easyrsa_openssl() {
 
 	# Restore standard indentation
 	else
-		# Assign safe temp file - Use original EasyRSA-OpenSSL conf
+		# Assign safe temp file as: Use original EasyRSA-OpenSSL conf
 		easyrsa_safe_ssl_conf="$EASYRSA_SSL_CONF"
 	fi
 
-	# set $OPENSSL_CONF - Use safe temp-file previously assigned
+	# set $OPENSSL_CONF - Use which-ever file is assigned above
 	export OPENSSL_CONF="$easyrsa_safe_ssl_conf"
 
 	# Execute command
