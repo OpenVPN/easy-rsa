@@ -3770,7 +3770,8 @@ read_db() {
 		# Interpret the db/certificate record
 		unset -v db_serial db_cn db_revoke_date db_reason
 		case "$db_status" in
-		V)	# Valid
+		V|E)
+			# Valid
 			db_serial="${db_record%%${TCT}*}"
 			db_record="${db_record#*${TCT}}"
 			db_cn="${db_record#*/CN=}"; db_cn="${db_cn%%/*}"
@@ -3778,7 +3779,8 @@ read_db() {
 			cert_r_issued="$pki_r_issued/$db_cn.crt"
 			cert_r_by_sno="$pki_r_by_sno/$db_serial.crt"
 		;;
-		R)	# Revoked
+		R)
+			# Revoked
 			db_revoke_date="${db_record%%${TCT}*}"
 			db_reason="${db_revoke_date#*,}"
 			if [ "$db_reason" = "$db_revoke_date" ]; then
@@ -3797,15 +3799,21 @@ read_db() {
 
 		# Output selected status report for this record
 		case "$report" in
-		expire) # Certs which expire before EASYRSA_CERT_RENEW days
-			if [ "$db_status" = V ]; then
+		expire)
+		# Certs which expire before EASYRSA_CERT_RENEW days
+			case "$db_status" in
+			V|E)
 				case "$target" in
 				'') expire_status ;;
 				*) [ "$target" = "$db_cn" ] && expire_status
 				esac
-			fi
+			;;
+			*)
+				: # Ignore ok
+			esac
 		;;
-		revoke) # Certs which have been revoked
+		revoke)
+		# Certs which have been revoked
 			if [ "$db_status" = R ]; then
 				case "$target" in
 				'') revoke_status ;;
@@ -3813,7 +3821,8 @@ read_db() {
 				esac
 			fi
 		;;
-		renew) # Certs which have been renewed but not revoked
+		renew)
+		# Certs which have been renewed but not revoked
 			if [ "$db_status" = V ]; then
 				case "$target" in
 				'') renew_status ;;
@@ -3824,7 +3833,6 @@ read_db() {
 		*) die "Unrecognised report: $report"
 		esac
 	done < "$db_in"
-	[ "$EASYRSA_SILENT" ] || print # Separate Notice below
 } # => read_db()
 
 # Expire status
@@ -3834,13 +3842,15 @@ expire_status() {
 		# get the serial number of the certificate
 		ssl_cert_serial "$cert_issued" cert_serial
 
-		# db serial must match certificate serial, otherwise this
-		# is a renewed cert which has been replaced by an issued cert
+		# db serial must match certificate serial, otherwise
+		# this is a renewed cert which has been replaced by
+		# an issued cert
 		if [ "$db_serial" != "$cert_serial" ]; then
 			information "\
 serial mismatch:
   db_serial:    $db_serial
   cert_serial:  $cert_serial
+  commonName:   $db_cn
   cert_issued:  $cert_issued"
 			return 0
 		fi
@@ -3866,10 +3876,22 @@ serial mismatch:
 	cert_date_to_timestamp_s "$cert_type_date" # Assigns timestamp_s
 	cutoff_date_s="$timestamp_s"
 
+	# Set NOW date for expiry comparison
+	offset_days_to_cert_date 0 # Assigns cert_type_date
+	cert_date_to_timestamp_s "$cert_type_date" # Assigns timestamp_s
+	now_date_s="$timestamp_s"
+
 	if [ "$cert_expire_date_s" -lt "$cutoff_date_s" ]; then
 		# Cert expires in less than grace period
-		printf '%s%s\n' "$db_status | Serial: $db_serial | " \
-			"Expires: $cert_not_after_date | CN: $db_cn"
+		if [ "$cert_expire_date_s" -gt "$now_date_s" ]; then
+			printf '%s%s\n' \
+				"$db_status | Serial: $db_serial | " \
+				"Expires: $cert_not_after_date | CN: $db_cn"
+		else
+			printf '%s%s\n' \
+				"$db_status | Serial: $db_serial | " \
+				"Expired: $cert_not_after_date | CN: $db_cn"
+		fi
 	fi
 } # => expire_status()
 
