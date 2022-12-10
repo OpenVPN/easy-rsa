@@ -3729,7 +3729,6 @@ safe_set_var() {
 ssl_cert_serial() {
 	[ "$#" = 2 ] || die "ssl_cert_serial - invalid input"
 	[ -f "$1" ] || die "ssl_cert_serial - missing cert"
-	verify_file x509 "$1" || die "ssl_cert_serial - invalid cert"
 
 	fn_ssl_out="$(
 		unset -v EASYRSA_DEBUG
@@ -3747,14 +3746,20 @@ ssl_cert_serial() {
 
 # Get certificate start date
 ssl_cert_not_before_date() {
-	[ "$1" ] || die "ssl_cert_not_before_date - Invalid input"
+	[ "$#" = 2 ] || die "ssl_cert_not_before_date - invalid input"
+	[ -f "$1" ] || die "ssl_cert_not_before_date - missing cert"
+
 	fn_ssl_out="$(
 		unset -v EASYRSA_DEBUG
 		easyrsa_openssl x509 -in "$1" -noout -startdate
 		)" || die "ssl_cert_not_before_date - failed: -startdate"
+
 	# 'cert_not_before_date' is *not* used, at this time..
 	# disable #shellcheck disable=SC2034 # Prefer to keep warning
-	cert_not_before_date="${fn_ssl_out#*=}"
+	fn_ssl_out="${fn_ssl_out#*=}"
+
+	shift
+	safe_set_var "$*" "$fn_ssl_out"
 	unset -v fn_ssl_out
 } # => ssl_cert_not_before_date()
 
