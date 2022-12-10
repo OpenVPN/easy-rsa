@@ -3739,7 +3739,7 @@ ssl_cert_serial() {
 
 	shift
 	safe_set_var "$*" "$fn_ssl_out" || \
-		die "ssl_cert_serial - failed to set variable '$*'"
+		die "ssl_cert_serial - failed to set var '$*'"
 
 	unset -v fn_ssl_out
 } # => ssl_cert_serial()
@@ -3754,23 +3754,31 @@ ssl_cert_not_before_date() {
 		easyrsa_openssl x509 -in "$1" -noout -startdate
 		)" || die "ssl_cert_not_before_date - failed: -startdate"
 
-	# 'cert_not_before_date' is *not* used, at this time..
-	# disable #shellcheck disable=SC2034 # Prefer to keep warning
 	fn_ssl_out="${fn_ssl_out#*=}"
 
 	shift
-	safe_set_var "$*" "$fn_ssl_out"
+	safe_set_var "$*" "$fn_ssl_out" || \
+		die "ssl_cert_not_before_date - failed to set var '$*'"
+
 	unset -v fn_ssl_out
 } # => ssl_cert_not_before_date()
 
 # Get certificate end date
 ssl_cert_not_after_date() {
-	[ "$1" ] || die "ssl_cert_not_after_date - Invalid input"
+	[ "$#" = 2 ] || die "ssl_cert_not_after_date - invalid input"
+	[ -f "$1" ] || die "ssl_cert_not_after_date - missing cert"
+
 	fn_ssl_out="$(
 		unset -v EASYRSA_DEBUG
 		easyrsa_openssl x509 -in "$1" -noout -enddate
 		)" || die "ssl_cert_not_after_date - failed: -enddate"
-	cert_not_after_date="${fn_ssl_out#*=}"
+
+	fn_ssl_out="${fn_ssl_out#*=}"
+
+	shift
+	safe_set_var "$*" "$fn_ssl_out" || \
+		die "ssl_cert_not_after_date - failed to set var '$*'"
+
 	unset -v fn_ssl_out
 } # => ssl_cert_not_after_date()
 
@@ -3877,7 +3885,7 @@ serial mismatch:
 		fi
 
 		#cert_source=issued
-		ssl_cert_not_after_date "$cert_issued" # Assigns cert_not_after_date
+		ssl_cert_not_after_date "$cert_issued" cert_not_after_date
 
 	else
 		# Translate db date to usable date
@@ -3976,7 +3984,7 @@ serial mismatch:
 
 		# Use cert date
 		# Assigns cert_not_after_date
-		ssl_cert_not_after_date "$cert_file_in"
+		ssl_cert_not_after_date "$cert_file_in" cert_not_after_date
 
 		# Highlight renewed/cert_by_serial
 		if [ "$renew_is_old" ]; then
