@@ -3714,6 +3714,18 @@ db_date_to_ff_date() {
 	ff_date="${yy}-${mm}-${dd} ${HH}:${MM}:${SS}${TZ}"
 } # => build_ff_date_string()
 
+# sanatize and set var
+safe_set_var() {
+	[ "$#" -eq 2 ] || return 1
+	# check for simple errors
+	case "$1" in
+		[1234567890]*|*-*|"* *") return 1
+	esac
+	eval "$1"=1 || return 1
+	unset -v "$1" || return 1
+	set_var "$1" "$2" || return 1
+} # => safe_set_var()
+
 # get the serial number of the certificate -> serial=XXXX
 ssl_cert_serial() {
 	[ "$#" = 2 ] || die "ssl_cert_serial - invalid input"
@@ -3723,15 +3735,14 @@ ssl_cert_serial() {
 	fn_ssl_out="$(
 		unset -v EASYRSA_DEBUG
 		easyrsa_openssl x509 -in "$1" -noout -serial
-		)"  || die "ssl_cert_serial - failed to get serial"
-	shift
-
+		)"  || die "ssl_cert_serial - failed: -serial"
 	# remove the serial= part -> we only need the XXXX part
 	fn_ssl_out="${fn_ssl_out##*=}"
 
-	unset -v "$@"
-	set_var "$@" "$fn_ssl_out" || \
+	shift
+	safe_set_var "$*" "$fn_ssl_out" || \
 		die "ssl_cert_serial - failed to set variable '$*'"
+
 	unset -v fn_ssl_out
 } # => ssl_cert_serial()
 
