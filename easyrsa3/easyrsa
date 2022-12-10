@@ -1256,8 +1256,7 @@ get_passphrase() {
 		if [ "${#r}" -lt 4 ]; then
 			printf '\n%s\n' "Passphrase must be at least 4 characters!"
 		else
-			unset -v "$@"
-			set_var "$@" "$r" || die "Passphrase error!"
+			safe_set_var "$*" "$r" || die "Passphrase error!"
 			unset -v r
 			print
 			return 0
