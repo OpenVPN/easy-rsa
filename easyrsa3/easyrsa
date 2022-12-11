@@ -1370,23 +1370,34 @@ Please update openssl-easyrsa.cnf to the latest official release."
 		: # passphrase defined
 	else
 		# Assign passphrase vars and temp file
-		p=""
-		q=""
 		in_key_pass_tmp="$(easyrsa_mktemp)" || \
 			die "Failed to create temporary file"
 		out_key_pass_tmp="$(easyrsa_mktemp)" || \
 			die "Failed to create temporary file"
 
-		# Get passphrase
-		prompt="Enter New CA Key Passphrase: "
-		get_passphrase p
+		# Dirty way to unit-test default behavior
+		if [ "$ERSA_UTEST_VERSION" ]; then
+		# Prove this works by changing passwords
+		# use: ERSA_UTEST_VERSION=9 easyrsa build-ca
+			p="EasyRSA"
+			q="EasyRSA"
+			unset -v EASYRSA_PASSIN EASYRSA_PASSOUT
+			warn "SPECIAL unit-test CA password!"
 
-		# Confirm passphrase
-		prompt="Confirm New CA Key Passphrase: "
-		get_passphrase q
+		else
+			p=""
+			q=""
+			# Get passphrase p
+			prompt="Enter New CA Key Passphrase: "
+			get_passphrase p
+
+			# Confirm passphrase q
+			prompt="Confirm New CA Key Passphrase: "
+			get_passphrase q
+		fi
 
 		# Validate passphrase
-		if [ "$p" = "$q" ]; then
+		if [ "$p" ] && [ "$p" = "$q" ]; then
 			printf "%s" "$p" > "$in_key_pass_tmp"
 			printf "%s" "$p" > "$out_key_pass_tmp"
 			unset -v p q
