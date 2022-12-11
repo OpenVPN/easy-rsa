@@ -1256,8 +1256,7 @@ get_passphrase() {
 		if [ "${#r}" -lt 4 ]; then
 			printf '\n%s\n' "Passphrase must be at least 4 characters!"
 		else
-			unset -v "$@"
-			set_var "$@" "$r" || die "Passphrase error!"
+			safe_set_var "$*" "$r" || die "Passphrase error!"
 			unset -v r
 			print
 			return 0
@@ -3714,48 +3713,72 @@ db_date_to_ff_date() {
 	ff_date="${yy}-${mm}-${dd} ${HH}:${MM}:${SS}${TZ}"
 } # => build_ff_date_string()
 
+# sanatize and set var
+safe_set_var() {
+	[ "$#" -eq 2 ] || return 1
+	# check for simple errors
+	case "$1" in
+		[1234567890]*|*-*|"* *") return 1
+	esac
+	eval "$1"=1 || return 1
+	unset -v "$1" || return 1
+	set_var "$1" "$2" || return 1
+} # => safe_set_var()
+
 # get the serial number of the certificate -> serial=XXXX
 ssl_cert_serial() {
 	[ "$#" = 2 ] || die "ssl_cert_serial - invalid input"
 	[ -f "$1" ] || die "ssl_cert_serial - missing cert"
-	verify_file x509 "$1" || die "ssl_cert_serial - invalid cert"
 
 	fn_ssl_out="$(
 		unset -v EASYRSA_DEBUG
 		easyrsa_openssl x509 -in "$1" -noout -serial
-		)"  || die "ssl_cert_serial - failed to get serial"
-	shift
-
+		)"  || die "ssl_cert_serial - failed: -serial"
 	# remove the serial= part -> we only need the XXXX part
 	fn_ssl_out="${fn_ssl_out##*=}"
 
-	unset -v "$@"
-	set_var "$@" "$fn_ssl_out" || \
-		die "ssl_cert_serial - failed to set variable '$*'"
+	shift
+	safe_set_var "$*" "$fn_ssl_out" || \
+		die "ssl_cert_serial - failed to set var '$*'"
+
 	unset -v fn_ssl_out
 } # => ssl_cert_serial()
 
 # Get certificate start date
 ssl_cert_not_before_date() {
-	[ "$1" ] || die "ssl_cert_not_before_date - Invalid input"
+	[ "$#" = 2 ] || die "ssl_cert_not_before_date - invalid input"
+	[ -f "$1" ] || die "ssl_cert_not_before_date - missing cert"
+
 	fn_ssl_out="$(
 		unset -v EASYRSA_DEBUG
 		easyrsa_openssl x509 -in "$1" -noout -startdate
 		)" || die "ssl_cert_not_before_date - failed: -startdate"
-	# 'cert_not_before_date' is *not* used, at this time..
-	# disable #shellcheck disable=SC2034 # Prefer to keep warning
-	cert_not_before_date="${fn_ssl_out#*=}"
+
+	fn_ssl_out="${fn_ssl_out#*=}"
+
+	shift
+	safe_set_var "$*" "$fn_ssl_out" || \
+		die "ssl_cert_not_before_date - failed to set var '$*'"
+
 	unset -v fn_ssl_out
 } # => ssl_cert_not_before_date()
 
 # Get certificate end date
 ssl_cert_not_after_date() {
-	[ "$1" ] || die "ssl_cert_not_after_date - Invalid input"
+	[ "$#" = 2 ] || die "ssl_cert_not_after_date - invalid input"
+	[ -f "$1" ] || die "ssl_cert_not_after_date - missing cert"
+
 	fn_ssl_out="$(
 		unset -v EASYRSA_DEBUG
 		easyrsa_openssl x509 -in "$1" -noout -enddate
 		)" || die "ssl_cert_not_after_date - failed: -enddate"
-	cert_not_after_date="${fn_ssl_out#*=}"
+
+	fn_ssl_out="${fn_ssl_out#*=}"
+
+	shift
+	safe_set_var "$*" "$fn_ssl_out" || \
+		die "ssl_cert_not_after_date - failed to set var '$*'"
+
 	unset -v fn_ssl_out
 } # => ssl_cert_not_after_date()
 
@@ -3862,7 +3885,7 @@ serial mismatch:
 		fi
 
 		#cert_source=issued
-		ssl_cert_not_after_date "$cert_issued" # Assigns cert_not_after_date
+		ssl_cert_not_after_date "$cert_issued" cert_not_after_date
 
 	else
 		# Translate db date to usable date
@@ -3961,7 +3984,7 @@ serial mismatch:
 
 		# Use cert date
 		# Assigns cert_not_after_date
-		ssl_cert_not_after_date "$cert_file_in"
+		ssl_cert_not_after_date "$cert_file_in" cert_not_after_date
 
 		# Highlight renewed/cert_by_serial
 		if [ "$renew_is_old" ]; then
