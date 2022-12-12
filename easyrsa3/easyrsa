@@ -1474,7 +1474,7 @@ Please update openssl-easyrsa.cnf to the latest official release."
 			${EASYRSA_PASSIN:+ -passin "$EASYRSA_PASSIN"} \
 			${EASYRSA_PASSOUT:+ -passout "$EASYRSA_PASSOUT"} \
 			${in_key_pass_tmp:+ -passin file:"$in_key_pass_tmp"} \
-			${out_key_pass_tmp:+ -passin file:"$out_key_pass_tmp"} \
+			${out_key_pass_tmp:+ -passout file:"$out_key_pass_tmp"} \
 				|| die "Failed to build the CA"
 	;;
 	*)	die "build-ca ssl lib: $osslv_major"
