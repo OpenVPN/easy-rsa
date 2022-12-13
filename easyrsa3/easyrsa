@@ -1371,9 +1371,9 @@ Please update openssl-easyrsa.cnf to the latest official release."
 	else
 		# Assign passphrase vars and temp file
 		in_key_pass_tmp="$(easyrsa_mktemp)" || \
-			die "Failed to create temporary file"
+			die "in_key_pass_tmp: create"
 		out_key_pass_tmp="$(easyrsa_mktemp)" || \
-			die "Failed to create temporary file"
+			die "out_key_pass_tmp: create"
 
 		# Dirty way to unit-test default behavior
 		if [ "$ERSA_UTEST_VERSION" ]; then
@@ -1398,8 +1398,10 @@ Please update openssl-easyrsa.cnf to the latest official release."
 
 		# Validate passphrase
 		if [ "$p" ] && [ "$p" = "$q" ]; then
-			printf "%s" "$p" > "$in_key_pass_tmp"
-			printf "%s" "$p" > "$out_key_pass_tmp"
+			printf "%s" "$p" > "$in_key_pass_tmp" || \
+				die "in_key_pass_tmp: write"
+			printf "%s" "$p" > "$out_key_pass_tmp" || \
+				die "out_key_pass_tmp: write"
 			unset -v p q
 		else
 			die "Passphrases do not match!"
@@ -1414,7 +1416,7 @@ Please update openssl-easyrsa.cnf to the latest official release."
  {print}
 }'
 
-	conf_tmp="$(easyrsa_mktemp)" || die "Failed to create temporary file"
+	conf_tmp="$(easyrsa_mktemp)" || die "conf_tmp: create"
 	{
 		cat "$EASYRSA_EXT_DIR/ca" "$EASYRSA_EXT_DIR/COMMON"
 		[ "$EASYRSA_EXTRA_EXTS" ] && print "$EASYRSA_EXTRA_EXTS"
@@ -1475,7 +1477,7 @@ Please update openssl-easyrsa.cnf to the latest official release."
 			${EASYRSA_PASSOUT:+ -passout "$EASYRSA_PASSOUT"} \
 			${in_key_pass_tmp:+ -passin file:"$in_key_pass_tmp"} \
 			${out_key_pass_tmp:+ -passout file:"$out_key_pass_tmp"} \
-				|| die "Failed to build the CA"
+				|| die "Failed to build the CA certificate"
 	;;
 	*)	die "build-ca ssl lib: $osslv_major"
 	esac
