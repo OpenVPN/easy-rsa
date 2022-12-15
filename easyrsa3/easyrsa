@@ -1370,22 +1370,38 @@ Please update openssl-easyrsa.cnf to the latest official release."
 		: # passphrase defined
 	else
 		# Assign passphrase vars and temp file
-		p=""
-		q=""
+		in_key_pass_tmp="$(easyrsa_mktemp)" || \
+			die "in_key_pass_tmp: create"
 		out_key_pass_tmp="$(easyrsa_mktemp)" || \
-			die "Failed to create temporary file"
+			die "out_key_pass_tmp: create"
 
-		# Get passphrase
-		prompt="Enter New CA Key Passphrase: "
-		get_passphrase p
+		# Dirty way to unit-test default behavior
+		if [ "$ERSA_UTEST_VERSION" ]; then
+		# Prove this works by changing passwords
+		# use: ERSA_UTEST_VERSION=9 easyrsa build-ca
+			p="EasyRSA"
+			q="EasyRSA"
+			unset -v EASYRSA_PASSIN EASYRSA_PASSOUT
+			warn "SPECIAL unit-test CA password!"
 
-		# Confirm passphrase
-		prompt="Confirm New CA Key Passphrase: "
-		get_passphrase q
+		else
+			p=""
+			q=""
+			# Get passphrase p
+			prompt="Enter New CA Key Passphrase: "
+			get_passphrase p
+
+			# Confirm passphrase q
+			prompt="Confirm New CA Key Passphrase: "
+			get_passphrase q
+		fi
 
 		# Validate passphrase
-		if [ "$p" = "$q" ]; then
-			printf "%s" "$p" > "$out_key_pass_tmp"
+		if [ "$p" ] && [ "$p" = "$q" ]; then
+			printf "%s" "$p" > "$in_key_pass_tmp" || \
+				die "in_key_pass_tmp: write"
+			printf "%s" "$p" > "$out_key_pass_tmp" || \
+				die "out_key_pass_tmp: write"
 			unset -v p q
 		else
 			die "Passphrases do not match!"
@@ -1400,7 +1416,7 @@ Please update openssl-easyrsa.cnf to the latest official release."
  {print}
 }'
 
-	conf_tmp="$(easyrsa_mktemp)" || die "Failed to create temporary file"
+	conf_tmp="$(easyrsa_mktemp)" || die "conf_tmp: create"
 	{
 		cat "$EASYRSA_EXT_DIR/ca" "$EASYRSA_EXT_DIR/COMMON"
 		[ "$EASYRSA_EXTRA_EXTS" ] && print "$EASYRSA_EXTRA_EXTS"
@@ -1459,8 +1475,9 @@ Please update openssl-easyrsa.cnf to the latest official release."
 			${EASYRSA_NO_PASS+ "$no_password"} \
 			${EASYRSA_PASSIN:+ -passin "$EASYRSA_PASSIN"} \
 			${EASYRSA_PASSOUT:+ -passout "$EASYRSA_PASSOUT"} \
-			${out_key_pass_tmp:+ -passin file:"$out_key_pass_tmp"} \
-				|| die "Failed to build the CA"
+			${in_key_pass_tmp:+ -passin file:"$in_key_pass_tmp"} \
+			${out_key_pass_tmp:+ -passout file:"$out_key_pass_tmp"} \
+				|| die "Failed to build the CA certificate"
 	;;
 	*)	die "build-ca ssl lib: $osslv_major"
 	esac
