@@ -2183,21 +2183,26 @@ Option 'nopass' is not supported by command 'renew'."
 		shift
 	done
 
-	# referenced cert must exist:
-	[ -f "$crt_in" ] || die "\
-Unable to renew as no certificate was found. Certificate was expected
-at: $crt_in"
-
 	# Verify certificate
-	verify_file x509 "$crt_in" || die "\
-Unable to renew as the input file is not a valid certificate. Unexpected
-input in file: $crt_in"
+	if [ -f "$crt_in" ]; then
+		verify_file x509 "$crt_in" || die "\
+Input file is not a valid certificate:
+* $crt_in"
+	else
+		die "\
+Missing certificate file:
+* $crt_in"
+	fi
 
 	# Verify request
 	if [ -e "$req_in" ]; then
 		verify_file req "$req_in" || die "\
-Unable to verify request. The file is not a valid request.
-Unexpected input in file: $req_in"
+Input file is not a valid request:
+* $req_in"
+	else
+		die "\
+Missing request file:
+* $req_in"
 	fi
 
 	# get the serial number of the certificate
