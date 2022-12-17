@@ -2169,7 +2169,8 @@ Run easyrsa without commands for usage and command help."
 	creds_in="$in_dir/$file_name_base.creds"
 
 	# Upgrade CA index.txt.attr - unique_subject = no
-	up23_upgrade_ca || die "Failed to upgrade CA to support renewal."
+	up23_upgrade_ca || \
+		die "Failed to upgrade CA to support renewal."
 
 	# deprecate ALL options
 	while [ "$1" ]; do
@@ -2208,7 +2209,8 @@ Missing request file:
 	# get the serial number of the certificate
 	ssl_cert_serial "$crt_in" cert_serial
 
-	duplicate_crt_by_serial="$EASYRSA_PKI/certs_by_serial/$cert_serial.pem"
+	duplicate_crt_by_serial="\
+$EASYRSA_PKI/certs_by_serial/$cert_serial.pem"
 
 	# Set out_dir
 	out_dir="$EASYRSA_PKI/renewed"
@@ -2216,7 +2218,7 @@ Missing request file:
 
 	# NEVER over-write a renewed cert, revoke it first
 	deny_msg="\
-Cannot renew this certificate because a conflicting file exists.
+Cannot renew this certificate, a conflicting file exists:
 *"
 	[ -e "$crt_out" ] && die "$deny_msg certificate: $crt_out"
 	unset -v deny_msg
@@ -2230,24 +2232,25 @@ Cannot renew this certificate because a conflicting file exists.
 	case "$cert_ext_key_usage" in
 		"TLS Web Client Authentication")
 			cert_type=client
-			;;
+		;;
 		"TLS Web Server Authentication")
 			cert_type=server
-			;;
-		"TLS Web Server Authentication, TLS Web Client Authentication")
+		;;
+	"TLS Web Server Authentication, TLS Web Client Authentication")
 			cert_type=serverClient
-			;;
+		;;
 		*) die "Unknown key usage: $cert_ext_key_usage"
 	esac
 
-	# Use SAN from --subject-alt-name if set else use SAN from old cert
+	# Use SAN from --san if set else use SAN from old cert
 	if echo "$EASYRSA_EXTRA_EXTS" | grep -q subjectAltName; then
 		: # ok - Use current subjectAltName
 	else
 		san="$(
-			easyrsa_openssl x509 -in "$crt_in" -noout -text | sed -n \
-			"/X509v3 Subject Alternative Name:/{n;s/IP Address:/IP:/g;s/ //g;p;}"
-			)"
+easyrsa_openssl x509 -in "$crt_in" -noout -text | sed -n \
+"/X509v3 Subject Alternative Name:\
+/{n;s/IP Address:/IP:/g;s/ //g;p;}"
+		)"
 
 		[ "$san" ] && export EASYRSA_EXTRA_EXTS="\
 $EASYRSA_EXTRA_EXTS
@@ -2258,13 +2261,18 @@ subjectAltName = $san"
 	warn "\
 This process is destructive!
 
-These files will be moved to the 'renewed' storage sub-directory:
+These files will be moved to 'renewed' storage sub-directory:
 * $crt_in
 
 These files will be DELETED:
-* All PKCS files for commonName : $file_name_base
-* The inline credentials file   : $creds_in
-* The duplicate certificate     : $duplicate_crt_by_serial"
+* All PKCS files for commonName:
+  $file_name_base
+
+* The inline credentials file:
+  $creds_in
+
+* The duplicate certificate:
+  $duplicate_crt_by_serial"
 
 	confirm "  Continue with renewal: " "yes" "\
 Please confirm you wish to renew the certificate
@@ -2274,15 +2282,18 @@ with the following subject:
 
   serial-number: $cert_serial"
 
-	# move renewed files so we can reissue certificate with the same name
+	# move renewed files
+	# so we can reissue certificate with the same name
 	renew_move
 	on_error_undo_renew_move=1
 
 	# renew certificate
-	if EASYRSA_BATCH=1 sign_req "$cert_type" "$file_name_base"; then
+	if EASYRSA_BATCH=1 sign_req "$cert_type" "$file_name_base"
+	then
 		unset -v on_error_undo_renew_move
 	else
-		# If renew failed then restore cert. Otherwise, issue a warning
+		# If renew failed then restore cert.
+		# Otherwise, issue a warning
 		renew_restore_move
 		die "\
 Renewal has failed to build a new certificate/key pair."
@@ -2316,7 +2327,8 @@ renew_restore_move() {
 	if [ "$rrm_err" ]; then
 		warn "Failed to restore renewed files."
 	else
-		notice "Renew FAILED but files have been successfully restored."
+		notice "\
+Renew FAILED but files have been successfully restored."
 	fi
 
 	return 0
