@@ -2338,36 +2338,26 @@ renew_move() {
 	done
 
 	# move crt, key and req file to renewed folders
+	# After this point, renew is possible!
 	restore_crt_in="$crt_in"
 	restore_crt_out="$crt_out"
-	mv "$crt_in" "$crt_out" || die "Failed to move: $crt_in"
+	mv "$crt_in" "$crt_out" || \
+		die "Failed to move: $crt_in"
 
+	# Further file removal is a convenience, only.
 	# remove any pkcs files
 	for pkcs in p12 p7b p8 p1; do
-		if [ -e "$in_dir/issued/$file_name_base.$pkcs" ]; then
-			# issued
-			rm "$in_dir/issued/$file_name_base.$pkcs" ||
-				warn "Failed to remove: $file_name_base.$pkcs"
-
-		elif [ -e "$in_dir/private/$file_name_base.$pkcs" ]; then
-			# private
-			rm "$in_dir/private/$file_name_base.$pkcs" ||
-				warn "Failed to remove: $file_name_base.$pkcs"
-		else
-			: # ok
-		fi
+		# issued
+		rm -f "$in_dir/issued/$file_name_base.$pkcs"
+		# private
+		rm -f "$in_dir/private/$file_name_base.$pkcs"
 	done
 
-	# remove the duplicate certificate in the certs_by_serial folder
-	if [ -e "$duplicate_crt_by_serial" ]; then
-		rm "$duplicate_crt_by_serial" || warn "\
-Failed to remove the duplicate certificate in the certs_by_serial folder"
-	fi
+	# remove duplicate cert in 'certs_by_serial' folder
+	rm -f "$duplicate_crt_by_serial"
 
-	# remove credentials file (if exists)
-	if [ -e "$creds_in" ]; then
-		rm "$creds_in" || warn "Failed to remove the inline file."
-	fi
+	# remove credentials file
+	rm -f "$creds_in"
 
 	return 0
 } # => renew_move()
