@@ -2171,16 +2171,17 @@ Run easyrsa without commands for usage and command help."
 	# Upgrade CA index.txt.attr - unique_subject = no
 	up23_upgrade_ca || die "Failed to upgrade CA to support renewal."
 
-	# Set 'nopass'
-	case "$1" in
-		nopass)
-			warn "\
-Option 'nopass' is no longer supported by command 'renew'."
-			shift
-		;;
-		'') :; shift ;; # Empty ok
-		*) die "Unknown option: $1"
-	esac
+	# deprecate ALL options
+	while [ "$1" ]; do
+		case "$1" in
+			nopass)
+				warn "\
+Option 'nopass' is not supported by command 'renew'."
+			;;
+			*) die "Unknown option: $1"
+		esac
+		shift
+	done
 
 	# referenced cert must exist:
 	[ -f "$crt_in" ] || die "\
