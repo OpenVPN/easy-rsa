@@ -3743,14 +3743,15 @@ db_date_to_ff_date() {
 
 # sanatize and set var
 safe_set_var() {
-	[ "$#" -eq 2 ] || return 1
+	[ "$#" -eq 2 ] || die "safe_set_var - input"
 	# check for simple errors
 	case "$1" in
-		[1234567890]*|*-*|"* *") return 1
+		[1234567890]*|*[-.\ ]*)
+			die "safe_set_var - var"
 	esac
-	eval "$1"=1 || return 1
-	unset -v "$1" || return 1
-	set_var "$1" "$2" || return 1
+	eval "$1"=1 || die "safe_set_var - eval"
+	unset -v "$1" || die "safe_set_var - unset"
+	set_var "$1" "$2" || die "safe_set_var - set_var"
 } # => safe_set_var()
 
 # get the serial number of the certificate -> serial=XXXX
