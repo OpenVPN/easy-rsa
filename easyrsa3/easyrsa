@@ -1239,7 +1239,8 @@ hide_read_pass()
 	elif (echo | read -r -s 2>/dev/null) ; then
 		read -r -s "$@"
 	else
-		warn "Could not disable echo. Password will be shown on screen!"
+		warn "\
+Could not disable echo. Password will be shown on screen!"
 		read -r "$@"
 	fi
 
@@ -1254,9 +1255,11 @@ get_passphrase() {
 		hide_read_pass r
 
 		if [ "${#r}" -lt 4 ]; then
-			printf '\n%s\n' "Passphrase must be at least 4 characters!"
+			printf '\n%s\n' \
+				"Passphrase must be at least 4 characters!"
 		else
-			safe_set_var "$*" "$r" || die "Passphrase error!"
+			safe_set_var "$*" "$r" || \
+				die "Passphrase error!"
 			unset -v r
 			print
 			return 0
