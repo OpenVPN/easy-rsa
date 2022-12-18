@@ -1239,7 +1239,8 @@ hide_read_pass()
 	elif (echo | read -r -s 2>/dev/null) ; then
 		read -r -s "$@"
 	else
-		warn "Could not disable echo. Password will be shown on screen!"
+		warn "\
+Could not disable echo. Password will be shown on screen!"
 		read -r "$@"
 	fi
 
@@ -1254,9 +1255,11 @@ get_passphrase() {
 		hide_read_pass r
 
 		if [ "${#r}" -lt 4 ]; then
-			printf '\n%s\n' "Passphrase must be at least 4 characters!"
+			printf '\n%s\n' \
+				"Passphrase must be at least 4 characters!"
 		else
-			safe_set_var "$*" "$r" || die "Passphrase error!"
+			safe_set_var "$*" "$r" || \
+				die "Passphrase error!"
 			unset -v r
 			print
 			return 0
@@ -2169,40 +2172,48 @@ Run easyrsa without commands for usage and command help."
 	creds_in="$in_dir/$file_name_base.creds"
 
 	# Upgrade CA index.txt.attr - unique_subject = no
-	up23_upgrade_ca || die "Failed to upgrade CA to support renewal."
+	up23_upgrade_ca || \
+		die "Failed to upgrade CA to support renewal."
 
-	# Set 'nopass'
-	case "$1" in
-		nopass)
-			warn "\
-Option 'nopass' is no longer supported by command 'renew'."
-			shift
-		;;
-		'') :; shift ;; # Empty ok
-		*) die "Unknown option: $1"
-	esac
-
-	# referenced cert must exist:
-	[ -f "$crt_in" ] || die "\
-Unable to renew as no certificate was found. Certificate was expected
-at: $crt_in"
+	# deprecate ALL options
+	while [ "$1" ]; do
+		case "$1" in
+			nopass)
+				warn "\
+Option 'nopass' is not supported by command 'renew'."
+			;;
+			*) die "Unknown option: $1"
+		esac
+		shift
+	done
 
 	# Verify certificate
-	verify_file x509 "$crt_in" || die "\
-Unable to renew as the input file is not a valid certificate. Unexpected
-input in file: $crt_in"
+	if [ -f "$crt_in" ]; then
+		verify_file x509 "$crt_in" || die "\
+Input file is not a valid certificate:
+* $crt_in"
+	else
+		die "\
+Missing certificate file:
+* $crt_in"
+	fi
 
 	# Verify request
 	if [ -e "$req_in" ]; then
 		verify_file req "$req_in" || die "\
-Unable to verify request. The file is not a valid request.
-Unexpected input in file: $req_in"
+Input file is not a valid request:
+* $req_in"
+	else
+		die "\
+Missing request file:
+* $req_in"
 	fi
 
 	# get the serial number of the certificate
 	ssl_cert_serial "$crt_in" cert_serial
 
-	duplicate_crt_by_serial="$EASYRSA_PKI/certs_by_serial/$cert_serial.pem"
+	duplicate_crt_by_serial="\
+$EASYRSA_PKI/certs_by_serial/$cert_serial.pem"
 
 	# Set out_dir
 	out_dir="$EASYRSA_PKI/renewed"
@@ -2210,7 +2221,7 @@ Unexpected input in file: $req_in"
 
 	# NEVER over-write a renewed cert, revoke it first
 	deny_msg="\
-Cannot renew this certificate because a conflicting file exists.
+Cannot renew this certificate, a conflicting file exists:
 *"
 	[ -e "$crt_out" ] && die "$deny_msg certificate: $crt_out"
 	unset -v deny_msg
@@ -2224,24 +2235,25 @@ Cannot renew this certificate because a conflicting file exists.
 	case "$cert_ext_key_usage" in
 		"TLS Web Client Authentication")
 			cert_type=client
-			;;
+		;;
 		"TLS Web Server Authentication")
 			cert_type=server
-			;;
-		"TLS Web Server Authentication, TLS Web Client Authentication")
+		;;
+	"TLS Web Server Authentication, TLS Web Client Authentication")
 			cert_type=serverClient
-			;;
+		;;
 		*) die "Unknown key usage: $cert_ext_key_usage"
 	esac
 
-	# Use SAN from --subject-alt-name if set else use SAN from old cert
+	# Use SAN from --san if set else use SAN from old cert
 	if echo "$EASYRSA_EXTRA_EXTS" | grep -q subjectAltName; then
 		: # ok - Use current subjectAltName
 	else
 		san="$(
-			easyrsa_openssl x509 -in "$crt_in" -noout -text | sed -n \
-			"/X509v3 Subject Alternative Name:/{n;s/IP Address:/IP:/g;s/ //g;p;}"
-			)"
+easyrsa_openssl x509 -in "$crt_in" -noout -text | sed -n \
+"/X509v3 Subject Alternative Name:\
+/{n;s/IP Address:/IP:/g;s/ //g;p;}"
+		)"
 
 		[ "$san" ] && export EASYRSA_EXTRA_EXTS="\
 $EASYRSA_EXTRA_EXTS
@@ -2252,13 +2264,18 @@ subjectAltName = $san"
 	warn "\
 This process is destructive!
 
-These files will be moved to the 'renewed' storage sub-directory:
+These files will be moved to 'renewed' storage sub-directory:
 * $crt_in
 
 These files will be DELETED:
-* All PKCS files for commonName : $file_name_base
-* The inline credentials file   : $creds_in
-* The duplicate certificate     : $duplicate_crt_by_serial"
+* All PKCS files for commonName:
+  $file_name_base
+
+* The inline credentials file:
+  $creds_in
+
+* The duplicate certificate:
+  $duplicate_crt_by_serial"
 
 	confirm "  Continue with renewal: " "yes" "\
 Please confirm you wish to renew the certificate
@@ -2268,15 +2285,18 @@ with the following subject:
 
   serial-number: $cert_serial"
 
-	# move renewed files so we can reissue certificate with the same name
+	# move renewed files
+	# so we can reissue certificate with the same name
 	renew_move
 	on_error_undo_renew_move=1
 
 	# renew certificate
-	if EASYRSA_BATCH=1 sign_req "$cert_type" "$file_name_base"; then
+	if EASYRSA_BATCH=1 sign_req "$cert_type" "$file_name_base"
+	then
 		unset -v on_error_undo_renew_move
 	else
-		# If renew failed then restore cert. Otherwise, issue a warning
+		# If renew failed then restore cert.
+		# Otherwise, issue a warning
 		renew_restore_move
 		die "\
 Renewal has failed to build a new certificate/key pair."
@@ -2310,7 +2330,8 @@ renew_restore_move() {
 	if [ "$rrm_err" ]; then
 		warn "Failed to restore renewed files."
 	else
-		notice "Renew FAILED but files have been successfully restored."
+		notice "\
+Renew FAILED but files have been successfully restored."
 	fi
 
 	return 0
@@ -2332,36 +2353,26 @@ renew_move() {
 	done
 
 	# move crt, key and req file to renewed folders
+	# After this point, renew is possible!
 	restore_crt_in="$crt_in"
 	restore_crt_out="$crt_out"
-	mv "$crt_in" "$crt_out" || die "Failed to move: $crt_in"
+	mv "$crt_in" "$crt_out" || \
+		die "Failed to move: $crt_in"
 
+	# Further file removal is a convenience, only.
 	# remove any pkcs files
 	for pkcs in p12 p7b p8 p1; do
-		if [ -e "$in_dir/issued/$file_name_base.$pkcs" ]; then
-			# issued
-			rm "$in_dir/issued/$file_name_base.$pkcs" ||
-				warn "Failed to remove: $file_name_base.$pkcs"
-
-		elif [ -e "$in_dir/private/$file_name_base.$pkcs" ]; then
-			# private
-			rm "$in_dir/private/$file_name_base.$pkcs" ||
-				warn "Failed to remove: $file_name_base.$pkcs"
-		else
-			: # ok
-		fi
+		# issued
+		rm -f "$in_dir/issued/$file_name_base.$pkcs"
+		# private
+		rm -f "$in_dir/private/$file_name_base.$pkcs"
 	done
 
-	# remove the duplicate certificate in the certs_by_serial folder
-	if [ -e "$duplicate_crt_by_serial" ]; then
-		rm "$duplicate_crt_by_serial" || warn "\
-Failed to remove the duplicate certificate in the certs_by_serial folder"
-	fi
+	# remove duplicate cert in 'certs_by_serial' folder
+	rm -f "$duplicate_crt_by_serial"
 
-	# remove credentials file (if exists)
-	if [ -e "$creds_in" ]; then
-		rm "$creds_in" || warn "Failed to remove the inline file."
-	fi
+	# remove credentials file
+	rm -f "$creds_in"
 
 	return 0
 } # => renew_move()
@@ -3732,14 +3743,15 @@ db_date_to_ff_date() {
 
 # sanatize and set var
 safe_set_var() {
-	[ "$#" -eq 2 ] || return 1
+	[ "$#" -eq 2 ] || die "safe_set_var - input"
 	# check for simple errors
 	case "$1" in
-		[1234567890]*|*-*|"* *") return 1
+		[1234567890]*|*[-.\ ]*)
+			die "safe_set_var - var"
 	esac
-	eval "$1"=1 || return 1
-	unset -v "$1" || return 1
-	set_var "$1" "$2" || return 1
+	eval "$1"=1 || die "safe_set_var - eval"
+	unset -v "$1" || die "safe_set_var - unset"
+	set_var "$1" "$2" || die "safe_set_var - set_var"
 } # => safe_set_var()
 
 # get the serial number of the certificate -> serial=XXXX
