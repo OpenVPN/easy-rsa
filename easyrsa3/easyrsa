@@ -1923,7 +1923,8 @@ Matching file found at: "
 
 	# Set commonName
 	[ "$EASYRSA_REQ_CN" = ChangeMe ] || die "\
-Option conflict: '$cmd' does not support setting an external commonName"
+Option conflict:
+* '$cmd' does not support setting an external commonName"
 	EASYRSA_REQ_CN="$name"
 
 	# create request
@@ -1934,19 +1935,27 @@ Option conflict: '$cmd' does not support setting an external commonName"
 	if sign_req "$crt_type" "$name"; then
 		unset -v error_build_full_cleanup
 	else
-		die "Failed to sign '$name' - See error messages above for details."
+		die "\
+Failed to sign '$name' - \
+See error messages above for details."
 	fi
 
 	# inline it
 	if [ "$EASYRSA_INLINE" ]; then
 		inline_file="$EASYRSA_PKI/$name.creds"
 		if [ -e "$inline_file" ]; then
-			warn "Inline file exists not over-writing: $inline_file"
+			warn "\
+Inline file exists not over-writing:
+* $inline_file"
 		else
 			if inline_creds; then
-				notice "Inline file created: $inline_file"
+				notice "\
+Inline file created:
+* $inline_file"
 			else
-				warn "Failed to write inline file: $inline_file"
+				warn "\
+Failed to write inline file:
+* $inline_file"
 			fi
 		fi
 	fi
@@ -2287,7 +2296,7 @@ with the following subject:
 		# If renew failed then restore cert. Otherwise, issue a warning
 		renew_restore_move
 		die "\
-Renewal has failed to build a new certificate/key pair."
+Renewal has failed to build a new certificate."
 	fi
 
 	# Success messages
