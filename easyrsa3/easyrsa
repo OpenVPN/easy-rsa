@@ -1333,9 +1333,13 @@ Missing X509-type 'ca'"
 Missing X509-type 'COMMON'"
 
 	# Check for insert-marker in ssl config file
-	if ! grep -q '^#%CA_X509_TYPES_EXTRA_EXTS%' "$EASYRSA_SSL_CONF"; then
-		die "\
-The copy of openssl-easyrsa.cnf in use does not support X509-type 'ca'.
+	if grep -q '^#%CA_X509_TYPES_EXTRA_EXTS%' \
+		"$EASYRSA_SSL_CONF"
+	then
+		[ "$EASYRSA_BATCH" ] || print
+	else
+		warn "\
+The openssl config file in use does not support X509-type 'ca'.
 * $EASYRSA_SSL_CONF
 Please update openssl-easyrsa.cnf to the latest official release."
 	fi
