@@ -3510,18 +3510,6 @@ fixed_cert_dates() {
 		this_year_n="$(busybox date -u +%y)"
 		today_n="$(busybox date -u +%j)"
 
-		# If the start day number is into the future then back-date by one year
-		if [ "$start_fix_day_n" -gt "$today_n" ]; then
-			not_valid_until_d="$(( start_fix_day_n - today_n ))"
-			this_year_n="$(( this_year_n - 1 ))"
-			# Get user confirmation
-			# This needs to be less rigid ;-)
-			confirm "  Create certificate with one year back-dated date ? " \
-				"yes" "\
-This certificate will not be valid for '${not_valid_until_d} days'.
-The fixed date will be rolled backward by one year."
-		fi
-
 		New_Year_day_s="$(
 			busybox date -u -d "${this_year_n}01010000.01" '+%s'
 			)"
@@ -3546,17 +3534,6 @@ The fixed date will be rolled backward by one year."
 
 		this_year_n="$(date -j +%y)"
 		today_n="$(date -u -j +%j)"
-
-		# If the start day number is into the future then back-date by one year
-		if [ "$start_fix_day_n" -gt "$today_n" ]; then
-			not_valid_until_d="$(( start_fix_day_n - today_n ))"
-			this_year_n="$(( this_year_n - 1 ))"
-			# Get user confirmation
-			confirm "  Create certificate with one year back-dated date ? " \
-				"yes" "\
-This certificate will not be valid for ${not_valid_until_d} days.
-The fixed date will be rolled backward by one year."
-		fi
 
 		New_Year_day_d="$(
 			date -u -j -f %y%m%d%H%M%S "${this_year_n}0101000001" \
@@ -3583,17 +3560,6 @@ The fixed date will be rolled backward by one year."
 
 		# Day of Year number today
 		today_n="$(date -u +%j)"
-
-		# If the start day number is into the future then back-date by one year
-		if [ "$start_fix_day_n" -gt "$today_n" ]; then
-			not_valid_until_d="$(( start_fix_day_n - today_n ))"
-			this_year_n="$(( this_year_n - 1 ))"
-			# Get user confirmation
-			confirm "  Create certificate with one year back-dated date ? " \
-				"yes" "\
-This certificate will not be valid for ${not_valid_until_d} days.
-The fixed date will be rolled backward by one year."
-		fi
 
 		# New Years day date
 		New_Year_day_d="$(
