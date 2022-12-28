@@ -3318,8 +3318,14 @@ Run easyrsa without commands for usage and command help."
 	file_name_base="$1"
 	shift
 
+	# Support global --batch mode
+	unset -v exit_with_error
+	if [ "$EASYRSA_BATCH" ]; then
+		exit_with_error=1
+		EASYRSA_SILENT=1
+	fi
+
 	# function opts support
-	unset -v exit_with_error easyrsa_error_exit
 	while [ "$1" ]; do
 		case "$1" in
 			# batch flag, return status [0/1] to calling program
