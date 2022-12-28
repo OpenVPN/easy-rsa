@@ -4182,18 +4182,19 @@ verify_algo_params() {
 
 		# Create the required ecparams file
 		easyrsa_openssl ecparam -name "$EASYRSA_CURVE" \
-			-out "$EASYRSA_ALGO_PARAMS" 1>/dev/null || die "\
-Failed to generate ecparam file (permissions?) when writing to:
-$EASYRSA_ALGO_PARAMS"
+			-out "$EASYRSA_ALGO_PARAMS" \
+			1>/dev/null || die "\
+Failed to generate ecparam file (permissions?) at:
+* $EASYRSA_ALGO_PARAMS"
 	;;
 	ed)
 		# Verify Edwards curve
 		easyrsa_openssl genpkey -algorithm "$EASYRSA_CURVE" \
-			> /dev/null || \
-				die "Edwards Curve $EASYRSA_CURVE not found."
+			> /dev/null || die "\
+Edwards Curve $EASYRSA_CURVE not found."
 	;;
 	*) die "\
-Alg '$EASYRSA_ALGO' is invalid: must be 'rsa', 'ec' or 'ed'"
+Alg '$EASYRSA_ALGO' is invalid: Must be 'rsa', 'ec' or 'ed'"
 	esac
 } # => verify_algo_params()
 
@@ -4372,9 +4373,21 @@ Sourcing the vars file and building certificates will probably fail ..'
 	set_var EASYRSA_REQ_EMAIL		me@example.net
 	set_var EASYRSA_REQ_OU			"My Organizational Unit"
 	set_var EASYRSA_ALGO			rsa
-	set_var EASYRSA_KEY_SIZE		2048
-	set_var EASYRSA_CURVE			secp384r1
-	set_var EASYRSA_EC_DIR			"$EASYRSA_PKI/ecparams"
+
+	case "$EASYRSA_ALGO" in
+	rsa)
+		set_var EASYRSA_KEY_SIZE	2048
+	;;
+	ec)
+		set_var EASYRSA_CURVE		secp384r1
+		set_var EASYRSA_EC_DIR		"$EASYRSA_PKI/ecparams"
+	;;
+	ed)
+		set_var EASYRSA_CURVE		ed25519
+	;;
+	*) die "Unknown algorithm '$EASYRSA_ALGO'"
+	esac
+
 	set_var EASYRSA_CA_EXPIRE		3650
 	set_var EASYRSA_CERT_EXPIRE		825 # new default of 36 months
 	set_var EASYRSA_CERT_RENEW		90
