@@ -3508,7 +3508,7 @@ fixed_cert_dates() {
 	if busybox date --help > /dev/null 2>&1; then
 
 		this_year_n="$(busybox date -u +%y)"
-		today_n="$(busybox date -u +%j)"
+		#today_n="$(busybox date -u +%j)"
 
 		New_Year_day_s="$(
 			busybox date -u -d "${this_year_n}01010000.01" '+%s'
@@ -3533,7 +3533,7 @@ fixed_cert_dates() {
 	elif date -j > /dev/null 2>&1; then
 
 		this_year_n="$(date -j +%y)"
-		today_n="$(date -u -j +%j)"
+		#today_n="$(date -u -j +%j)"
 
 		New_Year_day_d="$(
 			date -u -j -f %y%m%d%H%M%S "${this_year_n}0101000001" \
@@ -3559,7 +3559,7 @@ fixed_cert_dates() {
 	elif this_year_n="$(date -u +%y)"; then
 
 		# Day of Year number today
-		today_n="$(date -u +%j)"
+		#today_n="$(date -u +%j)"
 
 		# New Years day date
 		New_Year_day_d="$(
