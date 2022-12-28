@@ -730,25 +730,30 @@ Temporary session not preserved."
 	# Clear traps
 	trap - 0 1 2 3 6 15
 
-	# Final exit
+	# Exit: Known errors:
+	# -> confirm(): aborted
+	# -> verify_cert(): verify failed --batch mode
 	if [ "$easyrsa_error_exit" ]; then
-		# Known errors:
-		# -> confirm(): aborted
-		# -> verify_cert(): verify failed
-		exit "${1:-1}"
-	elif [ "$1" = ok ]; then
+		exit 1
+	fi
+
+	# Exit: SIGINT
+	if [ "$1" = 2 ]; then
+		kill -2 "$$"
+	fi
+
+	# Exit: Final Success
+	if [ "$1" = ok ]; then
 		# if there is no error
 		# then 'cleanup ok' is called
 		exit 0
-	elif [ "$1" = 2 ]; then
-		# SIGINT
-		kill -2 "$$"
-	else
-		# if 'cleanup' is called without 'ok'
-		# then an error occurred
-		show_host
-		exit "${1:-1}"
 	fi
+
+	# Exit: Final Fail
+	# if 'cleanup' is called without 'ok'
+	# then an error occurred
+	show_host
+	exit 1
 } # => cleanup()
 
 # Make a copy safe SSL config file
