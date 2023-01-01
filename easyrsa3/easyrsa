@@ -1021,6 +1021,16 @@ and initialize a fresh PKI here."
 		# now remove it:
 		case "$reset" in
 		hard)
+
+			# Promote use of soft init
+			confirm "Remove current 'vars' file? " yes "\
+* SECOND WARNING!!!
+
+* This will remove everything in your current PKI directory.
+  To keep your current settings use 'init-pki soft' instead.
+  Using 'init-pki soft' is recommended.
+"
+
 				# # # shellcheck disable=SC2115 # Use "${var:?}" to ensure
 				rm -rf "$EASYRSA_PKI" || \
 					die "init-pki hard reset failed."
