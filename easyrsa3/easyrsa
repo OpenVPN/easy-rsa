@@ -2023,6 +2023,7 @@ Run easyrsa without commands for usage and command help."
 	key_in="$in_dir/private/$file_name_base.key"
 	req_in="$in_dir/reqs/$file_name_base.req"
 	creds_in="$in_dir/$file_name_base.creds"
+	inline_in="$in_dir/inline/$file_name_base.inline"
 
 	# Assign possible "crl_reason"
 	if [ "$1" ]; then
@@ -2094,13 +2095,18 @@ Cannot revoke this certificate because a conflicting file exists.
 	warn "\
 This process is destructive!
 
-These files will be moved to the 'revoked' storage sub-directory:
+These files will be MOVED to the 'revoked' storage directory:
 * $crt_in${if_exist_key_in}${if_exist_req_in}
 
 These files will be DELETED:
-* All PKCS files for commonName : $file_name_base
-* The inline credentials file   : $creds_in
-* The duplicate certificate     : $duplicate_crt_by_serial"
+All PKCS files for commonName : $file_name_base
+
+The inline credentials files:
+* $creds_in
+* $inline_in
+
+The duplicate certificate:
+* $duplicate_crt_by_serial"
 
 	confirm "  Continue with revocation: " "yes" "\
 Please confirm you wish to revoke the certificate
@@ -2116,12 +2122,15 @@ with the following subject:
 	easyrsa_openssl ca -utf8 -revoke "$crt_in" \
 		${crl_reason+ -crl_reason "$crl_reason"} \
 		${EASYRSA_PASSIN:+ -passin "$EASYRSA_PASSIN"} \
-			|| die "Failed to revoke certificate: revocation command failed."
+			|| die "\
+Failed to revoke certificate: revocation command failed."
 
-	# move revoked files so we can reissue certificates with the same name
+	# move revoked files
+	# so we can reissue certificates with the same name
 	revoke_move
 
-	notice "                              * IMPORTANT *
+	notice "\
+                              * IMPORTANT *
 
 Revocation was successful. You must run 'gen-crl' and upload a new CRL to your
 infrastructure in order to prevent the revoked certificate from being accepted."
@@ -2172,17 +2181,25 @@ revoke_move() {
 		fi
 	done
 
-	# remove the duplicate certificate in the certs_by_serial folder
+	# remove the duplicate certificate
 	if [ -e "$duplicate_crt_by_serial" ]; then
 		rm "$duplicate_crt_by_serial" || warn "\
-Failed to remove the duplicate certificate in the certs_by_serial folder"
+Failed to remove the duplicate certificate:
+* $duplicate_crt_by_serial"
 	fi
 
-	# remove credentials file (if exists)
+	# remove credentials file
 	if [ -e "$creds_in" ]; then
-		confirm "Remove inline file ? " "yes" "An inline file exists. $creds_in"
 		rm "$creds_in" || warn "\
-Failed to remove inline file: $creds_in"
+Failed to remove credentials file:
+* $creds_in"
+	fi
+
+	# remove inline file
+	if [ -e "$inline_in" ]; then
+		rm "$inline_in" || warn "\
+Failed to remove inline file:
+* $inline_in"
 	fi
 
 	return 0
