@@ -2753,6 +2753,7 @@ Run easyrsa without commands for usage and command help."
 	key_in="$in_dir/private/$file_name_base.key"
 	req_in="$in_dir/reqs/$file_name_base.req"
 	creds_in="$in_dir/$file_name_base.creds"
+	inline_in="$in_dir/inline/$file_name_base.inline"
 
 	# Upgrade CA index.txt.attr - unique_subject = no
 	up23_upgrade_ca || die "Failed to upgrade CA to support renewal."
@@ -2850,13 +2851,18 @@ subjectAltName = $san"
 	warn "\
 This process is destructive!
 
-These files will be moved to the 'renewed' storage sub-directory:
+These files will be moved to the 'renewed' storage directory:
 * $crt_in${if_exist_key_in}${if_exist_req_in}
 
 These files will be DELETED:
-* All PKCS files for commonName : $file_name_base
-* The inline credentials file   : $creds_in
-* The duplicate certificate     : $duplicate_crt_by_serial
+All PKCS files for commonName : $file_name_base
+
+The inline credentials files:
+* $creds_in
+* $inline_in
+
+The duplicate certificate:
+* $duplicate_crt_by_serial
 
 IMPORTANT: The new key will${EASYRSA_NO_PASS+ NOT} be password protected."
 
@@ -2988,15 +2994,25 @@ rebuild_move() {
 		fi
 	done
 
-	# remove the duplicate certificate in the certs_by_serial folder
+	# remove the duplicate certificate
 	if [ -e "$duplicate_crt_by_serial" ]; then
 		rm "$duplicate_crt_by_serial" || warn "\
-Failed to remove the duplicate certificate in the certs_by_serial folder"
+Failed to remove the duplicate certificate:
+* $duplicate_crt_by_serial"
 	fi
 
-	# remove credentials file (if exists)
+	# remove credentials file
 	if [ -e "$creds_in" ]; then
-		rm "$creds_in" || warn "Failed to remove the inline file."
+		rm "$creds_in" || warn "\
+Failed to remove credentials file:
+* $creds_in"
+	fi
+
+	# remove inline file
+	if [ -e "$inline_in" ]; then
+		rm "$inline_in" || warn "\
+Failed to remove inline file:
+* $inline_in"
 	fi
 
 	return 0
