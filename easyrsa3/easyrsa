@@ -1946,8 +1946,10 @@ Matching file found at: "
 	[ -e "$crt_out" ] && die "Certificate $err_exists $crt_out"
 	unset -v err_exists
 
+	# Make inline directory
+	mkdir -p "$EASYRSA_PKI/inline" || die "\
+Failed to create inline directoy."
 	# Confirm over write inline file
-	mkdir -p "$EASYRSA_PKI/inline"
 	inline_out="$EASYRSA_PKI/inline/$name.inline"
 	[ -e "$inline_out" ] && \
 		confirm "Confirm OVER-WRITE existing inline file ? " y "\
@@ -1998,7 +2000,7 @@ inline_creds ()
 	cat "$crt_out"
 	printf "%s\n\n" "</cert>"
 	printf "%s\n" "<key>"
-	cat "$key_out"
+	[ -e "$key_out" ] && cat "$key_out"
 	printf "%s\n\n" "</key>"
 	printf "%s\n" "<ca>"
 	cat "$EASYRSA_PKI/ca.crt"
@@ -2086,12 +2088,14 @@ Cannot revoke this certificate because a conflicting file exists.
 	[ -e "$req_out" ] && die "$deny_msg request    : $req_out"
 	unset -v deny_msg
 
-	# confirm operation by displaying DN:
+	# Check for key and request files
 	unset -v if_exist_key_in if_exist_req_in
 	[ -e "$key_in" ] && if_exist_key_in="
 * $key_in"
 	[ -e "$req_in" ] && if_exist_req_in="
 * $req_in"
+
+	# confirm operation by displaying DN:
 	warn "\
 This process is destructive!
 
@@ -2218,10 +2222,15 @@ Run easyrsa without commands for usage and command help."
 	file_name_base="$1"
 	shift
 
+	# Assign input files
 	in_dir="$EASYRSA_PKI"
 	crt_in="$in_dir/issued/$file_name_base.crt"
+	key_in="$in_dir/private/$file_name_base.key"
+	# key_out is used by inline_creds()
+	key_out="$in_dir/private/$file_name_base.key"
 	req_in="$in_dir/reqs/$file_name_base.req"
 	creds_in="$in_dir/$file_name_base.creds"
+	inline_in="$in_dir/inline/$file_name_base.inline"
 
 	# Upgrade CA index.txt.attr - unique_subject = no
 	up23_upgrade_ca || \
@@ -2278,6 +2287,10 @@ Cannot renew this certificate, a conflicting file exists:
 	[ -e "$crt_out" ] && die "$deny_msg certificate: $crt_out"
 	unset -v deny_msg
 
+	# Make inline directory
+	mkdir -p "$EASYRSA_PKI/inline" || die "\
+Failed to create inline directoy."
+
 	# Extract certificate usage from old cert
 	cert_ext_key_usage="$(
 		easyrsa_openssl x509 -in "$crt_in" -noout -text |
@@ -2316,18 +2329,18 @@ subjectAltName = $san"
 	warn "\
 This process is destructive!
 
-These files will be moved to 'renewed' storage sub-directory:
+These files will be MOVED to 'renewed' storage directory:
 * $crt_in
 
 These files will be DELETED:
-* All PKCS files for commonName:
-  $file_name_base
+All PKCS files for commonName: $file_name_base
 
-* The inline credentials file:
-  $creds_in
+The inline credentials files:
+* $creds_in
+* $inline_in
 
-* The duplicate certificate:
-  $duplicate_crt_by_serial"
+The duplicate certificate:
+* $duplicate_crt_by_serial"
 
 	confirm "  Continue with renewal: " "yes" "\
 Please confirm you wish to renew the certificate
@@ -2354,8 +2367,21 @@ with the following subject:
 Renewal has failed to build a new certificate."
 	fi
 
+	# inline it
+	# Over write existing because renew is successful
+	if inline_creds "$file_name_base" > "$inline_in"; then
+		notice "\
+Inline file created:
+* $inline_in"
+	else
+		warn "\
+Failed to write inline file:
+* $inline_in"
+	fi
+
 	# Success messages
-	notice "Renew was successful.
+	notice "\
+Renew was successful.
 
                               * IMPORTANT *
 
@@ -2420,11 +2446,26 @@ renew_move() {
 		rm -f "$in_dir/private/$file_name_base.$pkcs"
 	done
 
-	# remove duplicate cert in 'certs_by_serial' folder
-	rm -f "$duplicate_crt_by_serial"
+	# remove the duplicate certificate
+	if [ -e "$duplicate_crt_by_serial" ]; then
+		rm "$duplicate_crt_by_serial" || warn "\
+Failed to remove the duplicate certificate:
+* $duplicate_crt_by_serial"
+	fi
 
 	# remove credentials file
-	rm -f "$creds_in"
+	if [ -e "$creds_in" ]; then
+		rm "$creds_in" || warn "\
+Failed to remove credentials file:
+* $creds_in"
+	fi
+
+	# remove inline file
+	if [ -e "$inline_in" ]; then
+		rm "$inline_in" || warn "\
+Failed to remove inline file:
+* $inline_in"
+	fi
 
 	return 0
 } # => renew_move()
