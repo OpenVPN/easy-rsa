@@ -1894,14 +1894,17 @@ $(display_dn req "$req_in")
 		${EASYRSA_NO_TEXT:+-notext} \
 		${EASYRSA_FIX_OFFSET+ -startdate "$start_fixdate"} \
 		${EASYRSA_FIX_OFFSET+ -enddate "$end_fixdate"} \
-			|| die "signing failed (openssl output above may have more detail)"
+			|| die "\
+Signing failed (openssl output above may have more detail)"
 
 	mv "$crt_out_tmp" "$crt_out"
 	#rm -f "$ext_tmp"
 
 	# Success messages
 	#unset -v EASYRSA_BATCH # This is why batch mode should not silence output
-	notice "Certificate created at: $crt_out"
+	notice "\
+Certificate created at:
+* $crt_out"
 
 	return 0
 } # => sign_req()
@@ -1928,7 +1931,6 @@ Run easyrsa without commands for usage and commands."
 	while [ "$1" ]; do
 		case "$1" in
 			nopass) EASYRSA_NO_PASS=1 ;;
-			inline) EASYRSA_INLINE=1 ;;
 			*) warn "Ignoring unknown command option: '$1'"
 		esac
 		shift
@@ -1937,11 +1939,22 @@ Run easyrsa without commands for usage and commands."
 	# abort on existing req/key/crt files
 	err_exists="\
 file already exists. Aborting build to avoid overwriting this file.
-If you wish to continue, please use a different name or remove the file.
+If you wish to continue, please use a different name.
 Matching file found at: "
 	[ -e "$req_out" ] && die "Request $err_exists $req_out"
 	[ -e "$key_out" ] && die "Key $err_exists $key_out"
 	[ -e "$crt_out" ] && die "Certificate $err_exists $crt_out"
+	unset -v err_exists
+
+	# Confirm over write inline file
+	mkdir -p "$EASYRSA_PKI/inline"
+	inline_out="$EASYRSA_PKI/inline/$name.inline"
+	[ -e "$inline_out" ] && \
+		confirm "Confirm OVER-WRITE existing inline file ? " y "\
+Warning!
+
+An inline file for name '$name' already exists:
+* $inline_out"
 
 	# Set commonName
 	[ "$EASYRSA_REQ_CN" = ChangeMe ] || die "\
@@ -1963,23 +1976,14 @@ See error messages above for details."
 	fi
 
 	# inline it
-	if [ "$EASYRSA_INLINE" ]; then
-		inline_file="$EASYRSA_PKI/$name.creds"
-		if [ -e "$inline_file" ]; then
-			warn "\
-Inline file exists not over-writing:
-* $inline_file"
-		else
-			if inline_creds; then
-				notice "\
+	if inline_creds "$name" > "$inline_out"; then
+		notice "\
 Inline file created:
-* $inline_file"
-			else
-				warn "\
+* $inline_out"
+	else
+		warn "\
 Failed to write inline file:
-* $inline_file"
-			fi
-		fi
+* $inline_out"
 	fi
 
 	return 0
@@ -1988,22 +1992,17 @@ Failed to write inline file:
 # Create inline credentials file for this node
 inline_creds ()
 {
-	{
-		printf "%s\n" "# $crt_type: $EASYRSA_REQ_CN"
-		printf "%s\n" ""
-		printf "%s\n" "<ca>"
-		cat "$EASYRSA_PKI/ca.crt"
-		printf "%s\n" "</ca>"
-		printf "%s\n" ""
-		printf "%s\n" "<cert>"
-		cat "$crt_out"
-		printf "%s\n" "</cert>"
-		printf "%s\n" ""
-		printf "%s\n" "<key>"
-		cat "$key_out"
-		printf "%s\n" "</key>"
-		printf "%s\n" ""
-	} > "$inline_file"
+	[ "$1" ] || die "inline_creds - Name missing"
+	printf "%s\n\n" "# $crt_type: $1"
+	printf "%s\n" "<cert>"
+	cat "$crt_out"
+	printf "%s\n\n" "</cert>"
+	printf "%s\n" "<key>"
+	cat "$key_out"
+	printf "%s\n\n" "</key>"
+	printf "%s\n" "<ca>"
+	cat "$EASYRSA_PKI/ca.crt"
+	printf "%s\n\n" "</ca>"
 } # => inline_creds ()
 
 # revoke backend
