@@ -1,6 +1,7 @@
 Easy-RSA 3 ChangeLog
 
 3.1.2 (TBD)
+   * build-full: Always enable inline file creation (#834)
    * Make default Edwards curve ED25519 (#828)
    * Allow --fix-offset to create post-dated certificates (#804)
    * Introduce command 'set-pass' (#756)

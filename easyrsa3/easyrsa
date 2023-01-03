@@ -1009,7 +1009,7 @@ init_pki() {
 		shift
 	done
 
-	# If EASYRSA_PKI exists, confirm before we rm -rf (skipped with EASYRSA_BATCH)
+	# If EASYRSA_PKI exists, confirm before deletion
 	if [ -e "$EASYRSA_PKI" ]; then
 		confirm "Confirm removal: " "yes" "\
 WARNING!!!
@@ -1018,6 +1018,7 @@ You are about to remove the EASYRSA_PKI at:
 * $EASYRSA_PKI
 
 and initialize a fresh PKI here."
+
 		# now remove it:
 		case "$reset" in
 		hard)
@@ -1028,31 +1029,30 @@ and initialize a fresh PKI here."
 
 * This will remove everything in your current PKI directory.
   To keep your current settings use 'init-pki soft' instead.
-  Using 'init-pki soft' is recommended.
-"
+  Using 'init-pki soft' is recommended."
 
-				# # # shellcheck disable=SC2115 # Use "${var:?}" to ensure
-				rm -rf "$EASYRSA_PKI" || \
-					die "init-pki hard reset failed."
-				# If vars was in the old pki then it has been removed
-				# If vars was somewhere else then it is user defined
-				# Clear found_vars because we MUST not find pki/vars
-				if [ "$vars_in_pki" ]; then unset -v found_vars; fi
+			# # # shellcheck disable=SC2115 # Use "${var:?}"
+			rm -rf "$EASYRSA_PKI" || \
+				die "init-pki hard reset failed."
+
+			# If vars was in the old pki, it has been removed
+			# If vars was somewhere else, it is user defined
+			# Clear found_vars, we MUST not find pki/vars
+			[ "$vars_in_pki" ] && unset -v found_vars
 		;;
 		soft)
 		# There is no unit test for a soft reset
 			for i in ca.crt \
-					issued private reqs certs_by_serial revoked renewed \
-					serial serial.old ecparams index.txt index.txt.old \
-					index.txt.attr index.txt.attr.old
+				issued private reqs inline revoked renewed \
+				serial serial.old index.txt index.txt.old \
+				index.txt.attr index.txt.attr.old \
+				ecparams certs_by_serial
 			do
-				# # # shellcheck disable=SC2115 # Use "${var:?}" to ensure
+				# # # shellcheck disable=SC2115 # Use "${var:?}"
 				rm -rf "$EASYRSA_PKI/${i}" || \
 					die "init-pki soft reset failed."
 			done
 		;;
-		# More modes could be added here, e.g. only remove
-		# issued certs (and clean database), but keep CA intact.
 		*)
 			die "Unknown reset type: $reset"
 		esac
@@ -1061,15 +1061,18 @@ and initialize a fresh PKI here."
 	# new dirs:
 	for i in private reqs; do
 		mkdir -p "$EASYRSA_PKI/$i" || \
-			die "Failed to create PKI file structure (permissions?)"
+			die "\
+Failed to create PKI file structure (permissions?)"
 	done
 
 	# for 'init-pki' create a secure_session
-	secure_session || die "init_pki - secure_session failed."
+	secure_session || die "\
+init_pki - secure_session failed."
 
 	# Install data-files into ALL new PKIs
 	install_data_to_pki init-pki || \
-		warn "Failed to install required data-files to PKI. (init)"
+		warn "\
+Failed to install required data-files to PKI. (init)"
 
 	notice "\
 'init-pki' complete; you may now create a CA or requests.
@@ -1081,15 +1084,21 @@ Your newly created PKI dir is:
 	# if $no_new_vars then there are one or more known vars
 	# which are not in the PKI. All further commands will fail
 	# until vars is manually corrected
-	[ "$no_new_vars" ] || information "Using Easy-RSA configuration: $vars"
-	# For new PKIs where pki/vars was auto-created, show user message
+	[ "$no_new_vars" ] || information "\
+Using Easy-RSA configuration: $vars"
+
+	# For new PKIs , pki/vars was auto-created, show message
 	if [ "$new_vars_true" ]; then
 		information "\
-IMPORTANT: Easy-RSA 'vars' template file has been created in your new PKI.
-             Edit this 'vars' file to customise the settings for your PKI.
-             To use a global vars file, use global option --vars=<YOUR_VARS>"
+IMPORTANT: \
+Easy-RSA 'vars' template file has been created in your new PKI.
+             \
+Edit this 'vars' file to customise the settings for your PKI.
+             \
+To use a global vars file, use global option --vars=<YOUR_VARS>"
 
-	elif [ "$user_vars_true" ] || [ "$old_vars_true" ] || [ "$no_new_vars" ]
+	elif [ "$user_vars_true" ] || [ "$old_vars_true" ] || \
+		[ "$no_new_vars" ]
 	then
 		: # ok - User defined, old or no vars file exist
 	else
@@ -1110,36 +1119,13 @@ The preferred location for 'vars' is within the PKI folder.
 # Copy data-files from various sources
 install_data_to_pki() {
 #
-# This function will explicitly find and optionally copy data-files to the PKI.
+# Explicitly find and optionally copy data-files to the PKI.
 # During 'init-pki' this is the new default.
-# During all other functions these requirements are tested for and
-# files will be copied to the PKI, if they do not already exist there.
+# During all other functions these requirements are tested for
+# and files will be copied to the PKI, if they do not already
+# exist there.
 #
-# One of the reasons for this change is to make packaging EasyRSA work.
-#
-# First: search favoured and then common 'areas' for the EasyRSA data-files(A):
-# * 'openssl-easyrsa.cnf' and 'x509-types' (folder).
-#
-# These files MUST be found in at least one location.
-# * 'openssl-easyrsa.cnf' will be copied to the PKI.
-#   A warning will be issued if this file cannot be found.
-#
-# * 'x509-types' will set EASYRSA_EXT_DIR to the found location.
-#   If x509-types cannot be found then that is a FATAL error.
-#
-# Other EasyRSA data-files(B): it is not crucial that these are found
-# but if they are then they are copied to the PKI. (Note: 1)
-# * 'vars' and 'vars.example'
-#
-# Note 1: For 'vars' consideration must be given to:
-#   "Where the user expects to find vars!"
-#
-# Currently, *if* 'vars' is copied to the PKI then the PKI 'vars' will take
-# priority over './vars'. But it will not be updated if './vars' is changed.
-#
-# For that reason a vars file in the PKI is only created during init-pki.
-# For old PKIs where vars is elsewhere a warning is issued that the PKI
-# folder is the preferred location of vars.
+# One reason for this is to make packaging work.
 
 	context="$1"
 	shift
@@ -1150,14 +1136,14 @@ install_data_to_pki() {
 	ssl_cnf_file='openssl-easyrsa.cnf'
 	x509_types_dir='x509-types'
 
-		# "$EASYRSA_PKI" - Preferred
-		# "$EASYRSA" - Old default and Windows
-		# "$PWD" - Usually the same as above, avoid
-		# "${0%/*}" - Usually the same as above, avoid
-		# '/usr/local/share/easy-rsa' - Default user installed
-		# '/usr/share/easy-rsa' - Default system installed
-		# Room for more..
-		# '/etc/easy-rsa' - Last resort
+	# "$EASYRSA_PKI" - Preferred
+	# "$EASYRSA" - Old default and Windows
+	# "$PWD" - Usually the same as above, avoid
+	# "${0%/*}" - Usually the same as above, avoid
+	# '/usr/local/share/easy-rsa' - Default user installed
+	# '/usr/share/easy-rsa' - Default system installed
+	# Room for more..
+	# '/etc/easy-rsa' - Last resort
 
 	# Find and optionally copy data-files, in specific order
 	for area in \
@@ -1174,14 +1160,14 @@ install_data_to_pki() {
 			# Find x509-types ONLY
 			# Declare in preferred order, first wins
 			# beaten by command line.
-			[ -e "${area}/${x509_types_dir}" ] && \
-				set_var EASYRSA_EXT_DIR "${area}/${x509_types_dir}"
+			[ -e "${area}/${x509_types_dir}" ] && set_var \
+				EASYRSA_EXT_DIR "${area}/${x509_types_dir}"
 		else
 			# Find x509-types ALSO
 			# Declare in preferred order, first wins
 			# beaten by command line.
-			[ -e "${area}/${x509_types_dir}" ] && \
-				set_var EASYRSA_EXT_DIR "${area}/${x509_types_dir}"
+			[ -e "${area}/${x509_types_dir}" ] && set_var \
+				EASYRSA_EXT_DIR "${area}/${x509_types_dir}"
 
 			# Find other files - Omitting "$vars_file"
 			for source in \
@@ -1192,12 +1178,12 @@ install_data_to_pki() {
 				# Find each item
 				[ -e "${area}/${source}" ] || continue
 
-				# If the item does not exist in the PKI then copy it.
+				# If source does not exist in PKI then copy it
 				if [ -e "${EASYRSA_PKI}/${source}" ]; then
 					continue
 				else
-					cp "${area}/${source}" "$EASYRSA_PKI" || \
-						die "Failed to copy to PKI: ${area}/${source}"
+					cp "${area}/${source}" "$EASYRSA_PKI" || die \
+						"Failed to copy to PKI: ${area}/${source}"
 				fi
 			done
 		fi
@@ -1208,7 +1194,8 @@ install_data_to_pki() {
 
 	# Create PKI/vars from PKI/example
 	unset -v new_vars_true
-	if [ "$found_vars" ] || [ "$user_vars_true" ] || [ "$no_new_vars" ]
+	if [ "$found_vars" ] || [ "$user_vars_true" ] || \
+		[ "$no_new_vars" ]
 	then
 		: # ok - Do not make a PKI/vars if another vars exists
 	else
@@ -1240,9 +1227,9 @@ install_data_to_pki() {
 
 	# Check PKI is updated - Omit unnecessary checks
 	[ -e "${EASYRSA_PKI}/${ssl_cnf_file}" ] || \
-		die "install_data_to_pki - Missing: ${ssl_cnf_file}"
+		die "install_data_to_pki - Missing: '$ssl_cnf_file'"
 	[ -d "$EASYRSA_EXT_DIR" ] || \
-		die "install_data_to_pki - Missing: $x509_types_dir"
+		die "install_data_to_pki - Missing: '$x509_types_dir'"
 
 } # => install_data_to_pki ()
 
@@ -1361,8 +1348,8 @@ Please update openssl-easyrsa.cnf to the latest official release."
 
 	# create necessary files and dirs:
 	err_file="Unable to create necessary PKI files (permissions?)"
-	for i in issued certs_by_serial \
-		 revoked/certs_by_serial revoked/private_by_serial revoked/reqs_by_serial;
+	for i in issued inline certs_by_serial revoked/certs_by_serial \
+		revoked/private_by_serial revoked/reqs_by_serial
 	do
 		mkdir -p "$EASYRSA_PKI/$i" || die "$err_file"
 	done
@@ -1894,14 +1881,17 @@ $(display_dn req "$req_in")
 		${EASYRSA_NO_TEXT:+-notext} \
 		${EASYRSA_FIX_OFFSET+ -startdate "$start_fixdate"} \
 		${EASYRSA_FIX_OFFSET+ -enddate "$end_fixdate"} \
-			|| die "signing failed (openssl output above may have more detail)"
+			|| die "\
+Signing failed (openssl output above may have more detail)"
 
 	mv "$crt_out_tmp" "$crt_out"
 	#rm -f "$ext_tmp"
 
 	# Success messages
 	#unset -v EASYRSA_BATCH # This is why batch mode should not silence output
-	notice "Certificate created at: $crt_out"
+	notice "\
+Certificate created at:
+* $crt_out"
 
 	return 0
 } # => sign_req()
@@ -1928,7 +1918,6 @@ Run easyrsa without commands for usage and commands."
 	while [ "$1" ]; do
 		case "$1" in
 			nopass) EASYRSA_NO_PASS=1 ;;
-			inline) EASYRSA_INLINE=1 ;;
 			*) warn "Ignoring unknown command option: '$1'"
 		esac
 		shift
@@ -1937,11 +1926,26 @@ Run easyrsa without commands for usage and commands."
 	# abort on existing req/key/crt files
 	err_exists="\
 file already exists. Aborting build to avoid overwriting this file.
-If you wish to continue, please use a different name or remove the file.
+If you wish to continue, please use a different name.
 Matching file found at: "
 	[ -e "$req_out" ] && die "Request $err_exists $req_out"
 	[ -e "$key_out" ] && die "Key $err_exists $key_out"
 	[ -e "$crt_out" ] && die "Certificate $err_exists $crt_out"
+	unset -v err_exists
+
+	# Make inline directory
+	[ -d "$EASYRSA_PKI/inline" ] ||	\
+		mkdir -p "$EASYRSA_PKI/inline" || \
+			die "Failed to create inline directoy."
+
+	# Confirm over write inline file
+	inline_out="$EASYRSA_PKI/inline/$name.inline"
+	[ -e "$inline_out" ] && \
+		confirm "Confirm OVER-WRITE existing inline file ? " y "\
+Warning!
+
+An inline file for name '$name' already exists:
+* $inline_out"
 
 	# Set commonName
 	[ "$EASYRSA_REQ_CN" = ChangeMe ] || die "\
@@ -1963,23 +1967,14 @@ See error messages above for details."
 	fi
 
 	# inline it
-	if [ "$EASYRSA_INLINE" ]; then
-		inline_file="$EASYRSA_PKI/$name.creds"
-		if [ -e "$inline_file" ]; then
-			warn "\
-Inline file exists not over-writing:
-* $inline_file"
-		else
-			if inline_creds; then
-				notice "\
+	if inline_creds "$name" > "$inline_out"; then
+		notice "\
 Inline file created:
-* $inline_file"
-			else
-				warn "\
+* $inline_out"
+	else
+		warn "\
 Failed to write inline file:
-* $inline_file"
-			fi
-		fi
+* $inline_out"
 	fi
 
 	return 0
@@ -1988,22 +1983,17 @@ Failed to write inline file:
 # Create inline credentials file for this node
 inline_creds ()
 {
-	{
-		printf "%s\n" "# $crt_type: $EASYRSA_REQ_CN"
-		printf "%s\n" ""
-		printf "%s\n" "<ca>"
-		cat "$EASYRSA_PKI/ca.crt"
-		printf "%s\n" "</ca>"
-		printf "%s\n" ""
-		printf "%s\n" "<cert>"
-		cat "$crt_out"
-		printf "%s\n" "</cert>"
-		printf "%s\n" ""
-		printf "%s\n" "<key>"
-		cat "$key_out"
-		printf "%s\n" "</key>"
-		printf "%s\n" ""
-	} > "$inline_file"
+	[ "$1" ] || die "inline_creds - Name missing"
+	printf "%s\n\n" "# $crt_type: $1"
+	printf "%s\n" "<cert>"
+	cat "$crt_out"
+	printf "%s\n\n" "</cert>"
+	printf "%s\n" "<key>"
+	[ -e "$key_out" ] && cat "$key_out"
+	printf "%s\n\n" "</key>"
+	printf "%s\n" "<ca>"
+	cat "$EASYRSA_PKI/ca.crt"
+	printf "%s\n\n" "</ca>"
 } # => inline_creds ()
 
 # revoke backend
@@ -2024,6 +2014,7 @@ Run easyrsa without commands for usage and command help."
 	key_in="$in_dir/private/$file_name_base.key"
 	req_in="$in_dir/reqs/$file_name_base.req"
 	creds_in="$in_dir/$file_name_base.creds"
+	inline_in="$in_dir/inline/$file_name_base.inline"
 
 	# Assign possible "crl_reason"
 	if [ "$1" ]; then
@@ -2086,22 +2077,29 @@ Cannot revoke this certificate because a conflicting file exists.
 	[ -e "$req_out" ] && die "$deny_msg request    : $req_out"
 	unset -v deny_msg
 
-	# confirm operation by displaying DN:
+	# Check for key and request files
 	unset -v if_exist_key_in if_exist_req_in
 	[ -e "$key_in" ] && if_exist_key_in="
 * $key_in"
 	[ -e "$req_in" ] && if_exist_req_in="
 * $req_in"
+
+	# confirm operation by displaying DN:
 	warn "\
 This process is destructive!
 
-These files will be moved to the 'revoked' storage sub-directory:
+These files will be MOVED to the 'revoked' storage directory:
 * $crt_in${if_exist_key_in}${if_exist_req_in}
 
 These files will be DELETED:
-* All PKCS files for commonName : $file_name_base
-* The inline credentials file   : $creds_in
-* The duplicate certificate     : $duplicate_crt_by_serial"
+All PKCS files for commonName : $file_name_base
+
+The inline credentials files:
+* $creds_in
+* $inline_in
+
+The duplicate certificate:
+* $duplicate_crt_by_serial"
 
 	confirm "  Continue with revocation: " "yes" "\
 Please confirm you wish to revoke the certificate
@@ -2117,12 +2115,15 @@ with the following subject:
 	easyrsa_openssl ca -utf8 -revoke "$crt_in" \
 		${crl_reason+ -crl_reason "$crl_reason"} \
 		${EASYRSA_PASSIN:+ -passin "$EASYRSA_PASSIN"} \
-			|| die "Failed to revoke certificate: revocation command failed."
+			|| die "\
+Failed to revoke certificate: revocation command failed."
 
-	# move revoked files so we can reissue certificates with the same name
+	# move revoked files
+	# so we can reissue certificates with the same name
 	revoke_move
 
-	notice "                              * IMPORTANT *
+	notice "\
+                              * IMPORTANT *
 
 Revocation was successful. You must run 'gen-crl' and upload a new CRL to your
 infrastructure in order to prevent the revoked certificate from being accepted."
@@ -2173,17 +2174,25 @@ revoke_move() {
 		fi
 	done
 
-	# remove the duplicate certificate in the certs_by_serial folder
+	# remove the duplicate certificate
 	if [ -e "$duplicate_crt_by_serial" ]; then
 		rm "$duplicate_crt_by_serial" || warn "\
-Failed to remove the duplicate certificate in the certs_by_serial folder"
+Failed to remove the duplicate certificate:
+* $duplicate_crt_by_serial"
 	fi
 
-	# remove credentials file (if exists)
+	# remove credentials file
 	if [ -e "$creds_in" ]; then
-		confirm "Remove inline file ? " "yes" "An inline file exists. $creds_in"
 		rm "$creds_in" || warn "\
-Failed to remove inline file: $creds_in"
+Failed to remove credentials file:
+* $creds_in"
+	fi
+
+	# remove inline file
+	if [ -e "$inline_in" ]; then
+		rm "$inline_in" || warn "\
+Failed to remove inline file:
+* $inline_in"
 	fi
 
 	return 0
@@ -2202,10 +2211,15 @@ Run easyrsa without commands for usage and command help."
 	file_name_base="$1"
 	shift
 
+	# Assign input files
 	in_dir="$EASYRSA_PKI"
 	crt_in="$in_dir/issued/$file_name_base.crt"
+	key_in="$in_dir/private/$file_name_base.key"
+	# key_out is used by inline_creds()
+	key_out="$in_dir/private/$file_name_base.key"
 	req_in="$in_dir/reqs/$file_name_base.req"
 	creds_in="$in_dir/$file_name_base.creds"
+	inline_in="$in_dir/inline/$file_name_base.inline"
 
 	# Upgrade CA index.txt.attr - unique_subject = no
 	up23_upgrade_ca || \
@@ -2262,6 +2276,11 @@ Cannot renew this certificate, a conflicting file exists:
 	[ -e "$crt_out" ] && die "$deny_msg certificate: $crt_out"
 	unset -v deny_msg
 
+	# Make inline directory
+	[ -d "$EASYRSA_PKI/inline" ] ||	\
+		mkdir -p "$EASYRSA_PKI/inline" || \
+			die "Failed to create inline directoy."
+
 	# Extract certificate usage from old cert
 	cert_ext_key_usage="$(
 		easyrsa_openssl x509 -in "$crt_in" -noout -text |
@@ -2300,18 +2319,18 @@ subjectAltName = $san"
 	warn "\
 This process is destructive!
 
-These files will be moved to 'renewed' storage sub-directory:
+These files will be MOVED to 'renewed' storage directory:
 * $crt_in
 
 These files will be DELETED:
-* All PKCS files for commonName:
-  $file_name_base
+All PKCS files for commonName: $file_name_base
 
-* The inline credentials file:
-  $creds_in
+The inline credentials files:
+* $creds_in
+* $inline_in
 
-* The duplicate certificate:
-  $duplicate_crt_by_serial"
+The duplicate certificate:
+* $duplicate_crt_by_serial"
 
 	confirm "  Continue with renewal: " "yes" "\
 Please confirm you wish to renew the certificate
@@ -2338,8 +2357,21 @@ with the following subject:
 Renewal has failed to build a new certificate."
 	fi
 
+	# inline it
+	# Over write existing because renew is successful
+	if inline_creds "$file_name_base" > "$inline_in"; then
+		notice "\
+Inline file created:
+* $inline_in"
+	else
+		warn "\
+Failed to write inline file:
+* $inline_in"
+	fi
+
 	# Success messages
-	notice "Renew was successful.
+	notice "\
+Renew was successful.
 
                               * IMPORTANT *
 
@@ -2404,11 +2436,26 @@ renew_move() {
 		rm -f "$in_dir/private/$file_name_base.$pkcs"
 	done
 
-	# remove duplicate cert in 'certs_by_serial' folder
-	rm -f "$duplicate_crt_by_serial"
+	# remove the duplicate certificate
+	if [ -e "$duplicate_crt_by_serial" ]; then
+		rm "$duplicate_crt_by_serial" || warn "\
+Failed to remove the duplicate certificate:
+* $duplicate_crt_by_serial"
+	fi
 
 	# remove credentials file
-	rm -f "$creds_in"
+	if [ -e "$creds_in" ]; then
+		rm "$creds_in" || warn "\
+Failed to remove credentials file:
+* $creds_in"
+	fi
+
+	# remove inline file
+	if [ -e "$inline_in" ]; then
+		rm "$inline_in" || warn "\
+Failed to remove inline file:
+* $inline_in"
+	fi
 
 	return 0
 } # => renew_move()
@@ -2696,6 +2743,7 @@ Run easyrsa without commands for usage and command help."
 	key_in="$in_dir/private/$file_name_base.key"
 	req_in="$in_dir/reqs/$file_name_base.req"
 	creds_in="$in_dir/$file_name_base.creds"
+	inline_in="$in_dir/inline/$file_name_base.inline"
 
 	# Upgrade CA index.txt.attr - unique_subject = no
 	up23_upgrade_ca || die "Failed to upgrade CA to support renewal."
@@ -2793,13 +2841,18 @@ subjectAltName = $san"
 	warn "\
 This process is destructive!
 
-These files will be moved to the 'renewed' storage sub-directory:
+These files will be moved to the 'renewed' storage directory:
 * $crt_in${if_exist_key_in}${if_exist_req_in}
 
 These files will be DELETED:
-* All PKCS files for commonName : $file_name_base
-* The inline credentials file   : $creds_in
-* The duplicate certificate     : $duplicate_crt_by_serial
+All PKCS files for commonName : $file_name_base
+
+The inline credentials files:
+* $creds_in
+* $inline_in
+
+The duplicate certificate:
+* $duplicate_crt_by_serial
 
 IMPORTANT: The new key will${EASYRSA_NO_PASS+ NOT} be password protected."
 
@@ -2931,15 +2984,25 @@ rebuild_move() {
 		fi
 	done
 
-	# remove the duplicate certificate in the certs_by_serial folder
+	# remove the duplicate certificate
 	if [ -e "$duplicate_crt_by_serial" ]; then
 		rm "$duplicate_crt_by_serial" || warn "\
-Failed to remove the duplicate certificate in the certs_by_serial folder"
+Failed to remove the duplicate certificate:
+* $duplicate_crt_by_serial"
 	fi
 
-	# remove credentials file (if exists)
+	# remove credentials file
 	if [ -e "$creds_in" ]; then
-		rm "$creds_in" || warn "Failed to remove the inline file."
+		rm "$creds_in" || warn "\
+Failed to remove credentials file:
+* $creds_in"
+	fi
+
+	# remove inline file
+	if [ -e "$inline_in" ]; then
+		rm "$inline_in" || warn "\
+Failed to remove inline file:
+* $inline_in"
 	fi
 
 	return 0
