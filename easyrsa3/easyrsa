@@ -1284,7 +1284,9 @@ build_ca() {
 	while [ "$1" ]; do
 		case "$1" in
 			intca|subca) sub_ca=1 ;;
-			nopass) EASYRSA_NO_PASS=1 ;;
+			nopass)
+				[ "$prohibit_no_pass" ] || EASYRSA_NO_PASS=1
+			;;
 			*) warn "Ignoring unknown command option: '$1'"
 		esac
 		shift
@@ -1599,7 +1601,9 @@ Run easyrsa without commands for usage and commands."
 	while [ "$1" ]; do
 		case "$1" in
 			text) text=1 ;;
-			nopass) EASYRSA_NO_PASS=1 ;;
+			nopass)
+				[ "$prohibit_no_pass" ] || EASYRSA_NO_PASS=1
+			;;
 			# batch flag supports internal callers needing silent operation
 			batch) ssl_batch=1 ;;
 			*) warn "Ignoring unknown command option: '$1'"
@@ -1917,7 +1921,10 @@ Run easyrsa without commands for usage and commands."
 	# function opts support
 	while [ "$1" ]; do
 		case "$1" in
-			nopass) EASYRSA_NO_PASS=1 ;;
+			nopass)
+				[ "$prohibit_no_pass" ] || EASYRSA_NO_PASS=1
+			;;
+			inline) EASYRSA_INLINE=1 ;;
 			*) warn "Ignoring unknown command option: '$1'"
 		esac
 		shift
@@ -2749,11 +2756,15 @@ Run easyrsa without commands for usage and command help."
 	up23_upgrade_ca || die "Failed to upgrade CA to support renewal."
 
 	# Set 'nopass'
-	case "$1" in
-		nopass) EASYRSA_NO_PASS=1; shift ;;
-		'') : ;; # Empty ok
-		*) die "Unknown option: $1"
-	esac
+	while [ "$1" ]; do
+		case "$1" in
+			nopass)
+				[ "$prohibit_no_pass" ] || EASYRSA_NO_PASS=1
+			;;
+			*) die "Unknown option: $1"
+		esac
+		shift
+	done
 
 	# referenced cert must exist:
 	[ -f "$crt_in" ] || die "\
@@ -3090,7 +3101,9 @@ Run easyrsa without commands for usage and command help."
 		case "$1" in
 			noca) want_ca="" ;;
 			nokey) want_key="" ;;
-			nopass) EASYRSA_NO_PASS=1 ;;
+			nopass)
+				[ "$prohibit_no_pass" ] || EASYRSA_NO_PASS=1
+			;;
 			usefn) pkcs_friendly_name="$short_name" ;;
 			*) warn "Ignoring unknown command option: '$1'"
 		esac
@@ -3204,7 +3217,9 @@ See help output for usage details."
 	unset -v nopass
 	while [ "$1" ]; do
 		case "$1" in
-			nopass) EASYRSA_NO_PASS=1 ;;
+			nopass)
+				[ "$prohibit_no_pass" ] || EASYRSA_NO_PASS=1
+			;;
 			file) file="$raw_file" ;;
 			*) warn "Ignoring unknown command option: '$1'"
 		esac
@@ -3261,7 +3276,9 @@ Missing argument: no name/file supplied."
 	cipher="-aes256"
 	while [ "$1" ]; do
 		case "$1" in
-			nopass) EASYRSA_NO_PASS=1 ;;
+			nopass)
+				[ "$prohibit_no_pass" ] || EASYRSA_NO_PASS=1
+			;;
 			file) file="$raw_file" ;;
 			*) warn "Ignoring unknown command option: '$1'"
 		esac
@@ -5188,7 +5205,7 @@ trap "exit 14" 15
 detect_host
 
 # Initialisation requirements
-unset -v easyrsa_error_exit \
+unset -v easyrsa_error_exit prohibit_no_pass \
 	user_san_true user_vars_true alias_days
 
 # Parse options
@@ -5379,16 +5396,17 @@ case "$cmd" in
 		unset -v no_pki_required
 esac
 
-# Mutual exclusions
-# --nopass cannot be used with --passin and --passout
-if [ "$EASYRSA_NO_PASS" ] && \
-	{ [ "$EASYRSA_PASSIN" ] || [ "$EASYRSA_PASSOUT" ]; }
-then
-	die "* Cannot use --nopass with --passin or --passout"
-fi
-
 # Intelligent env-var detection and auto-loading:
 vars_setup
+
+# Mutual exclusions:
+# --nopass cannot be used with --passin and --passout
+if [ "$EASYRSA_PASSIN" ] || [ "$EASYRSA_PASSOUT" ]
+then
+	# --passin/--passout MUST take priority over --nopass
+	unset -v EASYRSA_NO_PASS
+	prohibit_no_pass=1
+fi
 
 # determine how we were called, then hand off to the function responsible
 case "$cmd" in
