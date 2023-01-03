@@ -426,8 +426,13 @@ ssl_file='openssl'
 unset -v ssl_bin ssl_bin_ok
 # v 3.0.3
 #ssl_hash='SHA256(openssl)= a0aed8b4aec1b72ca17c8a9ab04e10d829343a12cb5e7f8f6ae73e6f2ce026fd'
+
 # v 3.0.5
-ssl_hash='SHA256(openssl)= 341d278423aeecbaa2b057b84b5501dd492c8f7e192c5bb9c66a260dbc022a4c'
+#ssl_hash='SHA256(openssl)= 341d278423aeecbaa2b057b84b5501dd492c8f7e192c5bb9c66a260dbc022a4c'
+
+# v 3.0.7
+ssl_hash='SHA256(openssl)= 606f8fb9d6ac7993c2f68efba8c4f022e128a8e9ab1a0921e4941d9f88a7bb5b'
+
 # Here we go ..
 
 download_shellcheck
