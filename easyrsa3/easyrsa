@@ -1361,8 +1361,8 @@ Please update openssl-easyrsa.cnf to the latest official release."
 
 	# create necessary files and dirs:
 	err_file="Unable to create necessary PKI files (permissions?)"
-	for i in issued certs_by_serial \
-		 revoked/certs_by_serial revoked/private_by_serial revoked/reqs_by_serial;
+	for i in issued inline certs_by_serial revoked/certs_by_serial \
+		revoked/private_by_serial revoked/reqs_by_serial
 	do
 		mkdir -p "$EASYRSA_PKI/$i" || die "$err_file"
 	done
@@ -1947,8 +1947,10 @@ Matching file found at: "
 	unset -v err_exists
 
 	# Make inline directory
-	mkdir -p "$EASYRSA_PKI/inline" || die "\
-Failed to create inline directoy."
+	[ -d "$EASYRSA_PKI/inline" ] ||	\
+		mkdir -p "$EASYRSA_PKI/inline" || \
+			die "Failed to create inline directoy."
+
 	# Confirm over write inline file
 	inline_out="$EASYRSA_PKI/inline/$name.inline"
 	[ -e "$inline_out" ] && \
@@ -2288,8 +2290,9 @@ Cannot renew this certificate, a conflicting file exists:
 	unset -v deny_msg
 
 	# Make inline directory
-	mkdir -p "$EASYRSA_PKI/inline" || die "\
-Failed to create inline directoy."
+	[ -d "$EASYRSA_PKI/inline" ] ||	\
+		mkdir -p "$EASYRSA_PKI/inline" || \
+			die "Failed to create inline directoy."
 
 	# Extract certificate usage from old cert
 	cert_ext_key_usage="$(
