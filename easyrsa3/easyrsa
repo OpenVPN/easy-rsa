@@ -5408,10 +5408,9 @@ esac
 vars_setup
 
 # Mutual exclusions:
-# --nopass cannot be used with --passin and --passout
-if [ "$EASYRSA_PASSIN" ] || [ "$EASYRSA_PASSOUT" ]
-then
-	# --passin/--passout MUST take priority over --nopass
+# --nopass cannot be used with --passout
+if [ "$EASYRSA_PASSOUT" ]; then
+	# --passout MUST take priority over --nopass
 	unset -v EASYRSA_NO_PASS
 	prohibit_no_pass=1
 fi
