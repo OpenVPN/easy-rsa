@@ -1261,16 +1261,16 @@ Could not disable echo. Password will be shown on screen!"
 get_passphrase() {
 	while :; do
 		r=""
-		printf '\n%s' "$prompt"
+		t="$1"; shift || die "password malfunction"
+		printf '\n%s' "$*"
 		hide_read_pass r
 
 		if [ "${#r}" -lt 4 ]; then
 			printf '\n%s\n' \
 				"Passphrase must be at least 4 characters!"
 		else
-			safe_set_var "$*" "$r" || \
-				die "Passphrase error!"
-			unset -v r
+			safe_set_var "$t" "$r" || die "Passphrase error!"
+			unset -v r t
 			print
 			return 0
 		fi
@@ -1405,12 +1405,12 @@ Please update openssl-easyrsa.cnf to the latest official release."
 			p=""
 			q=""
 			# Get passphrase p
-			prompt="Enter New CA Key Passphrase: "
-			get_passphrase p
+			get_passphrase p \
+				"Enter New CA Key Passphrase: "
 
 			# Confirm passphrase q
-			prompt="Confirm New CA Key Passphrase: "
-			get_passphrase q
+			get_passphrase q \
+				"Confirm New CA Key Passphrase: "
 		fi
 
 		# Validate passphrase
