@@ -5205,13 +5205,18 @@ trap "exit 14" 15
 detect_host
 
 # Initialisation requirements
-unset -v easyrsa_error_exit prohibit_no_pass \
-	user_san_true user_vars_true alias_days
+unset -v \
+	easyrsa_error_exit \
+	prohibit_no_pass \
+	user_vars_true \
+	user_san_true \
+	alias_days
 
 # Parse options
 while :; do
 	# Reset per pass flags
-	unset -v opt val is_empty empty_ok number_only zero_allowed
+	unset -v opt val \
+		is_empty empty_ok number_only zero_allowed
 
 	# Separate option from value:
 	opt="${1%%=*}"
@@ -5226,7 +5231,8 @@ while :; do
 	case "$opt" in
 	--days)
 		number_only=1
-		# Set the appropriate date variable when called by command later
+		# Set the appropriate date variable
+		# when called by command later
 		alias_days="$val"
 		;;
 	--fix-offset)
@@ -5362,7 +5368,8 @@ subjectAltName = $val"
 
 	# fatal error when no value was provided
 	if [ "$is_empty" ]; then
-		[ "$empty_ok" ] || die "Missing value to option: $opt"
+		[ "$empty_ok" ] || \
+			die "Missing value to option: $opt"
 	fi
 
 	# fatal error when a number is expected but not provided
@@ -5381,7 +5388,8 @@ subjectAltName = $val"
 	shift
 done
 
-# Set cmd now because vars_setup needs to know if this is init-pki
+# Set cmd now
+# vars_setup needs to know if this is init-pki
 cmd="$1"
 [ "$1" ] && shift # scrape off command
 
@@ -5408,7 +5416,7 @@ then
 	prohibit_no_pass=1
 fi
 
-# determine how we were called, then hand off to the function responsible
+# Hand off to the function responsible
 case "$cmd" in
 	init-pki|clean-all)
 		init_pki "$@"
