@@ -4132,6 +4132,9 @@ status() {
 	# This does not build certs, so do not need fixed dates
 	unset -v EASYRSA_FIX_OFFSET EASYRSA_BATCH EASYRSA_SILENT
 
+	# test fix: https://github.com/OpenVPN/easy-rsa/issues/819
+	export LC_TIME=C.UTF-8
+
 	# If no target file then add Notice
 	if [ -z "$target" ]; then
 		# Select correct Notice
