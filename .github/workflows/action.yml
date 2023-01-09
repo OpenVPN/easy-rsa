@@ -74,7 +74,7 @@ jobs:
       EASYRSA_REMOTE_CI: 1
       # Limit run to RSA and EC only, Libre does not do ED
       #LIBRESSL_LIMIT: 1
-      #EASYRSA_WIN: 1
+      EASYRSA_MAC: 1
       TERM: xterm-256color
 
     # Steps represent a sequence of tasks that will be executed as part of the job
