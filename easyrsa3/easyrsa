@@ -3599,6 +3599,9 @@ fixed_cert_dates() {
 		die "Fixed off-set range [1-365 days]: $start_fix_day_n"
 	fi
 
+	# Final offset is off-by-one, adjust now
+	start_fix_day_n="$(( start_fix_day_n - 1 ))"
+
 	# Set the end fixed day-number of the Year
 	end_fix_day_n="$(( start_fix_day_n + EASYRSA_CERT_EXPIRE ))"
 
