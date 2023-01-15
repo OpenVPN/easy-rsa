@@ -3727,6 +3727,9 @@ fixed_cert_dates - safe_set_var - $3 - $end_fix_day_d"
 
 # Convert certificate date to timestamp seconds since epoch
 cert_date_to_timestamp_s() {
+	# check input
+	[ "$#" -eq 2 ] || die "\
+cert_date_to_timestamp_s - input error"
 
 	in_date="$1"
 
@@ -3734,26 +3737,27 @@ cert_date_to_timestamp_s() {
 	if busybox date --help > /dev/null 2>&1
 	then
 		timestamp_s="$(
-			busybox date -D "%b %e %H:%M:%S %Y" -d "$in_date" +%s \
-				2>/dev/null
-			)"
-		return
+			busybox date -D "%b %e %H:%M:%S %Y" \
+				-d "$in_date" +%s 2>/dev/null
+			)" || die "\
+cert_date_to_timestamp_s - out_date_s - busybox"
 
 	# Darwin, BSD
 	elif timestamp_s="$(
-		date -j -f '%b %d %T %Y %Z' "$in_date" +%s \
-			2>/dev/null
-		)"
-	then return
+			date -j -f '%b %d %T %Y %Z' \
+				"$in_date" +%s 2>/dev/null
+			)"
+	then : # ok
 
 	# OS dependencies
-	# Linux and Windows: date.exe does not allow +%s as input
+	# Linux and Windows
+	# date.exe does not allow +%s as input
 	# MacPorts GNU date
 	elif timestamp_s="$(
-		date -d "$in_date" +%s \
-			2>/dev/null
-		)"
-	then return
+			date -d "$in_date" +%s \
+				2>/dev/null
+			)"
+	then : # ok
 
 	# Something else
 	else
@@ -3761,6 +3765,12 @@ cert_date_to_timestamp_s() {
 cert_date_to_timestamp_s:
 'date' failed for 'in_date': $in_date"
 	fi
+
+	# Return timestamp_s
+	safe_set_var "$2" "$timestamp_s" || die "\
+cert_date_to_timestamp_s - safe_set_var - $2 - $timestamp_s"
+
+	unset -v in_date timestamp_s
 } # => cert_date_to_timestamp_s()
 
 # Convert system date to X509 certificate style date (+)offset
@@ -4038,7 +4048,8 @@ serial mismatch:
 		fi
 
 		#cert_source=issued
-		ssl_cert_not_after_date "$cert_issued" cert_not_after_date
+		ssl_cert_not_after_date \
+			"$cert_issued" cert_not_after_date
 
 	else
 		# Translate db date to usable date
@@ -4050,18 +4061,21 @@ serial mismatch:
 	fi
 
 	# Get timestamp seconds for certificate expiry date
-	cert_date_to_timestamp_s "$cert_not_after_date" # Assigns timestamp_s
-	cert_expire_date_s="$timestamp_s"
+	cert_expire_date_s=
+	cert_date_to_timestamp_s \
+		"$cert_not_after_date" cert_expire_date_s
 
 	# Set the cutoff date for expiry comparison
 	offset_days_to_cert_date "$EASYRSA_CERT_RENEW" # Assigns cert_type_date
-	cert_date_to_timestamp_s "$cert_type_date" # Assigns timestamp_s
-	cutoff_date_s="$timestamp_s"
+	cutoff_date_s=
+	cert_date_to_timestamp_s \
+		"$cert_type_date" cutoff_date_s
 
 	# Set NOW date for expiry comparison
 	offset_days_to_cert_date 0 # Assigns cert_type_date
-	cert_date_to_timestamp_s "$cert_type_date" # Assigns timestamp_s
-	now_date_s="$timestamp_s"
+	now_date_s=
+	cert_date_to_timestamp_s \
+		"$cert_type_date" now_date_s
 
 	if [ "$cert_expire_date_s" -lt "$cutoff_date_s" ]; then
 		# Cert expires in less than grace period
