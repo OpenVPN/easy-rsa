@@ -3919,7 +3919,7 @@ safe_set_var() {
 	# check for simple errors
 	case "$1" in
 		[1234567890]*|*[-.\ ]*)
-			die "safe_set_var - var"
+			die "safe_set_var - $1"
 	esac
 	eval "$1"=1 || die "safe_set_var - eval"
 	unset -v "$1" || die "safe_set_var - unset"
@@ -3938,8 +3938,7 @@ ssl_cert_serial() {
 	# remove the serial= part -> we only need the XXXX part
 	fn_ssl_out="${fn_ssl_out##*=}"
 
-	shift
-	safe_set_var "$*" "$fn_ssl_out" || \
+	safe_set_var "$2" "$fn_ssl_out" || \
 		die "ssl_cert_serial - failed to set var '$*'"
 
 	unset -v fn_ssl_out
@@ -3947,38 +3946,42 @@ ssl_cert_serial() {
 
 # Get certificate start date
 ssl_cert_not_before_date() {
-	[ "$#" = 2 ] || die "ssl_cert_not_before_date - invalid input"
-	[ -f "$1" ] || die "ssl_cert_not_before_date - missing cert"
+	[ "$#" = 2 ] || die "\
+ssl_cert_not_before_date - invalid input"
+	[ -f "$1" ] || die "\
+ssl_cert_not_before_date - missing cert"
 
 	fn_ssl_out="$(
 		unset -v EASYRSA_DEBUG
 		easyrsa_openssl x509 -in "$1" -noout -startdate
-		)" || die "ssl_cert_not_before_date - failed: -startdate"
+		)" || die "\
+ssl_cert_not_before_date - failed: -startdate"
 
 	fn_ssl_out="${fn_ssl_out#*=}"
 
-	shift
-	safe_set_var "$*" "$fn_ssl_out" || \
-		die "ssl_cert_not_before_date - failed to set var '$*'"
+	safe_set_var "$2" "$fn_ssl_out" || die "\
+ssl_cert_not_before_date - failed to set var '$*'"
 
 	unset -v fn_ssl_out
 } # => ssl_cert_not_before_date()
 
 # Get certificate end date
 ssl_cert_not_after_date() {
-	[ "$#" = 2 ] || die "ssl_cert_not_after_date - invalid input"
-	[ -f "$1" ] || die "ssl_cert_not_after_date - missing cert"
+	[ "$#" = 2 ] || die "\
+ssl_cert_not_after_date - invalid input"
+	[ -f "$1" ] || die "\
+ssl_cert_not_after_date - missing cert"
 
 	fn_ssl_out="$(
 		unset -v EASYRSA_DEBUG
 		easyrsa_openssl x509 -in "$1" -noout -enddate
-		)" || die "ssl_cert_not_after_date - failed: -enddate"
+		)" || die "\
+ssl_cert_not_after_date - failed: -enddate"
 
 	fn_ssl_out="${fn_ssl_out#*=}"
 
-	shift
-	safe_set_var "$*" "$fn_ssl_out" || \
-		die "ssl_cert_not_after_date - failed to set var '$*'"
+	safe_set_var "$2" "$fn_ssl_out" || die "\
+ssl_cert_not_after_date - failed to set var '$*'"
 
 	unset -v fn_ssl_out
 } # => ssl_cert_not_after_date()
