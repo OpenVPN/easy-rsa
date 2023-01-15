@@ -3830,35 +3830,41 @@ offset_days_to_cert_date \
 
 # Convert fixed format date to X509 certificate style date
 ff_date_to_cert_date() {
+	# check input
+	[ "$#" -eq 2 ] || die "\
+ff_date_to_cert_date - input error"
 
 	in_date="$1"
 
 	# busybox
 	if busybox date --help > /dev/null 2>&1
 	then
-		cert_type_date="$(
-			busybox date -u -D "%y-%m-%d %H:%M:%S%Z" \
-				-d "$in_date" \
-				"+%b %d %H:%M:%S %Y %Z" 2>/dev/null
-			)"
-		return
+		out_date="$(
+			busybox date -u \
+				-D "%y-%m-%d %H:%M:%S%Z" \
+				-d "$in_date" "+%b %d %H:%M:%S %Y %Z" \
+				2>/dev/null
+			)" || die "\
+ff_date_to_cert_date - out_date - busybox"
 
 	# Darwin, BSD
-	elif cert_type_date="$(
-			date -u -j -f '%y-%m-%d %TZ' "$in_date" \
-				"+%b %d %H:%M:%S %Y %Z" 2>/dev/null
+	elif out_date="$(
+			date -u -j -f '%y-%m-%d %TZ' \
+				"$in_date" "+%b %d %H:%M:%S %Y %Z" \
+				2>/dev/null
 			)"
-	then return
+	then : # ok
 
 	# OS dependencies
 	# Linux and Windows
 	# * date.exe does not support format +%s as input
 	# MacPorts GNU date
-	elif cert_type_date="$(
+	elif out_date="$(
 			date -u -d "$in_date" \
-				"+%b %d %H:%M:%S %Y %Z" 2>/dev/null
+				"+%b %d %H:%M:%S %Y %Z" \
+				2>/dev/null
 			)"
-	then return
+	then : # ok
 
 	# Something else
 	else
@@ -3866,6 +3872,13 @@ ff_date_to_cert_date() {
 ff_date_to_cert_date:
 'date' failed for 'in_date': $in_date"
 	fi
+
+	# Return offset_date
+	safe_set_var "$2" "$out_date" || die "\
+ff_date_to_cert_date \
+- safe_set_var - $2 - $out_date"
+
+	unset -v in_date out_date
 } # => ff_date_to_cert_date()
 
 # Fixed format date
@@ -4070,7 +4083,8 @@ serial mismatch:
 		# Translate db date to usable date
 		#cert_source=database
 		db_date_to_ff_date "$db_notAfter" # Assigns ff_date
-		ff_date_to_cert_date "$ff_date" # Assigns cert_type_date
+		cert_type_date=
+		ff_date_to_cert_date "$ff_date" cert_type_date
 		# Use db translated date
 		cert_not_after_date="$cert_type_date"
 	fi
@@ -4115,7 +4129,8 @@ revoke_status() {
 	# Translate db date to usable date
 	#source_date=database
 	db_date_to_ff_date "$db_revoke_date" # Assigns ff_date
-	ff_date_to_cert_date "$ff_date" # Assigns cert_type_date
+	cert_type_date=
+	ff_date_to_cert_date "$ff_date" cert_type_date
 	# Use db translated date
 	cert_revoke_date="$cert_type_date"
 
