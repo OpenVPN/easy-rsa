@@ -1756,15 +1756,8 @@ File Path: $req_in"
 
 	# Get fixed dates by --fix-offset
 	if [ "$EASYRSA_FIX_OFFSET" ]; then
-		fixed_dates="$( # subshell for debug
-			[ "$EASYRSA_DEBUG" ] && set -x
-			fixed_cert_dates "$EASYRSA_FIX_OFFSET"
-		)" # Close subshell
-		start_fixdate="${fixed_dates% *}"
-		end_fixdate="${fixed_dates#* }"
-		unset -v fixed_dates
-	else
-		unset -v start_fixdate end_fixdate
+		fixed_cert_dates "$EASYRSA_FIX_OFFSET" \
+			start_fixdate end_fixdate
 	fi
 
 	# When EASYRSA_CP_EXT is defined, adjust openssl's [default_ca] section:
@@ -3584,54 +3577,62 @@ OpenSSL failure to process the input"
 
 # Set fixed offset dates
 fixed_cert_dates() {
+	# check input
+	[ "$#" -eq 3 ] || die "fixed_cert_dates - input error"
+
 	# Set the start fixed day-number of the Year
 	start_fix_day_n="$1"
 
-	# Check offset is numeric
-	case "$start_fix_day_n" in
-	(''|*[!1234567890]*|0*)
-		die "fixed_cert_dates - Number expected: $start_fix_day_n"
-	esac
-
 	# Check offset range
-	if [ 1 -gt "$start_fix_day_n" ] || [ 365 -lt "$start_fix_day_n" ]
+	if [ "$start_fix_day_n" -lt 1 ] || \
+		[ "$start_fix_day_n" -gt 365 ]
 	then
-		die "Fixed off-set range [1-365 days]: $start_fix_day_n"
+		die "\
+Fixed off-set range [1-365 days]: $start_fix_day_n"
 	fi
 
 	# Final offset is off-by-one, adjust now
 	start_fix_day_n="$(( start_fix_day_n - 1 ))"
 
 	# Set the end fixed day-number of the Year
-	end_fix_day_n="$(( start_fix_day_n + EASYRSA_CERT_EXPIRE ))"
+	end_fix_day_n="$((
+		start_fix_day_n + EASYRSA_CERT_EXPIRE
+		))"
 
 	# OS dependencies
 
-	# busybox - Works best with seconds since epoch
-	# busybox can probably do this better, this was writen for 'date'
+	# busybox
 	if busybox date --help > /dev/null 2>&1; then
 
 		this_year_n="$(busybox date -u +%y)"
 		#today_n="$(busybox date -u +%j)"
 
 		New_Year_day_s="$(
-			busybox date -u -d "${this_year_n}01010000.01" '+%s'
-			)"
+			busybox date -u -d \
+				"${this_year_n}01010000.01" '+%s'
+			)" || die "\
+fixed_cert_dates - New_Year_day_s - busybox"
 
 		start_fix_day_s="$((
 			New_Year_day_s + start_fix_day_n * 86400
 			))"
+
 		end_fix_day_s="$((
 			start_fix_day_s + EASYRSA_CERT_EXPIRE * 86400
 			))"
 
 		# Convert to date-stamps for SSL input
 		start_fix_day_d="$(
-			busybox date -u -d @"${start_fix_day_s}" +%Y%m%d%H%M%SZ
-			)"
+			busybox date -u -d @"${start_fix_day_s}" \
+				+%Y%m%d%H%M%SZ
+			)" || die "\
+fixed_cert_dates - start_fix_day_d - busybox"
+
 		end_fix_day_d="$(
-			busybox date -u -d @"${end_fix_day_s}" +%Y%m%d%H%M%SZ
-			)"
+			busybox date -u -d @"${end_fix_day_s}" \
+				+%Y%m%d%H%M%SZ
+			)" || die "\
+fixed_cert_dates - end_fix_day_d - busybox"
 
 	# Darwin, BSD
 	elif date -j > /dev/null 2>&1; then
@@ -3640,25 +3641,36 @@ fixed_cert_dates() {
 		#today_n="$(date -u -j +%j)"
 
 		New_Year_day_d="$(
-			date -u -j -f %y%m%d%H%M%S "${this_year_n}0101000001" \
+			date -u -j -f %y%m%d%H%M%S \
+				"${this_year_n}0101000001" \
 				+%Y%m%d%H%M.%SZ
-			)"
+			)" || die "\
+fixed_cert_dates - New_Year_day_d - Darwin"
 
 		# Convert to date-stamps for SSL input
 		start_fix_day_d="$(
-			date -u -j -f %Y%m%d%H%M.%SZ -v "+${start_fix_day_n}d" \
+			date -u -j -f %Y%m%d%H%M.%SZ -v \
+				"+${start_fix_day_n}d" \
 				"$New_Year_day_d" +%Y%m%d%H%M%SZ
-			)"
-		end_fix_day_d="$(
-			date -u -j -f %Y%m%d%H%M.%SZ -v "+${end_fix_day_n}d" \
-				"$New_Year_day_d" +%Y%m%d%H%M%SZ
-			)"
-		end_fix_day_s="$(
-			date -u -j -f %Y%m%d%H%M.%SZ -v "+${end_fix_day_n}d" \
-				"$New_Year_day_d" +%s
-			)"
+			)" || die "\
+fixed_cert_dates - start_fix_day_d - Darwin"
 
-	# Linux and Windows: date.exe does not allow +%s as input
+		end_fix_day_d="$(
+			date -u -j -f %Y%m%d%H%M.%SZ -v \
+				"+${end_fix_day_n}d" \
+				"$New_Year_day_d" +%Y%m%d%H%M%SZ
+			)" || die "\
+fixed_cert_dates - end_fix_day_d - Darwin"
+
+		end_fix_day_s="$(
+			date -u -j -f %Y%m%d%H%M.%SZ -v \
+				"+${end_fix_day_n}d" \
+				"$New_Year_day_d" +%s
+			)" || die "\
+fixed_cert_dates - end_fix_day_s - Darwin"
+
+	# Linux and Windows
+	# date.exe does not allow +%s as input
 	# MacPorts GNU date
 	elif this_year_n="$(date -u +%y)"; then
 
@@ -3667,29 +3679,50 @@ fixed_cert_dates() {
 
 		# New Years day date
 		New_Year_day_d="$(
-			date -u -d "${this_year_n}-01-01 00:00:01Z" \
+			date -u -d \
+				"${this_year_n}-01-01 00:00:01Z" \
 				'+%Y-%m-%d %H:%M:%SZ'
-			)"
+			)" || die "\
+fixed_cert_dates - New_Year_day_d - Linux"
 
 		# Convert to date-stamps for SSL input
 		start_fix_day_d="$(
-			date -u -d "$New_Year_day_d +${start_fix_day_n}days" \
+			date -u -d "$New_Year_day_d \
+				+${start_fix_day_n}days" \
 				+%Y%m%d%H%M%SZ
-			)"
+			)" || die "\
+fixed_cert_dates - start_fix_day_d - Linux"
+
 		end_fix_day_d="$(
-			date -u -d "$New_Year_day_d +${end_fix_day_n}days" \
+			date -u -d "$New_Year_day_d \
+				+${end_fix_day_n}days" \
 				+%Y%m%d%H%M%SZ
-			)"
+			)" || die "\
+fixed_cert_dates - end_fix_day_d - Linux"
+
 		end_fix_day_s="$(
-			date -u -d "$New_Year_day_d +${end_fix_day_n}days" +%s
-			)"
+			date -u -d "$New_Year_day_d \
+				+${end_fix_day_n}days" +%s
+			)" || die "\
+fixed_cert_dates - end_fix_day_s - Linux"
 
 	else
-		die "Unsupported 'date' program, upgrade your Matrix."
+		die "\
+Unsupported 'date' program, upgrade your Matrix."
 	fi
 
 	# Return FINAL dates for use in the certificate
-	print "$start_fix_day_d $end_fix_day_d"
+	safe_set_var "$2" "$start_fix_day_d" || die "\
+fixed_cert_dates - safe_set_var - $2 - $start_fix_day_d"
+
+	safe_set_var "$3" "$end_fix_day_d" || die "\
+fixed_cert_dates - safe_set_var - $3 - $end_fix_day_d"
+
+	# cleanup
+	unset -v start_fix_day_n start_fix_day_d \
+			end_fix_day_d end_fix_day_s \
+			this_year_n New_Year_day_d
+
 } # => fixed_cert_dates()
 
 # Convert certificate date to timestamp seconds since epoch
