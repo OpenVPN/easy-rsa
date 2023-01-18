@@ -3440,7 +3440,8 @@ No certificate found for the input: '$crt_in'"
 Input is not a valid certificate: $crt_in"
 
 	# Test SSL out
-	if easyrsa_openssl verify -CAfile "$ca_crt" "$crt_in" 1>/dev/null
+	if easyrsa_openssl verify -CAfile "$ca_crt" \
+		"$crt_in" 1>/dev/null
 	then
 		notice "\
   Certificate name:   $file_name_base
@@ -3451,9 +3452,12 @@ Input is not a valid certificate: $crt_in"
   Certificate name:   $file_name_base
   Verfication status: FAILED"
 		# Exit with error (batch mode), otherwise term msg only
-		[ "$exit_with_error" ] && easyrsa_error_exit=1
-		# Return error for internal callers (status reports)
-		return 1
+		if [ "$exit_with_error" ]; then
+			easyrsa_error_exit=1
+			# Return error for internal callers (status reports)
+			# or command line in --batch mode
+			return 1
+		fi
 	fi
 } # => verify_cert()
 
@@ -5523,7 +5527,8 @@ case "$cmd" in
 		init_pki "$@"
 		;;
 	build-ca)
-		[ "$alias_days" ] && export EASYRSA_CA_EXPIRE="$alias_days"; :
+		[ -z "$alias_days" ] || \
+			export EASYRSA_CA_EXPIRE="$alias_days"
 		build_ca "$@"
 		;;
 	gen-dh)
@@ -5533,23 +5538,28 @@ case "$cmd" in
 		gen_req "$@"
 		;;
 	sign|sign-req)
-		[ "$alias_days" ] && export EASYRSA_CERT_EXPIRE="$alias_days"; :
+		[ -z "$alias_days" ] || \
+			export EASYRSA_CERT_EXPIRE="$alias_days"
 		sign_req "$@"
 		;;
 	build-client-full)
-		[ "$alias_days" ] && export EASYRSA_CERT_EXPIRE="$alias_days"; :
+		[ -z "$alias_days" ] || \
+			export EASYRSA_CERT_EXPIRE="$alias_days"
 		build_full client "$@"
 		;;
 	build-server-full)
-		[ "$alias_days" ] && export EASYRSA_CERT_EXPIRE="$alias_days"; :
+		[ -z "$alias_days" ] || \
+			export EASYRSA_CERT_EXPIRE="$alias_days"
 		build_full server "$@"
 		;;
 	build-serverClient-full)
-		[ "$alias_days" ] && export EASYRSA_CERT_EXPIRE="$alias_days"; :
+		[ -z "$alias_days" ] || \
+			export EASYRSA_CERT_EXPIRE="$alias_days"
 		build_full serverClient "$@"
 		;;
 	gen-crl)
-		[ "$alias_days" ] && export EASYRSA_CRL_DAYS="$alias_days"; :
+		[ -z "$alias_days" ] || \
+			export EASYRSA_CRL_DAYS="$alias_days"
 		gen_crl
 		;;
 	revoke)
@@ -5559,14 +5569,16 @@ case "$cmd" in
 		revoke_renewed "$@"
 		;;
 	renew)
-		[ "$alias_days" ] && export EASYRSA_CERT_EXPIRE="$alias_days"; :
+		[ -z "$alias_days" ] || \
+			export EASYRSA_CERT_EXPIRE="$alias_days"
 		renew "$@"
 		;;
 	rewind-renew)
 		rewind_renew "$@"
 		;;
 	rebuild)
-		[ "$alias_days" ] && export EASYRSA_CERT_EXPIRE="$alias_days"; :
+		[ -z "$alias_days" ] || \
+			export EASYRSA_CERT_EXPIRE="$alias_days"
 		rebuild "$@"
 		;;
 	import-req)
@@ -5609,13 +5621,11 @@ case "$cmd" in
 		show_ca "$@"
 		;;
 	verify)
-		# using internal 'batch' mode, this can return an error
-		# Ignore the error here, catch the error if used internally
-		# eg. show-expire/expire_status
-		verify_cert "$@" || :
+		verify_cert "$@"
 		;;
 	show-expire)
-		[ "$alias_days" ] && export EASYRSA_CERT_RENEW="$alias_days"; :
+		[ -z "$alias_days" ] || \
+			export EASYRSA_CERT_RENEW="$alias_days"
 		status expire "$@"
 		;;
 	show-revoke)
@@ -5640,7 +5650,8 @@ case "$cmd" in
 		print_version
 		;;
 	*)
-		die "Unknown command '$cmd'. Run without commands for usage help."
+		die "\
+Unknown command '$cmd'. Run without commands for usage help."
 esac
 
 # Check for untrapped errors
