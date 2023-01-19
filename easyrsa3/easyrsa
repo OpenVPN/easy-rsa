@@ -50,7 +50,7 @@ Here is the list of commands available with a short syntax reminder. Use the
   show-expire <file_name_base> (Optional)
   show-revoke <file_name_base> (Optional)
   show-renew <file_name_base> (Optional)
-  verify <file_name_base>
+  verify-cert <file_name_base>
   import-req <request_file_path> <short_name_base>
   export-p1 <file_name_base> [ cmd-opts ]
   export-p7 <file_name_base> [ cmd-opts ]
@@ -279,16 +279,16 @@ cmd_help() {
       Shows details of renewed certificates, which have not been revoked
       Optionally, check *only* <file_name_base> certificate"
 	;;
-	verify)
+	verify|verify-cert)
 		text="
-* verify <file_name_base> [ cmd-opts ]
+* verify-cert <file_name_base> [ cmd-opts ]
 
       Verify certificate against CA
 
       Returns the current validity of the certificate."
 
 		opts="
-      * batch   - On failure to verify, return error (1) to calling program"
+      * batch   - On failure to verify, return error (1) to caller"
 	;;
 	import-req)
 		text="
@@ -5620,7 +5620,7 @@ case "$cmd" in
 	show-ca)
 		show_ca "$@"
 		;;
-	verify)
+	verify|verify-cert)
 		verify_cert "$@"
 		;;
 	show-expire)
