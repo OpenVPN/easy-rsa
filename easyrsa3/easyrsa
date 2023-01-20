@@ -1568,7 +1568,7 @@ DH parameters of size $EASYRSA_KEY_SIZE created at:
 
 # gen-req and key backend:
 gen_req() {
-	# pull filename base and use as default interactive CommonName
+	# pull filename, use as default interactive CommonName
 	[ "$1" ] || die "\
 Error: gen-req must have a file base as the first argument.
 Run easyrsa without commands for usage and commands."
@@ -1709,13 +1709,16 @@ sign_req() {
 				easyrsa_random 16
 				)" || die "sign_req - easyrsa_random"
 
-			# Print random $serial to pki/serial file for use by SSL config
-			print "$serial" > "$EASYRSA_PKI/serial" || die "sign_req - serial"
+			# Print random $serial to pki/serial file
+			# for use by SSL config
+			print "$serial" > "$EASYRSA_PKI/serial" || \
+				die "sign_req - serial"
 
 			# Check for duplicate serial in CA db
+			# Always errors out - Do not capture error
 			check_serial="$(
 				easyrsa_openssl ca -status "$serial" 2>&1
-				)" # Always errors out - Do not capture error
+				)" || :
 
 			case "$check_serial" in
 				*"not present in db"*)
@@ -1755,13 +1758,14 @@ Expected to find the request at: $req_in"
 
 	# Certificate file must NOT exist
 	[ ! -e "$crt_out" ] || die "\
-Cannot sign this request for '$2', a certificate already exists
-at: $crt_out"
+Cannot sign this request for '$2'.
+Conflicting certificate already exists at:
+* $crt_out"
 
 	# Confirm input is a cert req
 	verify_file req "$req_in" || die "\
-The certificate request file is not in a valid X509 request format.
-File Path: $req_in"
+The certificate request file is not in a valid X509 format:
+* $req_in"
 
 	# Get fixed dates by --fix-offset
 	if [ "$EASYRSA_FIX_OFFSET" ]; then
@@ -1769,49 +1773,59 @@ File Path: $req_in"
 			start_fixdate end_fixdate
 	fi
 
-	# When EASYRSA_CP_EXT is defined, adjust openssl's [default_ca] section:
+	# When EASYRSA_CP_EXT is defined,
+	# adjust openssl's [default_ca] section:
 	if [ "$EASYRSA_CP_EXT" ]; then
 		# Check for insert-marker in ssl config file
-		if ! grep -q '^#%COPY_EXTS%' "$EASYRSA_SSL_CONF"; then
+		if ! grep -q '^#%COPY_EXTS%' "$EASYRSA_SSL_CONF"
+		then
 			die "\
-The copy of openssl-easyrsa.cnf in use does not support --copy-ext.
+The copy of openssl-easyrsa.cnf in use \
+does not support --copy-ext.
 * $EASYRSA_SSL_CONF
-Please update openssl-easyrsa.cnf to the latest official release."
+Please update openssl-easyrsa.cnf \
+to the latest official release."
 		fi
 
-		# Setup & insert the copy_extensions data keyed by a magic line
+		# Setup & insert the copy_extensions data
+		# keyed by a magic line
 		copy_exts="copy_extensions = copy"
-		# shellcheck disable=SC2016 # vars don't expand in single quote
+		# shellcheck disable=SC2016 # vars don't expand ''
 		awkscript='
 {if ( match($0, "^#%COPY_EXTS%") )
 	{ while ( getline<"/dev/stdin" ) {print} next }
  {print}
 }'
-		conf_tmp="$(easyrsa_mktemp)" || die "Failed to create temporary file"
+		conf_tmp="$(easyrsa_mktemp)" || \
+			die "sign_req - easyrsa_mktemp - conf_tmp"
 		print "$copy_exts" | \
 			awk "$awkscript" "$EASYRSA_SSL_CONF" \
 			> "$conf_tmp" \
-			|| die "Copying SSL config to temp file failed"
-		# Use this new SSL config for the rest of this function
+			|| die "Writing SSL config to temp file failed"
+		# Use this SSL config for the rest of this function
 		EASYRSA_SSL_CONF="$conf_tmp"
 	fi
 
 	# Generate the extensions file for this cert:
-	ext_tmp="$(easyrsa_mktemp)" || die "Failed to create temporary file"
+	ext_tmp="$(easyrsa_mktemp)" || \
+		die "sign_req - easyrsa_mktemp - ext_tmp"
 	{
-		# Append first any COMMON file (if present) then the cert-type extensions
+		# Append COMMON and cert-type extensions
 		cat "$EASYRSA_EXT_DIR/COMMON" || \
 			die "Failed to read X509-type COMMON"
 		cat "$EASYRSA_EXT_DIR/$crt_type" || \
 			die "Failed to read X509-type $crt_type"
 
 		# Support a dynamic CA path length when present:
-		if [ "$crt_type" = "ca" ] && [ "$EASYRSA_SUBCA_LEN" ]; then
-			# Print the last occurence of basicContraints in x509-types/ca
-			# If basicContraints not defined then bail
-			# shellcheck disable=SC2016 # vars don't expand in ''
-			awkscript='/^[[:blank:]]*basicConstraints[[:blank:]]*=/ { bC=$0 }
-				END { if (length(bC) == 0 ) exit 1; print bC }'
+		if [ "$crt_type" = "ca" ] && [ "$EASYRSA_SUBCA_LEN" ]
+		then
+			# Print the last occurence of basicContraints in
+			# x509-types/ca
+			# If basicContraints is not defined then bail
+			# shellcheck disable=SC2016 # vars don't expand ''
+			awkscript='\
+/^[[:blank:]]*basicConstraints[[:blank:]]*=/ { bC=$0 }
+END { if (length(bC) == 0 ) exit 1; print bC }'
 			basicConstraints="$(
 				awk "$awkscript" "$EASYRSA_EXT_DIR/$crt_type"
 				)" || die "\
@@ -1820,17 +1834,24 @@ basicConstraints is not defined, cannot use 'pathlen'"
 			unset -v basicConstraints
 		fi
 
-		# Deprecated Netscape extension support, if enabled
+		# Deprecated Netscape extension support
 		case "$EASYRSA_NS_SUPPORT" in
 		[yY][eE][sS])
+
 			# Netscape extension
 			case "$crt_type" in
-				serverClient) print "nsCertType = serverClient" ;;
-				server) print "nsCertType = server" ;;
-				client) print "nsCertType = client" ;;
-				ca) print "nsCertType = sslCA" ;;
-				*) die "Unknown certificate type: $crt_type"
+				serverClient)
+					print "nsCertType = serverClient" ;;
+				server)
+					print "nsCertType = server" ;;
+				client)
+					print "nsCertType = client" ;;
+				ca)
+					print "nsCertType = sslCA" ;;
+				*)
+					die "Unknown certificate type: $crt_type"
 			esac
+
 			# Netscape comment
 			[ "$EASYRSA_NS_COMMENT" ] && \
 				print "nsComment = \"$EASYRSA_NS_COMMENT\""
@@ -1844,9 +1865,10 @@ basicConstraints is not defined, cannot use 'pathlen'"
 			print "$EASYRSA_EXTRA_EXTS"
 		else
 			# or default server SAN
-			# If type is server and no subjectAltName was requested,
-			# add one to the extensions file
-			if [ "$crt_type" = 'server' ] || [ "$crt_type" = 'serverClient' ];
+			# If type is server and no subjectAltName was
+			# requested then add one to the extensions file
+			if [ "$crt_type" = 'server' ] || \
+				[ "$crt_type" = 'serverClient' ];
 			then
 				# req san or default server SAN
 				san="$(display_san req "$req_in")"
@@ -1856,33 +1878,41 @@ basicConstraints is not defined, cannot use 'pathlen'"
 					default_server_san "$req_in"
 				fi
 			fi
-			# or externally set EASYRSA_EXTRA_EXTS
-			# Add any advanced extensions supplied by env-var:
-			[ -z "$EASYRSA_EXTRA_EXTS" ] || print "$EASYRSA_EXTRA_EXTS"
+
+			# Add user set EASYRSA_EXTRA_EXTS
+			[ -z "$EASYRSA_EXTRA_EXTS" ] || \
+				print "$EASYRSA_EXTRA_EXTS"
 		fi
 	} > "$ext_tmp" || die "\
 Failed to create temp extension file (bad permissions?) at:
-$ext_tmp"
+* $ext_tmp"
 
 	# Display the request subject in an easy-to-read format
 	# Confirm the user wishes to sign this request
 	# Support batch by internal caller:
-	#[ "$3" = "batch" ] ||
 	confirm "Confirm request details: " "yes" "\
 You are about to sign the following certificate.
-Please check over the details shown below for accuracy. Note that this request
-has not been cryptographically verified. Please be sure it came from a trusted
-source or that you have verified the request checksum with the sender.
+Please check over the details shown below for accuracy. \
+Note that this request
+has not been cryptographically verified. Please be sure \
+it came from a trusted
+source or that you have verified the request checksum \
+with the sender.
 
-Request subject, to be signed as a $crt_type certificate for $EASYRSA_CERT_EXPIRE days:
+Request subject, to be signed as a $crt_type certificate \
+for $EASYRSA_CERT_EXPIRE days:
 
 $(display_dn req "$req_in")
 "	# => confirm end
 
+	# Assign temp cert file
+	crt_out_tmp="$(easyrsa_mktemp)" || \
+		die "sign_req - easyrsa_mktemp - crt_out_tmp"
+
 	# sign request
-	crt_out_tmp="$(easyrsa_mktemp)" || die "Failed to create temporary file"
-	easyrsa_openssl ca -utf8 -in "$req_in" -out "$crt_out_tmp" \
-		-extfile "$ext_tmp" -days "$EASYRSA_CERT_EXPIRE" -batch \
+	easyrsa_openssl ca -utf8 -in "$req_in" \
+		-out "$crt_out_tmp" -extfile "$ext_tmp" \
+		-days "$EASYRSA_CERT_EXPIRE" -batch \
 		${EASYRSA_PASSIN:+-passin "$EASYRSA_PASSIN"} \
 		${EASYRSA_NO_TEXT:+-notext} \
 		${EASYRSA_FIX_OFFSET+ -startdate "$start_fixdate"} \
@@ -1890,11 +1920,10 @@ $(display_dn req "$req_in")
 			|| die "\
 Signing failed (openssl output above may have more detail)"
 
-	mv "$crt_out_tmp" "$crt_out"
-	#rm -f "$ext_tmp"
+	mv "$crt_out_tmp" "$crt_out" || \
+		die "Failed to move temp-file to certificate."
 
 	# Success messages
-	#unset -v EASYRSA_BATCH # This is why batch mode should not silence output
 	notice "\
 Certificate created at:
 * $crt_out"
