@@ -1300,7 +1300,7 @@ build_ca() {
 		x509=1
 	fi
 
-	# If encrypted then create the CA key using AES256 cipher
+	# If encrypted then create the CA key with AES256 cipher
 	if [ "$EASYRSA_NO_PASS" ]; then
 		unset -v cipher
 	else
@@ -1314,14 +1314,16 @@ Unable to create a CA as you already seem to have one set up.
 If you intended to start a new CA, run init-pki first."
 	fi
 
-	# If a private key exists here, a intermediate ca was created but not signed.
-	# Notify the user and require a signed ca.crt or a init-pki:
-	[ -f "$out_key" ] && \
+	# If a private key exists, an intermediate ca was created
+	# but not signed.
+	# Notify user and require a signed ca.crt or a init-pki:
+	if [ -f "$out_key" ]; then
 		die "\
-A CA private key exists but no ca.crt is found in your PKI dir of:
+A CA private key exists but no ca.crt is found in your PKI:
 $EASYRSA_PKI
-Refusing to create a new CA keypair as this operation would overwrite your
-current CA keypair. If you intended to start a new CA, run init-pki first."
+Refusing to create a new CA as this would overwrite your
+current CA. To start a new CA, run init-pki first."
+	fi
 
 	# Cert type must exist under the EASYRSA_EXT_DIR
 	[ -e "$EASYRSA_EXT_DIR/ca" ] || die "\
@@ -1333,27 +1335,34 @@ Missing X509-type 'COMMON'"
 	if grep -q '^#%CA_X509_TYPES_EXTRA_EXTS%' \
 		"$EASYRSA_SSL_CONF"
 	then
-		[ "$EASYRSA_BATCH" ] || print
+		: # [ "$EASYRSA_BATCH" ] || print
 	else
 		warn "\
-The openssl config file in use does not support X509-type 'ca'.
+This openssl config file does not support X509-type 'ca'.
 * $EASYRSA_SSL_CONF
-Please update openssl-easyrsa.cnf to the latest official release."
+Please update openssl-easyrsa.cnf to the latest release."
 	fi
 
 	# create necessary files and dirs:
-	err_file="Unable to create necessary PKI files (permissions?)"
-	for i in issued inline certs_by_serial revoked/certs_by_serial \
-		revoked/private_by_serial revoked/reqs_by_serial
+	err_msg="\
+Unable to create necessary PKI files (permissions?)"
+	for i in issued inline certs_by_serial \
+		revoked/certs_by_serial revoked/private_by_serial \
+		revoked/reqs_by_serial
 	do
-		mkdir -p "$EASYRSA_PKI/$i" || die "$err_file"
+		mkdir -p "$EASYRSA_PKI/$i" || die "$err_msg"
 	done
-	printf "" > "$EASYRSA_PKI/index.txt" || die "$err_file"
-	printf "" > "$EASYRSA_PKI/index.txt.attr" || die "$err_file"
-	printf '%s\n' "01" > "$EASYRSA_PKI/serial" || die "$err_file"
+	printf "" > "$EASYRSA_PKI/index.txt" || \
+		die "$err_msg"
+	printf "" > "$EASYRSA_PKI/index.txt.attr" || \
+		die "$err_msg"
+	printf '%s\n' "01" > "$EASYRSA_PKI/serial" || \
+		die "$err_msg"
+	unset -v err_msg
 
 	# Set ssl batch mode, as required
-	# --req-cn must be used with --batch, otherwise use default
+	# --req-cn must be used with --batch,
+	# otherwise use default
 	if [ "$EASYRSA_BATCH" ]; then
 		ssl_batch=1
 	else
@@ -1376,10 +1385,14 @@ Please update openssl-easyrsa.cnf to the latest official release."
 		die "Failed to create temp-cert file"
 
 	# Get passphrase from user if necessary
-	if [ "$EASYRSA_NO_PASS" ]; then
+	if [ "$EASYRSA_NO_PASS" ]
+	then
 		: # No passphrase required
-	elif [ "$EASYRSA_PASSOUT" ] && [ "$EASYRSA_PASSIN" ]; then
+
+	elif [ "$EASYRSA_PASSOUT" ] && [ "$EASYRSA_PASSIN" ]
+	then
 		: # passphrase defined
+
 	else
 		# Assign passphrase vars and temp file
 		in_key_pass_tmp="$(easyrsa_mktemp)" || \
@@ -1420,9 +1433,9 @@ Please update openssl-easyrsa.cnf to the latest official release."
 		fi
 	fi
 
-	# Insert x509-types COMMON and 'ca' and EASYRSA_EXTRA_EXTS, if defined.
-	# shellcheck disable=SC2016 # vars don't expand in single quote
-	awkscript='
+	# Insert x509-types COMMON and 'ca' and EASYRSA_EXTRA_EXTS
+	# shellcheck disable=SC2016 # vars don't expand in ''
+	awkscript='\
 {if ( match($0, "^#%CA_X509_TYPES_EXTRA_EXTS%") )
 	{ while ( getline<"/dev/stdin" ) {print} next }
  {print}
@@ -1439,60 +1452,51 @@ Please update openssl-easyrsa.cnf to the latest official release."
 	# Use this new SSL config for the rest of this function
 	EASYRSA_SSL_CONF="$conf_tmp"
 
-	# Choose SSL Library version (1, 2(LibreSSL) or 3) and build CA
-	case "$osslv_major" in
-
-	# Version agnostic CA generation
-	# The only remaining option which is version dependent is -nodes/-noenc
-	1|2|3)
-		# Generate CA Key
-		case "$EASYRSA_ALGO" in
-		rsa)
-			easyrsa_openssl genpkey -algorithm "$EASYRSA_ALGO" \
-				-pkeyopt rsa_keygen_bits:"$EASYRSA_ALGO_PARAMS" \
-				-out "$out_key_tmp" \
-				${cipher+ "$cipher"} \
-				${EASYRSA_PASSOUT:+ -pass "$EASYRSA_PASSOUT"} \
-				${out_key_pass_tmp:+ -pass file:"$out_key_pass_tmp"} \
-					|| die "Failed create CA private key"
-		;;
-		ec)
-			easyrsa_openssl genpkey -paramfile "$EASYRSA_ALGO_PARAMS" \
-				-out "$out_key_tmp" \
-				${cipher+ "$cipher"} \
-				${EASYRSA_PASSOUT:+ -pass "$EASYRSA_PASSOUT"} \
-				${out_key_pass_tmp:+ -pass file:"$out_key_pass_tmp"} \
-					|| die "Failed create CA private key"
-		;;
-		ed)
-			easyrsa_openssl genpkey -algorithm "$EASYRSA_CURVE" \
-				-out "$out_key_tmp" \
-				${cipher+ "$cipher"} \
-				${EASYRSA_PASSOUT:+ -pass "$EASYRSA_PASSOUT"} \
-				${out_key_pass_tmp:+ -pass file:"$out_key_pass_tmp"} \
-					|| die "Failed create CA private key"
-		;;
-		*)	die "Unknown algorithm: $EASYRSA_ALGO"
-		esac
-
-		# Generate the CA keypair:
-		# shellcheck disable=SC2086 # Double quote to prevent ..
-		easyrsa_openssl req -utf8 -new \
-			-key "$out_key_tmp" -keyout "$out_key_tmp" \
-			-out "$out_file_tmp" \
-			${ssl_batch+ -batch} \
-			${x509+ -x509} \
-			${date_stamp+ -days "$EASYRSA_CA_EXPIRE"} \
-			${EASYRSA_DIGEST+ -"$EASYRSA_DIGEST"} \
-			${EASYRSA_NO_PASS+ "$no_password"} \
-			${EASYRSA_PASSIN:+ -passin "$EASYRSA_PASSIN"} \
-			${EASYRSA_PASSOUT:+ -passout "$EASYRSA_PASSOUT"} \
-			${in_key_pass_tmp:+ -passin file:"$in_key_pass_tmp"} \
-			${out_key_pass_tmp:+ -passout file:"$out_key_pass_tmp"} \
-				|| die "Failed to build the CA certificate"
+	# Generate CA Key
+	case "$EASYRSA_ALGO" in
+	rsa)
+	easyrsa_openssl genpkey -algorithm "$EASYRSA_ALGO" \
+		-pkeyopt rsa_keygen_bits:"$EASYRSA_ALGO_PARAMS" \
+		-out "$out_key_tmp" \
+		${cipher+ "$cipher"} \
+		${EASYRSA_PASSOUT:+ -pass "$EASYRSA_PASSOUT"} \
+		${out_key_pass_tmp:+ -pass file:"$out_key_pass_tmp"} \
+			|| die "Failed create CA private key"
 	;;
-	*)	die "build-ca ssl lib: $osslv_major"
+	ec)
+	easyrsa_openssl genpkey -paramfile "$EASYRSA_ALGO_PARAMS" \
+		-out "$out_key_tmp" \
+		${cipher+ "$cipher"} \
+		${EASYRSA_PASSOUT:+ -pass "$EASYRSA_PASSOUT"} \
+		${out_key_pass_tmp:+ -pass file:"$out_key_pass_tmp"} \
+			|| die "Failed create CA private key"
+	;;
+	ed)
+	easyrsa_openssl genpkey -algorithm "$EASYRSA_CURVE" \
+		-out "$out_key_tmp" \
+		${cipher+ "$cipher"} \
+		${EASYRSA_PASSOUT:+ -pass "$EASYRSA_PASSOUT"} \
+		${out_key_pass_tmp:+ -pass file:"$out_key_pass_tmp"} \
+			|| die "Failed create CA private key"
+	;;
+	*)	die "Unknown algorithm: $EASYRSA_ALGO"
 	esac
+
+	# Generate the CA keypair:
+	# shellcheck disable=SC2086 # Double quote to prevent ..
+	easyrsa_openssl req -utf8 -new \
+		-key "$out_key_tmp" -keyout "$out_key_tmp" \
+		-out "$out_file_tmp" \
+		${ssl_batch+ -batch} \
+		${x509+ -x509} \
+		${date_stamp+ -days "$EASYRSA_CA_EXPIRE"} \
+		${EASYRSA_DIGEST+ -"$EASYRSA_DIGEST"} \
+		${EASYRSA_NO_PASS+ "$no_password"} \
+		${EASYRSA_PASSIN:+ -passin "$EASYRSA_PASSIN"} \
+		${EASYRSA_PASSOUT:+ -passout "$EASYRSA_PASSOUT"} \
+		${in_key_pass_tmp:+ -passin file:"$in_key_pass_tmp"} \
+		${out_key_pass_tmp:+ -passout file:"$out_key_pass_tmp"} \
+			|| die "Failed to build the CA certificate"
 
 	# Remove passphrase temp-file
 	if [ -f "$out_key_pass_tmp" ]; then
@@ -1506,14 +1510,17 @@ Failed to remove the CA passphrase temp-file!"
 	# Success messages
 	if [ "$sub_ca" ]; then
 		notice "\
-NOTE: Your intermediate CA request is at $out_file
-and now must be sent to your parent CA for signing. Place your resulting cert
-at $EASYRSA_PKI/ca.crt prior to signing operations."
+Your intermediate CA request is at:
+* $out_file
+  and now must be sent to your parent CA for signing.
+
+Place your resulting cert at:
+* $EASYRSA_PKI/ca.crt
+  prior to signing operations."
 	else
 		notice "\
-CA creation complete and you may now import and sign cert requests.
-Your new CA certificate file for publishing is at:
-$out_file"
+CA creation complete. Your new CA certificate is at:
+* $out_file"
 	fi
 
 	return 0
