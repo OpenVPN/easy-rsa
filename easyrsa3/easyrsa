@@ -1354,7 +1354,8 @@ Unable to create necessary PKI files (permissions?)"
 	done
 	printf "" > "$EASYRSA_PKI/index.txt" || \
 		die "$err_msg"
-	printf "" > "$EASYRSA_PKI/index.txt.attr" || \
+	attrib='unique_subject = no'
+	printf '%s\n' "$attrib" > "$EASYRSA_PKI/index.txt.attr" || \
 		die "$err_msg"
 	printf '%s\n' "01" > "$EASYRSA_PKI/serial" || \
 		die "$err_msg"
