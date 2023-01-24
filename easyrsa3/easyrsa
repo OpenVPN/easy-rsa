@@ -1401,26 +1401,15 @@ Unable to create necessary PKI files (permissions?)"
 		out_key_pass_tmp="$(easyrsa_mktemp)" || \
 			die "out_key_pass_tmp: create"
 
-		# Dirty way to unit-test default behavior
-		if [ "$ERSA_UTEST_VERSION" ]; then
-		# Prove this works by changing passwords
-		# use: ERSA_UTEST_VERSION=9 easyrsa build-ca
-			p="EasyRSA"
-			q="EasyRSA"
-			unset -v EASYRSA_PASSIN EASYRSA_PASSOUT
-			warn "SPECIAL unit-test CA password!"
+		p=""
+		q=""
+		# Get passphrase p
+		get_passphrase p \
+			"Enter New CA Key Passphrase: "
 
-		else
-			p=""
-			q=""
-			# Get passphrase p
-			get_passphrase p \
-				"Enter New CA Key Passphrase: "
-
-			# Confirm passphrase q
-			get_passphrase q \
-				"Confirm New CA Key Passphrase: "
-		fi
+		# Confirm passphrase q
+		get_passphrase q \
+			"Confirm New CA Key Passphrase: "
 
 		# Validate passphrase
 		if [ "$p" ] && [ "$p" = "$q" ]; then
