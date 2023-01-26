@@ -1343,7 +1343,7 @@ This openssl config file does not support X509-type 'ca'.
 Please update openssl-easyrsa.cnf to the latest release."
 	fi
 
-	# create necessary files and dirs:
+	# create necessary dirs:
 	err_msg="\
 Unable to create necessary PKI files (permissions?)"
 	for i in issued inline certs_by_serial \
@@ -1352,13 +1352,14 @@ Unable to create necessary PKI files (permissions?)"
 	do
 		mkdir -p "$EASYRSA_PKI/$i" || die "$err_msg"
 	done
-	printf "" > "$EASYRSA_PKI/index.txt" || \
-		die "$err_msg"
-	attrib='unique_subject = no'
-	printf '%s\n' "$attrib" > "$EASYRSA_PKI/index.txt.attr" || \
-		die "$err_msg"
-	printf '%s\n' "01" > "$EASYRSA_PKI/serial" || \
-		die "$err_msg"
+
+	# create necessary files:
+	printf "" > \
+		"$EASYRSA_PKI/index.txt" || die "$err_msg"
+	printf '%s\n' 'unique_subject = no' \
+		> "$EASYRSA_PKI/index.txt.attr" || die "$err_msg"
+	printf '%s\n' "01" \
+		> "$EASYRSA_PKI/serial" || die "$err_msg"
 	unset -v err_msg
 
 	# Set ssl batch mode, as required
