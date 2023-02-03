@@ -539,6 +539,7 @@ Easy-RSA error:
 
 $1
 " 1>&2
+	show_host
 	exit "${2:-1}"
 } # => die()
 
@@ -747,7 +748,6 @@ Temporary session not preserved."
 	# Exit: Final Fail
 	# if 'cleanup' is called without 'ok'
 	# then an error occurred
-	show_host
 	exit 1
 } # => cleanup()
 
