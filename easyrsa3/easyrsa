@@ -3635,10 +3635,9 @@ This file is not a valid $type file:
 $in_file"
 
 	notice "
-Showing $type details for 'ca'.
-
-This file is stored at:
-* $in_file"
+Showing details for CA certificate, at:
+* $in_file
+"
 
 	easyrsa_openssl "$format" -in "$in_file" -noout -text \
 		-nameopt "$name_opts" -certopt "$out_opts" || die "\
