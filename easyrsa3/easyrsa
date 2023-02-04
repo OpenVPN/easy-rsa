@@ -858,28 +858,61 @@ easyrsa_openssl() {
 		# move temp file to safessl-easyrsa.cnf
 		mv -f "$easyrsa_safe_ssl_conf" "$EASYRSA_SAFE_CONF" || \
 			die "easyrsa_openssl - makesafeconf failed"
+		return
 
 	elif [ "$has_config" ]; then
 		# debug log on
 		if [ "$EASYRSA_DEBUG" ]; then print "<< DEBUG-ON >>"; set -x; fi
 
-		# Exec SSL with -config temp-file
-		"$EASYRSA_OPENSSL" "$openssl_command" \
-			-config "$easyrsa_safe_ssl_conf" "$@" || return
+		# Silent SSL mode
+		if [ "$EASYRSA_SILENT" ]; then
+			# Exec SSL WITH -config temp-file
+			err_silent="OpenSSL $openssl_command (Silent)"
+			if "$EASYRSA_OPENSSL" "$openssl_command" \
+				-config "$easyrsa_safe_ssl_conf" "$@" \
+				2>/dev/null
+			then
+				unset -v err_silent
+			fi
+		else
+			# Exec SSL WITH -config temp-file
+			err_normal="OpenSSL $openssl_command (Normal)"
+			if "$EASYRSA_OPENSSL" "$openssl_command" \
+				-config "$easyrsa_safe_ssl_conf" "$@"
+			then
+				unset -v err_normal
+			fi
+		fi
 
 		# debug log off
 		if [ "$EASYRSA_DEBUG" ]; then set +x; print ">> DEBUG-OFF <<"; fi
+
+		# Catch errors
+		if [ "$err_silent" ]; then
+			die "easyrsa_openssl - $err_silent"
+		elif [ "$err_normal" ]; then
+			die "easyrsa_openssl - $err_normal"
+		else
+			unset -v err_silent err_normal
+			return 0
+		fi
 
 	else
 		# debug log on
 		if [ "$EASYRSA_DEBUG" ]; then print "<< DEBUG-ON >>"; set -x; fi
 
-		# Exec SSL without -config temp-file
-		"$EASYRSA_OPENSSL" "$openssl_command" "$@" || return
+		# Exec SSL WITHOUT -config temp-file
+		if "$EASYRSA_OPENSSL" "$openssl_command" "$@"
+		then
+			return
+		else
+			return 1
+		fi
 
 		# debug log off
 		if [ "$EASYRSA_DEBUG" ]; then set +x; print ">> DEBUG-OFF <<"; fi
 	fi
+	die "easyrsa_openssl - undefined error"
 } # => easyrsa_openssl()
 
 # Verify the SSL library is functional and establish version dependencies
@@ -1715,6 +1748,7 @@ sign_req() {
 			# Check for duplicate serial in CA db
 			# Always errors out - Do not capture error
 			check_serial="$(
+				unset -v EASYRSA_SILENT
 				easyrsa_openssl ca -status "$serial" 2>&1
 				)" || :
 
@@ -4394,7 +4428,6 @@ ${host_out}${easyrsa_win_git_bash+ | "$easyrsa_win_git_bash"}"
 
 # Extra diagnostics
 show_host() {
-	[ "$EASYRSA_SILENT" ] && return
 	print_version
 	print "$host_out"
 	[ "$EASYRSA_DEBUG" ] || return 0
