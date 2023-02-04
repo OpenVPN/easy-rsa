@@ -1065,7 +1065,7 @@ and initialize a fresh PKI here."
 		;;
 		soft)
 		# There is no unit test for a soft reset
-			for i in ca.crt \
+			for i in ca.crt crl.pem \
 				issued private reqs inline revoked renewed \
 				serial serial.old index.txt index.txt.old \
 				index.txt.attr index.txt.attr.old \
