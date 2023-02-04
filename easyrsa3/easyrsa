@@ -462,11 +462,11 @@ General options:
 
 --version       : Prints EasyRSA version and build information
 --batch         : Set automatic (no-prompts when possible) mode
---silent|-s     : Disable all warnings, notices and information
+-s|--silent     : Disable all warnings, notices and information
 --sbatch        : Combined --silent and --batch operating mode
+-S|--silent-ssl : Silence ALL SSL library error messages
 
---no-pass       : Do not use passwords
-                  Can not be used with --passin or --passout
+--no-pass       : Do not use passwords. Over-ruled by --passout
 --passin=ARG    : Set -passin ARG for openssl (eg: pass:xEasyRSAy)
 --passout=ARG   : Set -passout ARG for openssl (eg: pass:xEasyRSAy)
 
@@ -891,16 +891,46 @@ easyrsa_openssl() {
 		# move temp file to safessl-easyrsa.cnf
 		mv -f "$easyrsa_safe_ssl_conf" "$EASYRSA_SAFE_CONF" || \
 			die "easyrsa_openssl - makesafeconf failed"
+		return
 
 	elif [ "$has_config" ]; then
-		# Exec SSL with -config temp-file
-		"$EASYRSA_OPENSSL" "$openssl_command" \
-			-config "$easyrsa_safe_ssl_conf" "$@" || return
+		# Silent SSL mode
+		if [ "$EASYRSA_SILENT_SSL" ]; then
+			# Exec SSL WITH -config temp-file
+			ssl_error="OpenSSL $openssl_command (Silent)"
+			if "$EASYRSA_OPENSSL" "$openssl_command" \
+				-config "$easyrsa_safe_ssl_conf" "$@" \
+				2>/dev/null
+			then
+				unset -v ssl_error
+			fi
+		else
+			# Exec SSL WITH -config temp-file
+			ssl_error="OpenSSL $openssl_command (Normal)"
+			if "$EASYRSA_OPENSSL" "$openssl_command" \
+				-config "$easyrsa_safe_ssl_conf" "$@"
+			then
+				unset -v ssl_error
+			fi
+		fi
+
+		# Catch errors
+		if [ "$ssl_error" ]; then
+			die "easyrsa_openssl - $ssl_error"
+		else
+			return 0
+		fi
 
 	else
-		# Exec SSL without -config temp-file
-		"$EASYRSA_OPENSSL" "$openssl_command" "$@" || return
+		# Exec SSL WITHOUT -config temp-file
+		if "$EASYRSA_OPENSSL" "$openssl_command" "$@"
+		then
+			return
+		else
+			return 1
+		fi
 	fi
+	die "easyrsa_openssl - undefined error"
 } # => easyrsa_openssl()
 
 # Verify the SSL library is functional and establish version dependencies
@@ -1735,7 +1765,9 @@ sign_req() {
 
 			# Check for duplicate serial in CA db
 			# Always errors out - Do not capture error
+			# unset EASYRSA_SILENT_SSL to capure all output
 			check_serial="$(
+				unset -v EASYRSA_SILENT_SSL
 				easyrsa_openssl ca -status "$serial" 2>&1
 				)" || :
 
@@ -5474,6 +5506,10 @@ while :; do
 		empty_ok=1
 		export EASYRSA_SILENT=1
 		export EASYRSA_BATCH=1
+		;;
+	-S|--silent-ssl)
+		empty_ok=1
+		export EASYRSA_SILENT_SSL=1
 		;;
 	--no-safe-ssl)
 		empty_ok=1
