@@ -1,5 +1,8 @@
 Easy-RSA 3 ChangeLog
 
+3.1.3 (ETA: 2023-10-13)
+   * Option -S|--silent-ssl: Silence ALL SSL error messages (#871)
+
 3.1.2 (2023-01-13)
    * build-full: Always enable inline file creation (#834)
    * Make default Edwards curve ED25519 (#828)
