@@ -1065,7 +1065,7 @@ and initialize a fresh PKI here."
 		;;
 		soft)
 		# There is no unit test for a soft reset
-			for i in ca.crt \
+			for i in ca.crt crl.pem \
 				issued private reqs inline revoked renewed \
 				serial serial.old index.txt index.txt.old \
 				index.txt.attr index.txt.attr.old \
@@ -3604,7 +3604,6 @@ This file is stored at:
 			|| die "\
 OpenSSL failure to process the input"
 
-	[ "$EASYRSA_SILENT" ] || print # Separate certificate above
 } # => show()
 
 # show-ca command backend
@@ -3636,16 +3635,14 @@ This file is not a valid $type file:
 $in_file"
 
 	notice "
-Showing $type details for 'ca'.
-
-This file is stored at:
-* $in_file"
+Showing details for CA certificate, at:
+* $in_file
+"
 
 	easyrsa_openssl "$format" -in "$in_file" -noout -text \
 		-nameopt "$name_opts" -certopt "$out_opts" || die "\
 OpenSSL failure to process the input"
 
-	[ "$EASYRSA_SILENT" ] || print # Separate certificate above
 } # => show_ca()
 
 # Set fixed offset dates
