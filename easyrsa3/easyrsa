@@ -893,25 +893,13 @@ easyrsa_openssl() {
 			die "easyrsa_openssl - makesafeconf failed"
 
 	elif [ "$has_config" ]; then
-		# debug log on
-		if [ "$EASYRSA_DEBUG" ]; then print "<< DEBUG-ON >>"; set -x; fi
-
 		# Exec SSL with -config temp-file
 		"$EASYRSA_OPENSSL" "$openssl_command" \
 			-config "$easyrsa_safe_ssl_conf" "$@" || return
 
-		# debug log off
-		if [ "$EASYRSA_DEBUG" ]; then set +x; print ">> DEBUG-OFF <<"; fi
-
 	else
-		# debug log on
-		if [ "$EASYRSA_DEBUG" ]; then print "<< DEBUG-ON >>"; set -x; fi
-
 		# Exec SSL without -config temp-file
 		"$EASYRSA_OPENSSL" "$openssl_command" "$@" || return
-
-		# debug log off
-		if [ "$EASYRSA_DEBUG" ]; then set +x; print ">> DEBUG-OFF <<"; fi
 	fi
 } # => easyrsa_openssl()
 
@@ -3996,7 +3984,6 @@ ssl_cert_serial() {
 	[ -f "$1" ] || die "ssl_cert_serial - missing cert"
 
 	fn_ssl_out="$(
-		unset -v EASYRSA_DEBUG
 		easyrsa_openssl x509 -in "$1" -noout -serial
 		)"  || die "ssl_cert_serial - failed: -serial"
 	# remove the serial= part -> we only need the XXXX part
@@ -4016,7 +4003,6 @@ ssl_cert_not_before_date - invalid input"
 ssl_cert_not_before_date - missing cert"
 
 	fn_ssl_out="$(
-		unset -v EASYRSA_DEBUG
 		easyrsa_openssl x509 -in "$1" -noout -startdate
 		)" || die "\
 ssl_cert_not_before_date - failed: -startdate"
@@ -4037,7 +4023,6 @@ ssl_cert_not_after_date - invalid input"
 ssl_cert_not_after_date - missing cert"
 
 	fn_ssl_out="$(
-		unset -v EASYRSA_DEBUG
 		easyrsa_openssl x509 -in "$1" -noout -enddate
 		)" || die "\
 ssl_cert_not_after_date - failed: -enddate"
@@ -5346,8 +5331,7 @@ Version:     $EASYRSA_version
 Generated:   ~DATE~
 SSL Lib:     $ssl_version
 Git Commit:  ~GITHEAD~
-Source Repo: https://github.com/OpenVPN/easy-rsa${EASYRSA_DEBUG+
-* debug enabled}
+Source Repo: https://github.com/OpenVPN/easy-rsa
 VERSION_TEXT
 } # => print_version ()
 
