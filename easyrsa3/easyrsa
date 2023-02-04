@@ -538,7 +538,7 @@ die() {
 Easy-RSA error:
 
 $1
-" 1>&2
+"
 	show_host
 	exit "${2:-1}"
 } # => die()
