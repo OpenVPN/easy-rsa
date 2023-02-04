@@ -1,6 +1,7 @@
 Easy-RSA 3 ChangeLog
 
 3.1.3 (ETA: 2023-10-13)
+   * Option -S|--silent-ssl: Silence ALL SSL error msgs ONLY (#872)
    * Option --fix-offset: Adjust off-by-one day (#847)
 
 3.1.2 (2023-01-13)
