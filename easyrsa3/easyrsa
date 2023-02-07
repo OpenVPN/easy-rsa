@@ -768,8 +768,9 @@ Generated safe SSL config file:
 # Escape hazardous characters
 escape_hazard() {
 	# Assign temp file
-	easyrsa_mktemp easyrsa_vars_org || \
-		die "escape_hazard - easyrsa_mktemp"
+	easyrsa_vars_org=""
+	easyrsa_mktemp easyrsa_vars_org || die \
+		"escape_hazard - easyrsa_mktemp easyrsa_vars_org"
 
 	# write org fields to org temp-file and escape '&' and '$'
 	print "\
@@ -866,8 +867,9 @@ easyrsa_openssl() {
 	fi
 
 	# Assign safe temp file to create, may not be used
-	easyrsa_mktemp easyrsa_safe_ssl_conf || \
-		die "easyrsa_openssl - easyrsa_mktemp"
+	easyrsa_safe_ssl_conf=""
+	easyrsa_mktemp easyrsa_safe_ssl_conf || die \
+		"easyrsa_openssl - easyrsa_mktemp easyrsa_safe_ssl_conf"
 
 	# Auto-escape hazardous characters:
 	# '&' - Workaround 'sed' behavior
@@ -1407,8 +1409,10 @@ Unable to create necessary PKI files (permissions?)"
 	fi
 
 	# Assign cert and key temp files
+	out_key_tmp=""
 	easyrsa_mktemp out_key_tmp || \
 		die "build_ca - easyrsa_mktemp out_key_tmp"
+	out_file_tmp=""
 	easyrsa_mktemp out_file_tmp || \
 		die "build_ca - easyrsa_mktemp out_file_tmp"
 
@@ -1424,8 +1428,10 @@ Unable to create necessary PKI files (permissions?)"
 
 	else
 		# Assign passphrase vars and temp file
+		in_key_pass_tmp=""
 		easyrsa_mktemp in_key_pass_tmp || \
 			die "build_ca - in_key_pass_tmp"
+		out_key_pass_tmp=""
 		easyrsa_mktemp out_key_pass_tmp || \
 			die "build_ca - out_key_pass_tmp"
 
@@ -1460,6 +1466,7 @@ Unable to create necessary PKI files (permissions?)"
 }'
 
 	# Assign tmp-file for config
+	conf_tmp=""
 	easyrsa_mktemp conf_tmp || \
 		die "build_ca - easyrsa_mktemp conf_tmp"
 	{
@@ -1570,6 +1577,7 @@ at: $out_file"
 
 	# Create a temp file
 	# otherwise user abort leaves an incomplete dh.pem
+	tmp_dh_file=""
 	easyrsa_mktemp tmp_dh_file || \
 		die "gen_dh - easyrsa_mktemp tmp_dh_file"
 
@@ -1674,6 +1682,7 @@ $EASYRSA_EXTRA_EXTS"
  {print}
 }'
 		# Assign temp-file for confg
+		conf_tmp=""
 		easyrsa_mktemp conf_tmp || \
 			die "gen_req - easyrsa_mktemp conf_tmp"
 
@@ -1686,8 +1695,10 @@ $EASYRSA_EXTRA_EXTS"
 	fi
 
 	# Name temp files
+	key_out_tmp=""
 	easyrsa_mktemp key_out_tmp || \
 		die "gen_req - easyrsa_mktemp key_out_tmp"
+	req_out_tmp=""
 	easyrsa_mktemp req_out_tmp || \
 		die "gen_req - easyrsa_mktemp req_out_tmp"
 
@@ -1828,6 +1839,7 @@ to the latest official release."
  {print}
 }'
 		# Assign temp-file for confg
+		conf_tmp=""
 		easyrsa_mktemp conf_tmp || \
 			die "sign_req - easyrsa_mktemp conf_tmp"
 
@@ -1840,6 +1852,7 @@ to the latest official release."
 	fi
 
 	# Generate the extensions file for this cert:
+	ext_tmp=""
 	easyrsa_mktemp ext_tmp || \
 		die "sign_req - easyrsa_mktemp ext_tmp"
 	{
@@ -1939,6 +1952,7 @@ $(display_dn req "$req_in")
 "	# => confirm end
 
 	# Assign temp cert file
+	crt_out_tmp=""
 	easyrsa_mktemp crt_out_tmp || \
 		die "sign_req - easyrsa_mktemp crt_out_tmp"
 
@@ -3089,6 +3103,7 @@ gen_crl() {
 
 	out_file="$EASYRSA_PKI/crl.pem"
 
+	out_file_tmp=""
 	easyrsa_mktemp out_file_tmp || \
 		die "gen_crl - easyrsa_mktemp out_file_tmp"
 
@@ -3306,6 +3321,7 @@ If the key is currently encrypted you must supply the decryption passphrase.
 ${cipher:+You will then enter a new PEM passphrase for this key.$NL}"
 
 	# Set password
+	out_key_tmp=""
 	easyrsa_mktemp out_key_tmp || \
 		die "set_pass_legacy - easyrsa_mktemp out_key_tmp"
 
@@ -3367,6 +3383,7 @@ If the key is encrypted then you must supply the decryption pass phrase.
 ${cipher:+You will then enter and verify a new PEM pass phrase for this key.}"
 
 	# Set password
+	out_key_tmp=""
 	easyrsa_mktemp out_key_tmp || \
 		die "set_pass - easyrsa_mktemp out_key_tmp"
 
@@ -4449,6 +4466,7 @@ verify_algo_params() {
 	;;
 	ec)
 		# Verify Elliptic curve
+		EASYRSA_ALGO_PARAMS=""
 		easyrsa_mktemp EASYRSA_ALGO_PARAMS || die \
 		"verify_algo_params - easyrsa_mktemp EASYRSA_ALGO_PARAMS"
 
