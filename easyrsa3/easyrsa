@@ -926,6 +926,9 @@ verify_ssl_lib() {
 		*)
 			error_msg="$("$EASYRSA_OPENSSL" version 2>&1)"
 			die "\
+* OpenSSL must either exist in your PATH
+  or be defined in your vars file.
+
 Invalid SSL output for 'version':
 
 $error_msg"
@@ -4655,14 +4658,14 @@ Sourcing the vars file and building certificates will probably fail ..'
 
 	set_var EASYRSA_KDC_REALM		"CHANGEME.EXAMPLE.COM"
 
+	# Verify SSL Lib - One time ONLY
+	verify_ssl_lib
+
 	# Find x509-types but do not fail - Not fatal here, used by 'help'
 	install_data_to_pki x509-types-only
 
 	# For commands which 'require a PKI' and the PKI exists
 	if  [ "$pki_is_required" ] && [ -d "$EASYRSA_PKI" ]; then
-
-		# Verify SSL Lib - One time ONLY
-		verify_ssl_lib
 
 		# mkdir Temp dir session
 		secure_session || die "Temporary directory secure-session failed."
@@ -5329,7 +5332,7 @@ print_version()
 EasyRSA Version Information
 Version:     $EASYRSA_version
 Generated:   ~DATE~
-SSL Lib:     $ssl_version
+SSL Lib:     ${ssl_version:-undefined}
 Git Commit:  ~GITHEAD~
 Source Repo: https://github.com/OpenVPN/easy-rsa
 VERSION_TEXT
