@@ -635,15 +635,8 @@ easyrsa_mktemp() {
 	[ "$#" = 1 ] || die "easyrsa_mktemp - invalid input"
 
 	# session directory must exist
-	if [ "$EASYRSA_TEMP_DIR_session" ] && \
-		[ -d "$EASYRSA_TEMP_DIR_session" ]
-	then
-		: # ok
-	else
-		die "\
-easyrsa_mktemp - Non-existant temporary session:
-* $EASYRSA_TEMP_DIR_session"
-	fi
+	[ "$EASYRSA_TEMP_DIR_session" ] || die "\
+easyrsa_mktemp - Temporary session undefined"
 
 	# Update counter
 	mktemp_counter="$(( mktemp_counter + 1 ))"
