@@ -651,20 +651,19 @@ easyrsa_mktemp - Non-existant temporary session:
 	# Assign internal temp-file name
 	t="${EASYRSA_TEMP_DIR_session}/temp.${mktemp_counter}"
 
-	# Must not exist
+	# Create temp-file or die
 	for i in x y z; do
-
-		shotfile="${t}.${i}"
+		shotfile="${t}.0"
+		target="$t.$i"
 		if [ -e "$shotfile" ]; then
-			continue
+			break
 		else
-			printf "" > "$shotfile" || continue
-		fi
-
-		# atomic:
-		if mv "$shotfile" "$t"; then
-			# Assign external temp-file name
-			force_set_var "$1" "$t" && return
+			printf "" > "$shotfile" || break
+			# atomic:
+			if mv "$shotfile" "$target"; then
+				# Assign external temp-file name
+				force_set_var "$1" "$target" && return
+			fi
 		fi
 	done
 	die "easyrsa_mktemp failed"
