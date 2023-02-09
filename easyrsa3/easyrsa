@@ -593,8 +593,9 @@ Type the word '$value' to continue, or any other input to abort."
 
 # Generate random hex
 # Cannot use easyrsa-openssl() due to chicken vs egg,
-# easyrsa_openssl() creates temp-files, which needs `openssl rand`.
-# Redirect error-out, because LibreSSL complains of missing conf.
+# easyrsa_openssl() creates temp-files,
+# which needs `openssl rand`.
+# Redirect error-out, ignore complaints of missing config
 easyrsa_random() {
 	case "$1" in
 	(*[!1234567890]*|0*|"") : ;; # invalid input
@@ -608,22 +609,25 @@ easyrsa_random() {
 # Create session directory atomically or fail
 secure_session() {
 	# Session is already defined
-	[ "$EASYRSA_TEMP_DIR_session" ] && die "session overload"
+	[ "$EASYRSA_TEMP_DIR_session" ] && \
+		die "session overload"
 
 	# temporary directory must exist
-	if [ "$EASYRSA_TEMP_DIR" ] && [ -d "$EASYRSA_TEMP_DIR" ]
+	if [ "$EASYRSA_TEMP_DIR" ] && \
+		[ -d "$EASYRSA_TEMP_DIR" ]
 	then
 		: # ok
 	else
-		die "Non-existant temporary directory: $EASYRSA_TEMP_DIR"
+		die "Non-existant temporary directory:
+* $EASYRSA_TEMP_DIR"
 	fi
 
 	for i in 1 2 3; do
-		random_session="$(
+		session="$(
 			easyrsa_random 4
-			)" || die "secure_session - random_session '$random_session'"
+			)" || die "secure_session - session"
 
-		EASYRSA_TEMP_DIR_session="${EASYRSA_TEMP_DIR}/${random_session}"
+		EASYRSA_TEMP_DIR_session="${EASYRSA_TEMP_DIR}/${session}"
 		# atomic:
 		mkdir "$EASYRSA_TEMP_DIR_session" && return
 	done
