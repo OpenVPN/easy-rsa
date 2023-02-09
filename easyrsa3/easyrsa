@@ -609,7 +609,7 @@ easyrsa_random() {
 # Create session directory atomically or fail
 secure_session() {
 	# Session is already defined
-	[ "$EASYRSA_TEMP_DIR_session" ] && \
+	[ "$secured_session" ] && \
 		die "session overload"
 
 	# temporary directory must exist
@@ -627,9 +627,9 @@ secure_session() {
 			easyrsa_random 4
 			)" || die "secure_session - session"
 
-		EASYRSA_TEMP_DIR_session="${EASYRSA_TEMP_DIR}/${session}"
+		secured_session="${EASYRSA_TEMP_DIR}/${session}"
 		# atomic:
-		mkdir "$EASYRSA_TEMP_DIR_session" && return
+		mkdir "$secured_session" && return
 	done
 	die "secure_session failed"
 } # => secure_session()
@@ -639,14 +639,14 @@ easyrsa_mktemp() {
 	[ "$#" = 1 ] || die "easyrsa_mktemp - invalid input"
 
 	# session directory must exist
-	[ "$EASYRSA_TEMP_DIR_session" ] || die "\
+	[ "$secured_session" ] || die "\
 easyrsa_mktemp - Temporary session undefined"
 
 	# Update counter
 	mktemp_counter="$(( mktemp_counter + 1 ))"
 
 	# Assign internal temp-file name
-	t="${EASYRSA_TEMP_DIR_session}/temp.${mktemp_counter}"
+	t="${secured_session}/temp.${mktemp_counter}"
 
 	# Create temp-file or die
 	for i in x y z; do
@@ -668,8 +668,8 @@ easyrsa_mktemp - Temporary session undefined"
 
 # remove temp files and do terminal cleanups
 cleanup() {
-	if [ "${EASYRSA_TEMP_DIR_session%/*}" ] && \
-		[ -d "$EASYRSA_TEMP_DIR_session" ]
+	if [ "${secured_session%/*}" ] && \
+		[ -d "$secured_session" ]
 	then
 		# Remove temp-session or create temp-snapshot
 		if [ "$EASYRSA_KEEP_TEMP" ]
@@ -685,13 +685,13 @@ Temporary session not preserved."
 				keep_tmp="$EASYRSA_TEMP_DIR/tmp/$EASYRSA_KEEP_TEMP"
 				mkdir -p "$keep_tmp"
 				rm -rf "$keep_tmp"
-				mv -f "$EASYRSA_TEMP_DIR_session" "$keep_tmp"
+				mv -f "$secured_session" "$keep_tmp"
 				print "Temp session preserved: $keep_tmp"
 			fi
 		fi
 
 		# Always remove temp-session
-		rm -rf "$EASYRSA_TEMP_DIR_session"
+		rm -rf "$secured_session"
 	fi
 
 	if [ "${EASYRSA_EC_DIR%/*}" ] && [ -d "$EASYRSA_EC_DIR" ]
@@ -5019,12 +5019,12 @@ up23_create_openssl_cnf ()
 
 	# Create secure session
 	# Because the upgrade runs twice, once as a test and then for real
-	# EASYRSA_TEMP_DIR_session must be cleared to avoid overload error
-	[ "$EASYRSA_TEMP_DIR_session" ] && unset -v EASYRSA_TEMP_DIR_session
+	# secured_session must be cleared to avoid overload error
+	[ "$secured_session" ] && unset -v secured_session
 	up23_verbose "> Create secure session"
 	secure_session || die "up23_create_openssl_cnf - secure_session failed."
 	up23_verbose "> OK"
-	up23_verbose "  secure session: $EASYRSA_TEMP_DIR_session"
+	up23_verbose "  secure session: $secured_session"
 
 	# Create $EASYRSA_PKI/safessl-easyrsa.cnf
 	easyrsa_openssl makesafeconf
@@ -5397,6 +5397,7 @@ detect_host
 unset -v \
 	easyrsa_error_exit \
 	prohibit_no_pass \
+	secured_session \
 	user_vars_true \
 	user_san_true \
 	alias_days
