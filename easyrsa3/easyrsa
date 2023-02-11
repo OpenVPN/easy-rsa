@@ -593,8 +593,9 @@ Type the word '$value' to continue, or any other input to abort."
 
 # Generate random hex
 # Cannot use easyrsa-openssl() due to chicken vs egg,
-# easyrsa_openssl() creates temp-files, which needs `openssl rand`.
-# Redirect error-out, because LibreSSL complains of missing conf.
+# easyrsa_openssl() creates temp-files,
+# which needs `openssl rand`.
+# Redirect error-out, ignore complaints of missing config
 easyrsa_random() {
 	case "$1" in
 	(*[!1234567890]*|0*|"") : ;; # invalid input
@@ -608,58 +609,58 @@ easyrsa_random() {
 # Create session directory atomically or fail
 secure_session() {
 	# Session is already defined
-	[ "$EASYRSA_TEMP_DIR_session" ] && die "session overload"
+	[ "$secured_session" ] && \
+		die "session overload"
 
 	# temporary directory must exist
-	if [ "$EASYRSA_TEMP_DIR" ] && [ -d "$EASYRSA_TEMP_DIR" ]
+	if [ "$EASYRSA_TEMP_DIR" ] && \
+		[ -d "$EASYRSA_TEMP_DIR" ]
 	then
 		: # ok
 	else
-		die "Non-existant temporary directory: $EASYRSA_TEMP_DIR"
+		die "Non-existant temporary directory:
+* $EASYRSA_TEMP_DIR"
 	fi
 
 	for i in 1 2 3; do
-		random_session="$(
+		session="$(
 			easyrsa_random 4
-			)" || die "secure_session - random_session '$random_session'"
+			)" || die "secure_session - session"
 
-		EASYRSA_TEMP_DIR_session="${EASYRSA_TEMP_DIR}/${random_session}"
+		secured_session="${EASYRSA_TEMP_DIR}/${session}"
 		# atomic:
-		mkdir "$EASYRSA_TEMP_DIR_session" && return
+		mkdir "$secured_session" && return
 	done
 	die "secure_session failed"
 } # => secure_session()
 
-# Create tempfile atomically or fail
+# Create temp-file atomically or fail
 easyrsa_mktemp() {
+	[ "$#" = 1 ] || die "easyrsa_mktemp - invalid input"
+
 	# session directory must exist
-	if [ "$EASYRSA_TEMP_DIR_session" ] && [ -d "$EASYRSA_TEMP_DIR_session" ]
-	then
-		: # ok
-	else
-		die "\
-easyrsa_mktemp - Non-existant temporary session:
-* $EASYRSA_TEMP_DIR_session"
-	fi
+	[ "$secured_session" ] || die "\
+easyrsa_mktemp - Temporary session undefined"
 
-	for i in 1 2 3; do
-		# Always use openssl directly for rand
-		random_file="$(
-			easyrsa_random 4
-			)" || die "easyrsa_mktemp - random_file '$random_file'"
+	# Update counter
+	mktemp_counter="$(( mktemp_counter + 1 ))"
 
-		shotfile="${EASYRSA_TEMP_DIR_session}/shot.$random_file"
+	# Assign internal temp-file name
+	t="${secured_session}/temp.${mktemp_counter}"
+
+	# Create temp-file or die
+	for i in x y z; do
+		shotfile="${t}.0"
+		target="$t.$i"
 		if [ -e "$shotfile" ]; then
-			continue
+			break
 		else
-			printf "" > "$shotfile" || continue
-		fi
-
-		tempfile="${EASYRSA_TEMP_DIR_session}/temp.$random_file"
-		# atomic:
-		if mv "$shotfile" "$tempfile"; then
-			# Print the new temporary file-name for the caller
-			printf '%s\n' "$tempfile" && return
+			printf "" > "$shotfile" || break
+			# atomic:
+			if mv "$shotfile" "$target"; then
+				# Assign external temp-file name
+				force_set_var "$1" "$target" && return
+			fi
 		fi
 	done
 	die "easyrsa_mktemp failed"
@@ -667,8 +668,8 @@ easyrsa_mktemp - Non-existant temporary session:
 
 # remove temp files and do terminal cleanups
 cleanup() {
-	if [ "${EASYRSA_TEMP_DIR_session%/*}" ] && \
-		[ -d "$EASYRSA_TEMP_DIR_session" ]
+	if [ "${secured_session%/*}" ] && \
+		[ -d "$secured_session" ]
 	then
 		# Remove temp-session or create temp-snapshot
 		if [ "$EASYRSA_KEEP_TEMP" ]
@@ -684,18 +685,13 @@ Temporary session not preserved."
 				keep_tmp="$EASYRSA_TEMP_DIR/tmp/$EASYRSA_KEEP_TEMP"
 				mkdir -p "$keep_tmp"
 				rm -rf "$keep_tmp"
-				mv -f "$EASYRSA_TEMP_DIR_session" "$keep_tmp"
+				mv -f "$secured_session" "$keep_tmp"
 				print "Temp session preserved: $keep_tmp"
 			fi
 		fi
 
 		# Always remove temp-session
-		rm -rf "$EASYRSA_TEMP_DIR_session"
-	fi
-
-	if [ "${EASYRSA_EC_DIR%/*}" ] && [ -d "$EASYRSA_EC_DIR" ]
-	then
-		rm -rf "$EASYRSA_EC_DIR"
+		rm -rf "$secured_session"
 	fi
 
 	# Remove files when build_full()->sign_req() is interrupted
@@ -763,8 +759,9 @@ Generated safe SSL config file:
 # Escape hazardous characters
 escape_hazard() {
 	# Assign temp file
-	easyrsa_vars_org="$(easyrsa_mktemp)" || \
-		die "escape_hazard - easyrsa_mktemp failed"
+	easyrsa_vars_org=""
+	easyrsa_mktemp easyrsa_vars_org || die \
+		"escape_hazard - easyrsa_mktemp easyrsa_vars_org"
 
 	# write org fields to org temp-file and escape '&' and '$'
 	print "\
@@ -861,8 +858,9 @@ easyrsa_openssl() {
 	fi
 
 	# Assign safe temp file to create, may not be used
-	easyrsa_safe_ssl_conf="$(easyrsa_mktemp)" || \
-		die "easyrsa_openssl - easyrsa_mktemp failed"
+	easyrsa_safe_ssl_conf=""
+	easyrsa_mktemp easyrsa_safe_ssl_conf || die \
+		"easyrsa_openssl - easyrsa_mktemp easyrsa_safe_ssl_conf"
 
 	# Auto-escape hazardous characters:
 	# '&' - Workaround 'sed' behavior
@@ -1405,10 +1403,13 @@ Unable to create necessary PKI files (permissions?)"
 	fi
 
 	# Assign cert and key temp files
-	out_key_tmp="$(easyrsa_mktemp)" || \
-		die "Failed to create temp-key file"
-	out_file_tmp="$(easyrsa_mktemp)" || \
-		die "Failed to create temp-cert file"
+	out_key_tmp=""
+	easyrsa_mktemp out_key_tmp || \
+		die "build_ca - easyrsa_mktemp out_key_tmp"
+	out_file_tmp=""
+	easyrsa_mktemp out_file_tmp || \
+		die "build_ca - easyrsa_mktemp out_file_tmp"
+
 
 	# Get passphrase from user if necessary
 	if [ "$EASYRSA_NO_PASS" ]
@@ -1421,10 +1422,12 @@ Unable to create necessary PKI files (permissions?)"
 
 	else
 		# Assign passphrase vars and temp file
-		in_key_pass_tmp="$(easyrsa_mktemp)" || \
-			die "in_key_pass_tmp: create"
-		out_key_pass_tmp="$(easyrsa_mktemp)" || \
-			die "out_key_pass_tmp: create"
+		in_key_pass_tmp=""
+		easyrsa_mktemp in_key_pass_tmp || \
+			die "build_ca - in_key_pass_tmp"
+		out_key_pass_tmp=""
+		easyrsa_mktemp out_key_pass_tmp || \
+			die "build_ca - out_key_pass_tmp"
 
 		p=""
 		q=""
@@ -1456,7 +1459,10 @@ Unable to create necessary PKI files (permissions?)"
  {print}
 }'
 
-	conf_tmp="$(easyrsa_mktemp)" || die "conf_tmp: create"
+	# Assign tmp-file for config
+	conf_tmp=""
+	easyrsa_mktemp conf_tmp || \
+		die "build_ca - easyrsa_mktemp conf_tmp"
 	{
 		cat "$EASYRSA_EXT_DIR/ca" "$EASYRSA_EXT_DIR/COMMON"
 		[ "$EASYRSA_EXTRA_EXTS" ] && print "$EASYRSA_EXTRA_EXTS"
@@ -1565,8 +1571,9 @@ at: $out_file"
 
 	# Create a temp file
 	# otherwise user abort leaves an incomplete dh.pem
-	tmp_dh_file="$(easyrsa_mktemp)" || \
-		die "Failed to create temp DH file"
+	tmp_dh_file=""
+	easyrsa_mktemp tmp_dh_file || \
+		die "gen_dh - easyrsa_mktemp tmp_dh_file"
 
 	# Generate dh.pem
 	"$EASYRSA_OPENSSL" dhparam -out "$tmp_dh_file" \
@@ -1668,8 +1675,11 @@ $EASYRSA_EXTRA_EXTS"
 	{ while ( getline<"/dev/stdin" ) {print} next }
  {print}
 }'
-		conf_tmp="$(easyrsa_mktemp)" || die "\
-gen_req - easyrsa_mktemp - conf_tmp"
+		# Assign temp-file for confg
+		conf_tmp=""
+		easyrsa_mktemp conf_tmp || \
+			die "gen_req - easyrsa_mktemp conf_tmp"
+
 		print "$extra_exts" | \
 			awk "$awkscript" "$EASYRSA_SSL_CONF" \
 			> "$conf_tmp" \
@@ -1679,10 +1689,12 @@ gen_req - easyrsa_mktemp - conf_tmp"
 	fi
 
 	# Name temp files
-	key_out_tmp="$(easyrsa_mktemp)" || die "\
-gen_req - easyrsa_mktemp - key_out_tmp"
-	req_out_tmp="$(easyrsa_mktemp)" || die "\
-gen_req - easyrsa_mktemp - req_out_tmp"
+	key_out_tmp=""
+	easyrsa_mktemp key_out_tmp || \
+		die "gen_req - easyrsa_mktemp key_out_tmp"
+	req_out_tmp=""
+	easyrsa_mktemp req_out_tmp || \
+		die "gen_req - easyrsa_mktemp req_out_tmp"
 
 	# Set Edwards curve name or elliptic curve parameters file
 	algo_opts=""
@@ -1731,15 +1743,12 @@ sign_req() {
 				easyrsa_random 16
 				)" || die "sign_req - easyrsa_random"
 
-			# Print random $serial to pki/serial file
-			# for use by SSL config
-			print "$serial" > "$EASYRSA_PKI/serial" || \
-				die "sign_req - serial"
-
 			# Check for duplicate serial in CA db
 			# Always errors out - Do not capture error
+			# unset EASYRSA_SILENT_SSL to capure all output
 			check_serial="$(
-				easyrsa_openssl ca -status "$serial" 2>&1
+				EASYRSA_SILENT_SSL='' \
+					easyrsa_openssl ca -status "$serial" 2>&1
 				)" || :
 
 			case "$check_serial" in
@@ -1755,6 +1764,11 @@ sign_req - Randomize Serial number failed:
 
 $check_serial"
 	fi
+
+	# Print random $serial to pki/serial file
+	# for use by SSL config
+	print "$serial" > "$EASYRSA_PKI/serial" || \
+		die "sign_req - write serial to file"
 
 	verify_ca_init
 
@@ -1818,8 +1832,11 @@ to the latest official release."
 	{ while ( getline<"/dev/stdin" ) {print} next }
  {print}
 }'
-		conf_tmp="$(easyrsa_mktemp)" || \
-			die "sign_req - easyrsa_mktemp - conf_tmp"
+		# Assign temp-file for confg
+		conf_tmp=""
+		easyrsa_mktemp conf_tmp || \
+			die "sign_req - easyrsa_mktemp conf_tmp"
+
 		print "$copy_exts" | \
 			awk "$awkscript" "$EASYRSA_SSL_CONF" \
 			> "$conf_tmp" \
@@ -1829,8 +1846,9 @@ to the latest official release."
 	fi
 
 	# Generate the extensions file for this cert:
-	ext_tmp="$(easyrsa_mktemp)" || \
-		die "sign_req - easyrsa_mktemp - ext_tmp"
+	ext_tmp=""
+	easyrsa_mktemp ext_tmp || \
+		die "sign_req - easyrsa_mktemp ext_tmp"
 	{
 		# Append COMMON and cert-type extensions
 		cat "$EASYRSA_EXT_DIR/COMMON" || \
@@ -1928,8 +1946,9 @@ $(display_dn req "$req_in")
 "	# => confirm end
 
 	# Assign temp cert file
-	crt_out_tmp="$(easyrsa_mktemp)" || \
-		die "sign_req - easyrsa_mktemp - crt_out_tmp"
+	crt_out_tmp=""
+	easyrsa_mktemp crt_out_tmp || \
+		die "sign_req - easyrsa_mktemp crt_out_tmp"
 
 	# sign request
 	easyrsa_openssl ca -utf8 -in "$req_in" \
@@ -3077,7 +3096,10 @@ gen_crl() {
 	verify_ca_init
 
 	out_file="$EASYRSA_PKI/crl.pem"
-	out_file_tmp="$(easyrsa_mktemp)" || die "Failed to create temporary file"
+
+	out_file_tmp=""
+	easyrsa_mktemp out_file_tmp || \
+		die "gen_crl - easyrsa_mktemp out_file_tmp"
 
 	easyrsa_openssl ca -utf8 -gencrl -out "$out_file_tmp" \
 		${EASYRSA_PASSIN:+-passin "$EASYRSA_PASSIN"} || die "\
@@ -3086,8 +3108,8 @@ CRL Generation failed."
 	mv "$out_file_tmp" "$out_file"
 
 	notice "\
-An updated CRL has been created.
-CRL file: $out_file"
+An updated CRL has been created:
+* $out_file"
 
 	return 0
 } # => gen_crl()
@@ -3293,7 +3315,10 @@ If the key is currently encrypted you must supply the decryption passphrase.
 ${cipher:+You will then enter a new PEM passphrase for this key.$NL}"
 
 	# Set password
-	out_key_tmp="$(easyrsa_mktemp)" || die "Failed to create temporary file"
+	out_key_tmp=""
+	easyrsa_mktemp out_key_tmp || \
+		die "set_pass_legacy - easyrsa_mktemp out_key_tmp"
+
 	easyrsa_openssl "$key_type" -in "$file" -out "$out_key_tmp" \
 		${cipher:+ "$cipher"} \
 		${EASYRSA_PASSIN:+ -passin "$EASYRSA_PASSIN"} \
@@ -3352,7 +3377,9 @@ If the key is encrypted then you must supply the decryption pass phrase.
 ${cipher:+You will then enter and verify a new PEM pass phrase for this key.}"
 
 	# Set password
-	out_key_tmp="$(easyrsa_mktemp)" || die "Failed to create temporary file"
+	out_key_tmp=""
+	easyrsa_mktemp out_key_tmp || \
+		die "set_pass - easyrsa_mktemp out_key_tmp"
 
 	easyrsa_openssl pkey -in "$file" -out "$out_key_tmp" \
 		${cipher:+ "$cipher"} \
@@ -3801,7 +3828,7 @@ cert_date_to_timestamp_s - input error"
 			busybox date -D "%b %e %H:%M:%S %Y" \
 				-d "$in_date" +%s 2>/dev/null
 			)" || die "\
-cert_date_to_timestamp_s - out_date_s - busybox"
+cert_date_to_timestamp_s - timestamp_s - busybox $in_date"
 
 	# Darwin, BSD
 	elif timestamp_s="$(
@@ -4338,7 +4365,6 @@ satisfy_shellcheck() {
 	EASYRSA_ALGO=
 	EASYRSA_KEY_SIZE=
 	EASYRSA_CURVE=
-	EASYRSA_EC_DIR=
 	EASYRSA_CA_EXPIRE=
 	EASYRSA_CERT_EXPIRE=
 	EASYRSA_CERT_RENEW=
@@ -4433,7 +4459,9 @@ verify_algo_params() {
 	;;
 	ec)
 		# Verify Elliptic curve
-		EASYRSA_ALGO_PARAMS="$(easyrsa_mktemp)"
+		EASYRSA_ALGO_PARAMS=""
+		easyrsa_mktemp EASYRSA_ALGO_PARAMS || die \
+		"verify_algo_params - easyrsa_mktemp EASYRSA_ALGO_PARAMS"
 
 		# Create the required ecparams file
 		easyrsa_openssl ecparam -name "$EASYRSA_CURVE" \
@@ -4635,7 +4663,6 @@ Sourcing the vars file and building certificates will probably fail ..'
 	;;
 	ec)
 		set_var EASYRSA_CURVE		secp384r1
-		set_var EASYRSA_EC_DIR		"$EASYRSA_PKI/ecparams"
 	;;
 	ed)
 		set_var EASYRSA_CURVE		ed25519
@@ -4988,12 +5015,12 @@ up23_create_openssl_cnf ()
 
 	# Create secure session
 	# Because the upgrade runs twice, once as a test and then for real
-	# EASYRSA_TEMP_DIR_session must be cleared to avoid overload error
-	[ "$EASYRSA_TEMP_DIR_session" ] && unset -v EASYRSA_TEMP_DIR_session
+	# secured_session must be cleared to avoid overload error
+	[ "$secured_session" ] && unset -v secured_session
 	up23_verbose "> Create secure session"
 	secure_session || die "up23_create_openssl_cnf - secure_session failed."
 	up23_verbose "> OK"
-	up23_verbose "  secure session: $EASYRSA_TEMP_DIR_session"
+	up23_verbose "  secure session: $secured_session"
 
 	# Create $EASYRSA_PKI/safessl-easyrsa.cnf
 	easyrsa_openssl makesafeconf
@@ -5366,9 +5393,12 @@ detect_host
 unset -v \
 	easyrsa_error_exit \
 	prohibit_no_pass \
+	secured_session \
 	user_vars_true \
 	user_san_true \
 	alias_days
+
+	mktemp_counter=0
 
 # Parse options
 while :; do
@@ -5711,6 +5741,7 @@ esac
 [ $? = 0 ] || warn "Untrapped error detected!"
 
 # Do 'cleanup ok' on successful completion
+#print "mktemp_counter: $mktemp_counter uses"
 cleanup ok
 
 # vim: ft=sh nu ai sw=8 ts=8 noet
