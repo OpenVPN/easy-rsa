@@ -4740,10 +4740,10 @@ Using SSL: $EASYRSA_OPENSSL $ssl_version
 # the variable when it is already defined (even if currently null)
 # Sets $1 as the value contained in $2 and exports (may be blank)
 set_var() {
-	var=$1
-	shift
-	value="$*"
-	eval "export $var=\"\${$var-$value}\""
+	[ "$1" ] || die "set_var - missing input"
+	[ "$1" = "${1% *}" ] || die "set_var - input error"
+	[ "$#" -lt 3 ] || die "set_var - excess input"
+	eval "export \"$1\"=\"\${$1-$2}\""
 } #=> set_var()
 
 
