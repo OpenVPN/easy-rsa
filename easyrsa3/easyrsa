@@ -1518,6 +1518,10 @@ Unable to create necessary PKI files (permissions?)"
 			|| die "Failed to build the CA certificate"
 
 	# Remove passphrase temp-file
+	if [ -f "$in_key_pass_tmp" ]; then
+		rm "$in_key_pass_tmp" || die "\
+Failed to remove the CA passphrase temp-file!"
+	fi
 	if [ -f "$out_key_pass_tmp" ]; then
 		rm "$out_key_pass_tmp" || die "\
 Failed to remove the CA passphrase temp-file!"
