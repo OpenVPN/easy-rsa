@@ -694,11 +694,6 @@ Temporary session not preserved."
 		rm -rf "$secured_session"
 	fi
 
-	if [ "${EASYRSA_EC_DIR%/*}" ] && [ -d "$EASYRSA_EC_DIR" ]
-	then
-		rm -rf "$EASYRSA_EC_DIR"
-	fi
-
 	# Remove files when build_full()->sign_req() is interrupted
 	[ "$error_build_full_cleanup" ] && \
 		rm -f "$crt_out" "$req_out" "$key_out"
@@ -4367,7 +4362,6 @@ satisfy_shellcheck() {
 	EASYRSA_ALGO=
 	EASYRSA_KEY_SIZE=
 	EASYRSA_CURVE=
-	EASYRSA_EC_DIR=
 	EASYRSA_CA_EXPIRE=
 	EASYRSA_CERT_EXPIRE=
 	EASYRSA_CERT_RENEW=
@@ -4666,7 +4660,6 @@ Sourcing the vars file and building certificates will probably fail ..'
 	;;
 	ec)
 		set_var EASYRSA_CURVE		secp384r1
-		set_var EASYRSA_EC_DIR		"$EASYRSA_PKI/ecparams"
 	;;
 	ed)
 		set_var EASYRSA_CURVE		ed25519
