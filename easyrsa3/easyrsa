@@ -705,19 +705,15 @@ Temporary session not preserved."
 
 	# shellcheck disable=SC3040
 	# In POSIX sh, set option [name] is undefined
-	case "$easyrsa_host_os" in
-		nix) [ -t 1 ] && stty echo ;;
-		win)
-			if [ "$easyrsa_win_git_bash" ]; then
-				[ -t 1 ] && stty echo
-			else
-				set -o echo
-			fi
-		;;
-		*) warn "Host OS undefined."
+	case "$prompt_restore" in
+		0) : ;; # Not required
+		1) [ -t 1 ] && stty echo ;;
+		2) set -o echo ;;
+		*) warn "prompt_restore: '$prompt_restore'"
 	esac
 
-	[ "$EASYRSA_SILENT" ] || print # Get a clean line
+	# Get a clean line
+	[ "$EASYRSA_SILENT" ] || print
 
 	# Clear traps
 	trap - 0 1 2 3 6 15
@@ -1255,9 +1251,11 @@ hide_read_pass()
 	# 3045 - In POSIX sh, some-command-with-flag is undefined
 	# shellcheck disable=SC3040,SC3045
 	if stty -echo 2>/dev/null; then
+		prompt_restore=1
 		read -r "$@"
 		stty echo
 	elif (set +o echo 2>/dev/null); then
+		prompt_restore=2
 		set +o echo
 		read -r "$@"
 		set -o echo
@@ -1268,7 +1266,7 @@ hide_read_pass()
 Could not disable echo. Password will be shown on screen!"
 		read -r "$@"
 	fi
-
+	prompt_restore=0
 	return 0
 } # => hide_read_pass()
 
@@ -5399,6 +5397,9 @@ unset -v \
 	alias_days
 
 	mktemp_counter=0
+	# Used by build-ca->cleanup to restore prompt
+	# after user interrupt when using manual password
+	prompt_restore=0
 
 # Parse options
 while :; do
