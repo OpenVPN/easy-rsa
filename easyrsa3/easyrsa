@@ -1272,9 +1272,9 @@ Could not disable echo. Password will be shown on screen!"
 
 # Get passphrase
 get_passphrase() {
+	t="$1"; shift || die "password malfunction"
 	while :; do
 		r=""
-		t="$1"; shift || die "password malfunction"
 		printf '\n%s' "$*"
 		hide_read_pass r
 
