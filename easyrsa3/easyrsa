@@ -1272,9 +1272,9 @@ Could not disable echo. Password will be shown on screen!"
 
 # Get passphrase
 get_passphrase() {
+	t="$1"; shift || die "password malfunction"
 	while :; do
 		r=""
-		t="$1"; shift || die "password malfunction"
 		printf '\n%s' "$*"
 		hide_read_pass r
 
@@ -1518,6 +1518,10 @@ Unable to create necessary PKI files (permissions?)"
 			|| die "Failed to build the CA certificate"
 
 	# Remove passphrase temp-file
+	if [ -f "$in_key_pass_tmp" ]; then
+		rm "$in_key_pass_tmp" || die "\
+Failed to remove the CA passphrase temp-file!"
+	fi
 	if [ -f "$out_key_pass_tmp" ]; then
 		rm "$out_key_pass_tmp" || die "\
 Failed to remove the CA passphrase temp-file!"
