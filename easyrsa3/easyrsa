@@ -1959,7 +1959,6 @@ $(display_dn req "$req_in")
 		${EASYRSA_PASSIN:+-passin "$EASYRSA_PASSIN"} \
 		${EASYRSA_NO_TEXT:+-notext} \
 		${EASYRSA_FIX_OFFSET+ -startdate "$start_fixdate"} \
-		${EASYRSA_FIX_OFFSET+ -enddate "$end_fixdate"} \
 			|| die "\
 Signing failed (openssl output above may have more detail)"
 
