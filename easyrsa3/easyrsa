@@ -1805,12 +1805,6 @@ Conflicting certificate already exists at:
 The certificate request file is not in a valid X509 format:
 * $req_in"
 
-	# Get fixed dates by --fix-offset
-	if [ "$EASYRSA_FIX_OFFSET" ]; then
-		fixed_cert_dates "$EASYRSA_FIX_OFFSET" \
-			start_fixdate end_fixdate
-	fi
-
 	# When EASYRSA_CP_EXT is defined,
 	# adjust openssl's [default_ca] section:
 	if [ "$EASYRSA_CP_EXT" ]; then
@@ -1929,6 +1923,31 @@ basicConstraints is not defined, cannot use 'pathlen'"
 Failed to create temp extension file (bad permissions?) at:
 * $ext_tmp"
 
+	# Get fixed dates by --fix-offset
+	if [ "$EASYRSA_FIX_OFFSET" ]; then
+		adjusted_cert_start=""
+		adjusted_cert_expire=""
+		start_fixdate=""
+		end_fixdate=""
+		fixed_cert_dates "$EASYRSA_FIX_OFFSET" \
+			start_fixdate end_fixdate
+
+		start_ff_date=""
+		start_cert_date=""
+		db_date_to_ff_date "$start_fixdate" start_ff_date
+		ff_date_to_cert_date "$start_ff_date" start_cert_date
+
+		end_ff_date=""
+		end_cert_date=""
+		db_date_to_ff_date "$end_fixdate" end_ff_date
+		ff_date_to_cert_date "$end_ff_date" end_cert_date
+
+		unset -v end_fixdate \
+				start_ff_date end_ff_date
+	else
+		adjusted_cert_expire="$EASYRSA_CERT_EXPIRE"
+	fi
+
 	# Display the request subject in an easy-to-read format
 	# Confirm the user wishes to sign this request
 	# Support batch by internal caller:
@@ -1942,7 +1961,9 @@ source or that you have verified the request checksum \
 with the sender.
 
 Request subject, to be signed as a $crt_type certificate \
-for $EASYRSA_CERT_EXPIRE days:
+${EASYRSA_CERT_EXPIRE+for: $EASYRSA_CERT_EXPIRE days.}
+${EASYRSA_FIX_OFFSET+from: $start_cert_date}
+${EASYRSA_FIX_OFFSET+to:   $end_cert_date}
 
 $(display_dn req "$req_in")
 "	# => confirm end
@@ -1953,13 +1974,13 @@ $(display_dn req "$req_in")
 		die "sign_req - easyrsa_mktemp crt_out_tmp"
 
 	# sign request
-	easyrsa_openssl ca -utf8 -in "$req_in" \
-		-out "$crt_out_tmp" -extfile "$ext_tmp" \
-		-days "$EASYRSA_CERT_EXPIRE" -batch \
-		${EASYRSA_PASSIN:+-passin "$EASYRSA_PASSIN"} \
-		${EASYRSA_NO_TEXT:+-notext} \
+	easyrsa_openssl ca -utf8 -batch \
+		-in "$req_in" -out "$crt_out_tmp" \
+		-extfile "$ext_tmp" \
+		${EASYRSA_NO_TEXT+ -notext} \
+		${EASYRSA_PASSIN+ -passin "$EASYRSA_PASSIN"} \
+		${EASYRSA_CERT_EXPIRE+ -days "$adjusted_cert_expire"} \
 		${EASYRSA_FIX_OFFSET+ -startdate "$start_fixdate"} \
-		${EASYRSA_FIX_OFFSET+ -enddate "$end_fixdate"} \
 			|| die "\
 Signing failed (openssl output above may have more detail)"
 
@@ -3681,10 +3702,12 @@ fixed_cert_dates() {
 Fixed off-set range [1-365 days]: $start_fix_day_n"
 	fi
 
-	# Final offset is off-by-one, adjust now
+	# start fixed day-number of the Year
+	# final offset is off-by-one, adjust now
 	start_fix_day_n="$(( start_fix_day_n - 1 ))"
 
 	# Set the end fixed day-number of the Year
+	# this can span multiple years
 	end_fix_day_n="$((
 		start_fix_day_n + EASYRSA_CERT_EXPIRE
 		))"
@@ -3694,19 +3717,26 @@ Fixed off-set range [1-365 days]: $start_fix_day_n"
 	# busybox
 	if busybox date --help > /dev/null 2>&1; then
 
+		# This year number. eg: '23'
 		this_year_n="$(busybox date -u +%y)"
-		#today_n="$(busybox date -u +%j)"
+		# Today number of the year. eg: '049'
+		# zero padded
+		today_n="$(busybox date -u +%j)"
 
+		# Seconds after epoch, new years day, this year
 		New_Year_day_s="$(
 			busybox date -u -d \
 				"${this_year_n}01010000.01" '+%s'
 			)" || die "\
 fixed_cert_dates - New_Year_day_s - busybox"
 
+		# Seconds after epoch, start day number
 		start_fix_day_s="$((
 			New_Year_day_s + start_fix_day_n * 86400
 			))"
 
+		# Seconds after epoch, end day number
+		# plus days in seconds until expiry
 		end_fix_day_s="$((
 			start_fix_day_s + EASYRSA_CERT_EXPIRE * 86400
 			))"
@@ -3728,7 +3758,7 @@ fixed_cert_dates - end_fix_day_d - busybox"
 	elif date -j > /dev/null 2>&1; then
 
 		this_year_n="$(date -j +%y)"
-		#today_n="$(date -u -j +%j)"
+		today_n="$(date -u -j +%j)"
 
 		New_Year_day_d="$(
 			date -u -j -f %y%m%d%H%M%S \
@@ -3765,7 +3795,7 @@ fixed_cert_dates - end_fix_day_s - Darwin"
 	elif this_year_n="$(date -u +%y)"; then
 
 		# Day of Year number today
-		#today_n="$(date -u +%j)"
+		today_n="$(date -u +%j)"
 
 		# New Years day date
 		New_Year_day_d="$(
@@ -3801,6 +3831,36 @@ fixed_cert_dates - end_fix_day_s - Linux"
 Unsupported 'date' program, upgrade your Matrix."
 	fi
 
+	# OpenSSL always counts -days from this current time
+	# We have to adjust start date and days to account
+	# for OpenSSL counting from 'now', not -startdate
+	# Adjust days
+	# strip zero padding
+	today_n="${today_n#0}"
+	today_n="${today_n#0}"
+	# Start day @00:00 of the cert
+	adjusted_cert_start="$((
+			start_fix_day_n
+			))"
+	# end_fix_day_n is start fix_day_n + expiry period
+	# OpenSSL -days does not count from -startdate
+	# do the count by subtracting today's day number
+	adjusted_cert_expire="$((
+			end_fix_day_n - today_n
+			))"
+	# This is always the same as EASYRSA_CERT_EXPIRE
+	# otherwise an error occurred
+	adjusted_total_days="$((
+			end_fix_day_n - start_fix_day_n
+			))"
+	[ "$adjusted_total_days" = "$EASYRSA_CERT_EXPIRE" ] || \
+		die "fixed_cert_dates - adjusted_total_days
+today_n= $today_n
+EASYRSA_CERT_EXPIRE= $EASYRSA_CERT_EXPIRE
+adjusted_cert_start= $adjusted_cert_start
+adjusted_cert_expire= $adjusted_cert_expire
+adjusted_total_days= $adjusted_total_days"
+
 	# Return FINAL dates for use in the certificate
 	force_set_var "$2" "$start_fix_day_d" || die "\
 fixed_cert_dates - force_set_var - $2 - $start_fix_day_d"
@@ -3808,10 +3868,12 @@ fixed_cert_dates - force_set_var - $2 - $start_fix_day_d"
 	force_set_var "$3" "$end_fix_day_d" || die "\
 fixed_cert_dates - force_set_var - $3 - $end_fix_day_d"
 
-	# cleanup
+	# cleanup - This list is incomplete
+	# because fixed-dates is still a WIP
 	unset -v start_fix_day_n start_fix_day_d \
 			end_fix_day_d end_fix_day_s \
-			this_year_n New_Year_day_d
+			this_year_n New_Year_day_d today_n \
+			end_fix_day_n
 
 } # => fixed_cert_dates()
 
@@ -3982,6 +4044,11 @@ db_date_to_ff_date - input error"
 
 	yy="${in_date%???????????}"
 	in_date="${in_date#"$yy"}"
+
+	if [ "${#yy}" -gt 2 ]; then
+		yy="${yy#??}"
+	fi
+
 	mm="${in_date%?????????}"
 	in_date="${in_date#"$mm"}"
 	dd="${in_date%???????}"
