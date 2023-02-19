@@ -1805,12 +1805,6 @@ Conflicting certificate already exists at:
 The certificate request file is not in a valid X509 format:
 * $req_in"
 
-	# Get fixed dates by --fix-offset
-	if [ "$EASYRSA_FIX_OFFSET" ]; then
-		fixed_cert_dates "$EASYRSA_FIX_OFFSET" \
-			start_fixdate end_fixdate
-	fi
-
 	# When EASYRSA_CP_EXT is defined,
 	# adjust openssl's [default_ca] section:
 	if [ "$EASYRSA_CP_EXT" ]; then
@@ -1929,6 +1923,14 @@ basicConstraints is not defined, cannot use 'pathlen'"
 Failed to create temp extension file (bad permissions?) at:
 * $ext_tmp"
 
+	# Get fixed dates by --fix-offset
+	valid_days="$EASYRSA_CERT_EXPIRE"
+	if [ "$EASYRSA_FIX_OFFSET" ]; then
+		fixed_cert_dates "$EASYRSA_FIX_OFFSET" \
+			start_fixdate end_fixdate
+		unset -v EASYRSA_CERT_EXPIRE
+	fi
+
 	# Display the request subject in an easy-to-read format
 	# Confirm the user wishes to sign this request
 	# Support batch by internal caller:
@@ -1942,7 +1944,7 @@ source or that you have verified the request checksum \
 with the sender.
 
 Request subject, to be signed as a $crt_type certificate \
-for $EASYRSA_CERT_EXPIRE days:
+for $valid_days days:
 
 $(display_dn req "$req_in")
 "	# => confirm end
@@ -1953,13 +1955,14 @@ $(display_dn req "$req_in")
 		die "sign_req - easyrsa_mktemp crt_out_tmp"
 
 	# sign request
-	easyrsa_openssl ca -utf8 -in "$req_in" \
-		-out "$crt_out_tmp" -extfile "$ext_tmp" \
-		-days "$EASYRSA_CERT_EXPIRE" -batch \
-		${EASYRSA_PASSIN:+-passin "$EASYRSA_PASSIN"} \
-		${EASYRSA_NO_TEXT:+-notext} \
-		${EASYRSA_FIX_OFFSET+ -startdate "$start_fixdate"} \
-		${EASYRSA_FIX_OFFSET+ -enddate "$end_fixdate"} \
+	easyrsa_openssl ca -utf8 -batch \
+		-in "$req_in" -out "$crt_out_tmp" \
+		-extfile "$ext_tmp" \
+		${EASYRSA_PASSIN+-passin "$EASYRSA_PASSIN"} \
+		${EASYRSA_NO_TEXT+-notext} \
+		${EASYRSA_CERT_EXPIRE+-days "$EASYRSA_CERT_EXPIRE"} \
+		${EASYRSA_FIX_OFFSET+-startdate "$start_fixdate"} \
+		${EASYRSA_FIX_OFFSET+-enddate "$end_fixdate"} \
 			|| die "\
 Signing failed (openssl output above may have more detail)"
 
