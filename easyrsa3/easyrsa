@@ -1765,12 +1765,12 @@ sign_req() {
 sign_req - Randomize Serial number failed:
 
 $check_serial"
-	fi
 
-	# Print random $serial to pki/serial file
-	# for use by SSL config
-	print "$serial" > "$EASYRSA_PKI/serial" || \
-		die "sign_req - write serial to file"
+		# Print random $serial to pki/serial file
+		# for use by SSL config
+		print "$serial" > "$EASYRSA_PKI/serial" || \
+			die "sign_req - write serial to file"
+	fi
 
 	verify_ca_init
 
