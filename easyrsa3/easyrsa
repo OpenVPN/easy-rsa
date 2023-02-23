@@ -4661,7 +4661,7 @@ Sourcing the vars file and building certificates will probably fail ..'
 	set_var EASYRSA_REQ_ORG			"Copyleft Certificate Co"
 	set_var EASYRSA_REQ_EMAIL		me@example.net
 	set_var EASYRSA_REQ_OU			"My Organizational Unit"
-	set_var EASYRSA_REQ_SERIAL		''
+	set_var EASYRSA_REQ_SERIAL		""
 	set_var EASYRSA_ALGO			rsa
 
 	case "$EASYRSA_ALGO" in
