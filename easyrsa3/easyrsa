@@ -3108,10 +3108,11 @@ gen_crl() {
 		die "gen_crl - easyrsa_mktemp out_file_tmp"
 
 	easyrsa_openssl ca -utf8 -gencrl -out "$out_file_tmp" \
-		${EASYRSA_PASSIN:+-passin "$EASYRSA_PASSIN"} || die "\
-CRL Generation failed."
+		${EASYRSA_CRL_DAYS:+-days "$EASYRSA_CRL_DAYS"} \
+		${EASYRSA_PASSIN:+-passin "$EASYRSA_PASSIN"} || \
+			die "CRL Generation failed."
 
-	mv "$out_file_tmp" "$out_file"
+	mv ${EASYRSA_BATCH:+-f} "$out_file_tmp" "$out_file"
 
 	notice "\
 An updated CRL has been created:
