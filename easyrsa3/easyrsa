@@ -5024,11 +5024,11 @@ up23_create_openssl_cnf ()
 	# Create secure session
 	# Because the upgrade runs twice, once as a test and then for real
 	# secured_session must be cleared to avoid overload error
-	[ "$secured_session" ] && unset -v secured_session
-	up23_verbose "> Create secure session"
-	secure_session || die "up23_create_openssl_cnf - secure_session failed."
-	up23_verbose "> OK"
-	up23_verbose "  secure session: $secured_session"
+	#[ "$secured_session" ] && unset -v secured_session
+	#up23_verbose "> Create secure session"
+	#secure_session || die "up23_create_openssl_cnf - secure_session failed."
+	#up23_verbose "> OK"
+	#up23_verbose "  secure session: $secured_session"
 
 	# Create $EASYRSA_PKI/safessl-easyrsa.cnf
 	easyrsa_openssl makesafeconf
