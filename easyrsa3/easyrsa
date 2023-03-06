@@ -4898,7 +4898,7 @@ up23_verify_current_ca ()
 	then
 		CURRENT_CA_IS_VERIFIED="partially"
 	else
-		up23_fail_upgrade "CA certificate does not match vars file settings"
+		warn "CA certificate does not match vars file settings"
 	fi
 
 	opts="-certopt no_pubkey,no_sigdump"
@@ -5156,14 +5156,14 @@ up23_do_upgrade_23 ()
 	up23_verbose ""
 
 	up23_verify_new_pki
+	up23_create_new_pki
+	up23_create_openssl_cnf
 	up23_verify_current_pki
 	up23_verify_current_ca
 	up23_backup_current_pki
-	up23_create_new_pki
 	up23_upgrade_ca
 	up23_move_easyrsa2_programs
 	up23_build_v3_vars
-	up23_create_openssl_cnf
 
 	if [ "$NOSAVE" -eq 0 ]
 	then
@@ -5734,6 +5734,7 @@ case "$cmd" in
 		make_safe_ssl "$@"
 		;;
 	upgrade)
+		secure_session
 		up23_manage_upgrade_23 "$@"
 		;;
 	""|help|-h|--help|--usage)
