@@ -435,7 +435,7 @@ cmd_help() {
 		print "${err_text}${NL}"
 	else
 		# display the help text
-		[ "$text" ] && print "${text}"
+		[ "$text" ] && print "$text"
 
 		if [ "$text_only" ]; then
 			: # ok - No opts message required
@@ -651,7 +651,7 @@ easyrsa_mktemp - Temporary session undefined"
 	# Create temp-file or die
 	for i in x y z; do
 		shotfile="${t}.0"
-		target="$t.$i"
+		target="${t}.${i}"
 		if [ -e "$shotfile" ]; then
 			break
 		else
@@ -1478,7 +1478,7 @@ Unable to create necessary PKI files (permissions?)"
 	easyrsa_openssl genpkey -algorithm "$EASYRSA_ALGO" \
 		-pkeyopt rsa_keygen_bits:"$EASYRSA_ALGO_PARAMS" \
 		-out "$out_key_tmp" \
-		${cipher+ "$cipher"} \
+		${cipher:+ "$cipher"} \
 		${EASYRSA_PASSOUT:+ -pass "$EASYRSA_PASSOUT"} \
 		${out_key_pass_tmp:+ -pass file:"$out_key_pass_tmp"} \
 			|| die "Failed create CA private key"
@@ -1486,7 +1486,7 @@ Unable to create necessary PKI files (permissions?)"
 	ec)
 	easyrsa_openssl genpkey -paramfile "$EASYRSA_ALGO_PARAMS" \
 		-out "$out_key_tmp" \
-		${cipher+ "$cipher"} \
+		${cipher:+ "$cipher"} \
 		${EASYRSA_PASSOUT:+ -pass "$EASYRSA_PASSOUT"} \
 		${out_key_pass_tmp:+ -pass file:"$out_key_pass_tmp"} \
 			|| die "Failed create CA private key"
@@ -1494,7 +1494,7 @@ Unable to create necessary PKI files (permissions?)"
 	ed)
 	easyrsa_openssl genpkey -algorithm "$EASYRSA_CURVE" \
 		-out "$out_key_tmp" \
-		${cipher+ "$cipher"} \
+		${cipher:+ "$cipher"} \
 		${EASYRSA_PASSOUT:+ -pass "$EASYRSA_PASSOUT"} \
 		${out_key_pass_tmp:+ -pass file:"$out_key_pass_tmp"} \
 			|| die "Failed create CA private key"
@@ -1507,11 +1507,11 @@ Unable to create necessary PKI files (permissions?)"
 	easyrsa_openssl req -utf8 -new \
 		-key "$out_key_tmp" -keyout "$out_key_tmp" \
 		-out "$out_file_tmp" \
-		${ssl_batch+ -batch} \
-		${x509+ -x509} \
-		${date_stamp+ -days "$EASYRSA_CA_EXPIRE"} \
-		${EASYRSA_DIGEST+ -"$EASYRSA_DIGEST"} \
-		${EASYRSA_NO_PASS+ "$no_password"} \
+		${ssl_batch:+ -batch} \
+		${x509:+ -x509} \
+		${date_stamp:+ -days "$EASYRSA_CA_EXPIRE"} \
+		${EASYRSA_DIGEST:+ -"$EASYRSA_DIGEST"} \
+		${EASYRSA_NO_PASS:+ "$no_password"} \
 		${EASYRSA_PASSIN:+ -passin "$EASYRSA_PASSIN"} \
 		${EASYRSA_PASSOUT:+ -passout "$EASYRSA_PASSOUT"} \
 		${in_key_pass_tmp:+ -passin file:"$in_key_pass_tmp"} \
@@ -1710,9 +1710,9 @@ $EASYRSA_EXTRA_EXTS"
 	# Generate request
 	easyrsa_openssl req -utf8 -new -newkey "$algo_opts" \
 		-keyout "$key_out_tmp" -out "$req_out_tmp" \
-		${EASYRSA_NO_PASS+ "$no_password"} \
-		${text+ -text} \
-		${ssl_batch+ -batch} \
+		${EASYRSA_NO_PASS:+ "$no_password"} \
+		${text:+ -text} \
+		${ssl_batch:+ -batch} \
 		${EASYRSA_PASSOUT:+ -passout "$EASYRSA_PASSOUT"} \
 			|| die "Failed to generate request"
 
@@ -1724,7 +1724,7 @@ $EASYRSA_EXTRA_EXTS"
 	notice "\
 Keypair and certificate request completed. Your files are:
 * req: $req_out
-* key: $key_out${build_full+ $NL}"
+* key: $key_out${build_full:+ $NL}"
 
 	return 0
 } # => gen_req()
@@ -1959,11 +1959,11 @@ $(display_dn req "$req_in")
 	easyrsa_openssl ca -utf8 -batch \
 		-in "$req_in" -out "$crt_out_tmp" \
 		-extfile "$ext_tmp" \
-		${EASYRSA_PASSIN+-passin "$EASYRSA_PASSIN"} \
-		${EASYRSA_NO_TEXT+-notext} \
-		${EASYRSA_CERT_EXPIRE+-days "$EASYRSA_CERT_EXPIRE"} \
-		${EASYRSA_FIX_OFFSET+-startdate "$start_fixdate"} \
-		${EASYRSA_FIX_OFFSET+-enddate "$end_fixdate"} \
+		${EASYRSA_PASSIN:+ -passin "$EASYRSA_PASSIN"} \
+		${EASYRSA_NO_TEXT:+ -notext} \
+		${EASYRSA_CERT_EXPIRE:+ -days "$EASYRSA_CERT_EXPIRE"} \
+		${EASYRSA_FIX_OFFSET:+ -startdate "$start_fixdate"} \
+		${EASYRSA_FIX_OFFSET:+ -enddate "$end_fixdate"} \
 			|| die "\
 Signing failed (openssl output above may have more detail)"
 
@@ -2194,11 +2194,11 @@ with the following subject:
 
   serial-number: $cert_serial
 
-  Reason: ${crl_reason-None given}"
+  Reason: ${crl_reason:-None given}"
 
 	# Revoke certificate
 	easyrsa_openssl ca -utf8 -revoke "$crt_in" \
-		${crl_reason+ -crl_reason "$crl_reason"} \
+		${crl_reason:+ -crl_reason "$crl_reason"} \
 		${EASYRSA_PASSIN:+ -passin "$EASYRSA_PASSIN"} \
 			|| die "\
 Failed to revoke certificate: revocation command failed."
@@ -2645,11 +2645,11 @@ These files will be moved to the 'revoked' storage sub-directory:
 
   serial-number: $cert_serial
 
-  Reason: ${crl_reason-None given}"
+  Reason: ${crl_reason:-None given}"
 
 	# Revoke the old (already renewed) certificate
 	easyrsa_openssl ca -utf8 -revoke "$crt_in" \
-		${crl_reason+ -crl_reason "$crl_reason"} \
+		${crl_reason:+ -crl_reason "$crl_reason"} \
 		${EASYRSA_PASSIN:+ -passin "$EASYRSA_PASSIN"} \
 			|| die "Failed to revoke renewed certificate: revocation command failed."
 
@@ -2943,7 +2943,7 @@ The inline credentials files:
 The duplicate certificate:
 * $duplicate_crt_by_serial
 
-IMPORTANT: The new key will${EASYRSA_NO_PASS+ NOT} be password protected."
+IMPORTANT: The new key will${EASYRSA_NO_PASS:+ NOT} be password protected."
 
 	confirm "  Continue with rebuild: " "yes" "\
 Please confirm you wish to renew the certificate
@@ -3108,11 +3108,11 @@ gen_crl() {
 		die "gen_crl - easyrsa_mktemp out_file_tmp"
 
 	easyrsa_openssl ca -utf8 -gencrl -out "$out_file_tmp" \
-		${EASYRSA_CRL_DAYS:+-days "$EASYRSA_CRL_DAYS"} \
-		${EASYRSA_PASSIN:+-passin "$EASYRSA_PASSIN"} || \
+		${EASYRSA_CRL_DAYS:+ -days "$EASYRSA_CRL_DAYS"} \
+		${EASYRSA_PASSIN:+ -passin "$EASYRSA_PASSIN"} || \
 			die "CRL Generation failed."
 
-	mv ${EASYRSA_BATCH:+-f} "$out_file_tmp" "$out_file"
+	mv ${EASYRSA_BATCH:+ -f} "$out_file_tmp" "$out_file"
 
 	notice "\
 An updated CRL has been created:
@@ -3407,7 +3407,7 @@ update_db() {
 	verify_ca_init
 
 	easyrsa_openssl ca -utf8 -updatedb \
-		${EASYRSA_PASSIN:+-passin "$EASYRSA_PASSIN"} || die "\
+		${EASYRSA_PASSIN:+ -passin "$EASYRSA_PASSIN"} || die "\
 Failed to perform update-db: see above for related openssl errors."
 
 	return 0
@@ -3624,8 +3624,8 @@ This file is stored at:
 * $in_file"
 
 	easyrsa_openssl "$format" -in "$in_file" -noout -text \
-		${type_opts+ "$type_opts" "$out_opts"} \
-		${name_opts+ -nameopt "$name_opts"} \
+		${type_opts:+ "$type_opts" "$out_opts"} \
+		${name_opts:+ -nameopt "$name_opts"} \
 			|| die "\
 OpenSSL failure to process the input"
 
@@ -4437,7 +4437,7 @@ detect_host() {
 	fi
 
 	host_out="\
-${host_out} | $easyrsa_host_os | $easyrsa_uname | $easyrsa_shell"
+$host_out | $easyrsa_host_os | $easyrsa_uname | $easyrsa_shell"
 	host_out="\
 ${host_out}${easyrsa_win_git_bash+ | "$easyrsa_win_git_bash"}"
 	unset -v easyrsa_ver_test easyrsa_host_test
