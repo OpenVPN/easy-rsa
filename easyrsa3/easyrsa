@@ -4084,6 +4084,8 @@ read_db() {
 	db_in="$EASYRSA_PKI/index.txt"
 	pki_r_issued="$EASYRSA_PKI/renewed/issued"
 	pki_r_by_sno="$EASYRSA_PKI/renewed/certs_by_serial"
+	unset -v target_found
+
 	while read -r db_status db_notAfter db_record; do
 
 		# Interpret the db/certificate record
@@ -4151,7 +4153,17 @@ read_db() {
 		;;
 		*) die "Unrecognised report: $report"
 		esac
+
+		# Is db record for target found
+		[ "$target" = "$db_cn" ] && target_found=1
+
 	done < "$db_in"
+
+	# Check for target found/valid commonName, if given
+	if [ "$target" ]; then
+		[ "$target_found" ] || \
+			warn "Certificate for $target was not found"
+	fi
 } # => read_db()
 
 # Expire status
