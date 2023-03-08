@@ -4126,7 +4126,10 @@ read_db() {
 			V|E)
 				case "$target" in
 				'') expire_status ;;
-				*) [ "$target" = "$db_cn" ] && expire_status
+				*)
+					if [ "$target" = "$db_cn" ]; then
+						expire_status
+					fi
 				esac
 			;;
 			*)
@@ -4138,7 +4141,10 @@ read_db() {
 			if [ "$db_status" = R ]; then
 				case "$target" in
 				'') revoke_status ;;
-				*) [ "$target" = "$db_cn" ] && revoke_status
+				*)
+					if [ "$target" = "$db_cn" ]; then
+						revoke_status
+					fi
 				esac
 			fi
 		;;
@@ -4147,7 +4153,10 @@ read_db() {
 			if [ "$db_status" = V ]; then
 				case "$target" in
 				'') renew_status ;;
-				*) [ "$target" = "$db_cn" ] && renew_status
+				*)
+					if [ "$target" = "$db_cn" ]; then
+						renew_status
+					fi
 				esac
 			fi
 		;;
@@ -4155,7 +4164,9 @@ read_db() {
 		esac
 
 		# Is db record for target found
-		[ "$target" = "$db_cn" ] && target_found=1
+		if [ "$target" = "$db_cn" ]; then
+			target_found=1
+		fi
 
 	done < "$db_in"
 
