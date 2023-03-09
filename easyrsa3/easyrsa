@@ -4618,22 +4618,30 @@ Priority should be given to your PKI vars file:
 			# 'vars' now MUST exist
 			[ -e "$vars" ] || die "Missing vars file, expected: $vars"
 
-			# Sanitize vars
-			if grep -Eq 'EASYRSA_PASSIN|EASYRSA_PASSOUT' "$vars"; then
-				die "\
-Variable EASYRSA_PASSIN or EASYRSA_PASSOUT has been found in the configuration
-file. Storing sensitive information in the configuration file is not
-recommended - please remove it from there before continuing."
-			fi
+			# Installation information
+			information "\
+Using Easy-RSA configuration:
+  $vars"
 
-			# Warning: Unsupported  characters
-			if grep '^[[:blank:]]*set_var[[:blank:]]*.*$' "$vars" | \
-				grep -q -e '`'
+			# Sanitize vars
+			if grep -q \
+				-e 'EASYRSA_PASSIN' -e 'EASYRSA_PASSOUT' \
+				-e '^[^#]*export *_*[[:alpha:]]*[[:alnum:]]*.*$' \
+				-e '[^(]`[^)]' "$vars"
 			then
-				warn '\
-Unsupported characters are present in the vars file.
-These characters are not supported: ` backtick
-Sourcing the vars file and building certificates will probably fail ..'
+				die "\
+One or more of these problems has been found in your 'vars' file:
+
+* Use of 'EASYRSA_PASSIN' or 'EASYRSA_PASSOUT':
+  Storing password information in the 'vars' file is not permitted.
+
+* Use of 'export':
+  Remove 'export' or replace it with 'set_var'.
+
+* Use of unsupported characters:
+  These characters are not supported: \` backtick
+
+Please, correct these errors and try again."
 			fi
 
 			# Enable sourcing 'vars'
@@ -4717,9 +4725,6 @@ Sourcing the vars file and building certificates will probably fail ..'
 			install_data_to_pki vars-setup || \
 				warn "install_data_to_pki vars-setup Failed"
 
-			# Installation information
-			[ "$no_new_vars" ] || \
-				information "Using Easy-RSA configuration: $vars"
 			# if the vars file in use is not in the PKI and not user defined
 			# Show messages
 			if [ "$vars_in_pki" ] || [ "$user_vars_true" ] || \
