@@ -5773,10 +5773,14 @@ esac
 
 # Check for untrapped errors
 # shellcheck disable=SC2181
-[ $? = 0 ] || warn "Untrapped error detected!"
+if [ $? = 0 ]; then
+	# Do 'cleanup ok' on successful completion
+	#print "mktemp_counter: $mktemp_counter uses"
+	cleanup ok
+fi
 
-# Do 'cleanup ok' on successful completion
-#print "mktemp_counter: $mktemp_counter uses"
-cleanup ok
+# Otherwise, exit with error
+warn "Untrapped error detected!"
+cleanup
 
 # vim: ft=sh nu ai sw=8 ts=8 noet
