@@ -882,21 +882,26 @@ easyrsa_openssl() {
 	# set $OPENSSL_CONF - Use which-ever file is assigned above
 	export OPENSSL_CONF="$easyrsa_safe_ssl_conf"
 
-	# Execute command
+	# Execute command - Return on success
 	if [ "$openssl_command" = "makesafeconf" ]; then
 		# move temp file to safessl-easyrsa.cnf
-		mv -f "$easyrsa_safe_ssl_conf" "$EASYRSA_SAFE_CONF" || \
-			die "easyrsa_openssl - makesafeconf failed"
+		mv -f "$easyrsa_safe_ssl_conf" "$EASYRSA_SAFE_CONF" && \
+				return
 
 	elif [ "$has_config" ]; then
 		# Exec SSL with -config temp-file
 		"$EASYRSA_OPENSSL" "$openssl_command" \
-			-config "$easyrsa_safe_ssl_conf" "$@" || return
+			-config "$easyrsa_safe_ssl_conf" "$@" && \
+				return
 
 	else
 		# Exec SSL without -config temp-file
-		"$EASYRSA_OPENSSL" "$openssl_command" "$@" || return
+		"$EASYRSA_OPENSSL" "$openssl_command" "$@" && \
+				return
 	fi
+
+	# Always fail here
+	die "easyrsa_openssl - $openssl_command failed"
 } # => easyrsa_openssl()
 
 # Verify the SSL library is functional and establish version dependencies
