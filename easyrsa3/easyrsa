@@ -4092,6 +4092,8 @@ read_db() {
 	db_in="$EASYRSA_PKI/index.txt"
 	pki_r_issued="$EASYRSA_PKI/renewed/issued"
 	pki_r_by_sno="$EASYRSA_PKI/renewed/certs_by_serial"
+	unset -v target_found
+
 	while read -r db_status db_notAfter db_record; do
 
 		# Interpret the db/certificate record
@@ -4132,7 +4134,10 @@ read_db() {
 			V|E)
 				case "$target" in
 				'') expire_status ;;
-				*) [ "$target" = "$db_cn" ] && expire_status
+				*)
+					if [ "$target" = "$db_cn" ]; then
+						expire_status
+					fi
 				esac
 			;;
 			*)
@@ -4144,7 +4149,10 @@ read_db() {
 			if [ "$db_status" = R ]; then
 				case "$target" in
 				'') revoke_status ;;
-				*) [ "$target" = "$db_cn" ] && revoke_status
+				*)
+					if [ "$target" = "$db_cn" ]; then
+						revoke_status
+					fi
 				esac
 			fi
 		;;
@@ -4153,13 +4161,28 @@ read_db() {
 			if [ "$db_status" = V ]; then
 				case "$target" in
 				'') renew_status ;;
-				*) [ "$target" = "$db_cn" ] && renew_status
+				*)
+					if [ "$target" = "$db_cn" ]; then
+						renew_status
+					fi
 				esac
 			fi
 		;;
 		*) die "Unrecognised report: $report"
 		esac
+
+		# Is db record for target found
+		if [ "$target" = "$db_cn" ]; then
+			target_found=1
+		fi
+
 	done < "$db_in"
+
+	# Check for target found/valid commonName, if given
+	if [ "$target" ]; then
+		[ "$target_found" ] || \
+			warn "Certificate for $target was not found"
+	fi
 } # => read_db()
 
 # Expire status
@@ -5758,10 +5781,14 @@ esac
 
 # Check for untrapped errors
 # shellcheck disable=SC2181
-[ $? = 0 ] || warn "Untrapped error detected!"
+if [ $? = 0 ]; then
+	# Do 'cleanup ok' on successful completion
+	#print "mktemp_counter: $mktemp_counter uses"
+	cleanup ok
+fi
 
-# Do 'cleanup ok' on successful completion
-#print "mktemp_counter: $mktemp_counter uses"
-cleanup ok
+# Otherwise, exit with error
+warn "Untrapped error detected!"
+cleanup
 
 # vim: ft=sh nu ai sw=8 ts=8 noet
