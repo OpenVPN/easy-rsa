@@ -776,8 +776,9 @@ escape_hazard - Failed to write temp-file"
 
 	# Reload fields from fully escaped temp-file
 	# shellcheck disable=SC1090 # can't follow non-constant source.
-	. "$easyrsa_vars_org" || die "\
+	(. "$easyrsa_vars_org") || die "\
 escape_hazard - Failed to source temp-file"
+	. "$easyrsa_vars_org"
 } # => escape_hazard()
 
 # Replace environment variable names with current value
@@ -865,7 +866,7 @@ easyrsa_openssl() {
 	# '$' - Workaround 'easyrsa' based limitation
 	# This is required for all SSL libs, otherwise,
 	# there are unacceptable differences in behavior
-	escape_hazard
+	escape_hazard || die "easyrsa_openssl - escape_hazard failed"
 
 	# Make LibreSSL safe config file from OpenSSL config file
 	# $require_safe_ssl_conf is ALWAYS set by verify_ssl_lib()
