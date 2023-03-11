@@ -464,6 +464,7 @@ General options:
 --batch         : Set automatic (no-prompts when possible) mode
 --silent|-s     : Disable all warnings, notices and information
 --sbatch        : Combined --silent and --batch operating mode
+--silent-ssl|-S : Silence SSL output (Requires bach mode)
 
 --no-pass       : Do not use passwords
                   Can not be used with --passin or --passout
@@ -775,9 +776,10 @@ export EASYRSA_REQ_SERIAL=\"$EASYRSA_REQ_SERIAL\"
 escape_hazard - Failed to write temp-file"
 
 	# Reload fields from fully escaped temp-file
-	# shellcheck disable=SC1090 # can't follow non-constant source.
+	# shellcheck disable=SC1090 # can't follow ...
 	(. "$easyrsa_vars_org") || die "\
 escape_hazard - Failed to source temp-file"
+	# shellcheck disable=SC1090 # can't follow ...
 	. "$easyrsa_vars_org"
 } # => escape_hazard()
 
@@ -891,14 +893,29 @@ easyrsa_openssl() {
 
 	elif [ "$has_config" ]; then
 		# Exec SSL with -config temp-file
-		"$EASYRSA_OPENSSL" "$openssl_command" \
-			-config "$easyrsa_safe_ssl_conf" "$@" && \
-				return
+		if [ "$EASYRSA_SILENT_SSL" ] && [ "$EASYRSA_BATCH" ]
+		then
+			"$EASYRSA_OPENSSL" "$openssl_command" \
+				-config "$easyrsa_safe_ssl_conf" "$@" \
+				2>/dev/null && \
+					return
+		else
+			"$EASYRSA_OPENSSL" "$openssl_command" \
+				-config "$easyrsa_safe_ssl_conf" "$@" && \
+					return
+		fi
 
 	else
 		# Exec SSL without -config temp-file
-		"$EASYRSA_OPENSSL" "$openssl_command" "$@" && \
-				return
+		if [ "$EASYRSA_SILENT_SSL" ] && [ "$EASYRSA_BATCH" ]
+		then
+			"$EASYRSA_OPENSSL" "$openssl_command" "$@" \
+				2>/dev/null && \
+					return
+		else
+			"$EASYRSA_OPENSSL" "$openssl_command" "$@" && \
+					return
+		fi
 	fi
 
 	# Always fail here
@@ -5561,6 +5578,10 @@ while :; do
 		export EASYRSA_SILENT=1
 		export EASYRSA_BATCH=1
 		;;
+	-S|--silent-ssl)
+		empty_ok=1
+		export EASYRSA_SILENT_SSL=1
+		;;
 	--no-safe-ssl)
 		empty_ok=1
 		export EASYRSA_NO_SAFE_SSL=1
@@ -5654,6 +5675,11 @@ if [ "$EASYRSA_PASSOUT" ]; then
 	# --passout MUST take priority over --nopass
 	unset -v EASYRSA_NO_PASS
 	prohibit_no_pass=1
+fi
+# --silent-ssl requires --batch
+if [ "$EASYRSA_SILENT_SSL" ]; then
+	[ "$EASYRSA_BATCH" ] || warn "\
+Option --silent-ssl requires batch mode --batch."
 fi
 
 # Hand off to the function responsible
