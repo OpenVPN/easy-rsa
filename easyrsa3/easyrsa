@@ -919,7 +919,10 @@ easyrsa_openssl() {
 	fi
 
 	# Always fail here
-	die "easyrsa_openssl - $openssl_command failed"
+	die "\
+easyrsa_openssl - Command has failed:
+* $EASYRSA_OPENSSL $openssl_command \
+${has_config:+-config $easyrsa_safe_ssl_conf }$*"
 } # => easyrsa_openssl()
 
 # Verify the SSL library is functional and establish version dependencies
