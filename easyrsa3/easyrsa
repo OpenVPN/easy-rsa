@@ -490,10 +490,8 @@ Certificate & Request options: (these impact cert/req field values)
 --no-text       : Create certificates without human readable text
 --days=#        : Sets the signing validity to the specified number of days
                   Also applies to renewal period. For details, see: 'help days'
---fix-offset=#  : Generate certificate with fixed start and end dates
-                  Start-date is 01 January 00:00:01 of the current year
-                  plus the --fix-offset=# number of days (Range 1 to 365)
-                  end-date is configured via --days=# (Default: 825 days)
+--startdate=DATE: Sets the SSL option '-startdate' (Format 'YYYYMMDDhhmmssZ')
+--enddate=DATE  : Sets the SSL option '-enddate' (Format 'YYYYMMDDhhmmssZ')
 
 --digest=ALG    : Digest to use in the requests & certificates
 --keysize=#     : Size in bits of keypair to generate (RSA Only)
@@ -1951,12 +1949,13 @@ basicConstraints is not defined, cannot use 'pathlen'"
 Failed to create temp extension file (bad permissions?) at:
 * $ext_tmp"
 
-	# Get fixed dates by --fix-offset
-	valid_days="$EASYRSA_CERT_EXPIRE"
-	if [ "$EASYRSA_FIX_OFFSET" ]; then
-		fixed_cert_dates "$EASYRSA_FIX_OFFSET" \
-			start_fixdate end_fixdate
-		unset -v EASYRSA_CERT_EXPIRE
+	# Set valid_period message
+	if [ "$EASYRSA_END_DATE" ]; then
+		valid_period="
+until date '$EASYRSA_END_DATE'"
+	else
+		valid_period="
+for '$EASYRSA_CERT_EXPIRE' days"
 	fi
 
 	# Display the request subject in an easy-to-read format
@@ -1972,7 +1971,7 @@ source or that you have verified the request checksum \
 with the sender.
 
 Request subject, to be signed as a $crt_type certificate \
-for $valid_days days:
+${valid_period}:
 
 $(display_dn req "$req_in")
 "	# => confirm end
@@ -1989,8 +1988,8 @@ $(display_dn req "$req_in")
 		${EASYRSA_PASSIN:+ -passin "$EASYRSA_PASSIN"} \
 		${EASYRSA_NO_TEXT:+ -notext} \
 		${EASYRSA_CERT_EXPIRE:+ -days "$EASYRSA_CERT_EXPIRE"} \
-		${EASYRSA_FIX_OFFSET:+ -startdate "$start_fixdate"} \
-		${EASYRSA_FIX_OFFSET:+ -enddate "$end_fixdate"} \
+		${EASYRSA_START_DATE:+ -startdate "$EASYRSA_START_DATE"} \
+		${EASYRSA_END_DATE:+ -enddate "$EASYRSA_END_DATE"} \
 			|| die "\
 Signing failed (openssl output above may have more detail)"
 
@@ -3703,157 +3702,6 @@ OpenSSL failure to process the input"
 
 } # => show_ca()
 
-# Set fixed offset dates
-fixed_cert_dates() {
-	# check input
-	[ "$#" = 3 ] || die "\
-fixed_cert_dates - input error"
-
-	# Set the start fixed day-number of the Year
-	start_fix_day_n="$1"
-
-	# Check offset range
-	if [ "$start_fix_day_n" -lt 1 ] || \
-		[ "$start_fix_day_n" -gt 365 ]
-	then
-		die "\
-Fixed off-set range [1-365 days]: $start_fix_day_n"
-	fi
-
-	# Final offset is off-by-one, adjust now
-	start_fix_day_n="$(( start_fix_day_n - 1 ))"
-
-	# Set the end fixed day-number of the Year
-	end_fix_day_n="$((
-		start_fix_day_n + EASYRSA_CERT_EXPIRE
-		))"
-
-	# OS dependencies
-
-	# busybox
-	if busybox date --help > /dev/null 2>&1; then
-
-		this_year_n="$(busybox date -u +%y)"
-		#today_n="$(busybox date -u +%j)"
-
-		New_Year_day_s="$(
-			busybox date -u -d \
-				"${this_year_n}01010000.01" '+%s'
-			)" || die "\
-fixed_cert_dates - New_Year_day_s - busybox"
-
-		start_fix_day_s="$((
-			New_Year_day_s + start_fix_day_n * 86400
-			))"
-
-		end_fix_day_s="$((
-			start_fix_day_s + EASYRSA_CERT_EXPIRE * 86400
-			))"
-
-		# Convert to date-stamps for SSL input
-		start_fix_day_d="$(
-			busybox date -u -d @"${start_fix_day_s}" \
-				+%Y%m%d%H%M%SZ
-			)" || die "\
-fixed_cert_dates - start_fix_day_d - busybox"
-
-		end_fix_day_d="$(
-			busybox date -u -d @"${end_fix_day_s}" \
-				+%Y%m%d%H%M%SZ
-			)" || die "\
-fixed_cert_dates - end_fix_day_d - busybox"
-
-	# Darwin, BSD
-	elif date -j > /dev/null 2>&1; then
-
-		this_year_n="$(date -j +%y)"
-		#today_n="$(date -u -j +%j)"
-
-		New_Year_day_d="$(
-			date -u -j -f %y%m%d%H%M%S \
-				"${this_year_n}0101000001" \
-				+%Y%m%d%H%M.%SZ
-			)" || die "\
-fixed_cert_dates - New_Year_day_d - Darwin"
-
-		# Convert to date-stamps for SSL input
-		start_fix_day_d="$(
-			date -u -j -f %Y%m%d%H%M.%SZ -v \
-				"+${start_fix_day_n}d" \
-				"$New_Year_day_d" +%Y%m%d%H%M%SZ
-			)" || die "\
-fixed_cert_dates - start_fix_day_d - Darwin"
-
-		end_fix_day_d="$(
-			date -u -j -f %Y%m%d%H%M.%SZ -v \
-				"+${end_fix_day_n}d" \
-				"$New_Year_day_d" +%Y%m%d%H%M%SZ
-			)" || die "\
-fixed_cert_dates - end_fix_day_d - Darwin"
-
-		end_fix_day_s="$(
-			date -u -j -f %Y%m%d%H%M.%SZ -v \
-				"+${end_fix_day_n}d" \
-				"$New_Year_day_d" +%s
-			)" || die "\
-fixed_cert_dates - end_fix_day_s - Darwin"
-
-	# Linux and Windows
-	# date.exe does not allow +%s as input
-	# MacPorts GNU date
-	elif this_year_n="$(date -u +%y)"; then
-
-		# Day of Year number today
-		#today_n="$(date -u +%j)"
-
-		# New Years day date
-		New_Year_day_d="$(
-			date -u -d \
-				"${this_year_n}-01-01 00:00:01Z" \
-				'+%Y-%m-%d %H:%M:%SZ'
-			)" || die "\
-fixed_cert_dates - New_Year_day_d - Linux"
-
-		# Convert to date-stamps for SSL input
-		start_fix_day_d="$(
-			date -u -d "$New_Year_day_d \
-				+${start_fix_day_n}days" \
-				+%Y%m%d%H%M%SZ
-			)" || die "\
-fixed_cert_dates - start_fix_day_d - Linux"
-
-		end_fix_day_d="$(
-			date -u -d "$New_Year_day_d \
-				+${end_fix_day_n}days" \
-				+%Y%m%d%H%M%SZ
-			)" || die "\
-fixed_cert_dates - end_fix_day_d - Linux"
-
-		end_fix_day_s="$(
-			date -u -d "$New_Year_day_d \
-				+${end_fix_day_n}days" +%s
-			)" || die "\
-fixed_cert_dates - end_fix_day_s - Linux"
-
-	else
-		die "\
-Unsupported 'date' program, upgrade your Matrix."
-	fi
-
-	# Return FINAL dates for use in the certificate
-	force_set_var "$2" "$start_fix_day_d" || die "\
-fixed_cert_dates - force_set_var - $2 - $start_fix_day_d"
-
-	force_set_var "$3" "$end_fix_day_d" || die "\
-fixed_cert_dates - force_set_var - $3 - $end_fix_day_d"
-
-	# cleanup
-	unset -v start_fix_day_n start_fix_day_d \
-			end_fix_day_d end_fix_day_s \
-			this_year_n New_Year_day_d
-
-} # => fixed_cert_dates()
-
 # Convert certificate date to timestamp seconds since epoch
 cert_date_to_timestamp_s() {
 	# check input
@@ -4213,6 +4061,10 @@ read_db() {
 
 # Expire status
 expire_status() {
+
+	#warn "status report '$cmd' is unavailable"
+	#return 0
+
 	if [ -e "$cert_issued" ]; then
 
 		# get the serial number of the certificate
@@ -4283,6 +4135,10 @@ serial mismatch:
 
 # Revoke status
 revoke_status() {
+
+	#warn "status report '$cmd' is unavailable"
+	#return 0
+
 	# Translate db date to usable date
 	#source_date=database
 	ff_date=
@@ -4303,6 +4159,10 @@ revoke_status() {
 # renewed certs only remain in the renewed folder until revoked
 # Only ONE renewed cert with unique CN can exist in renewed folder
 renew_status() {
+
+	#warn "status report '$cmd' is unavailable"
+	#return 0
+
 	# Does a Renewed cert exist ?
 	# files in issued are file name, or in serial are SerialNumber
 	unset -v cert_file_in cert_is_issued cert_is_serial renew_is_old
@@ -4544,6 +4404,49 @@ Edwards Curve $EASYRSA_CURVE not found."
 Alg '$EASYRSA_ALGO' is invalid: Must be 'rsa', 'ec' or 'ed'"
 	esac
 } # => verify_algo_params()
+
+# Check for conflicting input options
+mutual_exclusions() {
+	# --nopass cannot be used with --passout
+	if [ "$EASYRSA_PASSOUT" ]; then
+		# --passout MUST take priority over --nopass
+		[ "$EASYRSA_NO_PASS" ] && warn "\
+Option --passout cannot be used with --nopass|nopass."
+		unset -v EASYRSA_NO_PASS
+		prohibit_no_pass=1
+	fi
+
+	# --silent-ssl requires --batch
+	if [ "$EASYRSA_SILENT_SSL" ]; then
+		[ "$EASYRSA_BATCH" ] || warn "\
+Option --silent-ssl requires batch mode --batch."
+	fi
+
+	# --startdate requires --enddate
+	# otherwise, --days counts from now
+	if [ "$EASYRSA_START_DATE" ]; then
+		[ "$EASYRSA_END_DATE" ] || die "\
+Use of --startdate requires use of --enddate."
+	fi
+
+	# --enddate may over-rule EASYRSA_CERT_EXPIRE
+	if [ "$EASYRSA_END_DATE" ]; then
+		case "$cmd" in
+			sign-req|build-*-full|renew|rebuild)
+				# User specified alias_days IS over-ruled
+				if [ "$alias_days" ]; then
+					warn "\
+Option --days is over-ruled by option --enddate."
+				fi
+				unset -v EASYRSA_CERT_EXPIRE alias_days
+			;;
+			*)
+				warn "\
+EasyRSA '$cmd' does not support --startdate or --enddate"
+				unset -v EASYRSA_START_DATE EASYRSA_END_DATE
+		esac
+	fi
+} # => mutual_exclusions()
 
 # vars setup
 # Here sourcing of 'vars' if present occurs. If not present, defaults are used
@@ -5496,9 +5399,11 @@ while :; do
 		# when called by command later
 		alias_days="$val"
 		;;
-	--fix-offset)
-		number_only=1
-		export EASYRSA_FIX_OFFSET="$val"
+	--startdate)
+		export EASYRSA_START_DATE="$val"
+		;;
+	--enddate)
+		export EASYRSA_END_DATE="$val"
 		;;
 	--pki-dir)
 		export EASYRSA_PKI="$val"
@@ -5627,6 +5532,11 @@ subjectAltName = $val"
 		set -- "$@" "version"
 		break
 		;;
+	# Unsupported options
+	--fix-offset)
+		die "Option $opt is not supported.
+Use options --startdate and --enddate for fixed dates."
+		;;
 	*)
 		break
 	esac
@@ -5672,18 +5582,8 @@ esac
 # Intelligent env-var detection and auto-loading:
 vars_setup
 
-# Mutual exclusions:
-# --nopass cannot be used with --passout
-if [ "$EASYRSA_PASSOUT" ]; then
-	# --passout MUST take priority over --nopass
-	unset -v EASYRSA_NO_PASS
-	prohibit_no_pass=1
-fi
-# --silent-ssl requires --batch
-if [ "$EASYRSA_SILENT_SSL" ]; then
-	[ "$EASYRSA_BATCH" ] || warn "\
-Option --silent-ssl requires batch mode --batch."
-fi
+# Check for conflicting input options
+mutual_exclusions
 
 # Hand off to the function responsible
 case "$cmd" in
