@@ -3710,14 +3710,15 @@ cert_date_to_timestamp_s - input error"
 
 	in_date="$1"
 
-	# busybox
-	if busybox date --help > /dev/null 2>&1
-	then
-		timestamp_s="$(
-			busybox date -D "%b %e %H:%M:%S %Y" \
-				-d "$in_date" +%s 2>/dev/null
-			)" || die "\
-cert_date_to_timestamp_s - timestamp_s - busybox $in_date"
+	# OS dependencies
+	# Linux and Windows
+	# date.exe does not allow +%s as input
+	# MacPorts GNU date
+	if timestamp_s="$(
+			date -d "$in_date" +%s \
+				2>/dev/null
+			)"
+	then : # ok
 
 	# Darwin, BSD
 	elif timestamp_s="$(
@@ -3726,15 +3727,14 @@ cert_date_to_timestamp_s - timestamp_s - busybox $in_date"
 			)"
 	then : # ok
 
-	# OS dependencies
-	# Linux and Windows
-	# date.exe does not allow +%s as input
-	# MacPorts GNU date
-	elif timestamp_s="$(
-			date -d "$in_date" +%s \
-				2>/dev/null
-			)"
-	then : # ok
+	# busybox
+	elif busybox date --help > /dev/null 2>&1
+	then
+		timestamp_s="$(
+			busybox date -D "%b %e %H:%M:%S %Y" \
+				-d "$in_date" +%s 2>/dev/null
+			)" || die "\
+cert_date_to_timestamp_s - timestamp_s - busybox $in_date"
 
 	# Something else
 	else
@@ -3759,17 +3759,16 @@ offset_days_to_cert_date - input error"
 
 	in_offset="$1"
 
-	# busybox (Alpine)
-	if busybox date --help > /dev/null 2>&1
-	then
-		offset_date="$(
-			busybox date -u -d \
-				"@$(( $(busybox date +%s) \
-					+ in_offset * 86400 ))" \
+	# OS dependencies
+	# Linux and Windows
+	# date.exe does not allow +%s as input
+	# MacPorts GNU date
+	if offset_date="$(
+			date -u -d "+${in_offset}days" \
 				"+%b %d %H:%M:%S %Y %Z" \
 				2>/dev/null
-			)" || die "\
-offset_days_to_cert_date - offset_date - busybox"
+			)"
+	then : # ok
 
 	# Darwin, BSD
 	elif offset_date="$(
@@ -3779,16 +3778,17 @@ offset_days_to_cert_date - offset_date - busybox"
 			)"
 	then : # ok
 
-	# OS dependencies
-	# Linux and Windows
-	# date.exe does not allow +%s as input
-	# MacPorts GNU date
-	elif offset_date="$(
-			date -u -d "+${in_offset}days" \
+	# busybox (Alpine)
+	elif busybox date --help > /dev/null 2>&1
+	then
+		offset_date="$(
+			busybox date -u -d \
+				"@$(( $(busybox date +%s) \
+					+ in_offset * 86400 ))" \
 				"+%b %d %H:%M:%S %Y %Z" \
 				2>/dev/null
-			)"
-	then : # ok
+			)" || die "\
+offset_days_to_cert_date - offset_date - busybox"
 
 	# Something else
 	else
