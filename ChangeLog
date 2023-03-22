@@ -1,15 +1,16 @@
 Easy-RSA 3 ChangeLog
 
 3.1.3 (ETA: 2023-10-13)
+   * Replace --fix-offset with --startdate, --enddate (#918)
    * Introduce option -S|--silent-ssl: Silence SSL output (#913)
    * Only create a random serial number file when expected (#896)
    * Always verify SSL lib, for all commands (#877)
-   * Option --fix-offset: Adjust off-by-one day (#847)
+   * Option --fix-offset: Adjust off-by-one day (#847) Superseded (#918)
 
 3.1.2 (2023-01-13)
    * build-full: Always enable inline file creation (#834)
    * Make default Edwards curve ED25519 (#828)
-   * Allow --fix-offset to create post-dated certificates (#804)
+   * Allow --fix-offset to create post-dated certificates (#804) Superseded (#918)
    * Introduce command 'set-pass' (#756)
    * Introduce global option '--nopass|--no-pass' (#752)
    * Introduce global option '--notext|--no-text' (#745)
