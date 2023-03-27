@@ -3813,16 +3813,16 @@ ff_date_to_cert_date - input error"
 
 	in_date="$1"
 
-	# busybox
-	if busybox date --help > /dev/null 2>&1
-	then
-		out_date="$(
-			busybox date -u \
-				-D "%y-%m-%d %H:%M:%S%Z" \
-				-d "$in_date" "+%b %d %H:%M:%S %Y %Z" \
+	# OS dependencies
+	# Linux and Windows
+	# * date.exe does not support format +%s as input
+	# MacPorts GNU date
+	if out_date="$(
+			date -u -d "$in_date" \
+				"+%b %d %H:%M:%S %Y %Z" \
 				2>/dev/null
-			)" || die "\
-ff_date_to_cert_date - out_date - busybox"
+			)"
+	then : # ok
 
 	# Darwin, BSD
 	elif out_date="$(
@@ -3832,16 +3832,16 @@ ff_date_to_cert_date - out_date - busybox"
 			)"
 	then : # ok
 
-	# OS dependencies
-	# Linux and Windows
-	# * date.exe does not support format +%s as input
-	# MacPorts GNU date
-	elif out_date="$(
-			date -u -d "$in_date" \
-				"+%b %d %H:%M:%S %Y %Z" \
+	# busybox
+	elif busybox date --help > /dev/null 2>&1
+	then
+		out_date="$(
+			busybox date -u \
+				-D "%y-%m-%d %H:%M:%S%Z" \
+				-d "$in_date" "+%b %d %H:%M:%S %Y %Z" \
 				2>/dev/null
-			)"
-	then : # ok
+			)" || die "\
+ff_date_to_cert_date - out_date - busybox"
 
 	# Something else
 	else
