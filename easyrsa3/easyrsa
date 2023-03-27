@@ -3728,13 +3728,11 @@ cert_date_to_timestamp_s - input error"
 	then : # ok
 
 	# busybox
-	elif busybox date --help > /dev/null 2>&1
-	then
-		timestamp_s="$(
+	elif timestamp_s="$(
 			busybox date -D "%b %e %H:%M:%S %Y" \
 				-d "$in_date" +%s 2>/dev/null
-			)" || die "\
-cert_date_to_timestamp_s - timestamp_s - busybox $in_date"
+			)"
+	then : # ok
 
 	# Something else
 	else
@@ -3779,16 +3777,14 @@ offset_days_to_cert_date - input error"
 	then : # ok
 
 	# busybox (Alpine)
-	elif busybox date --help > /dev/null 2>&1
-	then
-		offset_date="$(
+	elif offset_date="$(
 			busybox date -u -d \
 				"@$(( $(busybox date +%s) \
 					+ in_offset * 86400 ))" \
 				"+%b %d %H:%M:%S %Y %Z" \
 				2>/dev/null
-			)" || die "\
-offset_days_to_cert_date - offset_date - busybox"
+			)"
+	then : # ok
 
 	# Something else
 	else
@@ -3833,15 +3829,13 @@ ff_date_to_cert_date - input error"
 	then : # ok
 
 	# busybox
-	elif busybox date --help > /dev/null 2>&1
-	then
-		out_date="$(
+	elif out_date="$(
 			busybox date -u \
 				-D "%y-%m-%d %H:%M:%S%Z" \
 				-d "$in_date" "+%b %d %H:%M:%S %Y %Z" \
 				2>/dev/null
-			)" || die "\
-ff_date_to_cert_date - out_date - busybox"
+			)"
+	then : # ok
 
 	# Something else
 	else
