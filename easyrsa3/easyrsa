@@ -3807,62 +3807,6 @@ cert_date_to_timestamp_s - force_set_var - $2 - $timestamp_s"
 	unset -v in_date timestamp_s
 } # => cert_date_to_timestamp_s()
 
-# Convert system date plus offset days
-# to X509 certificate style date (+)offset
-offset_days_to_cert_date() {
-	verbose "MAJOR-ISSUE: offset_days_to_cert_date() <- MUST GO!!"
-	# check input
-	[ "$#" = 2 ] || die "\
-offset_days_to_cert_date - input error"
-
-die "* NOT ALLOWED: offset_days_to_cert_date()"
-
-	in_offset="$1"
-
-	# OS dependencies
-	# Linux and Windows
-	# date.exe does not allow +%s as input
-	# MacPorts GNU date
-	if offset_date="$(
-			date -u -d "+${in_offset}days" \
-				"+%b %d %H:%M:%S %Y %Z" \
-				2>/dev/null
-			)"
-	then : # ok
-
-	# Darwin, BSD
-	elif offset_date="$(
-			date -u -j -v "+${in_offset}d" \
-				"+%b %d %H:%M:%S %Y %Z" \
-				2>/dev/null
-			)"
-	then : # ok
-
-	# busybox (Alpine)
-	elif offset_date="$(
-			busybox date -u -d \
-				"@$(( $(busybox date +%s) \
-					+ in_offset * 86400 ))" \
-				"+%b %d %H:%M:%S %Y %Z" \
-				2>/dev/null
-			)"
-	then : # ok
-
-	# Something else
-	else
-		die "\
-offset_days_to_cert_date:
-'date' failed for 'in_offset': $in_offset"
-	fi
-
-	# Return offset_date
-	force_set_var "$2" "$offset_date" || die "\
-offset_days_to_cert_date \
-- force_set_var - $2 - $offset_date"
-
-	unset -v in_offset offset_date
-} # => offset_days_to_cert_date()
-
 # Convert fixed format date to X509 certificate style date
 ff_date_to_cert_date() {
 	verbose "DEPRECATED: ff_date_to_cert_date()"
