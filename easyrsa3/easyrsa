@@ -542,6 +542,13 @@ $1
 	exit "${2:-1}"
 } # => die()
 
+# Necessary verbose warnings
+# This is a debug function for status-reports and date
+verbose() {
+	[ "$EASYRSA_VERBOSE" ] || return 0
+	printf '%s\n' "   > Verbose: $*"
+} # => verbose()
+
 # non-fatal warning output
 warn() {
 	[ "$EASYRSA_SILENT" ] && return
@@ -3702,11 +3709,63 @@ OpenSSL failure to process the input"
 
 } # => show_ca()
 
+# Number of days from NOW@today as timestamp seconds
+days_to_timestamp_s() {
+	verbose "REQUIRED: days_to_timestamp_s - uses date."
+	# check input
+	[ "$#" = 2 ] || die "\
+days_to_timestamp_s - input error"
+
+	in_days="$1"
+	in_seconds="$(( in_days * 60 * 60 * 24 ))"
+
+	# There are NO OS dependencies for this use of date
+	# OS dependencies
+	# Linux and Windows
+	# date.exe does not allow +%s as input
+	# MacPorts GNU date
+	if timestamp_s="$(
+			date +%s 2>/dev/null
+			)"
+	then : # ok
+
+	# Darwin, BSD
+	elif timestamp_s="$(
+			date +%s 2>/dev/null
+			)"
+	then : # ok
+
+	# busybox
+	elif timestamp_s="$(
+			busybox date +%s 2>/dev/null
+			)"
+	then : # ok
+
+	# Something else
+	else
+		die "\
+days_to_timestamp_s:
+'date' failed for 'in_date': $in_date"
+	fi
+
+	# Add period
+	timestamp_s="$(( timestamp_s + in_seconds ))"
+
+	# Return timestamp_s
+	force_set_var "$2" "$timestamp_s" || die "\
+days_to_timestamp_s - force_set_var - $2 - $timestamp_s"
+
+	unset -v in_days timestamp_s
+} # => days_to_timestamp_s()
+
 # Convert certificate date to timestamp seconds since epoch
 cert_date_to_timestamp_s() {
+	verbose "DEPRECATED: cert_date_to_timestamp_s()"
 	# check input
 	[ "$#" = 2 ] || die "\
 cert_date_to_timestamp_s - input error"
+
+#die "* NOT ALLOWED: cert_date_to_timestamp_s()"
 
 	in_date="$1"
 
@@ -3751,9 +3810,12 @@ cert_date_to_timestamp_s - force_set_var - $2 - $timestamp_s"
 # Convert system date plus offset days
 # to X509 certificate style date (+)offset
 offset_days_to_cert_date() {
+	verbose "MAJOR-ISSUE: offset_days_to_cert_date() <- MUST GO!!"
 	# check input
 	[ "$#" = 2 ] || die "\
 offset_days_to_cert_date - input error"
+
+die "* NOT ALLOWED: offset_days_to_cert_date()"
 
 	in_offset="$1"
 
@@ -3803,9 +3865,12 @@ offset_days_to_cert_date \
 
 # Convert fixed format date to X509 certificate style date
 ff_date_to_cert_date() {
+	verbose "DEPRECATED: ff_date_to_cert_date()"
 	# check input
 	[ "$#" = 2 ] || die "\
 ff_date_to_cert_date - input error"
+
+#die "* NOT ALLOWED: ff_date_to_cert_date()"
 
 	in_date="$1"
 
@@ -3854,10 +3919,12 @@ ff_date_to_cert_date \
 
 # Fixed format date
 # Build a Windows date.exe compatible input field
-db_date_to_ff_date() {
+# iso_8601 date
+db_date_to_iso_8601_date() {
+	verbose "iso_8601: db_date_to_iso_8601_date()"
 	# check input
 	[ "$#" = 2 ] || die "\
-db_date_to_ff_date - input error"
+db_date_to_iso_8601_date - input error"
 
 	in_date="$1"
 
@@ -3878,11 +3945,11 @@ db_date_to_ff_date - input error"
 
 	# Return out_date
 	force_set_var "$2" "$out_date" || die "\
-db_date_to_ff_date \
+db_date_to_iso_8601_date \
 - force_set_var - $2 - $out_date"
 
 	unset -v in_date out_date yy mm dd HH MM SS TZ
-} # => db_date_to_ff_date()
+} # => db_date_to_iso_8601_date()
 
 # sanatize and set var
 force_set_var() {
@@ -3910,6 +3977,7 @@ ssl_cert_serial() {
 
 # Get certificate start date
 ssl_cert_not_before_date() {
+	verbose "DEPRECATED: ssl_cert_not_before_date()"
 	[ "$#" = 2 ] || die "\
 ssl_cert_not_before_date - input error"
 	[ -f "$1" ] || die "\
@@ -3930,6 +3998,7 @@ ssl_cert_not_before_date - failed to set var '$*'"
 
 # Get certificate end date
 ssl_cert_not_after_date() {
+	verbose "DEPRECATED: ssl_cert_not_after_date()"
 	[ "$#" = 2 ] || die "\
 ssl_cert_not_after_date - input error"
 	[ -f "$1" ] || die "\
@@ -3947,6 +4016,153 @@ ssl_cert_not_after_date - failed to set var '$*'"
 
 	unset -v fn_ssl_out
 } # => ssl_cert_not_after_date()
+
+# SSL -- v3 -- startdate
+iso_8601_cert_startdate() {
+	verbose "NEW: iso_8601_cert_startdate()"
+	[ "$#" = 2 ] || die "\
+iso_8601_cert_startdate - input error"
+	[ -f "$1" ] || die "\
+iso_8601_cert_startdate - missing cert"
+
+	# On error return, let the caller decide what to do
+	if fn_ssl_out="$(
+		easyrsa_openssl x509 -in "$1" -noout \
+			-startdate -dateopt iso_8601
+		)"
+	then
+		: # ok
+	else
+		# The caller MUST assess this error
+		verbose "iso_8601_cert_startdate: GENERATED ERROR"
+		return 1
+	fi
+
+	fn_ssl_out="${fn_ssl_out#*=}"
+
+	force_set_var "$2" "$fn_ssl_out" || die "\
+iso_8601_cert_startdate - failed to set var '$*'"
+
+	unset -v fn_ssl_out
+} # => iso_8601_cert_startdate()
+
+# SSL -- v3 -- enddate
+iso_8601_cert_enddate() {
+	verbose "NEW: iso_8601_cert_enddate()"
+	[ "$#" = 2 ] || die "\
+iso_8601_cert_enddate - input error"
+	[ -f "$1" ] || die "\
+iso_8601_cert_enddate - missing cert"
+
+	# On error return, let the caller decide what to do
+	if fn_ssl_out="$(
+		easyrsa_openssl x509 -in "$1" -noout \
+			-enddate -dateopt iso_8601
+		)"
+	then
+		: # ok
+	else
+		# The caller MUST assess this error
+		verbose "iso_8601_cert_enddate: GENERATED ERROR"
+		return 1
+	fi
+
+	fn_ssl_out="${fn_ssl_out#*=}"
+
+	force_set_var "$2" "$fn_ssl_out" || die "\
+iso_8601_cert_enddate - failed to set var '$*'"
+
+	unset -v fn_ssl_out
+} # => iso_8601_cert_enddate()
+
+# iso_8601_timestamp_to_seconds since epoch
+iso_8601_timestamp_to_seconds() {
+	verbose "NEW: iso_8601_timestamp_to_seconds()"
+	# check input
+	[ "$#" = 2 ] || die "\
+iso_8601_timestamp_to_seconds - input error"
+
+	in_date="$1"
+
+	# Consume $in_date string
+	yyyy="${in_date%%-*}"
+	in_date="${in_date#*-}"
+	mm="${in_date%%-*}"
+	in_date="${in_date#*-}"
+	dd="${in_date%% *}"
+	in_date="${in_date#* }"
+	HH="${in_date%%:*}"
+	in_date="${in_date#*:}"
+	MM="${in_date%%:*}"
+	in_date="${in_date#*:}"
+	SS="${in_date%?}"
+	in_date="${in_date#??}"
+	TZ="$in_date"
+	unset -v in_date
+
+	# Check that TZ is a single character
+	if [ "${#TZ}" = 1 ]; then
+		: # ok
+	else
+		# Caller MUST assess this error
+		verbose "\
+NEW: iso_8601_timestamp_to_seconds: GENERATED ERROR (TZ)"
+		return 1
+	fi
+
+	# number of days per month
+	 case "$mm" in
+		 01) mdays="$(( 0 ))" ;;
+		 02) mdays="$(( 31 ))" ;;
+		 03) mdays="$(( 31+28 ))" ;;
+		 04) mdays="$(( 31+28+31 ))" ;;
+		 05) mdays="$(( 31+28+31+30 ))" ;;
+		 06) mdays="$(( 31+28+31+30+31 ))" ;;
+		 07) mdays="$(( 31+28+31+30+31+30 ))" ;;
+		 08) mdays="$(( 31+28+31+30+31+30+31 ))" ;;
+		 09) mdays="$(( 31+28+31+30+31+30+31+31 ))" ;;
+		 10) mdays="$(( 31+28+31+30+31+30+31+31+30 ))" ;;
+		 11) mdays="$(( 31+28+31+30+31+30+31+31+30+31 ))" ;;
+		 12) mdays="$(( 31+28+31+30+31+30+31+31+30+31+30 ))" ;;
+		 # This means the input date was not iso_8601
+		 *)
+			# Caller MUST assess this error
+			verbose "\
+NEW: iso_8601_timestamp_to_seconds: GENERATED ERROR (mm)"
+			return 1
+	 esac
+
+	# Remove leading ZERO. eg: SS = 09
+	[ "$yyyy" = "${yyyy#0}" ] || die "Leading zero: yyyy: $yyyy"
+	mm="${mm#0}"
+	dd="${dd#0}"
+	HH="${HH#0}"
+	MM="${MM#0}"
+	SS="${SS#0}"
+
+	# Leap years
+	leap_years="$(( (yyyy - 1970 + 2 ) / 4 ))"
+
+	# Calculate seconds since epoch
+	out_seconds="$((
+		(( yyyy - 1970 ) * ( 60 * 60 * 24 * 365 ))
+		+ (( leap_years ) * ( 60 * 60 * 24 ))
+		+ (( mdays ) * ( 60 * 60 * 24 ))
+		+ (( dd - 1 ) * ( 60 * 60 * 24 ))
+		+ (( HH ) * ( 60 * 60 ))
+		+ (( MM ) * ( 60 ))
+		+ SS
+		))" || die "\
+iso_8601_timestamp_to_seconds - out_seconds: '$out_seconds'"
+
+	# Return out_seconds
+	force_set_var "$2" "$out_seconds" || die "\
+iso_8601_timestamp_to_seconds \
+- force_set_var - $2 - $out_seconds"
+
+	unset -v in_date out_seconds leap_years \
+		yyyy mm dd HH MM SS TZ
+} # => iso_8601_timestamp_to_seconds()
 
 # SC2295: Expansion inside ${..} need to be quoted separately,
 # otherwise they match as patterns. (what-ever that means ;-)
@@ -4077,15 +4293,29 @@ serial mismatch:
 			return 0
 		fi
 
-		#cert_source=issued
-		ssl_cert_not_after_date \
-			"$cert_issued" cert_not_after_date
+		# Get cert end date in iso+8601 format from SSL
+		# or fall-back to old format
+		# Redirect SSL error to /dev/null here not in function
+		cert_not_after_date=
+		if iso_8601_cert_enddate \
+			"$cert_issued" cert_not_after_date 2>/dev/null
+		then
+			: # ok
+		else
+			verbose "\
+expire_status: ACCEPTED ERROR-1: iso_8601_cert_enddate()"
+			verbose "\
+expire_status: CONSUMED ERROR: FALL-BACK to default SSL date format"
+			ssl_cert_not_after_date \
+				"$cert_issued" cert_not_after_date
+			verbose "\
+expire_status: CONSUMED ERROR: FALL-BACK completed"
+		fi
 
 	else
 		# Translate db date to usable date
-		#cert_source=database
 		ff_date=
-		db_date_to_ff_date "$db_notAfter" ff_date
+		db_date_to_iso_8601_date "$db_notAfter" ff_date
 		cert_type_date=
 		ff_date_to_cert_date "$ff_date" cert_type_date
 		# Use db translated date
@@ -4093,26 +4323,90 @@ serial mismatch:
 	fi
 
 	# Get timestamp seconds for certificate expiry date
+	# Redirection for errout is not necessary here
 	cert_expire_date_s=
-	cert_date_to_timestamp_s \
-		"$cert_not_after_date" cert_expire_date_s
+	if iso_8601_timestamp_to_seconds \
+			"$cert_not_after_date" cert_expire_date_s
+	then
+		: # ok
 
-	# Set the cutoff date for expiry comparison
-	cert_type_date=
-	offset_days_to_cert_date \
-		"$EASYRSA_CERT_RENEW" cert_type_date
+		# Verify dates via 'date +%s' format
+		verbose "\
+expire_status: cert_date_to_timestamp_s() for comparison."
+		old_cert_expire_date_s=
+		cert_date_to_timestamp_s \
+			"$cert_not_after_date" old_cert_expire_date_s
+
+		# Prove this works
+		if [ "$cert_expire_date_s" = "$old_cert_expire_date_s" ]
+		then
+			: # ok
+			verbose "ABSOLUTE seconds MATCH:"
+            verbose "cert_expire_date_s=     $cert_expire_date_s"
+            verbose "old_cert_expire_date_s= $old_cert_expire_date_s"
+		else
+
+			# If there is an error then use --days-margin=10
+			[ "$EASYRSA_iso_8601_MARGIN" ] || \
+				die "expire_status - ABSOLUTE seconds mismatch"
+
+			# Allows days for margin of error in seconds
+			margin_s="$((
+				EASYRSA_iso_8601_MARGIN * (60 * 60 * 24)
+				))"
+			margin_plus_s="$((
+				old_cert_expire_date_s + margin_s
+				))"
+			margin_minus_s="$((
+				old_cert_expire_date_s - margin_s
+				))"
+
+			if [ "$cert_expire_date_s" -lt "$margin_plus_s" ] && \
+				[ "$cert_expire_date_s" -gt "$margin_minus_s" ]
+			then
+				: # ok
+				verbose "MARGIN seconds ACCEPTED:
+cert_expire_date_s=     $cert_expire_date_s
+old_cert_expire_date_s= $old_cert_expire_date_s
+margin_plus_s=          $margin_plus_s
+margin_minus_s=         $margin_minus_s"
+			else
+				verbose "MARGIN seconds REJECTED:
+cert_expire_date_s=     $cert_expire_date_s
+old_cert_expire_date_s= $old_cert_expire_date_s
+margin_plus_s=          $margin_plus_s
+margin_minus_s=         $margin_minus_s"
+
+				die "\
+expire_status - Verify cert expire date EXCESS mismatch!"
+			fi
+		fi
+
+		verbose "\
+expire_status: cert_date_to_timestamp_s() comparison complete."
+
+	else
+		verbose  "\
+expire_status: ACCEPTED ERROR-2: iso_8601_timestamp_to_seconds()"
+		verbose "\
+expire_status: CONSUMED ERROR: FALL-BACK to default SSL date format"
+		cert_date_to_timestamp_s \
+			"$cert_not_after_date" cert_expire_date_s
+		verbose "\
+expire_status: CONSUMED ERROR: FALL-BACK completed"
+	fi
+
+	# Convert number of days to a timestamp in secconds
 	cutoff_date_s=
-	cert_date_to_timestamp_s \
-		"$cert_type_date" cutoff_date_s
+	days_to_timestamp_s \
+		"$EASYRSA_CERT_RENEW" cutoff_date_s
 
-	# Set NOW date for expiry comparison
-	cert_type_date=
-	offset_days_to_cert_date \
-		0 cert_type_date
+	# Get the current date/time as a timestamp in secconds
 	now_date_s=
-	cert_date_to_timestamp_s \
-		"$cert_type_date" now_date_s
+	days_to_timestamp_s \
+		0 now_date_s
 
+	# Compare and print output
 	if [ "$cert_expire_date_s" -lt "$cutoff_date_s" ]; then
 		# Cert expires in less than grace period
 		if [ "$cert_expire_date_s" -gt "$now_date_s" ]; then
@@ -4136,7 +4430,7 @@ revoke_status() {
 	# Translate db date to usable date
 	#source_date=database
 	ff_date=
-	db_date_to_ff_date "$db_revoke_date" ff_date
+	db_date_to_iso_8601_date "$db_revoke_date" ff_date
 	cert_type_date=
 	ff_date_to_cert_date "$ff_date" cert_type_date
 	# Use db translated date
@@ -4224,9 +4518,6 @@ status() {
 	target="$2"
 
 	verify_ca_init
-
-	# This does not build certs, so do not need fixed dates
-	unset -v EASYRSA_FIX_OFFSET EASYRSA_BATCH EASYRSA_SILENT
 
 	# test fix: https://github.com/OpenVPN/easy-rsa/issues/819
 	export LC_TIME=C.UTF-8
@@ -5479,6 +5770,15 @@ while :; do
 		empty_ok=1
 		export EASYRSA_SILENT=1
 		export EASYRSA_BATCH=1
+		;;
+	--verbose)
+		empty_ok=1
+		export EASYRSA_VERBOSE=1
+		;;
+	--days-margin)
+		# ONLY ALLOWED use by status reports
+		number_only=1
+		export EASYRSA_iso_8601_MARGIN="$val"
 		;;
 	-S|--silent-ssl)
 		empty_ok=1
