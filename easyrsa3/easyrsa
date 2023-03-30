@@ -3807,60 +3807,6 @@ cert_date_to_timestamp_s - force_set_var - $2 - $timestamp_s"
 	unset -v in_date timestamp_s
 } # => cert_date_to_timestamp_s()
 
-# Convert fixed format date to X509 certificate style date
-ff_date_to_cert_date() {
-	verbose "DEPRECATED: ff_date_to_cert_date()"
-	# check input
-	[ "$#" = 2 ] || die "\
-ff_date_to_cert_date - input error"
-
-#die "* NOT ALLOWED: ff_date_to_cert_date()"
-
-	in_date="$1"
-
-	# OS dependencies
-	# Linux and Windows
-	# * date.exe does not support format +%s as input
-	# MacPorts GNU date
-	if out_date="$(
-			date -u -d "$in_date" \
-				"+%b %d %H:%M:%S %Y %Z" \
-				2>/dev/null
-			)"
-	then : # ok
-
-	# Darwin, BSD
-	elif out_date="$(
-			date -u -j -f '%y-%m-%d %TZ' \
-				"$in_date" "+%b %d %H:%M:%S %Y %Z" \
-				2>/dev/null
-			)"
-	then : # ok
-
-	# busybox
-	elif out_date="$(
-			busybox date -u \
-				-D "%y-%m-%d %H:%M:%S%Z" \
-				-d "$in_date" "+%b %d %H:%M:%S %Y %Z" \
-				2>/dev/null
-			)"
-	then : # ok
-
-	# Something else
-	else
-		die "\
-ff_date_to_cert_date:
-'date' failed for 'in_date': $in_date"
-	fi
-
-	# Return out_date
-	force_set_var "$2" "$out_date" || die "\
-ff_date_to_cert_date \
-- force_set_var - $2 - $out_date"
-
-	unset -v in_date out_date
-} # => ff_date_to_cert_date()
-
 # Build a Windows date.exe compatible input field
 # iso_8601 date
 db_date_to_iso_8601_date() {
