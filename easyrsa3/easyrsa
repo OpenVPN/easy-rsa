@@ -3709,212 +3709,6 @@ OpenSSL failure to process the input"
 
 } # => show_ca()
 
-# Number of days from NOW@today as timestamp seconds
-days_to_timestamp_s() {
-	verbose "REQUIRED: days_to_timestamp_s - uses date."
-	# check input
-	[ "$#" = 2 ] || die "\
-days_to_timestamp_s - input error"
-
-	in_days="$1"
-	in_seconds="$(( in_days * 60 * 60 * 24 ))"
-
-	# There are NO OS dependencies for this use of date
-	# OS dependencies
-	# Linux and Windows
-	# date.exe does not allow +%s as input
-	# MacPorts GNU date
-	if timestamp_s="$(
-			date +%s 2>/dev/null
-			)"
-	then : # ok
-
-	# Darwin, BSD
-	elif timestamp_s="$(
-			date +%s 2>/dev/null
-			)"
-	then : # ok
-
-	# busybox
-	elif timestamp_s="$(
-			busybox date +%s 2>/dev/null
-			)"
-	then : # ok
-
-	# Something else
-	else
-		die "\
-days_to_timestamp_s:
-'date' failed for 'in_date': $in_date"
-	fi
-
-	# Add period
-	timestamp_s="$(( timestamp_s + in_seconds ))"
-
-	# Return timestamp_s
-	force_set_var "$2" "$timestamp_s" || die "\
-days_to_timestamp_s - force_set_var - $2 - $timestamp_s"
-
-	unset -v in_days in_seconds timestamp_s
-} # => days_to_timestamp_s()
-
-# Convert certificate date to timestamp seconds since epoch
-# Used to verify iso_8601 calculated seconds since epoch
-cert_date_to_timestamp_s() {
-	verbose "DEPRECATED: cert_date_to_timestamp_s()"
-	# check input
-	[ "$#" = 2 ] || die "\
-cert_date_to_timestamp_s - input error"
-
-#die "* NOT ALLOWED: cert_date_to_timestamp_s()"
-
-	in_date="$1"
-
-	# OS dependencies
-	# Linux and Windows
-	# date.exe does not allow +%s as input
-	# MacPorts GNU date
-	if timestamp_s="$(
-			date -d "$in_date" +%s \
-				2>/dev/null
-			)"
-	then : # ok
-
-	# Darwin, BSD
-	elif timestamp_s="$(
-			date -j -f '%b %d %T %Y %Z' \
-				"$in_date" +%s 2>/dev/null
-			)"
-	then : # ok
-
-	# busybox
-	elif timestamp_s="$(
-			busybox date -D "%b %e %H:%M:%S %Y" \
-				-d "$in_date" +%s 2>/dev/null
-			)"
-	then : # ok
-
-	# Something else
-	else
-		die "\
-cert_date_to_timestamp_s:
-'date' failed for 'in_date': $in_date"
-	fi
-
-	# Return timestamp_s
-	force_set_var "$2" "$timestamp_s" || die "\
-cert_date_to_timestamp_s - force_set_var - $2 - $timestamp_s"
-
-	unset -v in_date timestamp_s
-} # => cert_date_to_timestamp_s()
-
-# Build a Windows date.exe compatible input field
-# iso_8601 date
-db_date_to_iso_8601_date() {
-	verbose "iso_8601: db_date_to_iso_8601_date()"
-	# check input
-	[ "$#" = 2 ] || die "\
-db_date_to_iso_8601_date - input error"
-
-	# Expected format: '230612235959Z'
-	in_date="$1"
-
-	# Consume $in_date string
-	yy="${in_date%???????????}"
-	in_date="${in_date#"$yy"}"
-	mm="${in_date%?????????}"
-	in_date="${in_date#"$mm"}"
-	dd="${in_date%???????}"
-	in_date="${in_date#"$dd"}"
-	HH="${in_date%?????}"
-	in_date="${in_date#"$HH"}"
-	MM="${in_date%???}"
-	in_date="${in_date#"$MM"}"
-	SS="${in_date%?}"
-	in_date="${in_date#"$SS"}"
-	TZ="$in_date"
-
-	# Assign iso_8601 date
-	out_date="${yy}-${mm}-${dd} ${HH}:${MM}:${SS}${TZ}"
-
-	# Return out_date
-	force_set_var "$2" "$out_date" || die "\
-db_date_to_iso_8601_date \
-- force_set_var - $2 - $out_date"
-
-	unset -v in_date out_date yy mm dd HH MM SS TZ
-} # => db_date_to_iso_8601_date()
-
-# Convert default SSL date to iso_8601 date
-# This may not be feasible, due to different languages
-# Alow the caller to assess those errors (eg. Fall-back)
-cert_date_to_iso_8601_date() {
-	verbose "iso_8601-WIP: cert_date_to_iso_8601_date()"
-	die "BLOCKED: cert_date_to_iso_8601_date()"
-
-	# check input
-	[ "$#" = 2 ] || die "\
-cert_date_to_iso_8601_date - input error"
-
-	# Expected format: 'Mar 21 18:25:01 2023 GMT'
-	in_date="$1"
-
-	# Consume in_date string
-	mmm="${in_date%% *}"
-	in_date="${in_date#"$mmm" }"
-	dd="${in_date%% *}"
-	in_date="${in_date#"$dd" }"
-	HH="${in_date%%:*}"
-	in_date="${in_date#"$HH":}"
-	MM="${in_date%%:*}"
-	in_date="${in_date#"$MM":}"
-	SS="${in_date%% *}"
-	in_date="${in_date#"$SS" }"
-	yyyy="${in_date%% *}"
-	in_date="${in_date#"$yyyy" }"
-	TZ="$in_date"
-
-	# Assign month number by abbreviation
-	case "$mmm" in
-	Jan) mm="01" ;;
-	Feb) mm="02" ;;
-	Mar) mm="03" ;;
-	Apr) mm="04" ;;
-	May) mm="05" ;;
-	Jun) mm="06" ;;
-	Jul) mm="07" ;;
-	Aug) mm="08" ;;
-	Sep) mm="09" ;;
-	Oct) mm="10" ;;
-	Nov) mm="11" ;;
-	Dec) mm="12" ;;
-	*)
-		information "Only english dates are currently supported."
-		warn "cert_date_to_iso_8601_date - Unknown month: '$mmm'"
-		# The caller is REQUIRED to assess this error
-		return 1
-	esac
-
-	# Assign signle letter timezone from abbreviation
-	case "$TZ" in
-	GMT) TZ=Z ;;
-	*)
-		information "Only english dates are currently supported."
-		warn "cert_date_to_iso_8601_date - Unknown timezone: '$TZ'"
-		# The caller is REQUIRED to assess this error
-		return 1
-	esac
-
-	# Assign iso_8601 date
-	out_date="${yyyy}-${mm}-${dd} ${HH}:${MM}:${SS}${TZ}"
-
-	# Return iso_8601 date
-	force_set_var "$2" "$out_date" || die "\
-cert_date_to_iso_8601 - force_set_var - $2 - $out_date"
-
-	unset -v in_date out_date yyyy mmm  mm dd HH MM SS TZ
-} # => cert_date_to_iso_8601()
-
 # get the serial number of the certificate -> serial=XXXX
 ssl_cert_serial() {
 	[ "$#" = 2 ] || die "ssl_cert_serial - input error"
@@ -4120,6 +3914,212 @@ iso_8601_timestamp_to_seconds \
 	unset -v in_date out_seconds leap_years \
 		yyyy mm dd HH MM SS TZ
 } # => iso_8601_timestamp_to_seconds()
+
+# Number of days from NOW@today as timestamp seconds
+days_to_timestamp_s() {
+	verbose "REQUIRED: days_to_timestamp_s - uses date."
+	# check input
+	[ "$#" = 2 ] || die "\
+days_to_timestamp_s - input error"
+
+	in_days="$1"
+	in_seconds="$(( in_days * 60 * 60 * 24 ))"
+
+	# There are NO OS dependencies for this use of date
+	# OS dependencies
+	# Linux and Windows
+	# date.exe does not allow +%s as input
+	# MacPorts GNU date
+	if timestamp_s="$(
+			date +%s 2>/dev/null
+			)"
+	then : # ok
+
+	# Darwin, BSD
+	elif timestamp_s="$(
+			date +%s 2>/dev/null
+			)"
+	then : # ok
+
+	# busybox
+	elif timestamp_s="$(
+			busybox date +%s 2>/dev/null
+			)"
+	then : # ok
+
+	# Something else
+	else
+		die "\
+days_to_timestamp_s:
+'date' failed for 'in_date': $in_date"
+	fi
+
+	# Add period
+	timestamp_s="$(( timestamp_s + in_seconds ))"
+
+	# Return timestamp_s
+	force_set_var "$2" "$timestamp_s" || die "\
+days_to_timestamp_s - force_set_var - $2 - $timestamp_s"
+
+	unset -v in_days in_seconds timestamp_s
+} # => days_to_timestamp_s()
+
+# Convert certificate date to timestamp seconds since epoch
+# Used to verify iso_8601 calculated seconds since epoch
+cert_date_to_timestamp_s() {
+	verbose "DEPRECATED: cert_date_to_timestamp_s()"
+	# check input
+	[ "$#" = 2 ] || die "\
+cert_date_to_timestamp_s - input error"
+
+#die "* NOT ALLOWED: cert_date_to_timestamp_s()"
+
+	in_date="$1"
+
+	# OS dependencies
+	# Linux and Windows
+	# date.exe does not allow +%s as input
+	# MacPorts GNU date
+	if timestamp_s="$(
+			date -d "$in_date" +%s \
+				2>/dev/null
+			)"
+	then : # ok
+
+	# Darwin, BSD
+	elif timestamp_s="$(
+			date -j -f '%b %d %T %Y %Z' \
+				"$in_date" +%s 2>/dev/null
+			)"
+	then : # ok
+
+	# busybox
+	elif timestamp_s="$(
+			busybox date -D "%b %e %H:%M:%S %Y" \
+				-d "$in_date" +%s 2>/dev/null
+			)"
+	then : # ok
+
+	# Something else
+	else
+		die "\
+cert_date_to_timestamp_s:
+'date' failed for 'in_date': $in_date"
+	fi
+
+	# Return timestamp_s
+	force_set_var "$2" "$timestamp_s" || die "\
+cert_date_to_timestamp_s - force_set_var - $2 - $timestamp_s"
+
+	unset -v in_date timestamp_s
+} # => cert_date_to_timestamp_s()
+
+# Build a Windows date.exe compatible input field
+# iso_8601 date
+db_date_to_iso_8601_date() {
+	verbose "iso_8601: db_date_to_iso_8601_date()"
+	# check input
+	[ "$#" = 2 ] || die "\
+db_date_to_iso_8601_date - input error"
+
+	# Expected format: '230612235959Z'
+	in_date="$1"
+
+	# Consume $in_date string
+	yy="${in_date%???????????}"
+	in_date="${in_date#"$yy"}"
+	mm="${in_date%?????????}"
+	in_date="${in_date#"$mm"}"
+	dd="${in_date%???????}"
+	in_date="${in_date#"$dd"}"
+	HH="${in_date%?????}"
+	in_date="${in_date#"$HH"}"
+	MM="${in_date%???}"
+	in_date="${in_date#"$MM"}"
+	SS="${in_date%?}"
+	in_date="${in_date#"$SS"}"
+	TZ="$in_date"
+
+	# Assign iso_8601 date
+	out_date="${yy}-${mm}-${dd} ${HH}:${MM}:${SS}${TZ}"
+
+	# Return out_date
+	force_set_var "$2" "$out_date" || die "\
+db_date_to_iso_8601_date \
+- force_set_var - $2 - $out_date"
+
+	unset -v in_date out_date yy mm dd HH MM SS TZ
+} # => db_date_to_iso_8601_date()
+
+# Convert default SSL date to iso_8601 date
+# This may not be feasible, due to different languages
+# Alow the caller to assess those errors (eg. Fall-back)
+cert_date_to_iso_8601_date() {
+	verbose "iso_8601-WIP: cert_date_to_iso_8601_date()"
+	die "BLOCKED: cert_date_to_iso_8601_date()"
+
+	# check input
+	[ "$#" = 2 ] || die "\
+cert_date_to_iso_8601_date - input error"
+
+	# Expected format: 'Mar 21 18:25:01 2023 GMT'
+	in_date="$1"
+
+	# Consume in_date string
+	mmm="${in_date%% *}"
+	in_date="${in_date#"$mmm" }"
+	dd="${in_date%% *}"
+	in_date="${in_date#"$dd" }"
+	HH="${in_date%%:*}"
+	in_date="${in_date#"$HH":}"
+	MM="${in_date%%:*}"
+	in_date="${in_date#"$MM":}"
+	SS="${in_date%% *}"
+	in_date="${in_date#"$SS" }"
+	yyyy="${in_date%% *}"
+	in_date="${in_date#"$yyyy" }"
+	TZ="$in_date"
+
+	# Assign month number by abbreviation
+	case "$mmm" in
+	Jan) mm="01" ;;
+	Feb) mm="02" ;;
+	Mar) mm="03" ;;
+	Apr) mm="04" ;;
+	May) mm="05" ;;
+	Jun) mm="06" ;;
+	Jul) mm="07" ;;
+	Aug) mm="08" ;;
+	Sep) mm="09" ;;
+	Oct) mm="10" ;;
+	Nov) mm="11" ;;
+	Dec) mm="12" ;;
+	*)
+		information "Only english dates are currently supported."
+		warn "cert_date_to_iso_8601_date - Unknown month: '$mmm'"
+		# The caller is REQUIRED to assess this error
+		return 1
+	esac
+
+	# Assign signle letter timezone from abbreviation
+	case "$TZ" in
+	GMT) TZ=Z ;;
+	*)
+		information "Only english dates are currently supported."
+		warn "cert_date_to_iso_8601_date - Unknown timezone: '$TZ'"
+		# The caller is REQUIRED to assess this error
+		return 1
+	esac
+
+	# Assign iso_8601 date
+	out_date="${yyyy}-${mm}-${dd} ${HH}:${MM}:${SS}${TZ}"
+
+	# Return iso_8601 date
+	force_set_var "$2" "$out_date" || die "\
+cert_date_to_iso_8601 - force_set_var - $2 - $out_date"
+
+	unset -v in_date out_date yyyy mmm  mm dd HH MM SS TZ
+} # => cert_date_to_iso_8601()
 
 # SC2295: Expansion inside ${..} need to be quoted separately,
 # otherwise they match as patterns. (what-ever that means ;-)
