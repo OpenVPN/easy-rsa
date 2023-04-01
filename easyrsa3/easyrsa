@@ -2918,7 +2918,7 @@ Cannot rebuild this certificate because a conflicting file exists.
 	#	cert_dates "$crt_in"
 	#
 	#	[ "$expire_date_s" -lt "$allow_renew_date_s" ] || die "\
-	#Certificate expires in more than $EASYRSA_CERT_RENEW days.
+	#Certificate expires in more than $EASYRSA_PRE_EXPIRY_WINDOW days.
 	#Renewal not allowed."
 
 	# Extract certificate usage from old cert
@@ -4170,7 +4170,7 @@ read_db() {
 		# Output selected status report for this record
 		case "$report" in
 		expire)
-		# Certs which expire before EASYRSA_CERT_RENEW days
+		# Certs which expire before EASYRSA_PRE_EXPIRY_WINDOW days
 			case "$db_status" in
 			V|E)
 				case "$target" in
@@ -4350,7 +4350,7 @@ expire_status: FALL-BACK completed"
 	# Convert number of days to a timestamp in seconds
 	cutoff_date_s=
 	days_to_timestamp_s \
-		"$EASYRSA_CERT_RENEW" cutoff_date_s
+		"$EASYRSA_PRE_EXPIRY_WINDOW" cutoff_date_s
 
 	# Get the current date/time as a timestamp in seconds
 	now_date_s=
@@ -4466,7 +4466,7 @@ status() {
 		expire)
 			notice "\
 * Showing certificates which expire in less than \
-$EASYRSA_CERT_RENEW days (--days):"
+$EASYRSA_PRE_EXPIRY_WINDOW days (--days):"
 		;;
 		revoke)
 			notice "\
@@ -4513,7 +4513,7 @@ satisfy_shellcheck() {
 	EASYRSA_CURVE=
 	EASYRSA_CA_EXPIRE=
 	EASYRSA_CERT_EXPIRE=
-	EASYRSA_CERT_RENEW=
+	EASYRSA_PRE_EXPIRY_WINDOW=
 	EASYRSA_CRL_DAYS=
 	EASYRSA_NS_SUPPORT=
 	EASYRSA_NS_COMMENT=
@@ -4870,7 +4870,7 @@ Please, correct these errors and try again."
 
 	set_var EASYRSA_CA_EXPIRE		3650
 	set_var EASYRSA_CERT_EXPIRE		825 # new default of 36 months
-	set_var EASYRSA_CERT_RENEW		90
+	set_var EASYRSA_PRE_EXPIRY_WINDOW		90
 	set_var EASYRSA_CRL_DAYS		180
 	set_var EASYRSA_NS_SUPPORT		no
 	set_var EASYRSA_NS_COMMENT		"Easy-RSA (~VER~) Generated Certificate"
@@ -5927,7 +5927,7 @@ case "$cmd" in
 		;;
 	show-expire)
 		[ -z "$alias_days" ] || \
-			export EASYRSA_CERT_RENEW="$alias_days"
+			export EASYRSA_PRE_EXPIRY_WINDOW="$alias_days"
 		status expire "$@"
 		;;
 	show-revoke)
