@@ -3755,10 +3755,11 @@ days_to_timestamp_s:
 	force_set_var "$2" "$timestamp_s" || die "\
 days_to_timestamp_s - force_set_var - $2 - $timestamp_s"
 
-	unset -v in_days timestamp_s
+	unset -v in_days in_seconds timestamp_s
 } # => days_to_timestamp_s()
 
 # Convert certificate date to timestamp seconds since epoch
+# Used to verify iso_8601 calculated seconds since epoch
 cert_date_to_timestamp_s() {
 	verbose "DEPRECATED: cert_date_to_timestamp_s()"
 	# check input
@@ -3850,6 +3851,7 @@ db_date_to_iso_8601_date \
 cert_date_to_iso_8601_date() {
 	verbose "iso_8601-WIP: cert_date_to_iso_8601_date()"
 	die "BLOCKED: cert_date_to_iso_8601_date()"
+
 	# check input
 	[ "$#" = 2 ] || die "\
 cert_date_to_iso_8601_date - input error"
@@ -3972,7 +3974,7 @@ ssl_cert_not_after_date - failed to set var '$*'"
 	unset -v fn_ssl_out
 } # => ssl_cert_not_after_date()
 
-# SSL -- v3 -- startdate
+# SSL -- v3 -- startdate iso_8601
 iso_8601_cert_startdate() {
 	verbose "NEW: iso_8601_cert_startdate()"
 	[ "$#" = 2 ] || die "\
@@ -4001,7 +4003,7 @@ iso_8601_cert_startdate - failed to set var '$*'"
 	unset -v fn_ssl_out
 } # => iso_8601_cert_startdate()
 
-# SSL -- v3 -- enddate
+# SSL -- v3 -- enddate iso_8601
 iso_8601_cert_enddate() {
 	verbose "NEW: iso_8601_cert_enddate()"
 	[ "$#" = 2 ] || die "\
@@ -4226,10 +4228,7 @@ read_db() {
 
 # Expire status
 expire_status() {
-
-	#warn "status report '$cmd' is unavailable"
-	#return 0
-
+	# The certificate for CN ahould exist but may not
 	if [ -e "$cert_issued" ]; then
 
 		# get the serial number of the certificate
@@ -4348,12 +4347,12 @@ expire_status: CONSUMED ERROR: FALL-BACK to default SSL date format"
 expire_status: FALL-BACK completed"
 	fi
 
-	# Convert number of days to a timestamp in secconds
+	# Convert number of days to a timestamp in seconds
 	cutoff_date_s=
 	days_to_timestamp_s \
 		"$EASYRSA_CERT_RENEW" cutoff_date_s
 
-	# Get the current date/time as a timestamp in secconds
+	# Get the current date/time as a timestamp in seconds
 	now_date_s=
 	days_to_timestamp_s \
 		0 now_date_s
@@ -4389,10 +4388,6 @@ revoke_status() {
 # renewed certs only remain in the renewed folder until revoked
 # Only ONE renewed cert with unique CN can exist in renewed folder
 renew_status() {
-
-	#warn "status report '$cmd' is unavailable"
-	#return 0
-
 	# Does a Renewed cert exist ?
 	# files in issued are file name, or in serial are SerialNumber
 	unset -v cert_file_in cert_is_issued cert_is_serial renew_is_old
