@@ -4671,57 +4671,61 @@ EasyRSA '$cmd' does not support --startdate or --enddate"
 } # => mutual_exclusions()
 
 # vars setup
-# Here sourcing of 'vars' if present occurs. If not present, defaults are used
-# to support running without a sourced config format
+# Here sourcing of 'vars' if present occurs.
+# If not present, defaults are used to support
+# running without a sourced config format
 vars_setup() {
-	# Try to locate a 'vars' file in order of location preference.
-	# If one is found, source it
-	# NOTE: EASYRSA_PKI is never set here, unless cmd-line --pki-dir=<DIR> is set.
-	# NOTE: EASYRSA is never set here, unless done so outside of easyrsa.
+	# Try to locate a 'vars' file in order of preference.
+	# If one is found then source it.
+	# NOTE: EASYRSA_PKI is never set here,
+	# unless cmd-line --pki-dir=<DIR> is set.
+	# NOTE: EASYRSA is never set here,
+	# unless done so outside of easyrsa.
 	vars=
 
-	# set up program path
-	prog_file="$0"
-	# Removed for basic sanity - To re-enable provide a REASON
-	#prog_file2="$(which -- "$prog_file" 2>/dev/null)" && prog_file="$prog_file2"
-	#prog_file2="$(readlink -f "$prog_file" 2>/dev/null)" && prog_file="$prog_file2"
-	prog_dir="${prog_file%/*}"
-	if [ "$prog_dir" = . ] || [ "$prog_dir" = "$PWD" ]; then
-		prog_in_pwd=1
-	else
-		unset -v prog_in_pwd
-	fi
-
-	# Program dir vars - This location is least wanted.
-	prog_vars="${prog_dir}/vars"
-
-	# set up PKI path vars - Top preference
-	pki_vars="${EASYRSA_PKI:-$PWD/pki}/vars"
-	expected_pki_vars="$pki_vars"
-
-	# Some other place vars, out of scope.
-	if [ "$EASYRSA" ]; then
-		easy_vars="${EASYRSA}/vars"
-	else
-		unset -v easy_vars
-	fi
-
-	# vars of last resort - Eventually this file must be removed from EasyRSA
-	pwd_vars="$PWD/vars"
-
 	# Find vars
-	# Explicit command-line path:
-	if [ "$user_vars_true" ]; then
+	# Explicit user defined vars file:
+	if [ "$EASYRSA_VARS_FILE" ]; then
 		if [ -e "$EASYRSA_VARS_FILE" ]; then
 			vars="$EASYRSA_VARS_FILE"
+			user_vars_true=1
 		else
-			# If the --vars option does not point to a file, show helpful error.
-			die "The file '$EASYRSA_VARS_FILE' was not found."
+			# If the --vars option does not point to a file
+			die "\
+The 'vars' file was not found:
+* $EASYRSA_VARS_FILE"
 		fi
-		unset -v prog_vars pwd_vars easy_vars pki_vars expected_pki_vars
 
-	# Otherwise, find vars 'the new way'
+	# Otherwise, find vars
 	else
+
+		# set up program path
+		prog_file="$0"
+		prog_dir="${prog_file%/*}"
+		if [ "$prog_dir" = . ] || [ "$prog_dir" = "$PWD" ]
+		then
+			prog_in_pwd=1
+		else
+			unset -v prog_in_pwd
+		fi
+
+		# Program dir vars - This location is least wanted.
+		prog_vars="${prog_dir}/vars"
+
+		# set up PKI path vars - Top preference
+		pki_vars="${EASYRSA_PKI:-$PWD/pki}/vars"
+		expected_pki_vars="$pki_vars"
+
+		# Some other place vars, out of scope.
+		if [ "$EASYRSA" ]; then
+			easy_vars="${EASYRSA}/vars"
+		else
+			unset -v easy_vars
+		fi
+
+		# vars of last resort
+		pwd_vars="$PWD/vars"
+
 		# Clear flags - This is the preferred order to find:
 		unset -v e_pki_vars e_easy_vars e_pwd_vars e_prog_vars \
 			found_vars vars_in_pki
@@ -4739,23 +4743,29 @@ vars_setup() {
 		[ -e "$prog_vars" ] && e_prog_vars=1
 
 		# Filter duplicates
-		if [ "$e_prog_vars" ] && [ "$e_pwd_vars" ] && [ "$prog_in_pwd" ]
+		if [ "$e_prog_vars" ] && [ "$e_pwd_vars" ] && \
+			[ "$prog_in_pwd" ]
 		then
 			unset -v prog_vars e_prog_vars
 		fi
 
 		# Allow only one vars to be found, No exceptions!
-		found_vars="$((e_pki_vars + e_easy_vars + e_pwd_vars + e_prog_vars))"
+		found_vars="$((
+			e_pki_vars + e_easy_vars + e_pwd_vars + e_prog_vars
+			))"
 
-		# If found_vars greater than 1 then output user info and exit
+		# If found_vars greater than 1
+		# then output user info and exit
 		case "$found_vars" in
 			0) unset -v found_vars ;;
 			1)
-				# If a SINGLE vars file is found then assign $vars
+				# If a SINGLE vars file is found
+				# then assign $vars
 				[ "$e_prog_vars" ] && vars="$prog_vars"
 				[ "$e_pwd_vars" ] && vars="$pwd_vars"
 				[ "$e_easy_vars" ] && vars="$easy_vars"
-				[ "$e_pki_vars" ] && vars="$pki_vars" && vars_in_pki=1
+				[ "$e_pki_vars" ] && \
+					vars="$pki_vars" && vars_in_pki=1
 				: # Wipe error status
 			;;
 			*)
@@ -4773,32 +4783,38 @@ Priority should be given to your PKI vars file:
 				fi
 
 				# For init-pki, pki/vars will be deleted
-				# Another vars file exists, so don't create pki/vars
+				# Another vars file exists
+				# so don't create pki/vars
 				no_new_vars=1
 		esac
 
 		# Clean up
-		unset -v prog_vars pwd_vars easy_vars pki_vars
+		unset -v prog_vars pwd_vars easy_vars pki_vars \
+				expected_pki_vars
 	# END: Find vars
 	fi
 
-	# Find vars 'the old way'
-	# If $EASYRSA_NO_VARS is defined (not blank) then do not use vars.
-	# If $no_pki_required then located vars files are not required.
+	# If EASYRSA_NO_VARS is defined then do not use vars
+	# If no_pki_required then located vars files are not
+	# required
 	if [ "$EASYRSA_NO_VARS" ] || [ "$no_pki_required" ]; then
 		: # ok
 
 	# If a vars file was located then source it
 	else
 		# $vars remains undefined .. no vars found
-		# 'install_data_to_pki vars-setup' will NOT create a default PKI/vars
+		# 'install_data_to_pki vars-setup' will NOT
+		# create a default PKI/vars
 		if [ -z "$vars" ]; then
-			information "No Easy-RSA 'vars' configuration file exists!"
+			information \
+				"No Easy-RSA 'vars' configuration file exists!"
 			no_new_vars=1
 
 		else
 			# 'vars' now MUST exist
-			[ -e "$vars" ] || die "Missing vars file, expected: $vars"
+			[ -e "$vars" ] || die "\
+Missing vars file:
+* $vars"
 
 			# Installation information
 			information "\
@@ -4827,15 +4843,16 @@ Please, correct these errors and try again."
 			fi
 
 			# Enable sourcing 'vars'
-			# shellcheck disable=SC2034 # EASYRSA_CALLER appears unused.
+			# shellcheck disable=SC2034 # appears unused
 			EASYRSA_CALLER=1
 
 			# Test souring 'vars' in a subshell
-			# shellcheck disable=1090 # can't follow non-constant source. vars
-			( . "$vars" ) || die "Failed to source the vars file."
+			# shellcheck disable=1090 # can't follow .. vars
+			( . "$vars" ) || \
+				die "Failed to source the vars file."
 
 			# Source 'vars' now
-			# shellcheck disable=1090 # can't follow non-constant source. vars
+			# shellcheck disable=1090 # can't follow .. vars
 			. "$vars" 2>/dev/null
 			unset -v EASYRSA_CALLER
 		fi
@@ -4869,11 +4886,12 @@ Please, correct these errors and try again."
 	esac
 
 	set_var EASYRSA_CA_EXPIRE		3650
-	set_var EASYRSA_CERT_EXPIRE		825 # new default of 36 months
-	set_var EASYRSA_PRE_EXPIRY_WINDOW		90
+	set_var EASYRSA_CERT_EXPIRE		825
+	set_var EASYRSA_CERT_RENEW		90
 	set_var EASYRSA_CRL_DAYS		180
 	set_var EASYRSA_NS_SUPPORT		no
-	set_var EASYRSA_NS_COMMENT		"Easy-RSA (~VER~) Generated Certificate"
+	set_var EASYRSA_NS_COMMENT		\
+		"Easy-RSA (~VER~) Generated Certificate"
 	set_var EASYRSA_TEMP_DIR		"$EASYRSA_PKI"
 	set_var EASYRSA_REQ_CN			ChangeMe
 	set_var EASYRSA_DIGEST			sha256
@@ -4886,29 +4904,28 @@ Please, correct these errors and try again."
 	# Verify SSL Lib - One time ONLY
 	verify_ssl_lib
 
-	# Find x509-types but do not fail - Not fatal here, used by 'help'
+	# Find x509-types but do not fail
+	# Not fatal here, used by 'help'
 	install_data_to_pki x509-types-only
 
 	# For commands which 'require a PKI' and the PKI exists
 	if  [ "$pki_is_required" ] && [ -d "$EASYRSA_PKI" ]; then
 
 		# mkdir Temp dir session
-		secure_session || die "Temporary directory secure-session failed."
+		secure_session || \
+			die "Temporary directory secure-session failed."
 
 		if [ -d "$EASYRSA_TEMP_DIR" ]; then
 
-			#TODO: This should be removed.  Not really suitable for packaging.
-			#set_var EASYRSA_EXT_DIR		"$EASYRSA/x509-types"
-
-			# Hard break from 'old' Easy-RSA, see obsolete comment above.
 			# Install data-files into ALL PKIs
-			# This will find x509-types and export EASYRSA_EXT_DIR or die.
+			# This will find x509-types
+			# and export EASYRSA_EXT_DIR or die.
 			# Other errors only require warning.
 			install_data_to_pki vars-setup || \
 				warn "install_data_to_pki vars-setup Failed"
 
-			# if the vars file in use is not in the PKI and not user defined
-			# Show messages
+			# if the vars file in use is not in the PKI
+			# and not user defined then Show the messages
 			if [ "$vars_in_pki" ] || [ "$user_vars_true" ] || \
 				[ "$no_new_vars" ]
 			then
@@ -4926,9 +4943,12 @@ Using SSL: $EASYRSA_OPENSSL $ssl_version
 "
 
 		else
-			# If the directory does not exist then we have not run init-pki
+			# If the directory does not exist
+			# then we have not run init-pki
 			# The temp-dir is ALWAYS verified by secure_session()
-			die "Temporary directory does not exist: $EASYRSA_TEMP_DIR"
+			die "\
+Temporary directory does not exist:
+* $EASYRSA_TEMP_DIR"
 		fi
 	fi
 } # vars_setup()
