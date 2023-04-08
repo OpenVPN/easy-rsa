@@ -917,15 +917,31 @@ easyrsa_openssl() {
 	# '$' - Workaround 'easyrsa' based limitation
 	# This is required for all SSL libs, otherwise,
 	# there are unacceptable differences in behavior
-	escape_hazard || die "easyrsa_openssl - escape_hazard failed"
+	if [ "$working_safe_ssl_conf" ]; then
+		: # ok - This has been done before
+	else
+		escape_hazard || \
+			die "easyrsa_openssl - escape_hazard failed"
+	fi
 
 	# Make LibreSSL safe config file from OpenSSL config file
 	# $require_safe_ssl_conf is ALWAYS set by verify_ssl_lib()
 	# Can be over-ruled for OpenSSL by option --no-safe-ssl
 	if [ "$require_safe_ssl_conf" ]; then
-		# Write a safe SSL config temp-file
-		easyrsa_rewrite_ssl_config || die \
-			"easyrsa_openssl - easyrsa_rewrite_ssl_config"
+
+		# Only create a new safe config,
+		# if it has not been done before.
+		if [ "$working_safe_ssl_conf" ]; then
+			# ok - This has been done before
+			easyrsa_safe_ssl_conf="$working_safe_ssl_conf"
+		else
+			# Write a safe SSL config temp-file
+			easyrsa_rewrite_ssl_config || die \
+				"easyrsa_openssl - easyrsa_rewrite_ssl_config"
+			# Save the the safe conf file-name
+			working_safe_ssl_conf="$easyrsa_safe_ssl_conf"
+		fi
+
 	else
 		# Assign safe temp file as Original openssl-easyrsa.conf
 		easyrsa_safe_ssl_conf="$EASYRSA_SSL_CONF"
@@ -5766,6 +5782,7 @@ detect_host
 
 # Initialisation requirements
 unset -v \
+	working_safe_ssl_conf \
 	easyrsa_error_exit \
 	prohibit_no_pass \
 	secured_session \
