@@ -4766,13 +4766,10 @@ Failed to generate ecparam file (permissions?) at:
 	;;
 	ed)
 		# Verify Edwards curve
-		EASYRSA_SILENT_SSL=1
-		easyrsa_openssl genpkey -out /dev/null \
-			-algorithm "$EASYRSA_CURVE" || die "\
+		"$EASYRSA_OPENSSL" genpkey \
+			-algorithm "$EASYRSA_CURVE" \
+			1>/dev/null || die "\
 Edwards Curve $EASYRSA_CURVE not found."
-		if [ -z "$save_EASYRSA_SILENT_SSL" ]; then
-			unset EASYRSA_SILENT_SSL
-		fi
 	;;
 	*) die "\
 Alg '$EASYRSA_ALGO' is invalid: Must be 'rsa', 'ec' or 'ed'"
