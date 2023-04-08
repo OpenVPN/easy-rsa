@@ -919,6 +919,8 @@ easyrsa_openssl() {
 	# there are unacceptable differences in behavior
 	if [ "$working_safe_ssl_conf" ]; then
 		: # ok - This has been done before
+		verbose "\
+easyrsa_openssl: escape_hazard SKIPPED"
 	else
 		escape_hazard || \
 			die "easyrsa_openssl - escape_hazard failed"
@@ -934,6 +936,8 @@ easyrsa_openssl() {
 		if [ "$working_safe_ssl_conf" ]; then
 			# ok - This has been done before
 			easyrsa_safe_ssl_conf="$working_safe_ssl_conf"
+			verbose "\
+easyrsa_openssl: easyrsa_rewrite_ssl_config SKIPPED"
 		else
 			# Write a safe SSL config temp-file
 			easyrsa_rewrite_ssl_config || die \
