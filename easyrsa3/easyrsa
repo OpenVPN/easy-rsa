@@ -689,13 +689,21 @@ easyrsa_mktemp: temp-file EXISTS: $target"
 					continue
 				else
 					# atomic:
-					if mv -n "$shotfile" "$target"; then
+					[ "$easyrsa_host_os" = win ] && \
+						set -o noclobber
+
+					if mv "$shotfile" "$target"; then
 						verbose "\
 easyrsa_mktemp: atomic: Create temp-file OK: $target"
 						# Assign external temp-file name
-						force_set_var "$1" "$target" && return
-						die "\
+						if force_set_var "$1" "$target"; then
+							[ "$easyrsa_host_os" = win ] && \
+								set +o noclobber
+							return 0
+						else
+							die "\
 easyrsa_mktemp - force_set_var $1 failed"
+						fi
 					fi
 				fi
 			done
