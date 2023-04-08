@@ -4372,9 +4372,12 @@ read_db() {
 # Expire status
 expire_status() {
 	# The certificate for CN ahould exist but may not
+	unset -v expire_status_cert_exists
 	if [ -e "$cert_issued" ]; then
 
 		verbose "expire_status: cert exists"
+		expire_status_cert_exists=1
+
 		# get the serial number of the certificate
 		ssl_cert_serial "$cert_issued" cert_serial
 
@@ -4418,57 +4421,61 @@ expire_status(): FALL-BACK completed"
 		cert_not_after_date=
 		db_date_to_iso_8601_date \
 			"$db_notAfter" cert_not_after_date
+		# Cert does not exist
 	fi
 
-	# Get timestamp seconds for certificate expiry date
-	# Redirection for errout is not necessary here
-	cert_expire_date_s=
-	if iso_8601_timestamp_to_seconds \
-			"$cert_not_after_date" cert_expire_date_s
-	then
-		: # ok
+	# Only verify if there is a certificate
+	if [ "$expire_status_cert_exists" ]; then
 
-		# Verify dates via 'date +%s' format
-		verbose "\
-expire_status: cert_date_to_timestamp_s: for comparison"
-		old_cert_expire_date_s=
-		cert_date_to_timestamp_s \
-			"$cert_not_after_date" old_cert_expire_date_s
-
-		# Prove this works
-		if [ "$cert_expire_date_s" = "$old_cert_expire_date_s" ]
+		# Get timestamp seconds for certificate expiry date
+		# Redirection for errout is not necessary here
+		cert_expire_date_s=
+		if iso_8601_timestamp_to_seconds \
+				"$cert_not_after_date" cert_expire_date_s
 		then
-			verbose "expire_status: ABSOLUTE seconds MATCH:"
-			verbose "  cert_expire_date_s=     $cert_expire_date_s"
-			verbose "  old_cert_expire_date_s= $old_cert_expire_date_s"
-		else
-			verbose "expire_status: ABSOLUTE seconds do not MATCH:"
-			verbose "  cert_expire_date_s=     $cert_expire_date_s"
-			verbose "  old_cert_expire_date_s= $old_cert_expire_date_s"
-			verbose "  difference=             \
+			: # ok
+
+			# Verify dates via 'date +%s' format
+			verbose "\
+expire_status: cert_date_to_timestamp_s: for comparison"
+			old_cert_expire_date_s=
+			cert_date_to_timestamp_s \
+				"$cert_not_after_date" old_cert_expire_date_s
+
+			# Prove this works
+			if [ "$cert_expire_date_s" = "$old_cert_expire_date_s" ]
+			then
+				verbose "expire_status: ABSOLUTE seconds MATCH:"
+				verbose "  cert_expire_date_s=     $cert_expire_date_s"
+				verbose "  old_cert_expire_date_s= $old_cert_expire_date_s"
+			else
+				verbose "expire_status: ABSOLUTE seconds do not MATCH:"
+				verbose "  cert_expire_date_s=     $cert_expire_date_s"
+				verbose "  old_cert_expire_date_s= $old_cert_expire_date_s"
+				verbose "  difference=             \
 $(( cert_expire_date_s - old_cert_expire_date_s ))"
 
-			# If there is an error then use --days-margin=10
-			[ "$EASYRSA_iso_8601_MARGIN" ] || \
-				die "\
+				# If there is an error then use --days-margin=10
+				[ "$EASYRSA_iso_8601_MARGIN" ] || \
+					die "\
 expire_status - ABSOLUTE seconds mismatch: Use --allow-margin=N"
 
-			# Allows days for margin of error in seconds
-			margin_s="$((
-				EASYRSA_iso_8601_MARGIN * (60 * 60 * 24) + 1
-				))"
-			margin_plus_s="$((
-				old_cert_expire_date_s + margin_s
-				))"
-			margin_minus_s="$((
-				old_cert_expire_date_s - margin_s
-				))"
+				# Allows days for margin of error in seconds
+				margin_s="$((
+					EASYRSA_iso_8601_MARGIN * (60 * 60 * 24) + 1
+					))"
+				margin_plus_s="$((
+					old_cert_expire_date_s + margin_s
+					))"
+				margin_minus_s="$((
+					old_cert_expire_date_s - margin_s
+					))"
 
-			if [ "$cert_expire_date_s" -lt "$margin_plus_s" ] && \
-				[ "$cert_expire_date_s" -gt "$margin_minus_s" ]
-			then
-				: # ok
-				verbose "\
+				if [ "$cert_expire_date_s" -lt "$margin_plus_s" ] && \
+					[ "$cert_expire_date_s" -gt "$margin_minus_s" ]
+				then
+					: # ok
+					verbose "\
 expire_status: MARGIN seconds ACCEPTED:
   cert_expire_date_s=     $cert_expire_date_s
   old_cert_expire_date_s= $old_cert_expire_date_s
@@ -4476,35 +4483,36 @@ expire_status: MARGIN seconds ACCEPTED:
   $(( cert_expire_date_s - old_cert_expire_date_s ))
   margin_plus_s=          $margin_plus_s
   margin_minus_s=         $margin_minus_s"
-			else
-				verbose "\
+				else
+					verbose "\
 expire_status: MARGIN seconds REJECTED:
   cert_expire_date_s=     $cert_expire_date_s
   old_cert_expire_date_s= $old_cert_expire_date_s
   margin_plus_s=          $margin_plus_s
   margin_minus_s=         $margin_minus_s"
 
-				die "\
+					die "\
 expire_status: Verify cert expire date EXCESS mismatch!"
+				fi
 			fi
-		fi
 
-		verbose "\
+			verbose "\
 expire_status: cert_date_to_timestamp_s: comparison complete"
 
-	else
-		verbose  "\
+		else
+			verbose  "\
 expire_status: ACCEPTED ERROR-2: \
 iso_8601_timestamp_to_seconds"
-		verbose "\
+			verbose "\
 expire_status: CONSUMED ERROR: \
 FALL-BACK to default SSL date format"
 
-		cert_date_to_timestamp_s \
-			"$cert_not_after_date" cert_expire_date_s
+			cert_date_to_timestamp_s \
+				"$cert_not_after_date" cert_expire_date_s
 
-		verbose "\
+			verbose "\
 expire_status: FALL-BACK completed"
+		fi
 	fi
 
 	# Convert number of days to a timestamp in seconds
@@ -5917,7 +5925,8 @@ while :; do
 	-S|--silent-ssl)
 		empty_ok=1
 		export EASYRSA_SILENT_SSL=1
-		save_EASYRSA_SILENT_SSL=1
+		# This will probably be need
+		#save_EASYRSA_SILENT_SSL=1
 		;;
 	--no-safe-ssl)
 		empty_ok=1
