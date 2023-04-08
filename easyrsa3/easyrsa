@@ -546,7 +546,7 @@ $1
 # This is a debug function for status-reports and date
 verbose() {
 	[ "$EASYRSA_VERBOSE" ] || return 0
-	printf '%s\n' "   > Verbose: $*"
+	printf '%s\n' "  > Verbose: $*"
 } # => verbose()
 
 # non-fatal warning output
@@ -634,13 +634,20 @@ secure_session() {
 			)" || die "secure_session - session"
 
 		secured_session="${EASYRSA_TEMP_DIR}/${session}"
+		verbose "\
+Create session: secured_session=$secured_session"
 		# atomic:
-		mkdir "$secured_session" && return
+		if mkdir "$secured_session"; then
+			return
+		fi
 	done
 	die "secure_session failed"
 } # => secure_session()
 
 # Create temp-file atomically or fail
+# WARNING: Running easyrsa_openssl in a subshell
+# will hide error message and verbose messages
+# from easyrsa_mktemp()
 easyrsa_mktemp() {
 	[ "$#" = 1 ] || die "\
 easyrsa_mktemp - input error"
@@ -655,22 +662,57 @@ easyrsa_mktemp - Temporary session undefined"
 	# Assign internal temp-file name
 	t="${secured_session}/temp.${mktemp_counter}"
 
-	# Create temp-file or die
-	for i in x y z; do
-		shotfile="${t}.0"
-		target="${t}.${i}"
+	# Create shotfile
+	verbose "\
+easyrsa_mktemp: Create temp-file for: $1"
+	for h in x y x; do
+		shotfile="${t}.${h}"
 		if [ -e "$shotfile" ]; then
-			break
+			verbose "\
+easyrsa_mktemp: shot-file EXISTS: $shotfile"
+			continue
 		else
-			printf "" > "$shotfile" || break
-			# atomic:
-			if mv "$shotfile" "$target"; then
-				# Assign external temp-file name
-				force_set_var "$1" "$target" && return
-			fi
+			printf "" > "$shotfile" || die "\
+easyrsa_mktemp: create shotfile failed (1) $1"
+			verbose "\
+easyrsa_mktemp: shot-file created: $shotfile"
+
+			# Create temp-file or die
+			# subshells do not update mktemp_counter,
+			# which is why this extension is required.
+			# Current max required is 7 deep
+			for i in 1 2 3 4 5 6 7 8 9; do
+				target="${t}.${i}"
+				if [ -e "$target" ]; then
+					verbose "\
+easyrsa_mktemp: temp-file EXISTS: $target"
+					continue
+				else
+					# atomic:
+					[ "$easyrsa_host_os" = win ] && \
+						set -o noclobber
+
+					if mv "$shotfile" "$target"; then
+						verbose "\
+easyrsa_mktemp: atomic: Create temp-file OK: $target"
+						# Assign external temp-file name
+						if force_set_var "$1" "$target"; then
+							[ "$easyrsa_host_os" = win ] && \
+								set +o noclobber
+							return 0
+						else
+							die "\
+easyrsa_mktemp - force_set_var $1 failed"
+						fi
+					fi
+				fi
+			done
 		fi
 	done
-	die "easyrsa_mktemp failed"
+
+	die "\
+easyrsa_mktemp - failed for: $1 @ depth=$i
+target: $target"
 } # => easyrsa_mktemp()
 
 # remove temp files and do terminal cleanups
@@ -843,6 +885,8 @@ easyrsa_rewrite_ssl_config () {
 } # => easyrsa_rewrite_ssl_config()
 
 # Easy-RSA meta-wrapper for SSL
+# WARNING: Running easyrsa_openssl in a subshell
+# will hide error message and verbose messages
 easyrsa_openssl() {
 	openssl_command="$1"; shift
 
@@ -1782,14 +1826,17 @@ sign_req() {
 			# Always errors out - Do not capture error
 			# unset EASYRSA_SILENT_SSL to capure all output
 			check_serial="$(
-				EASYRSA_SILENT_SSL='' \
-					easyrsa_openssl ca -status "$serial" 2>&1
+				unset -v EASYRSA_SILENT_SSL
+				easyrsa_openssl ca -status "$serial" 2>&1
 				)" || :
 
 			case "$check_serial" in
 				*"not present in db"*)
 					unique_serial=1
 					break
+				;;
+				*)
+					verbose "check_serial: $check_serial"
 			esac
 		done
 
@@ -2426,7 +2473,7 @@ Cannot renew this certificate, a conflicting file exists:
 easyrsa_openssl x509 -in "$crt_in" -noout -text | sed -n \
 "/X509v3 Subject Alternative Name:\
 /{n;s/IP Address:/IP:/g;s/ //g;p;}"
-		)"
+		)" || die "renew - san: easyrsa_openssl subshell"
 
 		[ "$san" ] && export EASYRSA_EXTRA_EXTS="\
 $EASYRSA_EXTRA_EXTS
@@ -4202,6 +4249,13 @@ read_db() {
 
 		verbose "***** Read next record *****"
 
+		# Recreate temp session
+		rm -rf "$secured_session"
+		unset -v secured_session
+		secure_session || \
+			die "Recreate secure-session failed."
+		mktemp_counter=0
+
 		# Interpret the db/certificate record
 		unset -v db_serial db_cn db_revoke_date db_reason
 		case "$db_status" in
@@ -4368,12 +4422,10 @@ expire_status: cert_date_to_timestamp_s: for comparison"
 		# Prove this works
 		if [ "$cert_expire_date_s" = "$old_cert_expire_date_s" ]
 		then
-			: # ok
 			verbose "expire_status: ABSOLUTE seconds MATCH:"
 			verbose "  cert_expire_date_s=     $cert_expire_date_s"
 			verbose "  old_cert_expire_date_s= $old_cert_expire_date_s"
 		else
-
 			verbose "expire_status: ABSOLUTE seconds do not MATCH:"
 			verbose "  cert_expire_date_s=     $cert_expire_date_s"
 			verbose "  old_cert_expire_date_s= $old_cert_expire_date_s"
@@ -4382,7 +4434,8 @@ $(( cert_expire_date_s - old_cert_expire_date_s ))"
 
 			# If there is an error then use --days-margin=10
 			[ "$EASYRSA_iso_8601_MARGIN" ] || \
-				die "expire_status: ABSOLUTE seconds mismatch"
+				die "\
+expire_status - ABSOLUTE seconds mismatch: Use --allow-margin=N"
 
 			# Allows days for margin of error in seconds
 			margin_s="$((
@@ -4713,8 +4766,9 @@ Failed to generate ecparam file (permissions?) at:
 	;;
 	ed)
 		# Verify Edwards curve
-		easyrsa_openssl genpkey -algorithm "$EASYRSA_CURVE" \
-			> /dev/null || die "\
+		"$EASYRSA_OPENSSL" genpkey \
+			-algorithm "$EASYRSA_CURVE" \
+			1>/dev/null || die "\
 Edwards Curve $EASYRSA_CURVE not found."
 	;;
 	*) die "\
@@ -4982,7 +5036,8 @@ Please, correct these errors and try again."
 
 	set_var EASYRSA_CA_EXPIRE		3650
 	set_var EASYRSA_CERT_EXPIRE		825
-	set_var EASYRSA_CERT_RENEW		90
+	set_var \
+		EASYRSA_PRE_EXPIRY_WINDOW 	90
 	set_var EASYRSA_CRL_DAYS		180
 	set_var EASYRSA_NS_SUPPORT		no
 	set_var EASYRSA_NS_COMMENT		\
@@ -4995,7 +5050,10 @@ Please, correct these errors and try again."
 	set_var EASYRSA_SAFE_CONF		"$EASYRSA_PKI/safessl-easyrsa.cnf"
 
 	set_var EASYRSA_KDC_REALM		"CHANGEME.EXAMPLE.COM"
+} # => vars_setup()
 
+# Verify working environment
+verify_working_env() {
 	# Verify SSL Lib - One time ONLY
 	verify_ssl_lib
 
@@ -5046,7 +5104,7 @@ Temporary directory does not exist:
 * $EASYRSA_TEMP_DIR"
 		fi
 	fi
-} # vars_setup()
+} # => verify_working_env()
 
 # variable assignment by indirection when undefined; merely exports
 # the variable when it is already defined (even if currently null)
@@ -5691,7 +5749,7 @@ NL='
 '
 
 # Be secure with a restrictive umask
-[ "$EASYRSA_NO_UMASK" ] || umask "${EASYRSA_UMASK:-077}"
+[ "$EASYRSA_NO_UMASK" ] || umask "${EASYRSA_UMASK:=077}"
 
 # Register cleanup on EXIT
 trap 'cleanup $?' EXIT
@@ -5842,6 +5900,7 @@ while :; do
 	-S|--silent-ssl)
 		empty_ok=1
 		export EASYRSA_SILENT_SSL=1
+		save_EASYRSA_SILENT_SSL=1
 		;;
 	--no-safe-ssl)
 		empty_ok=1
@@ -5937,6 +5996,9 @@ vars_setup
 
 # Check for conflicting input options
 mutual_exclusions
+
+# Final checks of working environment
+verify_working_env
 
 # Hand off to the function responsible
 case "$cmd" in
