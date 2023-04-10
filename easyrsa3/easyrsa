@@ -632,17 +632,35 @@ secure_session() {
 		session="$(
 			easyrsa_random 4
 			)" || die "secure_session - session"
-
 		secured_session="${EASYRSA_TEMP_DIR}/${session}"
-		verbose "\
-Create session: secured_session=$secured_session"
+
 		# atomic:
 		if mkdir "$secured_session"; then
+			# New session requires safe-ssl conf
+			unset -v working_safe_ssl_conf mktemp_counter
+			verbose "\
+secure_session: CREATED: $secured_session"
 			return
 		fi
 	done
 	die "secure_session failed"
 } # => secure_session()
+
+# Remove secure session
+remove_secure_session() {
+	if [ "${secured_session%/*}" ] && \
+		[ -d "$secured_session" ]
+	then
+		# Always remove temp-session
+		rm -rf "$secured_session"
+		verbose "\
+remove_secure_session: DELETED: $secured_session"
+		unset -v working_safe_ssl_conf mktemp_counter \
+			secured_session
+	else
+		die "remove_secure_session: $secured_session"
+	fi
+} # => remove_secure_session()
 
 # Create temp-file atomically or fail
 # WARNING: Running easyrsa_openssl in a subshell
@@ -740,7 +758,8 @@ Temporary session not preserved."
 		fi
 
 		# Always remove temp-session
-		rm -rf "$secured_session"
+		remove_secure_session || \
+			die "cleanup - remove_secure_session"
 	fi
 
 	# Remove files when build_full()->sign_req() is interrupted
@@ -917,15 +936,35 @@ easyrsa_openssl() {
 	# '$' - Workaround 'easyrsa' based limitation
 	# This is required for all SSL libs, otherwise,
 	# there are unacceptable differences in behavior
-	escape_hazard || die "easyrsa_openssl - escape_hazard failed"
+	if [ "$working_safe_ssl_conf" ]; then
+		: # ok - This has been done before
+		verbose "\
+easyrsa_openssl: escape_hazard SKIPPED"
+	else
+		escape_hazard || \
+			die "easyrsa_openssl - escape_hazard failed"
+	fi
 
 	# Make LibreSSL safe config file from OpenSSL config file
 	# $require_safe_ssl_conf is ALWAYS set by verify_ssl_lib()
 	# Can be over-ruled for OpenSSL by option --no-safe-ssl
 	if [ "$require_safe_ssl_conf" ]; then
-		# Write a safe SSL config temp-file
-		easyrsa_rewrite_ssl_config || die \
-			"easyrsa_openssl - easyrsa_rewrite_ssl_config"
+
+		# Only create a new safe config,
+		# if it has not been done before.
+		if [ "$working_safe_ssl_conf" ]; then
+			# ok - This has been done before
+			easyrsa_safe_ssl_conf="$working_safe_ssl_conf"
+			verbose "\
+easyrsa_openssl: easyrsa_rewrite_ssl_config SKIPPED"
+		else
+			# Write a safe SSL config temp-file
+			easyrsa_rewrite_ssl_config || die \
+				"easyrsa_openssl - easyrsa_rewrite_ssl_config"
+			# Save the the safe conf file-name
+			working_safe_ssl_conf="$easyrsa_safe_ssl_conf"
+		fi
+
 	else
 		# Assign safe temp file as Original openssl-easyrsa.conf
 		easyrsa_safe_ssl_conf="$EASYRSA_SSL_CONF"
@@ -4250,11 +4289,10 @@ read_db() {
 		verbose "***** Read next record *****"
 
 		# Recreate temp session
-		rm -rf "$secured_session"
-		unset -v secured_session
+		remove_secure_session || \
+			die "read_db - remove_secure_session"
 		secure_session || \
-			die "Recreate secure-session failed."
-		mktemp_counter=0
+			die "read_db - secure_session"
 
 		# Interpret the db/certificate record
 		unset -v db_serial db_cn db_revoke_date db_reason
@@ -4356,9 +4394,12 @@ read_db() {
 # Expire status
 expire_status() {
 	# The certificate for CN ahould exist but may not
+	unset -v expire_status_cert_exists
 	if [ -e "$cert_issued" ]; then
 
 		verbose "expire_status: cert exists"
+		expire_status_cert_exists=1
+
 		# get the serial number of the certificate
 		ssl_cert_serial "$cert_issued" cert_serial
 
@@ -4386,14 +4427,14 @@ expire_status: SERIAL MISMATCH:
 		else
 			verbose "\
 expire_status: ACCEPTED ERROR-1: \
-iso_8601_cert_enddate()"
+from iso_8601_cert_enddate"
 			verbose "\
 expire_status: CONSUMED ERROR: \
 FALL-BACK to default SSL date format"
 			ssl_cert_not_after_date \
 				"$cert_issued" cert_not_after_date
 			verbose "\
-expire_status(): FALL-BACK completed"
+expire_status: FALL-BACK completed"
 		fi
 
 	else
@@ -4402,93 +4443,100 @@ expire_status(): FALL-BACK completed"
 		cert_not_after_date=
 		db_date_to_iso_8601_date \
 			"$db_notAfter" cert_not_after_date
+		# Cert does not exist
 	fi
 
-	# Get timestamp seconds for certificate expiry date
-	# Redirection for errout is not necessary here
-	cert_expire_date_s=
-	if iso_8601_timestamp_to_seconds \
-			"$cert_not_after_date" cert_expire_date_s
-	then
-		: # ok
+	# Only verify if there is a certificate
+	if [ "$expire_status_cert_exists" ]; then
 
-		# Verify dates via 'date +%s' format
-		verbose "\
-expire_status: cert_date_to_timestamp_s: for comparison"
-		old_cert_expire_date_s=
-		cert_date_to_timestamp_s \
-			"$cert_not_after_date" old_cert_expire_date_s
-
-		# Prove this works
-		if [ "$cert_expire_date_s" = "$old_cert_expire_date_s" ]
+		# Get timestamp seconds for certificate expiry date
+		# Redirection for errout is not necessary here
+		cert_expire_date_s=
+		if iso_8601_timestamp_to_seconds \
+				"$cert_not_after_date" cert_expire_date_s
 		then
-			verbose "expire_status: ABSOLUTE seconds MATCH:"
-			verbose "  cert_expire_date_s=     $cert_expire_date_s"
-			verbose "  old_cert_expire_date_s= $old_cert_expire_date_s"
-		else
-			verbose "expire_status: ABSOLUTE seconds do not MATCH:"
-			verbose "  cert_expire_date_s=     $cert_expire_date_s"
-			verbose "  old_cert_expire_date_s= $old_cert_expire_date_s"
-			verbose "  difference=             \
-$(( cert_expire_date_s - old_cert_expire_date_s ))"
+			: # ok
 
-			# If there is an error then use --days-margin=10
-			[ "$EASYRSA_iso_8601_MARGIN" ] || \
-				die "\
-expire_status - ABSOLUTE seconds mismatch: Use --allow-margin=N"
+			# Verify dates via 'date +%s' format
+			verbose "\
+expire_status: cert_date_to_timestamp_s: for comparison"
+			old_cert_expire_date_s=
+			cert_date_to_timestamp_s \
+				"$cert_not_after_date" old_cert_expire_date_s
 
-			# Allows days for margin of error in seconds
-			margin_s="$((
-				EASYRSA_iso_8601_MARGIN * (60 * 60 * 24) + 1
-				))"
-			margin_plus_s="$((
-				old_cert_expire_date_s + margin_s
-				))"
-			margin_minus_s="$((
-				old_cert_expire_date_s - margin_s
-				))"
-
-			if [ "$cert_expire_date_s" -lt "$margin_plus_s" ] && \
-				[ "$cert_expire_date_s" -gt "$margin_minus_s" ]
+			# Prove this works
+			if [ "$cert_expire_date_s" = "$old_cert_expire_date_s" ]
 			then
-				: # ok
 				verbose "\
-expire_status: MARGIN seconds ACCEPTED:
-  cert_expire_date_s=     $cert_expire_date_s
-  old_cert_expire_date_s= $old_cert_expire_date_s
-  difference=             \
-  $(( cert_expire_date_s - old_cert_expire_date_s ))
-  margin_plus_s=          $margin_plus_s
-  margin_minus_s=         $margin_minus_s"
+expire_status: ABSOLUTE seconds MATCH:
+    cert_expire_date_s=     $cert_expire_date_s
+    old_cert_expire_date_s= $old_cert_expire_date_s"
 			else
 				verbose "\
+expire_status: ABSOLUTE seconds do not MATCH:
+    cert_expire_date_s=     $cert_expire_date_s
+    old_cert_expire_date_s= $old_cert_expire_date_s
+    difference=             \
+$(( cert_expire_date_s - old_cert_expire_date_s ))"
+
+				# If there is an error then use --days-margin=10
+				[ "$EASYRSA_iso_8601_MARGIN" ] || \
+					die "\
+expire_status - ABSOLUTE seconds mismatch: Use --allow-margin=N"
+
+				# Allows days for margin of error in seconds
+				margin_s="$((
+					EASYRSA_iso_8601_MARGIN * (60 * 60 * 24) + 1
+					))"
+				margin_plus_s="$((
+					old_cert_expire_date_s + margin_s
+					))"
+				margin_minus_s="$((
+					old_cert_expire_date_s - margin_s
+					))"
+
+				if [ "$cert_expire_date_s" -lt "$margin_plus_s" ] && \
+					[ "$cert_expire_date_s" -gt "$margin_minus_s" ]
+				then
+					: # ok
+					verbose "\
+expire_status: MARGIN seconds ACCEPTED:
+    cert_expire_date_s=     $cert_expire_date_s
+    old_cert_expire_date_s= $old_cert_expire_date_s
+    difference=             \
+    $(( cert_expire_date_s - old_cert_expire_date_s ))
+    margin_plus_s=          $margin_plus_s
+    margin_minus_s=         $margin_minus_s"
+				else
+					verbose "\
 expire_status: MARGIN seconds REJECTED:
-  cert_expire_date_s=     $cert_expire_date_s
-  old_cert_expire_date_s= $old_cert_expire_date_s
-  margin_plus_s=          $margin_plus_s
-  margin_minus_s=         $margin_minus_s"
+    cert_expire_date_s=     $cert_expire_date_s
+    old_cert_expire_date_s= $old_cert_expire_date_s
+    margin_plus_s=          $margin_plus_s
+    margin_minus_s=         $margin_minus_s"
 
-				die "\
+					die "\
 expire_status: Verify cert expire date EXCESS mismatch!"
+				fi
 			fi
-		fi
 
-		verbose "\
+			verbose "\
 expire_status: cert_date_to_timestamp_s: comparison complete"
 
-	else
-		verbose  "\
+		else
+			verbose  "\
 expire_status: ACCEPTED ERROR-2: \
 iso_8601_timestamp_to_seconds"
-		verbose "\
+			verbose "\
 expire_status: CONSUMED ERROR: \
 FALL-BACK to default SSL date format"
 
-		cert_date_to_timestamp_s \
-			"$cert_not_after_date" cert_expire_date_s
+			cert_date_to_timestamp_s \
+				"$cert_not_after_date" cert_expire_date_s
 
-		verbose "\
+			verbose "\
 expire_status: FALL-BACK completed"
+		fi
 	fi
 
 	# Convert number of days to a timestamp in seconds
@@ -5061,10 +5109,11 @@ verify_working_env() {
 	# Not fatal here, used by 'help'
 	install_data_to_pki x509-types-only
 
-	# For commands which 'require a PKI' and the PKI exists
-	if  [ "$pki_is_required" ] && [ -d "$EASYRSA_PKI" ]; then
+	# For commands which 'require a PKI' and PKI exists
+	if  [ "$pki_is_required" ] && [ -d "$EASYRSA_PKI" ]
+	then
 
-		# mkdir Temp dir session
+		# Temp dir session
 		secure_session || \
 			die "Temporary directory secure-session failed."
 
@@ -5773,7 +5822,6 @@ unset -v \
 	user_san_true \
 	alias_days
 
-	mktemp_counter=0
 	# Used by build-ca->cleanup to restore prompt
 	# after user interrupt when using manual password
 	prompt_restore=0
@@ -5900,7 +5948,8 @@ while :; do
 	-S|--silent-ssl)
 		empty_ok=1
 		export EASYRSA_SILENT_SSL=1
-		save_EASYRSA_SILENT_SSL=1
+		# This will probably be need
+		#save_EASYRSA_SILENT_SSL=1
 		;;
 	--no-safe-ssl)
 		empty_ok=1
