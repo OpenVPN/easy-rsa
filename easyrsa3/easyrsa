@@ -2188,16 +2188,47 @@ Failed to write inline file:
 inline_creds ()
 {
 	[ "$1" ] || die "inline_creds - Name missing"
-	printf "%s\n\n" "# $crt_type: $1"
-	printf "%s\n" "<cert>"
-	cat "$crt_out"
-	printf "%s\n\n" "</cert>"
-	printf "%s\n" "<key>"
-	[ -e "$key_out" ] && cat "$key_out"
-	printf "%s\n\n" "</key>"
-	printf "%s\n" "<ca>"
-	cat "$EASYRSA_PKI/ca.crt"
-	printf "%s\n\n" "</ca>"
+
+	if [ -e "$crt_out" ]; then
+		inline_cert_text="$(cat "$crt_out")"
+	else
+		die "inline_creds - Certificate"
+	fi
+
+	if [ -e "$key_out" ]; then
+		inline_key_text="$(cat "$key_out")"
+	else
+		inline_key_text="*** Paste your private key here ***"
+	fi
+
+	if [ -e "$EASYRSA_PKI/ca.crt" ]; then
+		inline_ca_text="$(cat "$EASYRSA_PKI/ca.crt")"
+	else
+		die "inline_creds - CA"
+	fi
+
+	# Header
+	print "\
+# $crt_type: $1
+"
+	# Certificate
+	print "\
+<cert>
+$inline_cert_text
+<\cert>
+"
+	# Private key
+	print "\
+<key>
+$inline_key_text
+<\key>
+"
+	# CA
+	print "\
+<ca>
+$inline_ca_text
+<\ca>
+"
 } # => inline_creds ()
 
 # revoke backend
