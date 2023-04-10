@@ -632,17 +632,35 @@ secure_session() {
 		session="$(
 			easyrsa_random 4
 			)" || die "secure_session - session"
-
 		secured_session="${EASYRSA_TEMP_DIR}/${session}"
-		verbose "\
-Create session: secured_session=$secured_session"
+
 		# atomic:
 		if mkdir "$secured_session"; then
+			# New session requires safe-ssl conf
+			unset -v working_safe_ssl_conf mktemp_counter
+			verbose "\
+secure_session: CREATED: $secured_session"
 			return
 		fi
 	done
 	die "secure_session failed"
 } # => secure_session()
+
+# Remove secure session
+remove_secure_session() {
+	if [ "${secured_session%/*}" ] && \
+		[ -d "$secured_session" ]
+	then
+		# Always remove temp-session
+		rm -rf "$secured_session"
+		verbose "\
+remove_secure_session: DELETED: $secured_session"
+		unset -v working_safe_ssl_conf mktemp_counter \
+			secured_session
+	else
+		die "remove_secure_session: $secured_session"
+	fi
+} # => remove_secure_session()
 
 # Create temp-file atomically or fail
 # WARNING: Running easyrsa_openssl in a subshell
@@ -740,7 +758,8 @@ Temporary session not preserved."
 		fi
 
 		# Always remove temp-session
-		rm -rf "$secured_session"
+		remove_secure_session || \
+			die "cleanup - remove_secure_session"
 	fi
 
 	# Remove files when build_full()->sign_req() is interrupted
@@ -4270,11 +4289,10 @@ read_db() {
 		verbose "***** Read next record *****"
 
 		# Recreate temp session
-		rm -rf "$secured_session"
-		unset -v secured_session
+		remove_secure_session || \
+			die "read_db - remove_secure_session"
 		secure_session || \
-			die "Recreate secure-session failed."
-		mktemp_counter=0
+			die "read_db - secure_session"
 
 		# Interpret the db/certificate record
 		unset -v db_serial db_cn db_revoke_date db_reason
@@ -4409,14 +4427,14 @@ expire_status: SERIAL MISMATCH:
 		else
 			verbose "\
 expire_status: ACCEPTED ERROR-1: \
-iso_8601_cert_enddate()"
+from iso_8601_cert_enddate"
 			verbose "\
 expire_status: CONSUMED ERROR: \
 FALL-BACK to default SSL date format"
 			ssl_cert_not_after_date \
 				"$cert_issued" cert_not_after_date
 			verbose "\
-expire_status(): FALL-BACK completed"
+expire_status: FALL-BACK completed"
 		fi
 
 	else
@@ -4449,14 +4467,16 @@ expire_status: cert_date_to_timestamp_s: for comparison"
 			# Prove this works
 			if [ "$cert_expire_date_s" = "$old_cert_expire_date_s" ]
 			then
-				verbose "expire_status: ABSOLUTE seconds MATCH:"
-				verbose "  cert_expire_date_s=     $cert_expire_date_s"
-				verbose "  old_cert_expire_date_s= $old_cert_expire_date_s"
+				verbose "\
+expire_status: ABSOLUTE seconds MATCH:
+    cert_expire_date_s=     $cert_expire_date_s
+    old_cert_expire_date_s= $old_cert_expire_date_s"
 			else
-				verbose "expire_status: ABSOLUTE seconds do not MATCH:"
-				verbose "  cert_expire_date_s=     $cert_expire_date_s"
-				verbose "  old_cert_expire_date_s= $old_cert_expire_date_s"
-				verbose "  difference=             \
+				verbose "\
+expire_status: ABSOLUTE seconds do not MATCH:
+    cert_expire_date_s=     $cert_expire_date_s
+    old_cert_expire_date_s= $old_cert_expire_date_s
+    difference=             \
 $(( cert_expire_date_s - old_cert_expire_date_s ))"
 
 				# If there is an error then use --days-margin=10
@@ -4481,19 +4501,19 @@ expire_status - ABSOLUTE seconds mismatch: Use --allow-margin=N"
 					: # ok
 					verbose "\
 expire_status: MARGIN seconds ACCEPTED:
-  cert_expire_date_s=     $cert_expire_date_s
-  old_cert_expire_date_s= $old_cert_expire_date_s
-  difference=             \
-  $(( cert_expire_date_s - old_cert_expire_date_s ))
-  margin_plus_s=          $margin_plus_s
-  margin_minus_s=         $margin_minus_s"
+    cert_expire_date_s=     $cert_expire_date_s
+    old_cert_expire_date_s= $old_cert_expire_date_s
+    difference=             \
+    $(( cert_expire_date_s - old_cert_expire_date_s ))
+    margin_plus_s=          $margin_plus_s
+    margin_minus_s=         $margin_minus_s"
 				else
 					verbose "\
 expire_status: MARGIN seconds REJECTED:
-  cert_expire_date_s=     $cert_expire_date_s
-  old_cert_expire_date_s= $old_cert_expire_date_s
-  margin_plus_s=          $margin_plus_s
-  margin_minus_s=         $margin_minus_s"
+    cert_expire_date_s=     $cert_expire_date_s
+    old_cert_expire_date_s= $old_cert_expire_date_s
+    margin_plus_s=          $margin_plus_s
+    margin_minus_s=         $margin_minus_s"
 
 					die "\
 expire_status: Verify cert expire date EXCESS mismatch!"
@@ -5089,10 +5109,11 @@ verify_working_env() {
 	# Not fatal here, used by 'help'
 	install_data_to_pki x509-types-only
 
-	# For commands which 'require a PKI' and the PKI exists
-	if  [ "$pki_is_required" ] && [ -d "$EASYRSA_PKI" ]; then
+	# For commands which 'require a PKI' and PKI exists
+	if  [ "$pki_is_required" ] && [ -d "$EASYRSA_PKI" ]
+	then
 
-		# mkdir Temp dir session
+		# Temp dir session
 		secure_session || \
 			die "Temporary directory secure-session failed."
 
@@ -5794,7 +5815,6 @@ detect_host
 
 # Initialisation requirements
 unset -v \
-	working_safe_ssl_conf \
 	easyrsa_error_exit \
 	prohibit_no_pass \
 	secured_session \
@@ -5802,7 +5822,6 @@ unset -v \
 	user_san_true \
 	alias_days
 
-	mktemp_counter=0
 	# Used by build-ca->cleanup to restore prompt
 	# after user interrupt when using manual password
 	prompt_restore=0
