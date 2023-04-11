@@ -475,8 +475,11 @@ General options:
                   (Default vars file is in the EasyRSA PKI directory)
 --pki-dir=DIR   : Declare the PKI directory
                   (Default PKI directory is sub-directory 'pki')
+
 --ssl-conf=FILE : Define a specific OpenSSL config file for Easy-RSA to use
                   (Default config file is in the EasyRSA PKI directory)
+--force-safe-ssl: Always generate a safe SSL config file
+                  (Default: Generate Safe SSL config once per instance)
 --no-safe-ssl   : OpenSSL Only: Do not use a safe SSL config file
 
 --tmp-dir=DIR   : Declare the temporary directory
@@ -814,6 +817,7 @@ Temporary session not preserved."
 # Make a copy safe SSL config file
 make_safe_ssl() {
 	verify_pki_init
+	EASYRSA_FORCE_SAFE_SSL=1
 	easyrsa_openssl makesafeconf
 	notice "\
 Generated safe SSL config file:
@@ -936,7 +940,10 @@ easyrsa_openssl() {
 	# '$' - Workaround 'easyrsa' based limitation
 	# This is required for all SSL libs, otherwise,
 	# there are unacceptable differences in behavior
-	if [ "$working_safe_ssl_conf" ]; then
+	# EASYRSA_FORCE_SAFE_SSL will always over-ride
+	if [ -z "$EASYRSA_FORCE_SAFE_SSL" ] && \
+		[ "$working_safe_ssl_conf" ]
+	then
 		: # ok - This has been done before
 		verbose "\
 easyrsa_openssl: escape_hazard SKIPPED"
@@ -952,7 +959,10 @@ easyrsa_openssl: escape_hazard SKIPPED"
 
 		# Only create a new safe config,
 		# if it has not been done before.
-		if [ "$working_safe_ssl_conf" ]; then
+		# EASYRSA_FORCE_SAFE_SSL will always over-ride
+		if  [ -z "$EASYRSA_FORCE_SAFE_SSL" ] && \
+			[ "$working_safe_ssl_conf" ]
+		then
 			# ok - This has been done before
 			easyrsa_safe_ssl_conf="$working_safe_ssl_conf"
 			verbose "\
@@ -5950,6 +5960,10 @@ while :; do
 		export EASYRSA_SILENT_SSL=1
 		# This will probably be need
 		#save_EASYRSA_SILENT_SSL=1
+		;;
+	--force-safe-ssl)
+		empty_ok=1
+		export EASYRSA_FORCE_SAFE_SSL=1
 		;;
 	--no-safe-ssl)
 		empty_ok=1
