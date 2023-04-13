@@ -4865,6 +4865,20 @@ EasyRSA '$cmd' does not support --startdate or --enddate"
 				unset -v EASYRSA_START_DATE EASYRSA_END_DATE
 		esac
 	fi
+
+	if [ "$easyrsa_host_os" = win ]; then
+		if echo "$PWD" | grep -q '/P.*/OpenVPN/easy-rsa'; then
+			warn "\
+Using Windows-System-Folders for your PKI is NOT SECURE!
+Your Easy-RSA PKI CA Private Key is WORLD readable.
+
+To correct this problem, it is recommended that you either:
+* Copy Easy-RSA to your User folders and run it from there, OR
+* Define your PKI to be in your User folders. EG:
+  'easyrsa --pki-dir=C:/Users/<your-user-name>/easy-rsa/pki\"'\
+ <command>"
+		fi
+	fi
 } # => mutual_exclusions()
 
 # vars setup
