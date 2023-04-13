@@ -5021,8 +5021,8 @@ Using Easy-RSA configuration:
 			# Sanitize vars
 			if grep -q \
 				-e 'EASYRSA_PASSIN' -e 'EASYRSA_PASSOUT' \
-				-e '^[^#]*export *_*[[:alpha:]]*[[:alnum:]]*.*$' \
-				-e '[^(]`[^)]' "$vars"
+				-e '[^(]`[^)]' \
+				"$vars"
 			then
 				die "\
 One or more of these problems has been found in your 'vars' file:
@@ -5030,13 +5030,25 @@ One or more of these problems has been found in your 'vars' file:
 * Use of 'EASYRSA_PASSIN' or 'EASYRSA_PASSOUT':
   Storing password information in the 'vars' file is not permitted.
 
-* Use of 'export':
-  Remove 'export' or replace it with 'set_var'.
-
 * Use of unsupported characters:
   These characters are not supported: \` backtick
 
 Please, correct these errors and try again."
+			fi
+
+			if grep -q \
+				-e '[[:blank:]]export[[:blank:]]' \
+				-e '[[:blank:]]unset[[:blank:]]' \
+				"$vars"
+			then
+				warn "\
+One or more of these problems has been found in your 'vars' file:
+
+* Use of 'export':
+  Remove 'export' or replace it with 'set_var'.
+
+* Use of 'unset':
+  Remove 'unset' ('force_set_var' may also work)."
 			fi
 
 			# Enable sourcing 'vars'
