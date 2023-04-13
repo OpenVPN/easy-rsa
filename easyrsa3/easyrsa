@@ -624,7 +624,7 @@ secure_session() {
 	then
 		: # ok
 	else
-		die "Non-existant temporary directory:
+		die "secure_session - Missing temporary directory:
 * $EASYRSA_TEMP_DIR"
 	fi
 
@@ -1189,10 +1189,6 @@ and initialize a fresh PKI here."
 Failed to create PKI file structure (permissions?)"
 	done
 
-	# for 'init-pki' create a secure_session
-	secure_session || die "\
-init_pki - secure_session failed."
-
 	# Install data-files into ALL new PKIs
 	install_data_to_pki init-pki || \
 		warn "\
@@ -1314,7 +1310,10 @@ install_data_to_pki() {
 	done
 
 	# Short circuit for x509-types-only
-	[ "$context" = x509-types-only ] && return
+	if [ "$context" = x509-types-only ]; then
+		verbose "install_data_to_pki x509-types-only COMPLETED"
+		return
+	fi
 
 	# Create PKI/vars from PKI/example
 	unset -v new_vars_true
@@ -1357,6 +1356,7 @@ install_data_to_pki() {
 		die "install_data_to_pki - Missing: '$ssl_cnf_file'"
 	[ -d "$EASYRSA_EXT_DIR" ] || \
 		die "install_data_to_pki - Missing: '$x509_types_dir'"
+	verbose "install_data_to_pki vars-setup COMPLETED"
 
 } # => install_data_to_pki ()
 
@@ -5127,18 +5127,21 @@ verify_working_env() {
 	if  [ "$pki_is_required" ] && [ -d "$EASYRSA_PKI" ]
 	then
 
-		# Temp dir session
-		secure_session || \
-			die "Temporary directory secure-session failed."
-
+		# Temp dir MUST exist
 		if [ -d "$EASYRSA_TEMP_DIR" ]; then
+
+			# Temp dir session
+			secure_session || \
+				die "\
+verify_working_env - secure-session failed"
 
 			# Install data-files into ALL PKIs
 			# This will find x509-types
 			# and export EASYRSA_EXT_DIR or die.
 			# Other errors only require warning.
 			install_data_to_pki vars-setup || \
-				warn "install_data_to_pki vars-setup Failed"
+				warn "\
+verify_working_env - install_data_to_pki vars-setup failed"
 
 			# if the vars file in use is not in the PKI
 			# and not user defined then Show the messages
@@ -5157,11 +5160,8 @@ verify_working_env() {
 			information "\
 Using SSL: $EASYRSA_OPENSSL $ssl_version
 "
-
 		else
-			# If the directory does not exist
-			# then we have not run init-pki
-			# The temp-dir is ALWAYS verified by secure_session()
+			# The directory does not exist
 			die "\
 Temporary directory does not exist:
 * $EASYRSA_TEMP_DIR"
