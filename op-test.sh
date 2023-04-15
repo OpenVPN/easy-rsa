@@ -431,7 +431,10 @@ unset -v ssl_bin ssl_bin_ok
 #ssl_hash='SHA256(openssl)= 341d278423aeecbaa2b057b84b5501dd492c8f7e192c5bb9c66a260dbc022a4c'
 
 # v 3.0.7
-ssl_hash='SHA256(openssl)= 606f8fb9d6ac7993c2f68efba8c4f022e128a8e9ab1a0921e4941d9f88a7bb5b'
+#ssl_hash='SHA256(openssl)= 606f8fb9d6ac7993c2f68efba8c4f022e128a8e9ab1a0921e4941d9f88a7bb5b'
+
+# v 3.1.0
+ssl_hash='SHA256(openssl)= 85b562891087d4c64868d8d1f0a381407d8e23fb66c37ce9baad55cf57edbc04   '
 
 # Here we go ..
 
