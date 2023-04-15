@@ -703,23 +703,25 @@ easyrsa_mktemp: shot-file created: $shotfile"
 			# which is why this extension is required.
 			# Current max required is 7 deep
 			for i in 1 2 3 4 5 6 7 8 9; do
-				target="${t}.${i}"
-				if [ -e "$target" ]; then
+				want_tmp_file="${t}.${i}"
+				if [ -e "$want_tmp_file" ]; then
 					verbose "\
-easyrsa_mktemp: temp-file EXISTS: $target"
+easyrsa_mktemp: temp-file EXISTS: $want_tmp_file"
 					continue
 				else
 					# atomic:
 					[ "$easyrsa_host_os" = win ] && \
 						set -o noclobber
 
-					if mv "$shotfile" "$target"; then
+					if mv "$shotfile" "$want_tmp_file"; then
 						verbose "\
-easyrsa_mktemp: atomic: Create temp-file OK: $target"
+easyrsa_mktemp: atomic: Create temp-file OK: $want_tmp_file"
 						# Assign external temp-file name
-						if force_set_var "$1" "$target"; then
+						if force_set_var "$1" "$want_tmp_file"
+						then
 							[ "$easyrsa_host_os" = win ] && \
 								set +o noclobber
+							unset -v want_tmp_file shotfile
 							return 0
 						else
 							die "\
@@ -733,7 +735,7 @@ easyrsa_mktemp - force_set_var $1 failed"
 
 	die "\
 easyrsa_mktemp - failed for: $1 @ depth=$i
-target: $target"
+want_tmp_file: $want_tmp_file"
 } # => easyrsa_mktemp()
 
 # remove temp files and do terminal cleanups
