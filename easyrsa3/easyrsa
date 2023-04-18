@@ -4405,7 +4405,12 @@ read_db() {
 
 # Expire status
 expire_status() {
-	# The certificate for CN ahould exist but may not
+	unset -v expire_status_cert_exists
+	pre_expire_window_s="$((
+		EASYRSA_PRE_EXPIRY_WINDOW * 60*60*24
+		))"
+
+	# The certificate for CN should exist but may not
 	unset -v expire_status_cert_exists
 	if [ -e "$cert_issued" ]; then
 
@@ -4460,6 +4465,22 @@ expire_status: FALL-BACK completed"
 
 	# Only verify if there is a certificate
 	if [ "$expire_status_cert_exists" ]; then
+
+		# Check cert expiry against window
+		# openssl direct call because error is expected
+		if "$EASYRSA_OPENSSL" x509 -in "$cert_issued" \
+			-noout -checkend "$pre_expire_window_s" \
+			1>/dev/null
+		then
+			expire_msg="will NOT expire"
+			will_not_expire=1
+			unset -v will_expire
+		else
+			expire_msg="will expire"
+			will_expire=1
+			unset -v will_not_expire
+		fi
+		easyrsa_debug "expire_status: SSL checkend: $expire_msg"
 
 		# Get timestamp seconds for certificate expiry date
 		# Redirection for errout is not necessary here
@@ -4564,6 +4585,10 @@ expire_status: FALL-BACK completed"
 	# Compare and print output
 	if [ "$cert_expire_date_s" -lt "$cutoff_date_s" ]; then
 		# Cert expires in less than grace period
+		if [ "$will_not_expire" ]; then
+			die "\
+EasyRSA: will expire - SSL: will NOT expire"
+		fi
 		if [ "$cert_expire_date_s" -gt "$now_date_s" ]; then
 			verbose "expire_status: Valid -> expiring"
 			printf '%s%s\n' \
@@ -4576,6 +4601,10 @@ expire_status: FALL-BACK completed"
 				"Expired: $cert_not_after_date | CN: $db_cn"
 		fi
 	else
+		if [ "$will_expire" ]; then
+			die "\
+EasyRSA: will NOT expire - SSL: will expire"
+		fi
 		verbose "expire_status: Valid -> NOT expiring"
 	fi
 } # => expire_status()
