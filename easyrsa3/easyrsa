@@ -4480,7 +4480,7 @@ expire_status: FALL-BACK completed"
 			will_expire=1
 			unset -v will_not_expire
 		fi
-		easyrsa_debug "expire_status: SSL checkend: $expire_msg"
+		verbose "expire_status: SSL checkend: $expire_msg"
 
 		# Get timestamp seconds for certificate expiry date
 		# Redirection for errout is not necessary here
