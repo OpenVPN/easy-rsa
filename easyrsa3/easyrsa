@@ -1867,6 +1867,37 @@ sign_req() {
 	req_in="$EASYRSA_PKI/reqs/$2.req"
 	crt_out="$EASYRSA_PKI/issued/$2.crt"
 
+	# Check argument sanity:
+	[ "$2" ] || die "\
+Incorrect number of arguments provided to sign-req:
+expected 2, got $# (see command help for usage)"
+
+	# Cert type must exist under the EASYRSA_EXT_DIR
+	[ -e "$EASYRSA_EXT_DIR/$crt_type" ] || die "\
+Missing X509-type '$crt_type'"
+	[ -e "$EASYRSA_EXT_DIR/COMMON" ] || die "\
+Missing X509-type 'COMMON'"
+
+	# Cert type must NOT be COMMON
+	[ "$crt_type" != COMMON ] || die "\
+Invalid certificate type: '$crt_type'"
+
+	# Request file must exist
+	[ -e "$req_in" ] || die "\
+No request found for the input: '$2'
+Expected to find the request at: $req_in"
+
+	# Certificate file must NOT exist
+	[ ! -e "$crt_out" ] || die "\
+Cannot sign this request for '$2'.
+Conflicting certificate already exists at:
+* $crt_out"
+
+	# Confirm input is a cert req
+	verify_file req "$req_in" || die "\
+The certificate request file is not in a valid X509 format:
+* $req_in"
+
 	# Randomize Serial number
 	if [ "$EASYRSA_RAND_SN" != "no" ]; then
 		i=""
@@ -1907,39 +1938,6 @@ $check_serial"
 		print "$serial" > "$EASYRSA_PKI/serial" || \
 			die "sign_req - write serial to file"
 	fi
-
-	verify_ca_init
-
-	# Check argument sanity:
-	[ "$2" ] || die "\
-Incorrect number of arguments provided to sign-req:
-expected 2, got $# (see command help for usage)"
-
-	# Cert type must exist under the EASYRSA_EXT_DIR
-	[ -e "$EASYRSA_EXT_DIR/$crt_type" ] || die "\
-Missing X509-type '$crt_type'"
-	[ -e "$EASYRSA_EXT_DIR/COMMON" ] || die "\
-Missing X509-type 'COMMON'"
-
-	# Cert type must NOT be COMMON
-	[ "$crt_type" != COMMON ] || die "\
-Invalid certificate type: '$crt_type'"
-
-	# Request file must exist
-	[ -e "$req_in" ] || die "\
-No request found for the input: '$2'
-Expected to find the request at: $req_in"
-
-	# Certificate file must NOT exist
-	[ ! -e "$crt_out" ] || die "\
-Cannot sign this request for '$2'.
-Conflicting certificate already exists at:
-* $crt_out"
-
-	# Confirm input is a cert req
-	verify_file req "$req_in" || die "\
-The certificate request file is not in a valid X509 format:
-* $req_in"
 
 	# When EASYRSA_CP_EXT is defined,
 	# adjust openssl's [default_ca] section:
