@@ -154,11 +154,7 @@ fi
 
 # Cut-off window for checking expiring certificates.
 #
-#set_var EASYRSA_CERT_RENEW	90
-
-# For fixed certificate start/end dates - Range 1..365
-#
-#set_var  EASYRSA_FIX_OFFSET 1
+#set_var EASYRSA_PRE_EXPIRY_WINDOW	90
 
 # Support deprecated "Netscape" extensions? (choices "yes" or "no").
 # The default is "no", to discourage use of deprecated extensions.
