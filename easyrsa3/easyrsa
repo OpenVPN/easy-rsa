@@ -2084,6 +2084,15 @@ ${valid_period}:
 $(display_dn req "$req_in")
 "	# => confirm end
 
+		# Confirm deprecated use of NS extensions
+		case "$EASYRSA_NS_SUPPORT" in
+		[yY][eE][sS])
+			confirm "Confirm use of Netscape extensions: " yes \
+			"WARNING: Netscape extensions are DEPRECATED!"
+		;;
+		*) : #ok
+		esac
+
 	# Assign temp cert file
 	crt_out_tmp=""
 	easyrsa_mktemp crt_out_tmp || \
