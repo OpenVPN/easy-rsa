@@ -1792,11 +1792,12 @@ Continuing with key generation will replace this key."
 		if ! grep -q '^#%EXTRA_EXTS%' "$EASYRSA_SSL_CONF"
 		then
 			die "\
-The copy of openssl-easyrsa.cnf in use \
-does not support request extensions.
+This openssl config file does \
+does not support EASYRSA_EXTRA_EXTS.
 * $EASYRSA_SSL_CONF
-Please update openssl-easyrsa.cnf \
-to the latest official release."
+
+Please update 'openssl-easyrsa.cnf' \
+to the latest Easy-RSA release."
 		fi
 
 		# Setup & insert the extra ext data keyed by a magic line
