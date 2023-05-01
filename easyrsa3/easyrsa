@@ -1481,18 +1481,6 @@ Missing X509-type 'ca'"
 	[ -e "$EASYRSA_EXT_DIR/COMMON" ] || die "\
 Missing X509-type 'COMMON'"
 
-	# Check for insert-marker in ssl config file
-	if grep -q '^#%CA_X509_TYPES_EXTRA_EXTS%' \
-		"$EASYRSA_SSL_CONF"
-	then
-		: # [ "$EASYRSA_BATCH" ] || print
-	else
-		warn "\
-This openssl config file does not support X509-type 'ca'.
-* $EASYRSA_SSL_CONF
-Please update openssl-easyrsa.cnf to the latest release."
-	fi
-
 	# create necessary dirs:
 	err_msg="\
 Unable to create necessary PKI files (permissions?)"
@@ -1530,6 +1518,21 @@ Unable to create necessary PKI files (permissions?)"
 		fi
 	fi
 
+	# Check for insert-marker in ssl config file
+	if [ "$EASYRSA_EXTRA_EXTS" ]; then
+		if ! grep -q '^#%CA_X509_TYPES_EXTRA_EXTS%' \
+			"$EASYRSA_SSL_CONF"
+		then
+			die "\
+This openssl config file does \
+not support X509-type 'ca'.
+* $EASYRSA_SSL_CONF
+
+Please update 'openssl-easyrsa.cnf' \
+to the latest Easy-RSA release."
+		fi
+	fi
+
 	# Assign cert and key temp files
 	out_key_tmp=""
 	easyrsa_mktemp out_key_tmp || \
@@ -1537,7 +1540,6 @@ Unable to create necessary PKI files (permissions?)"
 	out_file_tmp=""
 	easyrsa_mktemp out_file_tmp || \
 		die "build_ca - easyrsa_mktemp out_file_tmp"
-
 
 	# Get passphrase from user if necessary
 	if [ "$EASYRSA_NO_PASS" ]
@@ -1579,7 +1581,12 @@ Unable to create necessary PKI files (permissions?)"
 		fi
 	fi
 
-	# Insert x509-types COMMON and 'ca' and EASYRSA_EXTRA_EXTS
+	# Assign tmp-file for config
+	conf_tmp=""
+	easyrsa_mktemp conf_tmp || \
+		die "build_ca - easyrsa_mktemp conf_tmp"
+
+	# Assign awkscript to insert EASYRSA_EXTRA_EXTS
 	# shellcheck disable=SC2016 # vars don't expand in ''
 	awkscript='\
 {if ( match($0, "^#%CA_X509_TYPES_EXTRA_EXTS%") )
@@ -1587,10 +1594,7 @@ Unable to create necessary PKI files (permissions?)"
  {print}
 }'
 
-	# Assign tmp-file for config
-	conf_tmp=""
-	easyrsa_mktemp conf_tmp || \
-		die "build_ca - easyrsa_mktemp conf_tmp"
+	# Insert x509-types COMMON and 'ca' and EASYRSA_EXTRA_EXTS
 	{
 		cat "$EASYRSA_EXT_DIR/ca" "$EASYRSA_EXT_DIR/COMMON"
 		[ "$EASYRSA_EXTRA_EXTS" ] && print "$EASYRSA_EXTRA_EXTS"
@@ -1946,11 +1950,12 @@ $check_serial"
 		if ! grep -q '^#%COPY_EXTS%' "$EASYRSA_SSL_CONF"
 		then
 			die "\
-The copy of openssl-easyrsa.cnf in use \
-does not support --copy-ext.
+This openssl config file does \
+not support option '--copy-ext'.
 * $EASYRSA_SSL_CONF
-Please update openssl-easyrsa.cnf \
-to the latest official release."
+
+Please update 'openssl-easyrsa.cnf' \
+to the latest Easy-RSA release."
 		fi
 
 		# Setup & insert the copy_extensions data
@@ -2006,7 +2011,7 @@ basicConstraints is not defined, cannot use 'pathlen'"
 
 		# Deprecated Netscape extension support
 		case "$EASYRSA_NS_SUPPORT" in
-		[yY][eE][sS])
+			[yY][eE][sS])
 
 			# Netscape extension
 			case "$crt_type" in
@@ -2084,14 +2089,14 @@ ${valid_period}:
 $(display_dn req "$req_in")
 "	# => confirm end
 
-		# Confirm deprecated use of NS extensions
-		case "$EASYRSA_NS_SUPPORT" in
+	# Confirm deprecated use of NS extensions
+	case "$EASYRSA_NS_SUPPORT" in
 		[yY][eE][sS])
-			confirm "Confirm use of Netscape extensions: " yes \
-			"WARNING: Netscape extensions are DEPRECATED!"
-		;;
-		*) : #ok
-		esac
+		confirm "Confirm use of Netscape extensions: " yes \
+		"WARNING: Netscape extensions are DEPRECATED!"
+	;;
+	*) : #ok
+	esac
 
 	# Assign temp cert file
 	crt_out_tmp=""
