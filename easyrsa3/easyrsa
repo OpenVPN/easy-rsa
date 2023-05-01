@@ -655,14 +655,16 @@ remove_secure_session() {
 		[ -d "$secured_session" ]
 	then
 		# Always remove temp-session
-		rm -rf "$secured_session"
-		verbose "\
+		if rm -rf "$secured_session"; then
+			verbose "\
 remove_secure_session: DELETED: $secured_session"
-		unset -v working_safe_ssl_conf mktemp_counter \
-			secured_session
-	else
-		die "remove_secure_session: $secured_session"
+			unset -v working_safe_ssl_conf \
+				mktemp_counter secured_session
+			return 0
+		fi
 	fi
+
+	die "remove_secure_session: $secured_session"
 } # => remove_secure_session()
 
 # Create temp-file atomically or fail
