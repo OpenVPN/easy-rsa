@@ -1729,6 +1729,9 @@ DH parameters of size $EASYRSA_KEY_SIZE created at:
 
 # gen-req and key backend:
 gen_req() {
+	# Verify PKI has been initialised
+	verify_pki_init
+
 	# pull filename, use as default interactive CommonName
 	[ "$1" ] || die "\
 Error: gen-req must have a file base as the first argument.
@@ -1755,9 +1758,6 @@ Run easyrsa without commands for usage and commands."
 	req_out="$EASYRSA_PKI/reqs/$1.req"
 
 	shift # scrape off file-name
-
-	# Verify PKI has been initialised
-	verify_pki_init
 
 	# function opts support
 	while [ "$1" ]; do
@@ -1860,6 +1860,9 @@ Keypair and certificate request completed. Your files are:
 
 # common signing backend
 sign_req() {
+	# CA is required to sign
+	verify_ca_init
+
 	crt_type="$1"
 	req_in="$EASYRSA_PKI/reqs/$2.req"
 	crt_out="$EASYRSA_PKI/issued/$2.crt"
@@ -2114,8 +2117,6 @@ Certificate created at:
 # common build backend
 # used to generate+sign in 1 step
 build_full() {
-	verify_ca_init
-
 	# pull filename base:
 	[ "$2" ] || die "\
 Error: didn't find a file base name as the first argument.
