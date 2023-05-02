@@ -640,7 +640,9 @@ secure_session() {
 		# atomic:
 		if mkdir "$secured_session"; then
 			# New session requires safe-ssl conf
-			unset -v working_safe_ssl_conf mktemp_counter
+			unset -v mktemp_counter \
+				OPENSSL_CONF easyrsa_safe_ssl_conf \
+				working_safe_ssl_conf
 			verbose "\
 secure_session: CREATED: $secured_session"
 			return
@@ -658,8 +660,9 @@ remove_secure_session() {
 		if rm -rf "$secured_session"; then
 			verbose "\
 remove_secure_session: DELETED: $secured_session"
-			unset -v working_safe_ssl_conf \
-				mktemp_counter secured_session
+			unset -v secured_session mktemp_counter \
+				OPENSSL_CONF easyrsa_safe_ssl_conf \
+				working_safe_ssl_conf
 			return 0
 		fi
 	fi
@@ -762,11 +765,11 @@ Temporary session not preserved."
 				mv -f "$secured_session" "$keep_tmp"
 				print "Temp session preserved: $keep_tmp"
 			fi
+		else
+			# remove temp-session
+			remove_secure_session || \
+				die "cleanup - remove_secure_session"
 		fi
-
-		# Always remove temp-session
-		remove_secure_session || \
-			die "cleanup - remove_secure_session"
 	fi
 
 	# Remove files when build_full()->sign_req() is interrupted
@@ -823,9 +826,8 @@ make_safe_ssl() {
 	verify_pki_init
 	EASYRSA_FORCE_SAFE_SSL=1
 	easyrsa_openssl makesafeconf
-	notice "\
-Generated safe SSL config file:
-* $EASYRSA_SAFE_CONF"
+	verbose "\
+make_safe_ssl: NEW SSL cnf file: $easyrsa_safe_ssl_conf"
 } # => make_safe_ssl_copy()
 
 # Escape hazardous characters
@@ -934,11 +936,6 @@ easyrsa_openssl() {
 		has_config=1
 	fi
 
-	# Assign safe temp file to create, may not be used
-	easyrsa_safe_ssl_conf=""
-	easyrsa_mktemp easyrsa_safe_ssl_conf || die \
-		"easyrsa_openssl - easyrsa_mktemp easyrsa_safe_ssl_conf"
-
 	# Auto-escape hazardous characters:
 	# '&' - Workaround 'sed' behavior
 	# '$' - Workaround 'easyrsa' based limitation
@@ -959,7 +956,9 @@ easyrsa_openssl: escape_hazard SKIPPED"
 	# Make LibreSSL safe config file from OpenSSL config file
 	# $require_safe_ssl_conf is ALWAYS set by verify_ssl_lib()
 	# Can be over-ruled for OpenSSL by option --no-safe-ssl
-	if [ "$require_safe_ssl_conf" ]; then
+	if [ "$require_safe_ssl_conf" ] || \
+		[ "$EASYRSA_FORCE_SAFE_SSL" ]
+	then
 
 		# Only create a new safe config,
 		# if it has not been done before.
@@ -972,11 +971,24 @@ easyrsa_openssl: escape_hazard SKIPPED"
 			verbose "\
 easyrsa_openssl: easyrsa_rewrite_ssl_config SKIPPED"
 		else
+			# Assign easyrsa_safe_ssl_conf temp-file
+			easyrsa_safe_ssl_conf=""
+			easyrsa_mktemp easyrsa_safe_ssl_conf || die "\
+easyrsa_openssl - easyrsa_mktemp easyrsa_safe_ssl_conf"
+
 			# Write a safe SSL config temp-file
-			easyrsa_rewrite_ssl_config || die \
-				"easyrsa_openssl - easyrsa_rewrite_ssl_config"
+			if easyrsa_rewrite_ssl_config; then
+				verbose "\
+easyrsa_openssl: easyrsa_rewrite_ssl_config COMPLETED"
+			else
+				die "\
+easyrsa_openssl - easyrsa_rewrite_ssl_config"
+			fi
+
 			# Save the the safe conf file-name
 			working_safe_ssl_conf="$easyrsa_safe_ssl_conf"
+			verbose "\
+easyrsa_openssl: NEW SSL cnf file: $easyrsa_safe_ssl_conf"
 		fi
 
 	else
@@ -984,13 +996,22 @@ easyrsa_openssl: easyrsa_rewrite_ssl_config SKIPPED"
 		easyrsa_safe_ssl_conf="$EASYRSA_SSL_CONF"
 	fi
 
+	# VERIFY safe temp-file exists
+	if [ -e "$easyrsa_safe_ssl_conf" ]; then
+		verbose "\
+easyrsa_openssl: Safe SSL conf OK: $easyrsa_safe_ssl_conf"
+	else
+		die "\
+easyrsa_openssl - Safe SSL conf MISSING: $easyrsa_safe_ssl_conf"
+	fi
+
 	# set $OPENSSL_CONF - Use which-ever file is assigned above
 	export OPENSSL_CONF="$easyrsa_safe_ssl_conf"
 
 	# Execute command - Return on success
 	if [ "$openssl_command" = "makesafeconf" ]; then
-		# move temp file to safessl-easyrsa.cnf
-		mv -f "$easyrsa_safe_ssl_conf" "$EASYRSA_SAFE_CONF" && \
+		# COPY temp-file to safessl-easyrsa.cnf
+		cp -f "$easyrsa_safe_ssl_conf" "$EASYRSA_SAFE_CONF" && \
 				return
 
 	elif [ "$has_config" ]; then
@@ -1041,11 +1062,16 @@ verify_ssl_lib() {
 		# OpenSSL does require a safe config-file for ampersand
 		OpenSSL)
 			ssl_lib=openssl
-			[ "$EASYRSA_NO_SAFE_SSL" ] || require_safe_ssl_conf=1
+			if [ -z "$EASYRSA_NO_SAFE_SSL" ]; then
+				require_safe_ssl_conf=1
+			fi
 		;;
 		LibreSSL)
 			ssl_lib=libressl
 			require_safe_ssl_conf=1
+			if [ "$EASYRSA_NO_SAFE_SSL" ]; then
+				die "Cannot use '--no-safe-ssl' with LibreSSL"
+			fi
 		;;
 		*)
 			error_msg="$("$EASYRSA_OPENSSL" version 2>&1)"
@@ -4326,6 +4352,9 @@ read_db() {
 			die "read_db - remove_secure_session"
 		secure_session || \
 			die "read_db - secure_session"
+		if [ "$require_safe_ssl_conf" ];  then
+			make_safe_ssl || die "read_db - make_safe_ssl"
+		fi
 
 		# Interpret the db/certificate record
 		unset -v db_serial db_cn db_revoke_date db_reason
@@ -4928,6 +4957,7 @@ EasyRSA '$cmd' does not support --startdate or --enddate"
 		esac
 	fi
 
+	# Insecure Windows directory
 	if [ "$easyrsa_host_os" = win ]; then
 		if echo "$PWD" | grep -q '/P.*/OpenVPN/easy-rsa'; then
 			warn "\
