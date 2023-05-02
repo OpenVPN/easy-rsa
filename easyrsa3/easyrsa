@@ -826,6 +826,9 @@ make_safe_ssl() {
 	verify_pki_init
 	EASYRSA_FORCE_SAFE_SSL=1
 	easyrsa_openssl makesafeconf
+	notice "\
+Safe SSL config file created at:
+* $EASYRSA_SAFE_CONF"
 	verbose "\
 make_safe_ssl: NEW SSL cnf file: $easyrsa_safe_ssl_conf"
 } # => make_safe_ssl_copy()
@@ -4353,7 +4356,8 @@ read_db() {
 		secure_session || \
 			die "read_db - secure_session"
 		if [ "$require_safe_ssl_conf" ];  then
-			make_safe_ssl || die "read_db - make_safe_ssl"
+			EASYRSA_SILENT=1 make_safe_ssl || \
+				die "read_db - make_safe_ssl"
 		fi
 
 		# Interpret the db/certificate record
@@ -4970,6 +4974,11 @@ To correct this problem, it is recommended that you either:
   'easyrsa --pki-dir=C:/Users/<your-user-name>/easy-rsa/pki\"'\
  <command>"
 		fi
+	fi
+
+	# Use of --silent and --verbose
+	if [ "$EASYRSA_SILENT" ] && [ "$EASYRSA_VERBOSE" ]; then
+		die "Use of --silent and --verbose is unresolvable."
 	fi
 } # => mutual_exclusions()
 
