@@ -1434,7 +1434,7 @@ get_passphrase() {
 	t="$1"; shift || die "password malfunction"
 	while :; do
 		r=""
-		printf '\n%s' "$*"
+		printf '%s' "$*"
 		hide_read_pass r
 
 		if [ "${#r}" -lt 4 ]; then
@@ -1448,6 +1448,54 @@ get_passphrase() {
 		fi
 	done
 } # => get_passphrase()
+
+getpass_openssl() {
+	# https://www.openssl.org/docs/man3.1/man1/openssl-passphrase-options.html
+	unset -v __getpass_pass
+	case $1
+	in
+		(pass:*)
+			printf '%s' "${1#pass:}"
+			;;
+		(env:*)
+			awk -v envvar="${1#env:}" 'BEGIN {
+				if ((envvar in ENVIRON)) {
+					printf "%s", ENVIRON[envvar]
+				} else {
+					exit 1
+				}
+			}'
+			;;
+		(file:*)
+			# NOTE: using the same file for --passin and --passout does not
+			#       work like openssl does, because the file is reopened on
+			#       every function call, i.e. the file position is not
+			#       remembered.
+			read -r __getpass_pass <"${1#file:}"
+			printf '%s' "${__getpass_pass}"
+			unset -v __getpass_pass
+			;;
+		(fd:[0-9]*)
+			if [ "$1" = fd:0 -o $((${1#fd:})) -gt 0 ]
+			then
+				eval "read -r __getpass_pass <&$((${1#fd:}))"
+				printf '%s' "${__getpass_pass}"
+				unset -v __getpass_pass
+			else
+				return 1
+			fi
+			;;
+		(stdin)
+			read -r __getpass_pass
+			printf '%s' "${__getpass_pass}"
+			unset -v __getpass_pass
+			;;
+		(*)
+			# invalid value
+			return 1
+			;;
+	esac
+} # => getpass_openssl()
 
 # build-ca backend:
 build_ca() {
@@ -1470,10 +1518,10 @@ build_ca() {
 	out_key="$EASYRSA_PKI/private/ca.key"
 	# setup for an intermediate CA
 	if [ "$sub_ca" ]; then
-		# Gerate a CSR
+		# Generate a CSR
 		out_file="$EASYRSA_PKI/reqs/ca.req"
 	else
-		# Gerate a certificate
+		# Generate a certificate
 		out_file="$EASYRSA_PKI/ca.crt"
 		date_stamp=1
 		x509=1
@@ -1571,23 +1619,23 @@ to the latest Easy-RSA release."
 		die "build_ca - easyrsa_mktemp out_file_tmp"
 
 	# Get passphrase from user if necessary
+	out_key_pass=
+
 	if [ "$EASYRSA_NO_PASS" ]
 	then
 		: # No passphrase required
 
-	elif [ "$EASYRSA_PASSOUT" ] && [ "$EASYRSA_PASSIN" ]
+	elif [ "$EASYRSA_PASSOUT" ]
 	then
-		: # passphrase defined
+		# passphrase defined
+		out_key_pass=$(getpass_openssl "${EASYRSA_PASSOUT}")
+
+		[ "${out_key_pass}" ] || {
+			die "Given passout is empty!"
+		}
 
 	else
 		# Assign passphrase vars and temp file
-		in_key_pass_tmp=""
-		easyrsa_mktemp in_key_pass_tmp || \
-			die "build_ca - in_key_pass_tmp"
-		out_key_pass_tmp=""
-		easyrsa_mktemp out_key_pass_tmp || \
-			die "build_ca - out_key_pass_tmp"
-
 		p=""
 		q=""
 		# Get passphrase p
@@ -1600,12 +1648,10 @@ to the latest Easy-RSA release."
 
 		# Validate passphrase
 		if [ "$p" ] && [ "$p" = "$q" ]; then
-			printf "%s" "$p" > "$in_key_pass_tmp" || \
-				die "in_key_pass_tmp: write"
-			printf "%s" "$p" > "$out_key_pass_tmp" || \
-				die "out_key_pass_tmp: write"
+			out_key_pass=${p}
 			unset -v p q
 		else
+			unset -v p q
 			die "Passphrases do not match!"
 		fi
 	fi
@@ -1641,54 +1687,47 @@ to the latest Easy-RSA release."
 		-pkeyopt rsa_keygen_bits:"$EASYRSA_ALGO_PARAMS" \
 		-out "$out_key_tmp" \
 		${cipher:+ "$cipher"} \
-		${EASYRSA_PASSOUT:+ -pass "$EASYRSA_PASSOUT"} \
-		${out_key_pass_tmp:+ -pass file:"$out_key_pass_tmp"} \
-			|| die "Failed create CA private key"
+		${out_key_pass:+ -pass fd:3} 3<<-EOF || die "Failed create CA private key"
+	${out_key_pass-}
+	EOF
 	;;
 	ec)
 	easyrsa_openssl genpkey -paramfile "$EASYRSA_ALGO_PARAMS" \
 		-out "$out_key_tmp" \
 		${cipher:+ "$cipher"} \
-		${EASYRSA_PASSOUT:+ -pass "$EASYRSA_PASSOUT"} \
-		${out_key_pass_tmp:+ -pass file:"$out_key_pass_tmp"} \
-			|| die "Failed create CA private key"
+		${out_key_pass:+ -pass fd:3} 3<<-EOF || die "Failed create CA private key"
+	${out_key_pass-}
+	EOF
 	;;
 	ed)
 	easyrsa_openssl genpkey -algorithm "$EASYRSA_CURVE" \
 		-out "$out_key_tmp" \
 		${cipher:+ "$cipher"} \
-		${EASYRSA_PASSOUT:+ -pass "$EASYRSA_PASSOUT"} \
-		${out_key_pass_tmp:+ -pass file:"$out_key_pass_tmp"} \
-			|| die "Failed create CA private key"
+		${out_key_pass:+ -pass fd:3} 3<<-EOF || die "Failed create CA private key"
+	${out_key_pass-}
+	EOF
 	;;
-	*)	die "Unknown algorithm: $EASYRSA_ALGO"
+	*)	
+		die "Unknown algorithm: $EASYRSA_ALGO"
+		;;
 	esac
 
 	# Generate the CA keypair:
 	# shellcheck disable=SC2086 # Double quote to prevent ..
 	easyrsa_openssl req -utf8 -new \
-		-key "$out_key_tmp" -keyout "$out_key_tmp" \
+		-key "$out_key_tmp" \
 		-out "$out_file_tmp" \
 		${ssl_batch:+ -batch} \
 		${x509:+ -x509} \
 		${date_stamp:+ -days "$EASYRSA_CA_EXPIRE"} \
 		${EASYRSA_DIGEST:+ -"$EASYRSA_DIGEST"} \
+		${out_key_pass:+ -passin fd:3} \
 		${EASYRSA_NO_PASS:+ "$no_password"} \
-		${EASYRSA_PASSIN:+ -passin "$EASYRSA_PASSIN"} \
-		${EASYRSA_PASSOUT:+ -passout "$EASYRSA_PASSOUT"} \
-		${in_key_pass_tmp:+ -passin file:"$in_key_pass_tmp"} \
-		${out_key_pass_tmp:+ -passout file:"$out_key_pass_tmp"} \
-			|| die "Failed to build the CA certificate"
+		3<<-EOF || die "Failed to build the CA certificate"
+	${out_key_pass-}
+	EOF
 
-	# Remove passphrase temp-file
-	if [ -f "$in_key_pass_tmp" ]; then
-		rm "$in_key_pass_tmp" || die "\
-Failed to remove the CA passphrase temp-file!"
-	fi
-	if [ -f "$out_key_pass_tmp" ]; then
-		rm "$out_key_pass_tmp" || die "\
-Failed to remove the CA passphrase temp-file!"
-	fi
+	unset -v out_key_pass
 
 	mv "$out_key_tmp" "$out_key"
 	mv "$out_file_tmp" "$out_file"
