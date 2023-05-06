@@ -689,8 +689,6 @@ easyrsa_mktemp - Temporary session undefined"
 	t="${secured_session}/temp.${mktemp_counter}"
 
 	# Create shotfile
-	verbose "\
-easyrsa_mktemp: Create temp-file for: $1"
 	for h in x y x; do
 		shotfile="${t}.${h}"
 		if [ -e "$shotfile" ]; then
@@ -700,8 +698,6 @@ easyrsa_mktemp: shot-file EXISTS: $shotfile"
 		else
 			printf "" > "$shotfile" || die "\
 easyrsa_mktemp: create shotfile failed (1) $1"
-			verbose "\
-easyrsa_mktemp: shot-file created: $shotfile"
 
 			# Create temp-file or die
 			# subshells do not update mktemp_counter,
@@ -715,17 +711,19 @@ easyrsa_mktemp: temp-file EXISTS: $want_tmp_file"
 					continue
 				else
 					# atomic:
-					[ "$easyrsa_host_os" = win ] && \
+					[ "$easyrsa_host_os" = win ] && {
 						set -o noclobber
+					}
 
 					if mv "$shotfile" "$want_tmp_file"; then
-						verbose "\
-easyrsa_mktemp: atomic: Create temp-file OK: $want_tmp_file"
 						# Assign external temp-file name
 						if force_set_var "$1" "$want_tmp_file"
 						then
-							[ "$easyrsa_host_os" = win ] && \
+							verbose "\
+easyrsa_mktemp: $1 temp-file OK: $want_tmp_file"
+							[ "$easyrsa_host_os" = win ] && {
 								set +o noclobber
+							}
 							unset -v want_tmp_file shotfile
 							return 0
 						else
@@ -954,6 +952,8 @@ easyrsa_openssl: escape_hazard SKIPPED"
 	else
 		escape_hazard || \
 			die "easyrsa_openssl - escape_hazard failed"
+		verbose "\
+easyrsa_openssl: escape_hazard COMPLETED"
 	fi
 
 	# Make LibreSSL safe config file from OpenSSL config file
@@ -983,20 +983,20 @@ easyrsa_openssl - easyrsa_mktemp easyrsa_safe_ssl_conf"
 			if easyrsa_rewrite_ssl_config; then
 				verbose "\
 easyrsa_openssl: easyrsa_rewrite_ssl_config COMPLETED"
+				# Save the the safe conf file-name
+				working_safe_ssl_conf="$easyrsa_safe_ssl_conf"
+				verbose "\
+easyrsa_openssl: NEW SAFE SSL config: $easyrsa_safe_ssl_conf"
 			else
 				die "\
 easyrsa_openssl - easyrsa_rewrite_ssl_config"
 			fi
-
-			# Save the the safe conf file-name
-			working_safe_ssl_conf="$easyrsa_safe_ssl_conf"
-			verbose "\
-easyrsa_openssl: NEW SSL cnf file: $easyrsa_safe_ssl_conf"
 		fi
 
 	else
 		# Assign safe temp file as Original openssl-easyrsa.conf
 		easyrsa_safe_ssl_conf="$EASYRSA_SSL_CONF"
+		verbose "easyrsa_openssl: No SAFE SSL config"
 	fi
 
 	# VERIFY safe temp-file exists
@@ -4901,6 +4901,7 @@ verify_algo_params() {
 		"verify_algo_params - easyrsa_mktemp EASYRSA_ALGO_PARAMS"
 
 		# Create the required ecparams file
+		# call openssl directly because error is expected
 		"$EASYRSA_OPENSSL" ecparam -name "$EASYRSA_CURVE" \
 			-out "$EASYRSA_ALGO_PARAMS" \
 			1>/dev/null || die "\
@@ -4909,6 +4910,7 @@ Failed to generate ecparam file (permissions?) at:
 	;;
 	ed)
 		# Verify Edwards curve
+		# call openssl directly because error is expected
 		"$EASYRSA_OPENSSL" genpkey \
 			-algorithm "$EASYRSA_CURVE" \
 			1>/dev/null || die "\
@@ -4917,6 +4919,8 @@ Edwards Curve $EASYRSA_CURVE not found."
 	*) die "\
 Alg '$EASYRSA_ALGO' is invalid: Must be 'rsa', 'ec' or 'ed'"
 	esac
+	verbose "\
+verify_algo_params: Params verified for algo '$EASYRSA_ALGO'"
 } # => verify_algo_params()
 
 # Check for conflicting input options
@@ -5272,6 +5276,13 @@ verify_working_env - install_data_to_pki vars-setup failed"
 
 			# Verify selected algorithm and parameters
 			verify_algo_params
+
+			# Check $working_safe_ssl_conf, to build
+			# a fully configured safe ssl conf, on the
+			# next invocation of easyrsa_openssl()
+			[ -z "$working_safe_ssl_conf" ] || {
+				die "working_safe_ssl_conf must not be set!"
+			}
 
 			# Last setup msg
 			information "\
@@ -5949,6 +5960,7 @@ unset -v \
 	easyrsa_error_exit \
 	prohibit_no_pass \
 	secured_session \
+	working_safe_ssl_conf \
 	user_vars_true \
 	user_san_true \
 	alias_days
