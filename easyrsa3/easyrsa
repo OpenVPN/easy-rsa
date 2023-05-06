@@ -1393,7 +1393,7 @@ install_data_to_pki() {
 		die "install_data_to_pki - Missing: '$ssl_cnf_file'"
 	[ -d "$EASYRSA_EXT_DIR" ] || \
 		die "install_data_to_pki - Missing: '$x509_types_dir'"
-	verbose "install_data_to_pki vars-setup COMPLETED"
+	verbose "install_data_to_pki $context COMPLETED"
 
 } # => install_data_to_pki ()
 
@@ -1464,10 +1464,10 @@ build_ca() {
 	out_key="$EASYRSA_PKI/private/ca.key"
 	# setup for an intermediate CA
 	if [ "$sub_ca" ]; then
-		# Gerate a CSR
+		# Generate a CSR
 		out_file="$EASYRSA_PKI/reqs/ca.req"
 	else
-		# Gerate a certificate
+		# Generate a certificate
 		out_file="$EASYRSA_PKI/ca.crt"
 		date_stamp=1
 		x509=1
@@ -1565,6 +1565,8 @@ to the latest Easy-RSA release."
 		die "build_ca - easyrsa_mktemp out_file_tmp"
 
 	# Get passphrase from user if necessary
+	out_key_pass=
+
 	if [ "$EASYRSA_NO_PASS" ]
 	then
 		: # No passphrase required
@@ -1572,18 +1574,14 @@ to the latest Easy-RSA release."
 	elif [ "$EASYRSA_PASSOUT" ] && [ "$EASYRSA_PASSIN" ]
 	then
 		: # passphrase defined
+		# Both --passout and --passin
+		# must be defined for a CA with a password
 
 	else
-		# Assign passphrase vars and temp file
-		in_key_pass_tmp=""
-		easyrsa_mktemp in_key_pass_tmp || \
-			die "build_ca - in_key_pass_tmp"
-		out_key_pass_tmp=""
-		easyrsa_mktemp out_key_pass_tmp || \
-			die "build_ca - out_key_pass_tmp"
-
+		# Assign passphrase vars
 		p=""
 		q=""
+
 		# Get passphrase p
 		get_passphrase p \
 			"Enter New CA Key Passphrase: "
@@ -1594,12 +1592,10 @@ to the latest Easy-RSA release."
 
 		# Validate passphrase
 		if [ "$p" ] && [ "$p" = "$q" ]; then
-			printf "%s" "$p" > "$in_key_pass_tmp" || \
-				die "in_key_pass_tmp: write"
-			printf "%s" "$p" > "$out_key_pass_tmp" || \
-				die "out_key_pass_tmp: write"
+			out_key_pass="$p"
 			unset -v p q
 		else
+			unset -v p q
 			die "Passphrases do not match!"
 		fi
 	fi
@@ -1629,63 +1625,112 @@ to the latest Easy-RSA release."
 	EASYRSA_SSL_CONF="$conf_tmp"
 
 	# Generate CA Key
-	case "$EASYRSA_ALGO" in
-	rsa)
-	easyrsa_openssl genpkey -algorithm "$EASYRSA_ALGO" \
-		-pkeyopt rsa_keygen_bits:"$EASYRSA_ALGO_PARAMS" \
-		-out "$out_key_tmp" \
-		${cipher:+ "$cipher"} \
-		${EASYRSA_PASSOUT:+ -pass "$EASYRSA_PASSOUT"} \
-		${out_key_pass_tmp:+ -pass file:"$out_key_pass_tmp"} \
-			|| die "Failed create CA private key"
-	;;
-	ec)
-	easyrsa_openssl genpkey -paramfile "$EASYRSA_ALGO_PARAMS" \
-		-out "$out_key_tmp" \
-		${cipher:+ "$cipher"} \
-		${EASYRSA_PASSOUT:+ -pass "$EASYRSA_PASSOUT"} \
-		${out_key_pass_tmp:+ -pass file:"$out_key_pass_tmp"} \
-			|| die "Failed create CA private key"
-	;;
-	ed)
-	easyrsa_openssl genpkey -algorithm "$EASYRSA_CURVE" \
-		-out "$out_key_tmp" \
-		${cipher:+ "$cipher"} \
-		${EASYRSA_PASSOUT:+ -pass "$EASYRSA_PASSOUT"} \
-		${out_key_pass_tmp:+ -pass file:"$out_key_pass_tmp"} \
-			|| die "Failed create CA private key"
-	;;
-	*)	die "Unknown algorithm: $EASYRSA_ALGO"
-	esac
+	if [ "$out_key_pass" ]; then
+		case "$EASYRSA_ALGO" in
+		rsa)
+		easyrsa_openssl genpkey \
+			-algorithm "$EASYRSA_ALGO" \
+			-pkeyopt rsa_keygen_bits:"$EASYRSA_ALGO_PARAMS" \
+			-out "$out_key_tmp" \
+			${cipher:+ "$cipher"} \
+			-pass fd:3 \
+				3<<-EOF || die "Failed create CA private key"
+					${out_key_pass}
+				EOF
+		;;
+		ec)
+		easyrsa_openssl genpkey \
+			-paramfile "$EASYRSA_ALGO_PARAMS" \
+			-out "$out_key_tmp" \
+			${cipher:+ "$cipher"} \
+			-pass fd:3 \
+				3<<-EOF || die "Failed create CA private key"
+					${out_key_pass-}
+				EOF
+		;;
+		ed)
+		easyrsa_openssl genpkey \
+			-algorithm "$EASYRSA_CURVE" \
+			-out "$out_key_tmp" \
+			${cipher:+ "$cipher"} \
+			-pass fd:3 \
+				3<<-EOF || die "Failed create CA private key"
+					${out_key_pass-}
+				EOF
+		;;
+		*)	die "Unknown algorithm: $EASYRSA_ALGO"
+		esac
+		verbose "\
+build_ca: CA key password created via FD"
+
+	else
+		case "$EASYRSA_ALGO" in
+		rsa)
+		easyrsa_openssl genpkey \
+			-algorithm "$EASYRSA_ALGO" \
+			-pkeyopt rsa_keygen_bits:"$EASYRSA_ALGO_PARAMS" \
+			-out "$out_key_tmp" \
+			${cipher:+ "$cipher"} \
+			${EASYRSA_PASSOUT:+ -pass "$EASYRSA_PASSOUT"} \
+				|| die "Failed create CA private key"
+		;;
+		ec)
+		easyrsa_openssl genpkey \
+			-paramfile "$EASYRSA_ALGO_PARAMS" \
+			-out "$out_key_tmp" \
+			${cipher:+ "$cipher"} \
+			${EASYRSA_PASSOUT:+ -pass "$EASYRSA_PASSOUT"} \
+				|| die "Failed create CA private key"
+		;;
+		ed)
+		easyrsa_openssl genpkey \
+			-algorithm "$EASYRSA_CURVE" \
+			-out "$out_key_tmp" \
+			${cipher:+ "$cipher"} \
+			${EASYRSA_PASSOUT:+ -pass "$EASYRSA_PASSOUT"} \
+				|| die "Failed create CA private key"
+		;;
+		*)	die "Unknown algorithm: $EASYRSA_ALGO"
+		esac
+	fi
 
 	# Generate the CA keypair:
 	# shellcheck disable=SC2086 # Double quote to prevent ..
-	easyrsa_openssl req -utf8 -new \
-		-key "$out_key_tmp" -keyout "$out_key_tmp" \
-		-out "$out_file_tmp" \
-		${ssl_batch:+ -batch} \
-		${x509:+ -x509} \
-		${date_stamp:+ -days "$EASYRSA_CA_EXPIRE"} \
-		${EASYRSA_DIGEST:+ -"$EASYRSA_DIGEST"} \
-		${EASYRSA_NO_PASS:+ "$no_password"} \
-		${EASYRSA_PASSIN:+ -passin "$EASYRSA_PASSIN"} \
-		${EASYRSA_PASSOUT:+ -passout "$EASYRSA_PASSOUT"} \
-		${in_key_pass_tmp:+ -passin file:"$in_key_pass_tmp"} \
-		${out_key_pass_tmp:+ -passout file:"$out_key_pass_tmp"} \
-			|| die "Failed to build the CA certificate"
-
-	# Remove passphrase temp-file
-	if [ -f "$in_key_pass_tmp" ]; then
-		rm "$in_key_pass_tmp" || die "\
-Failed to remove the CA passphrase temp-file!"
+	if [ "$out_key_pass" ]; then
+		easyrsa_openssl req -utf8 -new \
+			-key "$out_key_tmp" -keyout "$out_key_tmp" \
+			-out "$out_file_tmp" \
+			${ssl_batch:+ -batch} \
+			${x509:+ -x509} \
+			${date_stamp:+ -days "$EASYRSA_CA_EXPIRE"} \
+			${EASYRSA_DIGEST:+ -"$EASYRSA_DIGEST"} \
+			-passin fd:3 \
+				3<<-EOF || die "Failed to build the CA keypair"
+					${out_key_pass}
+				EOF
+		verbose "\
+build_ca: CA certificate password created via FD"
+	else
+		easyrsa_openssl req -utf8 -new \
+			-key "$out_key_tmp" -keyout "$out_key_tmp" \
+			-out "$out_file_tmp" \
+			${ssl_batch:+ -batch} \
+			${x509:+ -x509} \
+			${date_stamp:+ -days "$EASYRSA_CA_EXPIRE"} \
+			${EASYRSA_DIGEST:+ -"$EASYRSA_DIGEST"} \
+			${EASYRSA_NO_PASS:+ "$no_password"} \
+			${EASYRSA_PASSIN:+ -passin "$EASYRSA_PASSIN"} \
+			${EASYRSA_PASSOUT:+ -passout "$EASYRSA_PASSOUT"} \
+				|| die "Failed to build the CA keypair"
 	fi
-	if [ -f "$out_key_pass_tmp" ]; then
-		rm "$out_key_pass_tmp" || die "\
-Failed to remove the CA passphrase temp-file!"
-	fi
 
-	mv "$out_key_tmp" "$out_key"
-	mv "$out_file_tmp" "$out_file"
+	# Move temp-files to output files
+	mv "$out_key_tmp" "$out_key" || {
+		die "Failed to move key temp-file"
+	}
+	mv "$out_file_tmp" "$out_file" || {
+		die  "Failed to move cert temp-file"
+	}
 
 	# Success messages
 	if [ "$sub_ca" ]; then
