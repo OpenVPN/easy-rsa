@@ -4901,7 +4901,7 @@ verify_algo_params() {
 		"verify_algo_params - easyrsa_mktemp EASYRSA_ALGO_PARAMS"
 
 		# Create the required ecparams file
-		easyrsa_openssl ecparam -name "$EASYRSA_CURVE" \
+		"$EASYRSA_OPENSSL" ecparam -name "$EASYRSA_CURVE" \
 			-out "$EASYRSA_ALGO_PARAMS" \
 			1>/dev/null || die "\
 Failed to generate ecparam file (permissions?) at:
