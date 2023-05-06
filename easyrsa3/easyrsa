@@ -5195,10 +5195,14 @@ One or more of these problems has been found in your 'vars' file:
 	set_var EASYRSA_REQ_OU			"My Organizational Unit"
 	set_var EASYRSA_REQ_SERIAL		""
 	set_var EASYRSA_ALGO			rsa
+	set_var EASYRSA_KEY_SIZE		2048
 
 	case "$EASYRSA_ALGO" in
 	rsa)
-		set_var EASYRSA_KEY_SIZE	2048
+		: # ok
+		# default EASYRSA_KEY_SIZE must always be set
+		# it must NOT be set selectively because it is
+		# present in the SSL config file
 	;;
 	ec)
 		set_var EASYRSA_CURVE		secp384r1
