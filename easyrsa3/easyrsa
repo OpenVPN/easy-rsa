@@ -470,6 +470,7 @@ General options:
                   Can not be used with --passin or --passout
 --passin=ARG    : Set -passin ARG for openssl (eg: pass:xEasyRSAy)
 --passout=ARG   : Set -passout ARG for openssl (eg: pass:xEasyRSAy)
+--ca-via-tf     : Build CA with password via temp-files (Old method)
 
 --vars=FILE     : Define a specific 'vars' file to use for Easy-RSA config
                   (Default vars file is in the EasyRSA PKI directory)
@@ -1393,7 +1394,7 @@ install_data_to_pki() {
 		die "install_data_to_pki - Missing: '$ssl_cnf_file'"
 	[ -d "$EASYRSA_EXT_DIR" ] || \
 		die "install_data_to_pki - Missing: '$x509_types_dir'"
-	verbose "install_data_to_pki $context COMPLETED"
+	verbose "install_data_to_pki: $context COMPLETED"
 
 } # => install_data_to_pki ()
 
@@ -1592,7 +1593,22 @@ to the latest Easy-RSA release."
 
 		# Validate passphrase
 		if [ "$p" ] && [ "$p" = "$q" ]; then
-			out_key_pass="$p"
+			if [ "$EASYRSA_CA_PASS_OLD" ]; then
+				# CA password via temp-files
+				in_key_pass_tmp=""
+				easyrsa_mktemp in_key_pass_tmp || \
+					die "build_ca - in_key_pass_tmp"
+				out_key_pass_tmp=""
+				easyrsa_mktemp out_key_pass_tmp || \
+					die "build_ca - out_key_pass_tmp"
+				printf "%s" "$p" > "$in_key_pass_tmp" || \
+					die "in_key_pass_tmp: write"
+				printf "%s" "$p" > "$out_key_pass_tmp" || \
+					die "out_key_pass_tmp: write"
+			else
+				# CA password via file-descriptors
+				out_key_pass="$p"
+			fi
 			unset -v p q
 		else
 			unset -v p q
@@ -1672,6 +1688,7 @@ build_ca: CA key password created via FD"
 			-out "$out_key_tmp" \
 			${cipher:+ "$cipher"} \
 			${EASYRSA_PASSOUT:+ -pass "$EASYRSA_PASSOUT"} \
+			${out_key_pass_tmp:+ -pass file:"$out_key_pass_tmp"} \
 				|| die "Failed create CA private key"
 		;;
 		ec)
@@ -1680,6 +1697,7 @@ build_ca: CA key password created via FD"
 			-out "$out_key_tmp" \
 			${cipher:+ "$cipher"} \
 			${EASYRSA_PASSOUT:+ -pass "$EASYRSA_PASSOUT"} \
+			${out_key_pass_tmp:+ -pass file:"$out_key_pass_tmp"} \
 				|| die "Failed create CA private key"
 		;;
 		ed)
@@ -1688,10 +1706,13 @@ build_ca: CA key password created via FD"
 			-out "$out_key_tmp" \
 			${cipher:+ "$cipher"} \
 			${EASYRSA_PASSOUT:+ -pass "$EASYRSA_PASSOUT"} \
+			${out_key_pass_tmp:+ -pass file:"$out_key_pass_tmp"} \
 				|| die "Failed create CA private key"
 		;;
 		*)	die "Unknown algorithm: $EASYRSA_ALGO"
 		esac
+		verbose "\
+build_ca: CA key password created via temp-files"
 	fi
 
 	# Generate the CA keypair:
@@ -1721,7 +1742,11 @@ build_ca: CA certificate password created via FD"
 			${EASYRSA_NO_PASS:+ "$no_password"} \
 			${EASYRSA_PASSIN:+ -passin "$EASYRSA_PASSIN"} \
 			${EASYRSA_PASSOUT:+ -passout "$EASYRSA_PASSOUT"} \
+			${in_key_pass_tmp:+ -passin file:"$in_key_pass_tmp"} \
+			${out_key_pass_tmp:+ -passout file:"$out_key_pass_tmp"} \
 				|| die "Failed to build the CA keypair"
+		verbose "\
+build_ca: CA certificate password created via temp-files"
 	fi
 
 	# Move temp-files to output files
@@ -6150,6 +6175,10 @@ while :; do
 		;;
 	--passout)
 		export EASYRSA_PASSOUT="$val"
+		;;
+	--ca-via-tf)
+		empty_ok=1
+		export EASYRSA_CA_PASS_OLD=1
 		;;
 	--notext|--no-text)
 		empty_ok=1
