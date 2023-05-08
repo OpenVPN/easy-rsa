@@ -1,6 +1,7 @@
 Easy-RSA 3 ChangeLog
 
 3.1.3 (ETA: 2023-10-13)
+   * build-ca: Replace password temp-files with file-descriptors (#955)
    * Replace --fix-offset with --startdate, --enddate (#918)
    * Introduce option -S|--silent-ssl: Silence SSL output (#913)
    * Only create a random serial number file when expected (#896)
