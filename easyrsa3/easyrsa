@@ -1754,6 +1754,7 @@ build_ca: CA certificate password created via temp-files"
 		die "Failed to move key temp-file"
 	}
 	mv "$out_file_tmp" "$out_file" || {
+		rm -f "$out_key" # Also remove the key
 		die  "Failed to move cert temp-file"
 	}
 
