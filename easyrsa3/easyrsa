@@ -1580,7 +1580,9 @@ to the latest Easy-RSA release."
 
 	else
 		# Assign passphrase vars
-		unset -v p q
+		# Heed shellcheck SC2154
+		p=""
+		q=""
 
 		# Get passphrase p
 		get_passphrase p \
