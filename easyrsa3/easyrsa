@@ -550,7 +550,7 @@ $1
 # This is a debug function for status-reports and date
 verbose() {
 	[ "$EASYRSA_VERBOSE" ] || return 0
-	printf '%s\n' "  > Verbose: $*"
+	printf '%s\n' "  > $*"
 } # => verbose()
 
 # non-fatal warning output
@@ -4565,11 +4565,11 @@ expire_status() {
 		# an issued cert
 		if [ "$db_serial" != "$cert_serial" ]; then
 			information "\
-expire_status: SERIAL MISMATCH:
+expire_status: SERIAL MISMATCH
   db_serial:     $db_serial
   cert_serial:   $cert_serial
   commonName:    $db_cn
-  cert_issued:   $cert_issued"
+  cert_issued:   $cert_issued${NL}"
 			#return 0
 		fi
 
@@ -6406,7 +6406,6 @@ case "$cmd" in
 		make_safe_ssl "$@"
 		;;
 	upgrade)
-		secure_session
 		up23_manage_upgrade_23 "$@"
 		;;
 	""|help|-h|--help|--usage)
