@@ -1644,35 +1644,51 @@ to the latest Easy-RSA release."
 	if [ "$out_key_pass" ]; then
 		case "$EASYRSA_ALGO" in
 		rsa)
-		easyrsa_openssl genpkey \
-			-algorithm "$EASYRSA_ALGO" \
-			-pkeyopt rsa_keygen_bits:"$EASYRSA_ALGO_PARAMS" \
-			-out "$out_key_tmp" \
-			${cipher:+ "$cipher"} \
-			-pass fd:3 \
-				3<<-EOF || die "Failed create CA private key"
-					${out_key_pass}
-				EOF
+			if easyrsa_openssl genpkey \
+				-algorithm "$EASYRSA_ALGO" \
+				-pkeyopt \
+					rsa_keygen_bits:"$EASYRSA_ALGO_PARAMS" \
+				-out "$out_key_tmp" \
+				${cipher:+ "$cipher"} \
+				-pass fd:3 \
+					3<<-EOF
+						${out_key_pass}
+					EOF
+			then
+				: # ok
+			else
+				die "Failed create CA private key"
+			fi
 		;;
 		ec)
-		easyrsa_openssl genpkey \
-			-paramfile "$EASYRSA_ALGO_PARAMS" \
-			-out "$out_key_tmp" \
-			${cipher:+ "$cipher"} \
-			-pass fd:3 \
-				3<<-EOF || die "Failed create CA private key"
-					${out_key_pass-}
-				EOF
+			if easyrsa_openssl genpkey \
+				-paramfile "$EASYRSA_ALGO_PARAMS" \
+				-out "$out_key_tmp" \
+				${cipher:+ "$cipher"} \
+				-pass fd:3 \
+					3<<-EOF
+						${out_key_pass-}
+					EOF
+			then
+				: # ok
+			else
+				die "Failed create CA private key"
+			fi
 		;;
 		ed)
-		easyrsa_openssl genpkey \
-			-algorithm "$EASYRSA_CURVE" \
-			-out "$out_key_tmp" \
-			${cipher:+ "$cipher"} \
-			-pass fd:3 \
-				3<<-EOF || die "Failed create CA private key"
-					${out_key_pass-}
-				EOF
+			if easyrsa_openssl genpkey \
+				-algorithm "$EASYRSA_CURVE" \
+				-out "$out_key_tmp" \
+				${cipher:+ "$cipher"} \
+				-pass fd:3 \
+					3<<-EOF
+						${out_key_pass-}
+					EOF
+			then
+				: # ok
+			else
+				die "Failed create CA private key"
+			fi
 		;;
 		*)	die "Unknown algorithm: $EASYRSA_ALGO"
 		esac
@@ -1718,7 +1734,7 @@ build_ca: CA key password created via temp-files"
 	# Generate the CA keypair:
 	# shellcheck disable=SC2086 # Double quote to prevent ..
 	if [ "$out_key_pass" ]; then
-		easyrsa_openssl req -utf8 -new \
+		if easyrsa_openssl req -utf8 -new \
 			-key "$out_key_tmp" -keyout "$out_key_tmp" \
 			-out "$out_file_tmp" \
 			${ssl_batch:+ -batch} \
@@ -1726,11 +1742,16 @@ build_ca: CA key password created via temp-files"
 			${date_stamp:+ -days "$EASYRSA_CA_EXPIRE"} \
 			${EASYRSA_DIGEST:+ -"$EASYRSA_DIGEST"} \
 			-passin fd:3 \
-				3<<-EOF || die "Failed to build the CA keypair"
+				3<<-EOF
 					${out_key_pass}
 				EOF
-		verbose "\
+		then
+			verbose "\
 build_ca: CA certificate password created via FD"
+		else
+			die "Failed to build the CA keypair"
+		fi
+
 	else
 		easyrsa_openssl req -utf8 -new \
 			-key "$out_key_tmp" -keyout "$out_key_tmp" \
