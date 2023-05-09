@@ -1566,7 +1566,7 @@ to the latest Easy-RSA release."
 		die "build_ca - easyrsa_mktemp out_file_tmp"
 
 	# Get passphrase from user if necessary
-	out_key_pass=
+	unset -v out_key_pass
 
 	if [ "$EASYRSA_NO_PASS" ]
 	then
@@ -1580,8 +1580,7 @@ to the latest Easy-RSA release."
 
 	else
 		# Assign passphrase vars
-		p=""
-		q=""
+		unset -v p q
 
 		# Get passphrase p
 		get_passphrase p \
