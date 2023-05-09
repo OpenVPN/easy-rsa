@@ -1566,7 +1566,7 @@ to the latest Easy-RSA release."
 		die "build_ca - easyrsa_mktemp out_file_tmp"
 
 	# Get passphrase from user if necessary
-	unset -v out_key_pass
+	unset -v CA_key_pass
 
 	if [ "$EASYRSA_NO_PASS" ]
 	then
@@ -1608,7 +1608,7 @@ to the latest Easy-RSA release."
 					die "out_key_pass_tmp: write"
 			else
 				# CA password via file-descriptors
-				out_key_pass="$p"
+				CA_key_pass="$p"
 			fi
 			unset -v p q
 		else
@@ -1642,7 +1642,7 @@ to the latest Easy-RSA release."
 	EASYRSA_SSL_CONF="$conf_tmp"
 
 	# Generate CA Key
-	if [ "$out_key_pass" ]; then
+	if [ "$CA_key_pass" ]; then
 		case "$EASYRSA_ALGO" in
 		rsa)
 			if easyrsa_openssl genpkey \
@@ -1653,7 +1653,7 @@ to the latest Easy-RSA release."
 				${cipher:+ "$cipher"} \
 				-pass fd:3 \
 					3<<-EOF
-						${out_key_pass}
+						${CA_key_pass}
 					EOF
 			then
 				: # ok
@@ -1668,7 +1668,7 @@ to the latest Easy-RSA release."
 				${cipher:+ "$cipher"} \
 				-pass fd:3 \
 					3<<-EOF
-						${out_key_pass-}
+						${CA_key_pass-}
 					EOF
 			then
 				: # ok
@@ -1683,7 +1683,7 @@ to the latest Easy-RSA release."
 				${cipher:+ "$cipher"} \
 				-pass fd:3 \
 					3<<-EOF
-						${out_key_pass-}
+						${CA_key_pass-}
 					EOF
 			then
 				: # ok
@@ -1734,7 +1734,7 @@ build_ca: CA key password created via temp-files"
 
 	# Generate the CA keypair:
 	# shellcheck disable=SC2086 # Double quote to prevent ..
-	if [ "$out_key_pass" ]; then
+	if [ "$CA_key_pass" ]; then
 		if easyrsa_openssl req -utf8 -new \
 			-key "$out_key_tmp" -keyout "$out_key_tmp" \
 			-out "$out_file_tmp" \
@@ -1744,7 +1744,7 @@ build_ca: CA key password created via temp-files"
 			${EASYRSA_DIGEST:+ -"$EASYRSA_DIGEST"} \
 			-passin fd:3 \
 				3<<-EOF
-					${out_key_pass}
+					${CA_key_pass}
 				EOF
 		then
 			verbose "\
