@@ -1668,7 +1668,7 @@ to the latest Easy-RSA release."
 				${cipher:+ "$cipher"} \
 				-pass fd:3 \
 					3<<-EOF
-						${CA_key_pass-}
+						${CA_key_pass}
 					EOF
 			then
 				: # ok
@@ -1683,7 +1683,7 @@ to the latest Easy-RSA release."
 				${cipher:+ "$cipher"} \
 				-pass fd:3 \
 					3<<-EOF
-						${CA_key_pass-}
+						${CA_key_pass}
 					EOF
 			then
 				: # ok
