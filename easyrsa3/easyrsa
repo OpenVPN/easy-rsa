@@ -1733,7 +1733,6 @@ build_ca: CA key password created via temp-files"
 	fi
 
 	# Generate the CA keypair:
-	# shellcheck disable=SC2086 # Double quote to prevent ..
 	if [ "$CA_key_pass" ]; then
 		if easyrsa_openssl req -utf8 -new \
 			-key "$out_key_tmp" -keyout "$out_key_tmp" \
