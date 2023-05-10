@@ -611,7 +611,10 @@ easyrsa_random() {
 	(*[!1234567890]*|0*|"") : ;; # invalid input
 	(*)
 		# Only return on success
-		"$EASYRSA_OPENSSL" rand -hex "$1" 2>/dev/null && return
+		if "$EASYRSA_OPENSSL" rand -hex "$1" 2>/dev/null
+		then
+			return
+		fi
 	esac
 	die "easyrsa_random failed"
 } # => easyrsa_random()
@@ -664,7 +667,7 @@ remove_secure_session: DELETED: $secured_session"
 			unset -v secured_session mktemp_counter \
 				OPENSSL_CONF easyrsa_safe_ssl_conf \
 				working_safe_ssl_conf
-			return 0
+			return
 		fi
 	fi
 
@@ -690,7 +693,7 @@ easyrsa_mktemp - Temporary session undefined"
 	t="${secured_session}/temp.${mktemp_counter}"
 
 	# Create shotfile
-	for h in x y x; do
+	for h in x y z; do
 		shotfile="${t}.${h}"
 		if [ -e "$shotfile" ]; then
 			verbose "\
@@ -704,7 +707,7 @@ easyrsa_mktemp: create shotfile failed (1) $1"
 			# subshells do not update mktemp_counter,
 			# which is why this extension is required.
 			# Current max required is 7 deep
-			for i in 1 2 3 4 5 6 7 8 9; do
+			for i in 1 2 3 4 5 6 7 8 9 10; do
 				want_tmp_file="${t}.${i}"
 				if [ -e "$want_tmp_file" ]; then
 					verbose "\
@@ -726,7 +729,7 @@ easyrsa_mktemp: $1 temp-file OK: $want_tmp_file"
 								set +o noclobber
 							}
 							unset -v want_tmp_file shotfile
-							return 0
+							return
 						else
 							die "\
 easyrsa_mktemp - force_set_var $1 failed"
@@ -929,9 +932,9 @@ easyrsa_openssl() {
 		*) unset -v has_config
 	esac
 
-	# OpenSSL 1x genpkey does not support -config - Not as documented:
-	# https://www.openssl.org/docs/manmaster/man1/openssl-genpkey.html
-	# This could be anyones bug ..
+	# OpenSSL 1x genpkey does not support -config
+	# OpenSSL 3x genpkey requires -config
+	# LibreSSL passes the test without -config ..
 	if [ "$openssl_command" = genpkey ] && \
 		[ "$ssl_lib" = openssl ] && [ "$osslv_major" = 3 ]
 	then
@@ -4161,7 +4164,7 @@ NEW: iso_8601_timestamp_to_seconds: GENERATED ERROR (TZ=$TZ)"
 		verbose "\
 NEW: iso_8601_timestamp_to_seconds: GENERATED ERROR (mm=$mm)"
 		return 1
-	 esac
+	esac
 
 	# Remove leading ZERO. eg: SS = 09
 	[ "$yyyy" = "${yyyy#0}" ] || die "Leading zero: yyyy: $yyyy"
@@ -5306,7 +5309,7 @@ One or more of these problems has been found in your 'vars' file:
 	set_var EASYRSA_CA_EXPIRE		3650
 	set_var EASYRSA_CERT_EXPIRE		825
 	set_var \
-		EASYRSA_PRE_EXPIRY_WINDOW 	90
+		EASYRSA_PRE_EXPIRY_WINDOW	90
 	set_var EASYRSA_CRL_DAYS		180
 	set_var EASYRSA_NS_SUPPORT		no
 	set_var EASYRSA_NS_COMMENT		\
