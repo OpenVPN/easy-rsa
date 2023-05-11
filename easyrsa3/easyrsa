@@ -3810,7 +3810,8 @@ No certificate found for the input: '$crt_in'"
 Input is not a valid certificate: $crt_in"
 
 	# Test SSL out
-	if easyrsa_openssl verify -CAfile "$ca_crt" \
+	# openssl direct call because error is expected
+	if "$EASYRSA_OPENSSL" verify -CAfile "$ca_crt" \
 		"$crt_in" 1>/dev/null
 	then
 		notice "\
