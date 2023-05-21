@@ -1612,6 +1612,10 @@ to the latest Easy-RSA release."
 			else
 				# CA password via file-descriptors
 				CA_key_pass="$p"
+
+				# To use stdin for -passin and -passout
+				# MUST use -batch
+				ssl_batch=1
 			fi
 			unset -v p q
 		else
@@ -1654,8 +1658,8 @@ to the latest Easy-RSA release."
 					rsa_keygen_bits:"$EASYRSA_ALGO_PARAMS" \
 				-out "$out_key_tmp" \
 				${cipher:+ "$cipher"} \
-				-pass fd:3 \
-					3<<-EOF
+				-pass stdin \
+					<<-EOF
 						${CA_key_pass}
 					EOF
 			then
@@ -1669,8 +1673,8 @@ to the latest Easy-RSA release."
 				-paramfile "$EASYRSA_ALGO_PARAMS" \
 				-out "$out_key_tmp" \
 				${cipher:+ "$cipher"} \
-				-pass fd:3 \
-					3<<-EOF
+				-pass stdin \
+					<<-EOF
 						${CA_key_pass}
 					EOF
 			then
@@ -1684,8 +1688,8 @@ to the latest Easy-RSA release."
 				-algorithm "$EASYRSA_CURVE" \
 				-out "$out_key_tmp" \
 				${cipher:+ "$cipher"} \
-				-pass fd:3 \
-					3<<-EOF
+				-pass stdin \
+					<<-EOF
 						${CA_key_pass}
 					EOF
 			then
@@ -1738,21 +1742,21 @@ build_ca: CA key password created via temp-files"
 	# Generate the CA keypair:
 	if [ "$CA_key_pass" ]; then
 		if easyrsa_openssl req -utf8 -new \
-			-key "$out_key_tmp" -keyout "$out_key_tmp" \
+			-key "$out_key_tmp" \
 			-out "$out_file_tmp" \
 			${ssl_batch:+ -batch} \
 			${x509:+ -x509} \
 			${date_stamp:+ -days "$EASYRSA_CA_EXPIRE"} \
 			${EASYRSA_DIGEST:+ -"$EASYRSA_DIGEST"} \
-			-passin fd:3 \
-				3<<-EOF
+			-passin stdin \
+				<<-EOF
 					${CA_key_pass}
 				EOF
 		then
 			verbose "\
 build_ca: CA certificate password created via FD"
 		else
-			die "Failed to build the CA keypair"
+			die "Failed to build the CA keypair."
 		fi
 
 	else
@@ -6202,7 +6206,7 @@ while :; do
 	--passout)
 		export EASYRSA_PASSOUT="$val"
 		;;
-	--ca-via-tf)
+	--ca-via-textfile|--ca-via-tf)
 		empty_ok=1
 		export EASYRSA_CA_PASS_OLD=1
 		;;
