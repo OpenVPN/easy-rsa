@@ -1575,6 +1575,15 @@ to the latest Easy-RSA release."
 	then
 		: # No passphrase required
 
+	# Strictly for use only by easyrsa-unit-tests.sh
+	elif [ "$ERSA_UTEST_VERSION" ] && [ "$EASYRSA_USE_PASS" ]
+	then
+		# Set a test password and use file-descriptor method
+		CA_key_pass='EasyRSA'
+		# To use stdin for -passin and -passout
+		# MUST use -batch
+		ssl_batch=1
+
 	elif [ "$EASYRSA_PASSOUT" ] && [ "$EASYRSA_PASSIN" ]
 	then
 		: # passphrase defined
@@ -1700,8 +1709,14 @@ to the latest Easy-RSA release."
 		;;
 		*)	die "Unknown algorithm: $EASYRSA_ALGO"
 		esac
+
 		verbose "\
-build_ca: CA key password created via FD"
+build_ca: CA key password created via stdin"
+		if [ "$ERSA_UTEST_VERSION" ] && \
+			[ "$EASYRSA_USE_PASS" ]
+		then
+			print "CA key via stdin"
+		fi
 
 	else
 		case "$EASYRSA_ALGO" in
@@ -1753,10 +1768,17 @@ build_ca: CA key password created via temp-files"
 					${CA_key_pass}
 				EOF
 		then
-			verbose "\
-build_ca: CA certificate password created via FD"
+			: # ok
 		else
 			die "Failed to build the CA keypair."
+		fi
+
+		verbose "\
+build_ca: CA certificate password created via stdin"
+		if [ "$ERSA_UTEST_VERSION" ] && \
+			[ "$EASYRSA_USE_PASS" ]
+		then
+			print "CA Cert via stdin"
 		fi
 
 	else
