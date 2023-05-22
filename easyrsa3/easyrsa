@@ -470,7 +470,7 @@ General options:
                   Can not be used with --passin or --passout
 --passin=ARG    : Set -passin ARG for openssl (eg: pass:xEasyRSAy)
 --passout=ARG   : Set -passout ARG for openssl (eg: pass:xEasyRSAy)
---ca-via-tf     : Build CA with password via temp-files (Old method)
+--ca-via-stdin  : Build CA with password via 'stdin' (New method)
 
 --vars=FILE     : Define a specific 'vars' file to use for Easy-RSA config
                   (Default vars file is in the EasyRSA PKI directory)
@@ -542,6 +542,10 @@ Easy-RSA error:
 
 $1
 "
+	if [ "$error_info" ]; then
+		print "${error_info}${NL}"
+	fi
+
 	show_host
 	exit "${2:-1}"
 } # => die()
@@ -1450,7 +1454,7 @@ get_passphrase() {
 # build-ca backend:
 build_ca() {
 	cipher="-aes256"
-	unset -v sub_ca ssl_batch date_stamp x509
+	unset -v sub_ca ssl_batch date_stamp x509 error_info
 	while [ "$1" ]; do
 		case "$1" in
 			intca|subca) sub_ca=1 ;;
@@ -1606,7 +1610,20 @@ to the latest Easy-RSA release."
 
 		# Validate passphrase
 		if [ "$p" ] && [ "$p" = "$q" ]; then
-			if [ "$EASYRSA_CA_PASS_OLD" ]; then
+			if [ "$EASYRSA_CA_PASS_NEW" ]; then
+				# CA password via stdin
+				CA_key_pass="$p"
+
+				# To use stdin for -passin and -passout
+				# MUST use -batch
+				ssl_batch=1
+
+				# Helpful info, in case of failure
+				error_info="\
+  EasyRSA 'build-ca' has failed due to use of OpenSSL password
+  argument 'stdin'.  Please report this error to EasyRSA."
+
+			else
 				# CA password via temp-files
 				in_key_pass_tmp=""
 				easyrsa_mktemp in_key_pass_tmp || \
@@ -1618,13 +1635,6 @@ to the latest Easy-RSA release."
 					die "in_key_pass_tmp: write"
 				printf "%s" "$p" > "$out_key_pass_tmp" || \
 					die "out_key_pass_tmp: write"
-			else
-				# CA password via file-descriptors
-				CA_key_pass="$p"
-
-				# To use stdin for -passin and -passout
-				# MUST use -batch
-				ssl_batch=1
 			fi
 			unset -v p q
 		else
@@ -1658,7 +1668,7 @@ to the latest Easy-RSA release."
 	EASYRSA_SSL_CONF="$conf_tmp"
 
 	# Generate CA Key
-	if [ "$CA_key_pass" ]; then
+	if [ "$EASYRSA_CA_PASS_NEW" ]; then
 		case "$EASYRSA_ALGO" in
 		rsa)
 			if easyrsa_openssl genpkey \
@@ -1755,7 +1765,7 @@ build_ca: CA key password created via temp-files"
 	fi
 
 	# Generate the CA keypair:
-	if [ "$CA_key_pass" ]; then
+	if [ "$EASYRSA_CA_PASS_NEW" ]; then
 		if easyrsa_openssl req -utf8 -new \
 			-key "$out_key_tmp" \
 			-out "$out_file_tmp" \
@@ -1769,6 +1779,7 @@ build_ca: CA key password created via temp-files"
 				EOF
 		then
 			: # ok
+			unset -v error_info
 		else
 			die "Failed to build the CA keypair."
 		fi
@@ -5091,8 +5102,8 @@ Your Easy-RSA PKI CA Private Key is WORLD readable.
 To correct this problem, it is recommended that you either:
 * Copy Easy-RSA to your User folders and run it from there, OR
 * Define your PKI to be in your User folders. EG:
-  'easyrsa --pki-dir=C:/Users/<your-user-name>/easy-rsa/pki\"'\
- <command>"
+  'easyrsa --pki-dir=\"C:/Users/<your-user-name>/easy-rsa/pki\"\
+ <command>'"
 		fi
 	fi
 
@@ -6228,9 +6239,9 @@ while :; do
 	--passout)
 		export EASYRSA_PASSOUT="$val"
 		;;
-	--ca-via-textfile|--ca-via-tf)
+	--ca-via-stdin)
 		empty_ok=1
-		export EASYRSA_CA_PASS_OLD=1
+		export EASYRSA_CA_PASS_NEW=1
 		;;
 	--notext|--no-text)
 		empty_ok=1
