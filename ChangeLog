@@ -1,8 +1,21 @@
 Easy-RSA 3 ChangeLog
 
-3.1.4 (ETA: 2023-06-02)
+3.1.4 (2023-05-23)
+   * build-ca: New option --ca-via-stdin, use SSL -pass* argument 'stdin' (#959)
    * build-ca: Revert manual CA password method to temp-files (#959)
      Supersedes #955
+
+     Release v3.1.3 was fatally flawed, it would fail to build a CA under Windows.
+     Release v3.1.4 is specifically a bugfix ONLY, to resolve the Windows problem.
+
+     See the following commits for further details:
+     5d7ad1306d5ebf1588aef77eb3445e70cf5b4ebc
+         build-ca: Revert manual CA password method to temp-files
+     c11135d19b2e7e7385d28abb1132978c849dfa74
+         build-ca: Use OpenSSL password I/O argument 'stdin'
+     27870d695a324e278854146afdac5d6bdade9bba
+         build-ca: Replace password temp-file method with file-descriptors
+         Superseded by 5d7ad13 above.
 
 3.1.3 (2023-05-19)
    * build-ca: Replace password temp-files with file-descriptors (#955)
