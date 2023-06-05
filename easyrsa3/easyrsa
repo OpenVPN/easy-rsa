@@ -1359,7 +1359,7 @@ install_data_to_pki() {
 
 	# Short circuit for x509-types-only
 	if [ "$context" = x509-types-only ]; then
-		verbose "install_data_to_pki x509-types-only COMPLETED"
+		verbose "install_data_to_pki: x509-types-only COMPLETED"
 		return
 	fi
 
@@ -1485,11 +1485,17 @@ build_ca() {
 		x509=1
 	fi
 
-	# If encrypted then create the CA key with AES256 cipher
-	if [ "$EASYRSA_NO_PASS" ]; then
-		unset -v cipher
+	# RAW mode must take priority
+	if [ "$EASYRSA_RAW_CA" ]; then
+		unset -v EASYRSA_NO_PASS EASYRSA_PASSOUT EASYRSA_PASSIN
+		verbose "build-ca: CA password RAW method"
 	else
-		unset -v no_password
+		# If encrypted then create the CA key with AES256 cipher
+		if [ "$EASYRSA_NO_PASS" ]; then
+			unset -v cipher
+		else
+			unset -v no_password
+		fi
 	fi
 
 	# Test for existing CA, and complain if already present
@@ -1744,7 +1750,6 @@ build_ca: CA key password created via temp-files"
 		if easyrsa_openssl req -utf8 -new \
 			-key "$out_key_tmp" \
 			-out "$out_file_tmp" \
-			${ssl_batch:+ -batch} \
 			${x509:+ -x509} \
 			${date_stamp:+ -days "$EASYRSA_CA_EXPIRE"} \
 			${EASYRSA_DIGEST:+ -"$EASYRSA_DIGEST"}
