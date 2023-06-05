@@ -98,11 +98,14 @@ cmd_help() {
       Creates a new CA"
 
 		opts="
+      * raw-ca  - ONLY use SSL binary to input CA password
+        raw       (Equivalent to global option '--raw-ca')
+
       * nopass  - Do not encrypt the private key (default is encrypted)
                   (Equivalent to global option '--nopass|--no-pass')
+
       * subca   - Create an intermediate CA keypair and request
-                  (default is a root CA)
-      * intca   - Alias to the above"
+        intca     (default is a root CA)"
 	;;
 	gen-dh)
 		text="
@@ -470,7 +473,7 @@ General options:
                   Can not be used with --passin or --passout
 --passin=ARG    : Set -passin ARG for openssl (eg: pass:xEasyRSAy)
 --passout=ARG   : Set -passout ARG for openssl (eg: pass:xEasyRSAy)
---ca-via-stdin  : Build CA with password via 'stdin' (New method)
+--raw-ca        : Build CA with password via RAW SSL input
 
 --vars=FILE     : Define a specific 'vars' file to use for Easy-RSA config
                   (Default vars file is in the EasyRSA PKI directory)
@@ -1461,6 +1464,7 @@ build_ca() {
 			nopass)
 				[ "$prohibit_no_pass" ] || EASYRSA_NO_PASS=1
 			;;
+			raw-ca|raw) EASYRSA_RAW_CA=1 ;;
 			*) warn "Ignoring unknown command option: '$1'"
 		esac
 		shift
@@ -1573,9 +1577,21 @@ to the latest Easy-RSA release."
 		die "build_ca - easyrsa_mktemp out_file_tmp"
 
 	# Get passphrase from user if necessary
-	unset -v CA_key_pass
+	if [ "$EASYRSA_RAW_CA" ]
+	then
+		# Passphrase will be provided
+		confirm "
+       Accept ?  " yes "\
+Raw CA mode
+===========
 
-	if [ "$EASYRSA_NO_PASS" ]
+  CA password must be input THREE times:
+
+    1. Set the password.
+    2. Confirm the password.
+    3. Use the password. (Create the Root CA)"
+
+	elif [ "$EASYRSA_NO_PASS" ]
 	then
 		: # No passphrase required
 
@@ -1601,32 +1617,17 @@ to the latest Easy-RSA release."
 
 		# Validate passphrase
 		if [ "$p" ] && [ "$p" = "$q" ]; then
-			if [ "$EASYRSA_CA_PASS_NEW" ]; then
-				# CA password via stdin
-				CA_key_pass="$p"
-
-				# To use stdin for -passin and -passout
-				# MUST use -batch
-				ssl_batch=1
-
-				# Helpful info, in case of failure
-				error_info="\
-  EasyRSA 'build-ca' has failed due to use of OpenSSL password
-  argument 'stdin'.  Please report this error to EasyRSA."
-
-			else
-				# CA password via temp-files
-				in_key_pass_tmp=""
-				easyrsa_mktemp in_key_pass_tmp || \
-					die "build_ca - in_key_pass_tmp"
-				out_key_pass_tmp=""
-				easyrsa_mktemp out_key_pass_tmp || \
-					die "build_ca - out_key_pass_tmp"
-				printf "%s" "$p" > "$in_key_pass_tmp" || \
-					die "in_key_pass_tmp: write"
-				printf "%s" "$p" > "$out_key_pass_tmp" || \
-					die "out_key_pass_tmp: write"
-			fi
+			# CA password via temp-files
+			in_key_pass_tmp=""
+			easyrsa_mktemp in_key_pass_tmp || \
+				die "build_ca - in_key_pass_tmp"
+			out_key_pass_tmp=""
+			easyrsa_mktemp out_key_pass_tmp || \
+				die "build_ca - out_key_pass_tmp"
+			printf "%s" "$p" > "$in_key_pass_tmp" || \
+				die "in_key_pass_tmp: write"
+			printf "%s" "$p" > "$out_key_pass_tmp" || \
+				die "out_key_pass_tmp: write"
 			unset -v p q
 		else
 			unset -v p q
@@ -1659,7 +1660,7 @@ to the latest Easy-RSA release."
 	EASYRSA_SSL_CONF="$conf_tmp"
 
 	# Generate CA Key
-	if [ "$EASYRSA_CA_PASS_NEW" ]; then
+	if [ "$EASYRSA_RAW_CA" ]; then
 		case "$EASYRSA_ALGO" in
 		rsa)
 			if easyrsa_openssl genpkey \
@@ -1667,11 +1668,7 @@ to the latest Easy-RSA release."
 				-pkeyopt \
 					rsa_keygen_bits:"$EASYRSA_ALGO_PARAMS" \
 				-out "$out_key_tmp" \
-				${cipher:+ "$cipher"} \
-				-pass stdin \
-					<<-EOF
-						${CA_key_pass}
-					EOF
+				${cipher:+ "$cipher"}
 			then
 				: # ok
 			else
@@ -1682,11 +1679,7 @@ to the latest Easy-RSA release."
 			if easyrsa_openssl genpkey \
 				-paramfile "$EASYRSA_ALGO_PARAMS" \
 				-out "$out_key_tmp" \
-				${cipher:+ "$cipher"} \
-				-pass stdin \
-					<<-EOF
-						${CA_key_pass}
-					EOF
+				${cipher:+ "$cipher"}
 			then
 				: # ok
 			else
@@ -1697,11 +1690,7 @@ to the latest Easy-RSA release."
 			if easyrsa_openssl genpkey \
 				-algorithm "$EASYRSA_CURVE" \
 				-out "$out_key_tmp" \
-				${cipher:+ "$cipher"} \
-				-pass stdin \
-					<<-EOF
-						${CA_key_pass}
-					EOF
+				${cipher:+ "$cipher"}
 			then
 				: # ok
 			else
@@ -1712,7 +1701,7 @@ to the latest Easy-RSA release."
 		esac
 
 		verbose "\
-build_ca: CA key password created via stdin"
+build_ca: CA key password created via RAW"
 
 	else
 		case "$EASYRSA_ALGO" in
@@ -1751,18 +1740,14 @@ build_ca: CA key password created via temp-files"
 	fi
 
 	# Generate the CA keypair:
-	if [ "$EASYRSA_CA_PASS_NEW" ]; then
+	if [ "$EASYRSA_RAW_CA" ]; then
 		if easyrsa_openssl req -utf8 -new \
 			-key "$out_key_tmp" \
 			-out "$out_file_tmp" \
 			${ssl_batch:+ -batch} \
 			${x509:+ -x509} \
 			${date_stamp:+ -days "$EASYRSA_CA_EXPIRE"} \
-			${EASYRSA_DIGEST:+ -"$EASYRSA_DIGEST"} \
-			-passin stdin \
-				<<-EOF
-					${CA_key_pass}
-				EOF
+			${EASYRSA_DIGEST:+ -"$EASYRSA_DIGEST"}
 		then
 			: # ok
 			unset -v error_info
@@ -1771,7 +1756,7 @@ build_ca: CA key password created via temp-files"
 		fi
 
 		verbose "\
-build_ca: CA certificate password created via stdin"
+build_ca: CA certificate password created via RAW"
 
 	else
 		easyrsa_openssl req -utf8 -new \
@@ -6220,9 +6205,9 @@ while :; do
 	--passout)
 		export EASYRSA_PASSOUT="$val"
 		;;
-	--ca-via-stdin)
+	--raw-ca)
 		empty_ok=1
-		export EASYRSA_CA_PASS_NEW=1
+		export EASYRSA_RAW_CA=1
 		;;
 	--notext|--no-text)
 		empty_ok=1
