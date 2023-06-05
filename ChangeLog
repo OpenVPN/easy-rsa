@@ -1,5 +1,21 @@
 Easy-RSA 3 ChangeLog
 
+3.1.5 (2023-06-12)
+   * build-ca: New command option 'raw-ca', abbrevation: 'raw' (#963)
+
+     This 'raw' method, is the most reliable way to build a CA,
+     with a password, without writing the CA password to a temp-file.
+
+   This option completely replaces both methods below:
+
+   * build-ca: New option --ca-via-stdin, use SSL -pass* argument 'stdin' (#959)
+     Option '--ca-via-stdin' offers no more security than standard method.
+     Easy-RSA version 3.1.4 ONLY.
+
+   * build-ca: Replace password temp-files with file-descriptors (#955)
+     Using file-descriptors does not work in Windows.
+     Easy-RSA version 3.1.3 ONLY.
+
 3.1.4 (2023-05-23)
    * build-ca: New option --ca-via-stdin, use SSL -pass* argument 'stdin' (#959)
    * build-ca: Revert manual CA password method to temp-files (#959)
