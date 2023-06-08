@@ -1253,7 +1253,7 @@ Your newly created PKI dir is:
 	# which are not in the PKI. All further commands will fail
 	# until vars is manually corrected
 	[ "$no_new_vars" ] || information "\
-Using Easy-RSA configuration: $vars"
+Using Easy-RSA configuration: ${vars:-Not found}"
 
 	# For new PKIs , pki/vars was auto-created, show message
 	if [ "$new_vars_true" ]; then
@@ -1273,7 +1273,8 @@ To use a global vars file, use global option --vars=<YOUR_VARS>"
 		# Not in PKI and not user defined
 		prefer_vars_in_pki_msg
 	fi
-	information "Using x509-types directory: $EASYRSA_EXT_DIR"
+	information "\
+Using x509-types directory: ${EASYRSA_EXT_DIR:-Not found}"
 } # => init_pki()
 
 # Must be used in two places, so made it a function
@@ -1400,13 +1401,230 @@ install_data_to_pki() {
 	fi
 
 	# Check PKI is updated - Omit unnecessary checks
-	[ -e "${EASYRSA_PKI}/${ssl_cnf_file}" ] || \
-		die "install_data_to_pki - Missing: '$ssl_cnf_file'"
+	if [ -e "${EASYRSA_PKI}/${ssl_cnf_file}" ]; then
+		: # ok
+	else
+		create_openssl_easyrsa_cnf > \
+			"${EASYRSA_PKI}/${ssl_cnf_file}" || \
+				die "install_data_to_pki - Missing: '$ssl_cnf_file'"
+		verbose "install_data_to_pki: create_openssl_easyrsa_cnf OK"
+	fi
+
 	[ -d "$EASYRSA_EXT_DIR" ] || \
-		die "install_data_to_pki - Missing: '$x509_types_dir'"
+		warn "install_data_to_pki - Missing: '$x509_types_dir'"
 	verbose "install_data_to_pki: $context COMPLETED"
 
 } # => install_data_to_pki ()
+
+# Create x509-type/ca
+create_x509_type_ca() {
+	cat << "CAFILECOMPLETE"
+basicConstraints = CA:TRUE
+subjectKeyIdentifier = hash
+authorityKeyIdentifier = keyid:always,issuer:always
+keyUsage = cRLSign, keyCertSign
+CAFILECOMPLETE
+} # => create_x509_type_ca()
+
+# Create x509-type/COMMON
+create_x509_type_COMMON() {
+	cat << "COMMONFILECOMPLETE"
+COMMONFILECOMPLETE
+} # => create_x509_type_COMMON()
+
+# Create x509-type/COMMON
+create_x509_type_easyrsa() {
+	cat << "EASYRSAFILECOMPLETE"
+basicConstraints = CA:FALSE
+subjectKeyIdentifier = hash
+authorityKeyIdentifier = keyid,issuer:always
+keyUsage = digitalSignature,keyEncipherment
+EASYRSAFILECOMPLETE
+} # => create_x509_type_easyrsa()
+
+# Create x509-type/serverClient
+create_x509_type_serverClient() {
+	create_x509_type_easyrsa
+	cat << "SRVCLIFILECOMPLETE"
+extendedKeyUsage = serverAuth,clientAuth
+SRVCLIFILECOMPLETE
+} # => create_x509_type_serverClient()
+
+# Create x509-type/server
+create_x509_type_server() {
+	create_x509_type_easyrsa
+	cat << "SRVFILECOMPLETE"
+extendedKeyUsage = serverAuth
+SRVFILECOMPLETE
+} # => create_x509_type_server()
+
+# Create x509-type/client
+create_x509_type_client() {
+	create_x509_type_easyrsa
+	cat << "CLIFILECOMPLETE"
+extendedKeyUsage = clientAuth
+CLIFILECOMPLETE
+} # => create_x509_type_client()
+
+# Create vars.example
+create_vars_example() {
+	# Default settings ONLY
+	return
+	cat << "VARSEXFILECOMPLETE"
+VARSEXFILECOMPLETE
+} # => create_vars_example()
+
+# Create openssl-easyrsa.cnf
+create_openssl_easyrsa_cnf() {
+	cat << "FILECOMPLETE"
+# For use with Easy-RSA 3.0+ and OpenSSL or LibreSSL
+
+####################################################################
+[ ca ]
+default_ca	= CA_default		# The default ca section
+
+####################################################################
+[ CA_default ]
+
+dir		= $ENV::EASYRSA_PKI	# Where everything is kept
+certs		= $dir			# Where the issued certs are kept
+crl_dir		= $dir			# Where the issued crl are kept
+database	= $dir/index.txt	# database index file.
+new_certs_dir	= $dir/certs_by_serial	# default place for new certs.
+
+certificate	= $dir/ca.crt		# The CA certificate
+serial		= $dir/serial		# The current serial number
+crl		= $dir/crl.pem		# The current CRL
+private_key	= $dir/private/ca.key	# The private key
+RANDFILE	= $dir/.rand		# private random number file
+
+x509_extensions	= basic_exts		# The extensions to add to the cert
+
+# A placeholder to handle the --copy-ext feature:
+#%COPY_EXTS%	# Do NOT remove or change this line as --copy-ext support requires it
+
+# This allows a V2 CRL. Ancient browsers don't like it, but anything Easy-RSA
+# is designed for will. In return, we get the Issuer attached to CRLs.
+crl_extensions	= crl_ext
+
+default_days	= $ENV::EASYRSA_CERT_EXPIRE	# how long to certify for
+default_crl_days	= $ENV::EASYRSA_CRL_DAYS	# how long before next CRL
+default_md	= $ENV::EASYRSA_DIGEST		# use public key default MD
+preserve	= no			# keep passed DN ordering
+
+# This allows to renew certificates which have not been revoked
+unique_subject	= no
+
+# A few different ways of specifying how similar the request should look
+# For type CA, the listed attributes must be the same, and the optional
+# and supplied fields are just that :-)
+policy		= policy_anything
+
+# For the 'anything' policy, which defines allowed DN fields
+[ policy_anything ]
+countryName		= optional
+stateOrProvinceName	= optional
+localityName		= optional
+organizationName	= optional
+organizationalUnitName	= optional
+commonName		= supplied
+emailAddress		= optional
+serialNumber	= optional
+
+####################################################################
+# Easy-RSA request handling
+# We key off $DN_MODE to determine how to format the DN
+[ req ]
+default_bits		= $ENV::EASYRSA_KEY_SIZE
+default_keyfile	= privkey.pem
+default_md		= $ENV::EASYRSA_DIGEST
+distinguished_name	= $ENV::EASYRSA_DN
+x509_extensions		= easyrsa_ca	# The extensions to add to the self signed cert
+
+# A placeholder to handle the $EXTRA_EXTS feature:
+#%EXTRA_EXTS%	# Do NOT remove or change this line as $EXTRA_EXTS support requires it
+
+####################################################################
+# Easy-RSA DN (Subject) handling
+
+# Easy-RSA DN for cn_only support:
+[ cn_only ]
+commonName		= Common Name (eg: your user, host, or server name)
+commonName_max		= 64
+commonName_default	= $ENV::EASYRSA_REQ_CN
+
+# Easy-RSA DN for org support:
+[ org ]
+countryName			= Country Name (2 letter code)
+countryName_default		= $ENV::EASYRSA_REQ_COUNTRY
+countryName_min			= 2
+countryName_max			= 2
+
+stateOrProvinceName		= State or Province Name (full name)
+stateOrProvinceName_default	= $ENV::EASYRSA_REQ_PROVINCE
+
+localityName			= Locality Name (eg, city)
+localityName_default		= $ENV::EASYRSA_REQ_CITY
+
+0.organizationName		= Organization Name (eg, company)
+0.organizationName_default	= $ENV::EASYRSA_REQ_ORG
+
+organizationalUnitName		= Organizational Unit Name (eg, section)
+organizationalUnitName_default	= $ENV::EASYRSA_REQ_OU
+
+commonName			= Common Name (eg: your user, host, or server name)
+commonName_max			= 64
+commonName_default		= $ENV::EASYRSA_REQ_CN
+
+emailAddress			= Email Address
+emailAddress_default		= $ENV::EASYRSA_REQ_EMAIL
+emailAddress_max		= 64
+
+serialNumber		= Serial-number (eg, device serial-number)
+serialNumber_default	= $ENV::EASYRSA_REQ_SERIAL
+
+####################################################################
+# Easy-RSA cert extension handling
+
+# This section is effectively unused as the main script sets extensions
+# dynamically. This core section is left to support the odd usecase where
+# a user calls openssl directly.
+[ basic_exts ]
+basicConstraints	= CA:FALSE
+subjectKeyIdentifier	= hash
+authorityKeyIdentifier	= keyid,issuer:always
+
+# The Easy-RSA CA extensions
+[ easyrsa_ca ]
+
+# PKIX recommendations:
+
+subjectKeyIdentifier=hash
+authorityKeyIdentifier=keyid:always,issuer:always
+
+# This could be marked critical, but it's nice to support reading by any
+# broken clients who attempt to do so.
+basicConstraints = CA:true
+
+# Limit key usage to CA tasks. If you really want to use the generated pair as
+# a self-signed cert, comment this out.
+keyUsage = cRLSign, keyCertSign
+
+# nsCertType omitted by default. Let's try to let the deprecated stuff die.
+# nsCertType = sslCA
+
+# A placeholder to handle the $X509_TYPES and CA extra extensions $EXTRA_EXTS:
+#%CA_X509_TYPES_EXTRA_EXTS%	# Do NOT remove or change this line as $X509_TYPES and EXTRA_EXTS demands it
+
+# CRL extensions.
+[ crl_ext ]
+
+# Only issuerAltName and authorityKeyIdentifier make any sense in a CRL.
+
+# issuerAltName=issuer:copy
+authorityKeyIdentifier=keyid:always,issuer:always'
+FILECOMPLETE
+} # => create_openssl_easyrsa_cnf()
 
 # Disable terminal echo, if possible, otherwise warn
 hide_read_pass()
@@ -1517,9 +1735,9 @@ current CA. To start a new CA, run init-pki first."
 	fi
 
 	# Cert type must exist under the EASYRSA_EXT_DIR
-	[ -e "$EASYRSA_EXT_DIR/ca" ] || die "\
+	[ -e "$EASYRSA_EXT_DIR/ca" ] || warn "\
 Missing X509-type 'ca'"
-	[ -e "$EASYRSA_EXT_DIR/COMMON" ] || die "\
+	[ -e "$EASYRSA_EXT_DIR/COMMON" ] || warn "\
 Missing X509-type 'COMMON'"
 
 	# create necessary dirs:
@@ -1656,12 +1874,32 @@ Raw CA mode
 
 	# Insert x509-types COMMON and 'ca' and EASYRSA_EXTRA_EXTS
 	{
-		cat "$EASYRSA_EXT_DIR/ca" "$EASYRSA_EXT_DIR/COMMON"
-		[ "$EASYRSA_EXTRA_EXTS" ] && print "$EASYRSA_EXTRA_EXTS"
-	} | \
-		awk "$awkscript" "$EASYRSA_SSL_CONF" \
-		> "$conf_tmp" \
-			|| die "Copying X509_TYPES to config file failed"
+		# 'ca' file
+		if [ -f "$EASYRSA_EXT_DIR/ca" ]; then
+			cat "$EASYRSA_EXT_DIR/ca"
+		else
+			print "\
+basicConstraints = CA:TRUE
+subjectKeyIdentifier = hash
+authorityKeyIdentifier = keyid:always,issuer:always
+keyUsage = cRLSign, keyCertSign"
+		fi
+
+		# COMMON file
+		if [ -f "$EASYRSA_EXT_DIR/COMMON" ]; then
+			cat "$EASYRSA_EXT_DIR/COMMON"
+		else
+			: # ok
+		fi
+
+		# User extentions
+		[ "$EASYRSA_EXTRA_EXTS" ] && \
+			print "$EASYRSA_EXTRA_EXTS"
+
+	} | awk "$awkscript" "$EASYRSA_SSL_CONF" \
+			> "$conf_tmp" || \
+			die "Copying X509_TYPES to config file failed"
+
 	# Use this new SSL config for the rest of this function
 	EASYRSA_SSL_CONF="$conf_tmp"
 
@@ -1741,7 +1979,8 @@ build_ca: CA key password created via RAW"
 		;;
 		*)	die "Unknown algorithm: $EASYRSA_ALGO"
 		esac
-		verbose "\
+
+		[ "$EASYRSA_NO_PASS" ] || verbose "\
 build_ca: CA key password created via temp-files"
 	fi
 
@@ -1777,7 +2016,8 @@ build_ca: CA certificate password created via RAW"
 			${in_key_pass_tmp:+ -passin file:"$in_key_pass_tmp"} \
 			${out_key_pass_tmp:+ -passout file:"$out_key_pass_tmp"} \
 				|| die "Failed to build the CA keypair"
-		verbose "\
+
+		[ "$EASYRSA_NO_PASS" ] || verbose "\
 build_ca: CA certificate password created via temp-files"
 	fi
 
@@ -2004,9 +2244,9 @@ Incorrect number of arguments provided to sign-req:
 expected 2, got $# (see command help for usage)"
 
 	# Cert type must exist under the EASYRSA_EXT_DIR
-	[ -e "$EASYRSA_EXT_DIR/$crt_type" ] || die "\
+	[ -e "$EASYRSA_EXT_DIR/$crt_type" ] || warn "\
 Missing X509-type '$crt_type'"
-	[ -e "$EASYRSA_EXT_DIR/COMMON" ] || die "\
+	[ -e "$EASYRSA_EXT_DIR/COMMON" ] || warn "\
 Missing X509-type 'COMMON'"
 
 	# Cert type must NOT be COMMON
@@ -2111,16 +2351,47 @@ to the latest Easy-RSA release."
 	ext_tmp=""
 	easyrsa_mktemp ext_tmp || \
 		die "sign_req - easyrsa_mktemp ext_tmp"
+
+	# Begin output redirect
 	{
 		# Append COMMON and cert-type extensions
-		cat "$EASYRSA_EXT_DIR/COMMON" || \
-			die "Failed to read X509-type COMMON"
-		cat "$EASYRSA_EXT_DIR/$crt_type" || \
-			die "Failed to read X509-type $crt_type"
+		if [ -f "$EASYRSA_EXT_DIR/COMMON" ]; then
+			cat "$EASYRSA_EXT_DIR/COMMON"
+		else
+			: # ok
+		fi
+
+		if [ -f "$EASYRSA_EXT_DIR/$crt_type" ]; then
+			cat "$EASYRSA_EXT_DIR/$crt_type"
+		else
+			# Create Easy-RSA base x509 type
+			case "$crt_type" in
+			ca)
+				create_x509_type_ca
+			;;
+			serverClient)
+				create_x509_type_serverClient
+			;;
+			server)
+				create_x509_type_server
+			;;
+			client)
+				create_x509_type_client
+			;;
+			*)
+				: # ok
+			esac
+		fi
 
 		# Support a dynamic CA path length when present:
 		if [ "$crt_type" = "ca" ] && [ "$EASYRSA_SUBCA_LEN" ]
 		then
+			# x509-types/ca is required
+			[ -f "$EASYRSA_EXT_DIR/$crt_type" ] || {
+				error_msg="Missing file: $EASYRSA_EXT_DIR/$crt_type"
+				return 1
+			}
+
 			# Print the last occurence of basicContraints in
 			# x509-types/ca
 			# If basicContraints is not defined then bail
@@ -2130,8 +2401,12 @@ to the latest Easy-RSA release."
 END { if (length(bC) == 0 ) exit 1; print bC }'
 			basicConstraints="$(
 				awk "$awkscript" "$EASYRSA_EXT_DIR/$crt_type"
-				)" || die "\
+				)" || {
+					error_msg="\
 basicConstraints is not defined, cannot use 'pathlen'"
+					return 1
+					}
+
 			print "$basicConstraints, pathlen:$EASYRSA_SUBCA_LEN"
 			unset -v basicConstraints
 		fi
@@ -2151,7 +2426,8 @@ basicConstraints is not defined, cannot use 'pathlen'"
 				ca)
 					print "nsCertType = sslCA" ;;
 				*)
-					die "Unknown certificate type: $crt_type"
+					error_msg "Unknown Netscape type: $crt_type"
+					return 1
 			esac
 
 			# Netscape comment
@@ -2186,6 +2462,8 @@ basicConstraints is not defined, cannot use 'pathlen'"
 				print "$EASYRSA_EXTRA_EXTS"
 		fi
 	} > "$ext_tmp" || die "\
+Error message: $error_msg
+
 Failed to create temp extension file (bad permissions?) at:
 * $ext_tmp"
 
