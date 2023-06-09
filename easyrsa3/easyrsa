@@ -2426,7 +2426,7 @@ basicConstraints is not defined, cannot use 'pathlen'"
 				ca)
 					print "nsCertType = sslCA" ;;
 				*)
-					error_msg "Unknown Netscape type: $crt_type"
+					error_msg="Unknown Netscape type: $crt_type"
 					return 1
 			esac
 
