@@ -1,6 +1,7 @@
 Easy-RSA 3 ChangeLog
 
 3.1.5 (2023-06-12)
+   * Automate support-file creation (Free packaging) (#964)
    * build-ca: New command option 'raw-ca', abbrevation: 'raw' (#963)
 
      This 'raw' method, is the most reliable way to build a CA,
