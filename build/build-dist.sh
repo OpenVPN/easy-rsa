@@ -22,7 +22,7 @@ build-dist options:
  --no-windows	do not build for Windows
  --no-unix	do not build for UNIX
  --no-compress  do not create zip/tar
-
+ --sign         Use GPG to sign and verify packages
  --dist-clean	rm -rf the DIST_ROOT w/out prompts
 __EOF__
 
@@ -54,6 +54,38 @@ main() {
 	$SKIP_WIN || stage_win
 	$SKIP_TAR || make_tar
 	$SKIP_ZIP || make_zip
+}
+
+# perform sign and verify
+sign_verify() {
+	# make sure gpg exists
+	gpgbin=$(which gpg)
+	if [ $? -ne 0 ];
+	then
+		echo "No gpg binary found in path."
+		return 1
+	fi
+
+	# $1 is our filename, it should exist
+	if [ -e "$1" ]; then
+		sign_out=$(gpg -qb "$1" 2>&1 )
+		# if signing worked, let's verify it
+		if [ $? -eq 0 ];
+		then
+			verify_out=$(gpg -q --verify "$1.sig" 2>&1 )
+			# if it's verified, return true
+			if [ $? -eq 0 ];
+			then
+				note "Sign and verify successful!"
+				return 0
+			fi
+		fi
+		# signing failed
+		note "Signing failed."
+		return 1
+	else
+		note "The file $1 doesn't exist or isn't readable."
+	fi
 }
 
 # prep DIST_ROOT
@@ -142,6 +174,7 @@ stage_win() {
 make_tar() {
 	(cd "$DIST_ROOT/unix/"; tar -czf "../${PV}.tgz" "$PV") || die "tar failed"
 	note "tarball created at: $DIST_ROOT/${PV}.tgz"
+	$SKIP_SIGN || sign_verify "$DIST_ROOT/${PV}.tgz"
 }
 
 make_zip() {
@@ -149,6 +182,7 @@ make_zip() {
 	do
 		(cd "$DIST_ROOT/$win/"; zip -qr "../${PV}-$win.zip" "$PV") || die "zip failed"
 		note "zip file created at: $DIST_ROOT/${PV}-$win.zip"
+		$SKIP_SIGN || sign_verify "$DIST_ROOT/${PV}-$win.zip"
 	done
 }
 
@@ -156,6 +190,7 @@ SKIP_WIN=false
 SKIP_UNIX=false
 SKIP_ZIP=false
 SKIP_TAR=false
+SKIP_SIGN=true
 # parse CLI options:
 while [ -n "$1" ]
 do
@@ -179,6 +214,9 @@ do
 			[ -z "$val" ] && die "empty $cmd not allowed"
 			# shellcheck disable=SC2034
 			BIN_DEST="$val"
+			;;
+		--sign)
+			SKIP_SIGN=false
 			;;
 		--dist-clean)
 			DISTCLEAN=1
