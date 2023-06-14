@@ -933,7 +933,9 @@ easyrsa_openssl() {
 
 	# Do not allow 'rand' here, see easyrsa_random()
 	case "$openssl_command" in
-		rand) die "easyrsa_openssl: Illegal SSL command: rand" ;;
+		rand)
+			die "easyrsa_openssl: Illegal SSL command: rand"
+		;;
 		makesafeconf) require_safe_ssl_conf=1 ;;
 		ca|req|srp|ts) has_config=1 ;;
 		*) unset -v has_config
@@ -1056,7 +1058,8 @@ easyrsa_openssl - Command has failed:
 ${has_config:+-config $easyrsa_safe_ssl_conf }$*"
 } # => easyrsa_openssl()
 
-# Verify the SSL library is functional and establish version dependencies
+# Verify the SSL library is functional
+# and establish version dependencies
 verify_ssl_lib() {
 	# Run once only
 	[ "$EASYRSA_SSL_OK" ] && die "verify_ssl_lib - Overloaded"
@@ -1112,7 +1115,8 @@ $error_msg"
 
 # Basic sanity-check of PKI init and complain if missing
 verify_pki_init() {
-	help_note="Run easyrsa without commands for usage and command help."
+	help_note="\
+Run easyrsa without commands for usage and command help."
 
 	# Check for defined EASYRSA_PKI
 	[ "$EASYRSA_PKI" ] || die "\
@@ -1121,13 +1125,18 @@ EASYRSA_PKI env-var undefined"
 	# check that the pki dir exists
 	[ -d "$EASYRSA_PKI" ] || die "\
 EASYRSA_PKI does not exist (perhaps you need to run init-pki)?
-Expected to find the EASYRSA_PKI at: $EASYRSA_PKI
+Expected to find the EASYRSA_PKI at:
+* $EASYRSA_PKI
+
 $help_note"
 
 	# verify expected dirs present:
 	for i in private reqs; do
 		[ -d "$EASYRSA_PKI/$i" ] || die "\
-Missing expected directory: $i (perhaps you need to run init-pki?)
+Missing expected directory: $i
+
+(perhaps you need to run init-pki?)
+
 $help_note"
 	done
 	unset -v help_note
@@ -1138,15 +1147,24 @@ verify_ca_init() {
 	# First check the PKI has been initialized
 	verify_pki_init
 
-	help_note="Run without commands for usage and command help."
+	help_note="\
+Run easyrsa without commands for usage and command help."
 
-	# Verify expected files are present. Allow files to be regular files
-	# (or symlinks), but also pipes, for flexibility with ca.key
-	for i in ca.crt private/ca.key index.txt index.txt.attr serial; do
-		if [ ! -f "$EASYRSA_PKI/$i" ] && [ ! -p "$EASYRSA_PKI/$i" ]; then
+	# Verify expected files are present.
+	# Allow files to be regular files (or symlinks),
+	# but also pipes, for flexibility with ca.key
+	for i in ca.crt private/ca.key \
+			index.txt index.txt.attr serial
+	do
+		if [ ! -f "$EASYRSA_PKI/$i" ] && \
+			[ ! -p "$EASYRSA_PKI/$i" ]
+		then
 			[ "$1" = "test" ] && return 1
 			die "\
-Missing expected CA file: $i (perhaps you need to run build-ca?)
+Missing expected CA file: $i
+
+(perhaps you need to run build-ca?)
+
 $help_note"
 		fi
 	done
@@ -1159,7 +1177,10 @@ $help_note"
 	for i in issued certs_by_serial
 	do
 		[ -d "$EASYRSA_PKI/$i" ] || die "\
-Missing expected CA dir: $i (perhaps you need to run build-ca?)
+Missing expected CA dir: $i
+
+(perhaps you need to run build-ca?)
+
 $help_note"
 	done
 
@@ -1258,12 +1279,10 @@ Using Easy-RSA configuration: ${vars:-Not found}"
 	# For new PKIs , pki/vars was auto-created, show message
 	if [ "$new_vars_true" ]; then
 		information "\
-IMPORTANT: \
-Easy-RSA 'vars' template file has been created in your new PKI.
-             \
-Edit this 'vars' file to customise the settings for your PKI.
-             \
-To use a global vars file, use global option --vars=<YOUR_VARS>"
+IMPORTANT:
+  Easy-RSA 'vars' template file has been created in your new PKI.
+  Edit this 'vars' file to customise the settings for your PKI.
+  To use a global vars file, use global option --vars=<FILE>"
 
 	elif [ "$user_vars_true" ] || [ "$old_vars_true" ] || \
 		[ "$no_new_vars" ]
@@ -1432,7 +1451,8 @@ create_x509_type_COMMON() {
 COMMONFILECOMPLETE
 } # => create_x509_type_COMMON()
 
-# Create x509-type/COMMON
+# Create x509-type/unlisted: easyrsa
+# This could be COMMON but not for a CA
 create_x509_type_easyrsa() {
 	cat << "EASYRSAFILECOMPLETE"
 basicConstraints = CA:FALSE
@@ -1466,17 +1486,15 @@ extendedKeyUsage = clientAuth
 CLIFILECOMPLETE
 } # => create_x509_type_client()
 
-# Create vars.example
+# Create vars.example - Not used
 create_vars_example() {
-	# Default settings ONLY
-	return
 	cat << "VARSEXFILECOMPLETE"
 VARSEXFILECOMPLETE
 } # => create_vars_example()
 
 # Create openssl-easyrsa.cnf
 create_openssl_easyrsa_cnf() {
-	cat << "FILECOMPLETE"
+	cat << "SSLCONFCOMPLETE"
 # For use with Easy-RSA 3.0+ and OpenSSL or LibreSSL
 
 ####################################################################
@@ -1623,7 +1641,7 @@ keyUsage = cRLSign, keyCertSign
 
 # issuerAltName=issuer:copy
 authorityKeyIdentifier=keyid:always,issuer:always'
-FILECOMPLETE
+SSLCONFCOMPLETE
 } # => create_openssl_easyrsa_cnf()
 
 # Disable terminal echo, if possible, otherwise warn
@@ -2267,7 +2285,6 @@ The certificate request file is not in a valid X509 format:
 
 	# Randomize Serial number
 	if [ "$EASYRSA_RAND_SN" != "no" ]; then
-		i=""
 		serial=""
 		check_serial=""
 		unset -v unique_serial
