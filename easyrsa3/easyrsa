@@ -1878,18 +1878,14 @@ Raw CA mode
 		if [ -f "$EASYRSA_EXT_DIR/ca" ]; then
 			cat "$EASYRSA_EXT_DIR/ca"
 		else
-			print "\
-basicConstraints = CA:TRUE
-subjectKeyIdentifier = hash
-authorityKeyIdentifier = keyid:always,issuer:always
-keyUsage = cRLSign, keyCertSign"
+			create_x509_type_ca
 		fi
 
 		# COMMON file
 		if [ -f "$EASYRSA_EXT_DIR/COMMON" ]; then
 			cat "$EASYRSA_EXT_DIR/COMMON"
 		else
-			: # ok
+			create_x509_type_COMMON
 		fi
 
 		# User extentions
@@ -2354,13 +2350,7 @@ to the latest Easy-RSA release."
 
 	# Begin output redirect
 	{
-		# Append COMMON and cert-type extensions
-		if [ -f "$EASYRSA_EXT_DIR/COMMON" ]; then
-			cat "$EASYRSA_EXT_DIR/COMMON"
-		else
-			: # ok
-		fi
-
+		# Append $cert-type extensions
 		if [ -f "$EASYRSA_EXT_DIR/$crt_type" ]; then
 			cat "$EASYRSA_EXT_DIR/$crt_type"
 		else
@@ -2381,6 +2371,13 @@ to the latest Easy-RSA release."
 			*)
 				: # ok
 			esac
+		fi
+
+		# Append COMMON extensions
+		if [ -f "$EASYRSA_EXT_DIR/COMMON" ]; then
+			cat "$EASYRSA_EXT_DIR/COMMON"
+		else
+			create_x509_type_COMMON
 		fi
 
 		# Support a dynamic CA path length when present:
