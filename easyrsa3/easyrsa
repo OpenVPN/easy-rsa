@@ -535,7 +535,9 @@ Deprecated features:
 # Wrapper around printf - clobber print since it's not POSIX anyway
 # print() is used internally, so MUST NOT be silenced.
 # shellcheck disable=SC1117
-print() { printf "%s\n" "$*" || exit 1; }
+print() {
+	printf '%s\n' "$*"
+} # => print()
 
 # Exit fatally with a message to stderr
 # present even with EASYRSA_BATCH as these are fatal problems
@@ -566,8 +568,7 @@ warn() {
 	print "
 WARNING
 =======
-$1
-" 1>&2
+$1"
 } # => warn()
 
 # informational notices to stdout
@@ -582,8 +583,7 @@ $1"
 # Helpful information
 information() {
 	[ "$EASYRSA_SILENT" ] && return
-	print "
-* $1"
+	print "$1"
 } # => information()
 
 # intent confirmation helper func
@@ -781,10 +781,11 @@ Temporary session not preserved."
 		fi
 	fi
 
+	# These cleanup routines must be called after die()
+	# because the relate commands can die in subshells.
 	# Remove files when build_full()->sign_req() is interrupted
 	[ "$error_build_full_cleanup" ] && \
 		rm -f "$crt_out" "$req_out" "$key_out"
-
 	# Restore files when renew is interrupted
 	[ "$error_undo_renew_move" ] && renew_restore_move
 	# Restore files when rebuild is interrupted
@@ -1111,6 +1112,7 @@ $error_msg"
 		*) die "Unsupported SSL library: $osslv_major"
 	esac
 	ssl_version="$val"
+
 } # => verify_ssl_lib()
 
 # Basic sanity-check of PKI init and complain if missing
@@ -1204,7 +1206,7 @@ init_pki() {
 
 	# If EASYRSA_PKI exists, confirm before deletion
 	if [ -e "$EASYRSA_PKI" ]; then
-		confirm "Confirm removal: " "yes" "\
+		confirm "Confirm removal: " "yes" "
 WARNING!!!
 
 You are about to remove the EASYRSA_PKI at:
@@ -1273,12 +1275,13 @@ Your newly created PKI dir is:
 	# if $no_new_vars then there are one or more known vars
 	# which are not in the PKI. All further commands will fail
 	# until vars is manually corrected
-	[ "$no_new_vars" ] || information "\
-Using Easy-RSA configuration: ${vars:-Not found}"
+	[ "$no_new_vars" ] || information "
+Using Easy-RSA configuration:
+* ${vars:-Not found}"
 
 	# For new PKIs , pki/vars was auto-created, show message
 	if [ "$new_vars_true" ]; then
-		information "\
+		information "
 IMPORTANT:
   Easy-RSA 'vars' template file has been created in your new PKI.
   Edit this 'vars' file to customise the settings for your PKI.
@@ -1292,8 +1295,9 @@ IMPORTANT:
 		# Not in PKI and not user defined
 		prefer_vars_in_pki_msg
 	fi
-	information "\
-Using x509-types directory: ${EASYRSA_EXT_DIR:-Not found}"
+	information "
+Using x509-types directory:
+* ${EASYRSA_EXT_DIR:-Not found}"
 } # => init_pki()
 
 # Must be used in two places, so made it a function
@@ -2236,7 +2240,8 @@ $EASYRSA_EXTRA_EXTS"
 
 	# Success messages
 	notice "\
-Keypair and certificate request completed. Your files are:
+Private-Key and Public-Certificate-Request files created.
+Your files are:
 * req: $req_out
 * key: $key_out${do_build_full:+ $NL}"
 
@@ -2614,7 +2619,7 @@ Option conflict:
 	# Sign it
 	error_build_full_cleanup=1
 	if sign_req "$crt_type" "$name"; then
-		unset -v error_build_full_cleanup
+		unset -v error_build_full_cleanup do_build_full
 	else
 		die "\
 Failed to sign '$name' - \
@@ -5530,7 +5535,7 @@ Missing vars file:
 			# Installation information
 			information "\
 Using Easy-RSA configuration:
-  $vars"
+* $vars"
 
 			# Sanitize vars
 			if grep -q \
@@ -5680,9 +5685,10 @@ verify_working_env - install_data_to_pki vars-setup failed"
 			}
 
 			# Last setup msg
-			information "\
-Using SSL: $EASYRSA_OPENSSL $ssl_version
-"
+			information "
+Using SSL:
+* $EASYRSA_OPENSSL $ssl_version"
+
 		else
 			# The directory does not exist
 			die "\
