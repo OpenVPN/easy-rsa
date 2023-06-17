@@ -2238,7 +2238,7 @@ $EASYRSA_EXTRA_EXTS"
 	notice "\
 Keypair and certificate request completed. Your files are:
 * req: $req_out
-* key: $key_out${build_full:+ $NL}"
+* key: $key_out${do_build_full:+ $NL}"
 
 	return 0
 } # => gen_req()
@@ -2492,21 +2492,26 @@ for '$EASYRSA_CERT_EXPIRE' days"
 
 	# Display the request subject in an easy-to-read format
 	# Confirm the user wishes to sign this request
-	# Support batch by internal caller:
-	confirm "Confirm request details: " "yes" "\
-You are about to sign the following certificate.
+	# The foriegn_request confirmation is not required
+	# for build_full:
+	if [ "$do_build_full" ]; then
+		unset -v foriegn_request
+	else
+		foriegn_request="\
 Please check over the details shown below for accuracy. \
 Note that this request
 has not been cryptographically verified. Please be sure \
 it came from a trusted
 source or that you have verified the request checksum \
-with the sender.
+with the sender.$NL"
+	fi
 
-Request subject, to be signed as a $crt_type certificate \
-${valid_period}:
+	confirm "Confirm request details: " "yes" "\
+You are about to sign the following certificate:
+${foriegn_request}Request subject, to be signed as a \
+$crt_type certificate ${valid_period}:
 
-$(display_dn req "$req_in")
-"	# => confirm end
+$(display_dn req "$req_in")" # => confirm end
 
 	# Confirm deprecated use of NS extensions
 	case "$EASYRSA_NS_SUPPORT" in
@@ -2603,7 +2608,7 @@ Option conflict:
 	EASYRSA_REQ_CN="$name"
 
 	# create request
-	build_full=1
+	do_build_full=1
 	gen_req "$name" batch
 
 	# Sign it
@@ -6353,7 +6358,8 @@ unset -v \
 	working_safe_ssl_conf \
 	user_vars_true \
 	user_san_true \
-	alias_days
+	alias_days \
+	do_build_full
 
 	# Used by build-ca->cleanup to restore prompt
 	# after user interrupt when using manual password
