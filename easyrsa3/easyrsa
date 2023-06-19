@@ -2670,11 +2670,11 @@ Run easyrsa without commands for usage and command help."
 	shift
 
 	in_dir="$EASYRSA_PKI"
-	crt_in="$in_dir/issued/$file_name_base.crt"
-	key_in="$in_dir/private/$file_name_base.key"
-	req_in="$in_dir/reqs/$file_name_base.req"
-	creds_in="$in_dir/$file_name_base.creds"
-	inline_in="$in_dir/inline/$file_name_base.inline"
+	crt_in="$in_dir/issued/${file_name_base}.crt"
+	key_in="$in_dir/private/${file_name_base}.key"
+	req_in="$in_dir/reqs/${file_name_base}.req"
+	creds_in="$in_dir/${file_name_base}.creds"
+	inline_in="$in_dir/inline/${file_name_base}.inline"
 
 	# Assign possible "crl_reason"
 	if [ "$1" ]; then
@@ -2726,9 +2726,9 @@ Unexpected input in file: $req_in"
 
 	# Set out_dir
 	out_dir="$EASYRSA_PKI/revoked"
-	crt_out="$out_dir/certs_by_serial/$cert_serial.crt"
-	key_out="$out_dir/private_by_serial/$cert_serial.key"
-	req_out="$out_dir/reqs_by_serial/$cert_serial.req"
+	crt_out="$out_dir/certs_by_serial/${cert_serial}.crt"
+	key_out="$out_dir/private_by_serial/${cert_serial}.key"
+	req_out="$out_dir/reqs_by_serial/${cert_serial}.req"
 
 	# NEVER over-write a revoked cert, serial number must be unique
 	deny_msg="\
@@ -2875,13 +2875,13 @@ Run easyrsa without commands for usage and command help."
 
 	# Assign input files
 	in_dir="$EASYRSA_PKI"
-	crt_in="$in_dir/issued/$file_name_base.crt"
-	key_in="$in_dir/private/$file_name_base.key"
+	crt_in="$in_dir/issued/${file_name_base}.crt"
+	key_in="$in_dir/private/${file_name_base}.key"
 	# key_out is used by inline_creds()
-	key_out="$in_dir/private/$file_name_base.key"
-	req_in="$in_dir/reqs/$file_name_base.req"
-	creds_in="$in_dir/$file_name_base.creds"
-	inline_in="$in_dir/inline/$file_name_base.inline"
+	key_out="$in_dir/private/${file_name_base}.key"
+	req_in="$in_dir/reqs/${file_name_base}.req"
+	creds_in="$in_dir/${file_name_base}.creds"
+	inline_in="$in_dir/inline/${file_name_base}.inline"
 
 	# Upgrade CA index.txt.attr - unique_subject = no
 	up23_upgrade_ca || \
@@ -2930,7 +2930,7 @@ Missing request file:
 
 	# Set out_dir
 	out_dir="$EASYRSA_PKI/renewed"
-	crt_out="$out_dir/issued/$file_name_base.crt"
+	crt_out="$out_dir/issued/${file_name_base}.crt"
 
 	# NEVER over-write a renewed cert, revoke it first
 	deny_msg="\
@@ -3289,9 +3289,9 @@ Run easyrsa without commands for usage and command help."
 
 	cert_serial="$file_name_base"
 	in_dir="$EASYRSA_PKI/renewed"
-	crt_in="$in_dir/certs_by_serial/$file_name_base.crt"
-	key_in="$in_dir/private_by_serial/$file_name_base.key"
-	req_in="$in_dir/reqs_by_serial/$file_name_base.req"
+	crt_in="$in_dir/certs_by_serial/${file_name_base}.crt"
+	key_in="$in_dir/private_by_serial/${file_name_base}.key"
+	req_in="$in_dir/reqs_by_serial/${file_name_base}.req"
 
 	# referenced cert must exist:
 	[ -f "$crt_in" ] || die "\
@@ -3319,9 +3319,9 @@ Unexpected input in file: $req_in"
 
 	# Set out_dir
 	out_dir="$EASYRSA_PKI/renewed"
-	crt_out="$out_dir/issued/$crt_cn.crt"
-	key_out="$out_dir/private/$crt_cn.key"
-	req_out="$out_dir/reqs/$crt_cn.req"
+	crt_out="$out_dir/issued/${crt_cn}.crt"
+	key_out="$out_dir/private/${crt_cn}.key"
+	req_out="$out_dir/reqs/${crt_cn}.req"
 
 	# Create out_dir
 	for newdir in issued private reqs; do
@@ -3404,11 +3404,11 @@ Run easyrsa without commands for usage and command help."
 	shift
 
 	in_dir="$EASYRSA_PKI"
-	crt_in="$in_dir/issued/$file_name_base.crt"
-	key_in="$in_dir/private/$file_name_base.key"
-	req_in="$in_dir/reqs/$file_name_base.req"
-	creds_in="$in_dir/$file_name_base.creds"
-	inline_in="$in_dir/inline/$file_name_base.inline"
+	crt_in="$in_dir/issued/${file_name_base}.crt"
+	key_in="$in_dir/private/${file_name_base}.key"
+	req_in="$in_dir/reqs/${file_name_base}.req"
+	creds_in="$in_dir/${file_name_base}.creds"
+	inline_in="$in_dir/inline/${file_name_base}.inline"
 
 	# Upgrade CA index.txt.attr - unique_subject = no
 	up23_upgrade_ca || die "Failed to upgrade CA to support renewal."
@@ -3450,9 +3450,9 @@ Unexpected input in file: $req_in"
 
 	# Set out_dir
 	out_dir="$EASYRSA_PKI/renewed"
-	crt_out="$out_dir/issued/$file_name_base.crt"
-	key_out="$out_dir/private/$file_name_base.key"
-	req_out="$out_dir/reqs/$file_name_base.req"
+	crt_out="$out_dir/issued/${file_name_base}.crt"
+	key_out="$out_dir/private/${file_name_base}.key"
+	req_out="$out_dir/reqs/${file_name_base}.req"
 
 	# NEVER over-write a renewed cert, revoke it first
 	deny_msg="\
