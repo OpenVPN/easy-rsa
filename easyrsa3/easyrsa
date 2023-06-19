@@ -2122,8 +2122,11 @@ gen_req() {
 
 	# pull filename, use as default interactive CommonName
 	[ "$1" ] || die "\
-Error: gen-req must have a file base as the first argument.
+Error: gen-req must have a file-name-base as the first argument.
 Run easyrsa without commands for usage and commands."
+
+	file_name_base="$1"
+	shift # scrape off file-name-base
 
 	# Initialisation
 	unset -v text ssl_batch
@@ -2132,20 +2135,19 @@ Run easyrsa without commands for usage and commands."
 	if [ "$EASYRSA_BATCH" ]; then
 		ssl_batch=1
 		# If EASYRSA_REQ_CN is set to something other than
-		# ChangeMe then keep user defined value
-		[ "$EASYRSA_REQ_CN" = ChangeMe ] && \
-			export EASYRSA_REQ_CN="$1"
+		# 'ChangeMe' then keep user defined value
+		if [ "$EASYRSA_REQ_CN" = ChangeMe ]; then
+			export EASYRSA_REQ_CN="$file_name_base"
+		fi
 	else
 		# --req-cn must be used with --batch
 		# otherwise use file-name
-		export EASYRSA_REQ_CN="$1"
+		export EASYRSA_REQ_CN="$file_name_base"
 	fi
 
 	# Output files
-	key_out="$EASYRSA_PKI/private/$1.key"
-	req_out="$EASYRSA_PKI/reqs/$1.req"
-
-	shift # scrape off file-name
+	key_out="$EASYRSA_PKI/private/${file_name_base}.key"
+	req_out="$EASYRSA_PKI/reqs/${file_name_base}.req"
 
 	# function opts support
 	while [ "$1" ]; do
@@ -2162,12 +2164,14 @@ Run easyrsa without commands for usage and commands."
 	done
 
 	# don't wipe out an existing private key without confirmation
-	[ -f "$key_out" ] && confirm "Confirm key overwrite: " "yes" "\
+	if [ -f "$key_out" ]; then
+		confirm "Confirm key overwrite: " "yes" "\
 
 WARNING!!!
 
 An existing private key was found at $key_out
 Continuing with key generation will replace this key."
+	fi
 
 	# When EASYRSA_EXTRA_EXTS is defined,
 	# append it to openssl's [req] section:
@@ -2201,10 +2205,12 @@ $EASYRSA_EXTRA_EXTS"
 		easyrsa_mktemp conf_tmp || \
 			die "gen_req - easyrsa_mktemp conf_tmp"
 
+		# Insert $extra_exts @ %EXTRA_EXTS% in SSL Config
 		print "$extra_exts" | \
 			awk "$awkscript" "$EASYRSA_SSL_CONF" \
-			> "$conf_tmp" \
-			|| die "Writing SSL config to temp file failed"
+			> "$conf_tmp" || \
+				die "Writing SSL config to temp file failed"
+
 		# Use this SSL config for the rest of this function
 		EASYRSA_SSL_CONF="$conf_tmp"
 	fi
@@ -2217,26 +2223,43 @@ $EASYRSA_EXTRA_EXTS"
 	easyrsa_mktemp req_out_tmp || \
 		die "gen_req - easyrsa_mktemp req_out_tmp"
 
-	# Set Edwards curve name or elliptic curve parameters file
+	# Set algorithm options
 	algo_opts=""
-	if [ "ed" = "$EASYRSA_ALGO" ]; then
-		algo_opts="$EASYRSA_CURVE"
-	else
-		algo_opts="$EASYRSA_ALGO:$EASYRSA_ALGO_PARAMS"
-	fi
+	case "$EASYRSA_ALGO" in
+		rsa|ec)
+			# Set elliptic curve parameters-file
+			# or RSA bit-length
+			algo_opts="$EASYRSA_ALGO:$EASYRSA_ALGO_PARAMS"
+		;;
+		ed)
+			# Set Edwards curve name
+			algo_opts="$EASYRSA_CURVE"
+		;;
+		*)	die "gen_req - Unknown algorithm: $EASYRSA_ALGO"
+	esac
 
 	# Generate request
-	easyrsa_openssl req -utf8 -new -newkey "$algo_opts" \
-		-keyout "$key_out_tmp" -out "$req_out_tmp" \
+	if easyrsa_openssl req -utf8 -new -newkey "$algo_opts" \
+		-keyout "$key_out_tmp" \
+		-out "$req_out_tmp" \
 		${EASYRSA_NO_PASS:+ "$no_password"} \
 		${text:+ -text} \
 		${ssl_batch:+ -batch} \
-		${EASYRSA_PASSOUT:+ -passout "$EASYRSA_PASSOUT"} \
-			|| die "Failed to generate request"
+		${EASYRSA_PASSOUT:+ -passout "$EASYRSA_PASSOUT"}
+	then
+		: # ok
+	else
+		die "Failed to generate request"
+	fi
 
 	# Move temp-files to target-files
-	mv "$key_out_tmp" "$key_out"
-	mv "$req_out_tmp" "$req_out"
+	mv "$key_out_tmp" "$key_out" || {
+		die "Failed to move key temp-file"
+	}
+	mv "$req_out_tmp" "$req_out" || {
+		rm -f "$key_out" # Also remove the key
+		die "Failed to move req temp-file"
+	}
 
 	# Success messages
 	notice "\
@@ -2245,7 +2268,6 @@ Your files are:
 * req: $req_out
 * key: $key_out${do_build_full:+ $NL}"
 
-	return 0
 } # => gen_req()
 
 # common signing backend
