@@ -2720,7 +2720,9 @@ Unexpected input in file: $req_in"
 	# get the serial number of the certificate
 	ssl_cert_serial "$crt_in" cert_serial
 
-	duplicate_crt_by_serial="$EASYRSA_PKI/certs_by_serial/$cert_serial.pem"
+	# Duplicate cert by serial file
+	dup_dir="$EASYRSA_PKI/certs_by_serial"
+	dup_crt_by_serial="$dup_dir/${cert_serial}.pem"
 
 	# Set out_dir
 	out_dir="$EASYRSA_PKI/revoked"
@@ -2759,7 +2761,7 @@ The inline credentials files:
 * $inline_in
 
 The duplicate certificate:
-* $duplicate_crt_by_serial"
+* $dup_crt_by_serial"
 
 	confirm "  Continue with revocation: " "yes" "\
 Please confirm you wish to revoke the certificate
@@ -2835,10 +2837,10 @@ revoke_move() {
 	done
 
 	# remove the duplicate certificate
-	if [ -e "$duplicate_crt_by_serial" ]; then
-		rm "$duplicate_crt_by_serial" || warn "\
+	if [ -e "$dup_crt_by_serial" ]; then
+		rm "$dup_crt_by_serial" || warn "\
 Failed to remove the duplicate certificate:
-* $duplicate_crt_by_serial"
+* $dup_crt_by_serial"
 	fi
 
 	# remove credentials file
@@ -2922,8 +2924,9 @@ Missing request file:
 	# get the serial number of the certificate
 	ssl_cert_serial "$crt_in" cert_serial
 
-	duplicate_crt_by_serial="\
-$EASYRSA_PKI/certs_by_serial/$cert_serial.pem"
+	# Duplicate cert by serial file
+	dup_dir="$EASYRSA_PKI/certs_by_serial"
+	dup_crt_by_serial="$dup_dir/${cert_serial}.pem"
 
 	# Set out_dir
 	out_dir="$EASYRSA_PKI/renewed"
@@ -2990,7 +2993,7 @@ The inline credentials files:
 * $inline_in
 
 The duplicate certificate:
-* $duplicate_crt_by_serial"
+* $dup_crt_by_serial"
 
 	confirm "  Continue with renewal: " "yes" "\
 Please confirm you wish to renew the certificate
@@ -3097,10 +3100,10 @@ renew_move() {
 	done
 
 	# remove the duplicate certificate
-	if [ -e "$duplicate_crt_by_serial" ]; then
-		rm "$duplicate_crt_by_serial" || warn "\
+	if [ -e "$dup_crt_by_serial" ]; then
+		rm "$dup_crt_by_serial" || warn "\
 Failed to remove the duplicate certificate:
-* $duplicate_crt_by_serial"
+* $dup_crt_by_serial"
 	fi
 
 	# remove credentials file
@@ -3183,7 +3186,9 @@ Unexpected input in file: $req_in"
 	# get the serial number of the certificate
 	ssl_cert_serial "$crt_in" cert_serial
 
-	duplicate_crt_by_serial="$EASYRSA_PKI/certs_by_serial/$cert_serial.pem"
+	# Duplicate cert by serial file
+	dup_dir="$EASYRSA_PKI/certs_by_serial"
+	dup_crt_by_serial="$dup_dir/${cert_serial}.pem"
 
 	# output
 	out_dir="$EASYRSA_PKI/revoked"
@@ -3439,7 +3444,9 @@ Unexpected input in file: $req_in"
 	# get the serial number of the certificate
 	ssl_cert_serial "$crt_in" cert_serial
 
-	duplicate_crt_by_serial="$EASYRSA_PKI/certs_by_serial/$cert_serial.pem"
+	# Duplicate cert by serial file
+	dup_dir="$EASYRSA_PKI/certs_by_serial"
+	dup_crt_by_serial="$dup_dir/${cert_serial}.pem"
 
 	# Set out_dir
 	out_dir="$EASYRSA_PKI/renewed"
@@ -3516,7 +3523,7 @@ The inline credentials files:
 * $inline_in
 
 The duplicate certificate:
-* $duplicate_crt_by_serial
+* $dup_crt_by_serial
 
 IMPORTANT: The new key will${EASYRSA_NO_PASS:+ NOT} be password protected."
 
@@ -3649,10 +3656,10 @@ rebuild_move() {
 	done
 
 	# remove the duplicate certificate
-	if [ -e "$duplicate_crt_by_serial" ]; then
-		rm "$duplicate_crt_by_serial" || warn "\
+	if [ -e "$dup_crt_by_serial" ]; then
+		rm "$dup_crt_by_serial" || warn "\
 Failed to remove the duplicate certificate:
-* $duplicate_crt_by_serial"
+* $dup_crt_by_serial"
 	fi
 
 	# remove credentials file
