@@ -547,11 +547,15 @@ Easy-RSA error:
 
 $1
 "
+	# error_info is currently unused
 	if [ "$error_info" ]; then
 		print "${error_info}${NL}"
 	fi
 
+	# show host info
 	show_host
+
+	# exit to cleanup()
 	exit "${2:-1}"
 } # => die()
 
@@ -665,6 +669,7 @@ secure_session() {
 			unset -v mktemp_counter \
 				OPENSSL_CONF easyrsa_safe_ssl_conf \
 				working_safe_ssl_conf
+			easyrsa_err_log="$secured_session/error.log"
 			verbose "\
 secure_session: CREATED: $secured_session"
 			return
@@ -724,9 +729,14 @@ easyrsa_mktemp: create shotfile failed (1) $1"
 			# Create temp-file or die
 			# subshells do not update mktemp_counter,
 			# which is why this extension is required.
-			# Current max required is 7 deep
-			for i in 1 2 3 4 5 6 7 8 9 10; do
+			# Current max required is 3 attempts
+			for i in 1 2 3 4 5 6 7 8 9; do
 				want_tmp_file="${t}.${i}"
+
+				# Warn to error log file for max reached
+				[ "$EASYRSA_MAX_TEMP" -gt "$i" ] || print "\
+Max temp-file limit $i, hit for: $1" >> "$easyrsa_err_log"
+
 				if [ -e "$want_tmp_file" ]; then
 					verbose "\
 easyrsa_mktemp: temp-file EXISTS: $want_tmp_file"
@@ -758,13 +768,24 @@ easyrsa_mktemp - force_set_var $1 failed"
 		fi
 	done
 
-	die "\
-easyrsa_mktemp - failed for: $1 @ depth=$i
+	# In case of subshell abuse, report to error log
+	err_msg="\
+easyrsa_mktemp - failed for: $1 @ attempt=$i
 want_tmp_file: $want_tmp_file"
+	print "$err_msg" >> "$easyrsa_err_log"
+	die "$err_msg"
+
 } # => easyrsa_mktemp()
 
 # remove temp files and do terminal cleanups
 cleanup() {
+	# In case of subshell abuse, display error log file
+	if [ -f "$easyrsa_err_log" ]; then
+		print
+		cat "$easyrsa_err_log"
+		print
+	fi
+
 	if [ "${secured_session%/*}" ] && \
 		[ -d "$secured_session" ]
 	then
@@ -4072,7 +4093,7 @@ display_san - input error"
 	else
 		# Generate a SAN
 			san="$(
-		x509v3san="X509v3 Subject Alternative Name:"
+		x509v3san='X509v3 Subject Alternative Name:'
 		easyrsa_openssl "$format" -in "$path" -noout -text | sed -n \
 		"/${x509v3san}/{n;s/ //g;s/IPAddress:/IP:/g;s/RegisteredID/RID/;p;}"
 		)"
@@ -4938,7 +4959,7 @@ expire_status() {
 		# an issued cert
 		if [ "$db_serial" != "$cert_serial" ]; then
 			information "\
-expire_status: SERIAL MISMATCH
+  expire_status: SERIAL MISMATCH
   db_serial:     $db_serial
   cert_serial:   $cert_serial
   commonName:    $db_cn
@@ -5687,14 +5708,20 @@ Algorithm '$EASYRSA_ALGO' is invalid: Must be 'rsa', 'ec' or 'ed'"
 	set_var EASYRSA_NS_SUPPORT		no
 	set_var EASYRSA_NS_COMMENT		\
 		"Easy-RSA (~VER~) Generated Certificate"
+
 	set_var EASYRSA_TEMP_DIR		"$EASYRSA_PKI"
 	set_var EASYRSA_REQ_CN			ChangeMe
 	set_var EASYRSA_DIGEST			sha256
 
-	set_var EASYRSA_SSL_CONF		"$EASYRSA_PKI/openssl-easyrsa.cnf"
-	set_var EASYRSA_SAFE_CONF		"$EASYRSA_PKI/safessl-easyrsa.cnf"
+	set_var EASYRSA_SSL_CONF		\
+		"$EASYRSA_PKI/openssl-easyrsa.cnf"
+	set_var EASYRSA_SAFE_CONF		\
+		"$EASYRSA_PKI/safessl-easyrsa.cnf"
 
 	set_var EASYRSA_KDC_REALM		"CHANGEME.EXAMPLE.COM"
+
+	set_var EASYRSA_MAX_TEMP		4
+
 } # => vars_setup()
 
 # Verify working environment
@@ -6427,7 +6454,8 @@ unset -v \
 	user_vars_true \
 	user_san_true \
 	alias_days \
-	do_build_full
+	do_build_full \
+	error_info
 
 	# Used by build-ca->cleanup to restore prompt
 	# after user interrupt when using manual password
