@@ -1,5 +1,8 @@
 Easy-RSA 3 ChangeLog
 
+3.1.6 (2023-10-13)
+   * sign-req: Allow the CSR DN-field order to be preserved (#970)
+
 3.1.5 (2023-06-10)
    * Build Update: script now supports signing and verifying
    * Automate support-file creation (Free packaging) (#964)

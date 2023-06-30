@@ -128,7 +128,7 @@ cmd_help() {
 	;;
 	sign|sign-req)
 		text="
-* sign-req <type> <file_name_base>
+* sign-req <type> <file_name_base> [ cmd-opts ]
 
       Sign a certificate request of the defined type. <type> must be a known type,
       such as: 'client', 'server', 'serverClient', or 'ca' (or a user-added type).
@@ -136,6 +136,8 @@ cmd_help() {
 
       This request file must exist in the reqs/ dir and have a .req file
       extension. See import-req below for importing reqs from other sources."
+		opts="
+      * preserve - When signing a request, 'preserve' the DN-field order of the CSR."
 	;;
 	build|build-client-full|build-server-full|build-serverClient-full)
 		text="
@@ -2243,6 +2245,15 @@ sign_req() {
 Incorrect number of arguments provided to sign-req:
 expected 2, got $# (see command help for usage)"
 
+	# Check for preserve-dn
+	if [ "$3" ]; then
+		case "$3" in
+			preserve*) export EASYRSA_PRESERVE_DN=1 ;;
+			*)
+				warn "Ignoring unknown option '$3'"
+		esac
+	fi
+
 	# Cert type must exist under the EASYRSA_EXT_DIR
 	[ -e "$EASYRSA_EXT_DIR/$crt_type" ] || warn "\
 Missing X509-type '$crt_type'"
@@ -2512,6 +2523,7 @@ $(display_dn req "$req_in")
 	easyrsa_openssl ca -utf8 -batch \
 		-in "$req_in" -out "$crt_out_tmp" \
 		-extfile "$ext_tmp" \
+		${EASYRSA_PRESERVE_DN:+ -preserveDN} \
 		${EASYRSA_PASSIN:+ -passin "$EASYRSA_PASSIN"} \
 		${EASYRSA_NO_TEXT:+ -notext} \
 		${EASYRSA_CERT_EXPIRE:+ -days "$EASYRSA_CERT_EXPIRE"} \
