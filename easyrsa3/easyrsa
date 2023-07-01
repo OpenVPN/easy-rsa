@@ -74,7 +74,8 @@ DIRECTORY STATUS (commands would take effect on these locations)
 } # => usage()
 
 # Detailed command help
-# When called with no args, calls usage(), otherwise shows help for a command
+# When called with no args, calls usage(),
+# otherwise shows help for a command
 # Please maintain strict indentation rules.
 # Commands are TAB indented, while text is SPACE indented.
 # 'case' indentation is minimalistic.
@@ -111,7 +112,7 @@ cmd_help() {
 		text="
 * gen-dh
 
-      Generates DH (Diffie-Hellman) parameters"
+      Generates DH (Diffie-Hellman) parameters file"
 	;;
 	gen-req)
 		text="
@@ -130,8 +131,10 @@ cmd_help() {
 		text="
 * sign-req <type> <file_name_base>
 
-      Sign a certificate request of the defined type. <type> must be a known type,
-      such as: 'client', 'server', 'serverClient', or 'ca' (or a user-added type).
+      Sign a certificate request of the defined type.
+
+      <type> must be a known type.
+      eg: 'client', 'server', 'serverClient', 'ca' or a user-added type.
       All supported types are listed in the x509-types directory.
 
       This request file must exist in the reqs/ dir and have a .req file
@@ -143,14 +146,13 @@ cmd_help() {
 * build-server-full <file_name_base> [ cmd-opts ]
 * build-serverClient-full <file_name_base> [ cmd-opts ]
 
-      Generate a keypair and sign locally for a client and/or server
+      Generate a keypair and sign locally.
 
-      This mode uses the <file_name_base> as the X509 CN."
+      This mode uses the <file_name_base> as the X509 commonName."
 
 		opts="
       * nopass  - Do not encrypt the private key (default is encrypted)
-                  (Equivalent to global option '--nopass|--no-pass')
-      * inline  - Create an inline credentials file for this node"
+                  (Equivalent to global option '--nopass|--no-pass')"
 	;;
 	revoke)
 		text="
@@ -250,7 +252,7 @@ cmd_help() {
       Human-readable output is shown."
 
 		opts="
-      * full    - show full cert info, including pubkey/sig data"
+      * full    - show full CA info, including pubkey/sig data"
 	;;
 	show-crl)
 		text="
@@ -467,7 +469,7 @@ General options:
 --batch         : Set automatic (no-prompts when possible) mode
 --silent|-s     : Disable all warnings, notices and information
 --sbatch        : Combined --silent and --batch operating mode
---silent-ssl|-S : Silence SSL output (Requires bach mode)
+--silent-ssl|-S : Silence SSL output (Requires batch mode)
 
 --no-pass       : Do not use passwords
                   Can not be used with --passin or --passout
@@ -503,7 +505,8 @@ Certificate & Request options: (these impact cert/req field values)
 --digest=ALG    : Digest to use in the requests & certificates
 --keysize=#     : Size in bits of keypair to generate (RSA Only)
 --use-algo=ALG  : Crypto alg to use: choose rsa (default), ec or ed
---curve=NAME    : For elliptic curve, sets the named curve (Default: secp384r1)
+--curve=NAME    : For elliptic curve, sets the named curve
+                  (Default: algo ec: secp384r1, algo ed: ed25519)
 
 --subca-len=#   : Path length of signed intermediate CA certificates
 --copy-ext      : Copy included request X509 extensions (namely subjAltName)
@@ -570,8 +573,7 @@ $1"
 	exit 1
 } # => user_error()
 
-# Necessary verbose warnings
-# This is a debug function for status-reports and date
+# verbose information
 verbose() {
 	[ "$EASYRSA_VERBOSE" ] || return 0
 	printf '%s\n' "  > $*"
@@ -693,7 +695,6 @@ remove_secure_session: DELETED: $secured_session"
 			return
 		fi
 	fi
-
 	die "remove_secure_session: $secured_session"
 } # => remove_secure_session()
 
@@ -809,7 +810,7 @@ Temporary session not preserved."
 		else
 			# remove temp-session
 			remove_secure_session || \
-				die "cleanup - remove_secure_session"
+				warn "cleanup - remove_secure_session failed"
 		fi
 	fi
 
@@ -1337,7 +1338,7 @@ Using x509-types directory:
 # Must be used in two places, so made it a function
 prefer_vars_in_pki_msg() {
 	information "\
-The preferred location for 'vars' is within the PKI folder.
+  The preferred location for 'vars' is within the PKI folder.
   To silence this message move your 'vars' file to your PKI
   or declare your 'vars' file with option: --vars=<FILE>"
 } # => prefer_vars_in_pki_msg()
