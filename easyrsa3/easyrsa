@@ -57,15 +57,14 @@ Here is the list of commands available with a short syntax reminder. Use the
   export-p8 <file_name_base> [ cmd-opts ]
   export-p12 <file_name_base> [ cmd-opts ]
   set-pass  <file_name_base> [ cmd-opts ]
-  upgrade <type>
-"
+  upgrade <type>"
 
 	# collect/show dir status:
 	text_only=1
 	err_source="Not defined: vars autodetect failed and no value provided"
 	work_dir="${EASYRSA:-$err_source}"
 	pki_dir="${EASYRSA_PKI:-$err_source}"
-	print "\
+	print "
 DIRECTORY STATUS (commands would take effect on these locations)
      EASYRSA: $work_dir
          PKI: $pki_dir
@@ -866,7 +865,6 @@ Temporary session not preserved."
 
 # Make a copy safe SSL config file
 make_safe_ssl() {
-	verify_pki_init
 	EASYRSA_FORCE_SAFE_SSL=1
 	easyrsa_openssl makesafeconf
 	notice "\
@@ -1181,9 +1179,6 @@ $help_note"
 
 # Verify core CA files present
 verify_ca_init() {
-	# First check the PKI has been initialized
-	verify_pki_init
-
 	help_note="\
 Run easyrsa without commands for usage and command help."
 
@@ -1745,9 +1740,6 @@ build_ca() {
 		shift
 	done
 
-	# Verify PKI has been initialised
-	verify_pki_init
-
 	out_key="$EASYRSA_PKI/private/ca.key"
 	# setup for an intermediate CA
 	if [ "$sub_ca" ]; then
@@ -2104,9 +2096,6 @@ CA creation complete. Your new CA certificate is at:
 
 # gen-dh backend:
 gen_dh() {
-	# Verify PKI has been initialised
-	verify_pki_init
-
 	out_file="$EASYRSA_PKI/dh.pem"
 
 	# check to see if we already have a dh parameters file
@@ -2152,9 +2141,6 @@ DH parameters of size $EASYRSA_KEY_SIZE created at:
 
 # gen-req and key backend:
 gen_req() {
-	# Verify PKI has been initialised
-	verify_pki_init
-
 	# pull filename, use as default interactive CommonName
 	[ "$1" ] || user_error "\
 Error: gen-req must have a file-name-base as the first argument.
@@ -2307,9 +2293,6 @@ Your files are:
 
 # common signing backend
 sign_req() {
-	# CA is required to sign
-	verify_ca_init
-
 	crt_type="$1"
 	req_in="$EASYRSA_PKI/reqs/$2.req"
 	crt_out="$EASYRSA_PKI/issued/$2.crt"
@@ -2724,8 +2707,6 @@ revoke() {
 Error: didn't find a file base name as the first argument.
 Run easyrsa without commands for usage and command help."
 
-	verify_ca_init
-
 	# Assign file_name_base and dust off!
 	file_name_base="$1"
 	shift
@@ -2930,8 +2911,6 @@ renew() {
 	[ "$1" ] || user_error "\
 Error: didn't find a file base name as the first argument.
 Run easyrsa without commands for usage and command help."
-
-	verify_ca_init
 
 	# Assign file_name_base and dust off!
 	file_name_base="$1"
@@ -3195,8 +3174,6 @@ revoke_renewed() {
 Error: didn't find a file base name as the first argument.
 Run easyrsa without commands for usage and command help."
 
-	verify_ca_init
-
 	# Assign file_name_base and dust off!
 	file_name_base="$1"
 	shift
@@ -3349,8 +3326,6 @@ rewind_renew() {
 Error: didn't find a serial number as the first argument.
 Run easyrsa without commands for usage and command help."
 
-	verify_ca_init
-
 	# Assign file_name_base and dust off!
 	file_name_base="$1"
 	shift "$#" # No options supported
@@ -3468,8 +3443,6 @@ rebuild() {
 	[ "$1" ] || user_error "\
 Error: didn't find a file base name as the first argument.
 Run easyrsa without commands for usage and command help."
-
-	verify_ca_init
 
 	# Assign file_name_base and dust off!
 	file_name_base="$1"
@@ -3750,8 +3723,6 @@ Failed to remove inline file:
 
 # gen-crl backend
 gen_crl() {
-	verify_ca_init
-
 	out_file="$EASYRSA_PKI/crl.pem"
 
 	out_file_tmp=""
@@ -3774,9 +3745,6 @@ An updated CRL has been created:
 
 # import-req backend
 import_req() {
-	# Verify PKI has been initialised
-	verify_pki_init
-
 	# pull passed paths
 	in_req="$1"
 	short_name="$2"
@@ -3826,9 +3794,6 @@ Run easyrsa without commands for usage and command help."
 	crt_in="$EASYRSA_PKI/issued/$short_name.crt"
 	key_in="$EASYRSA_PKI/private/$short_name.key"
 	crt_ca="$EASYRSA_PKI/ca.crt"
-
-	# Verify PKI has been initialised
-	verify_pki_init
 
 	# opts support
 	cipher=-aes256
@@ -3939,9 +3904,6 @@ location: $pkcs_out"
 
 # set-pass backend legacy
 set_pass_legacy() {
-	# Verify PKI has been initialised
-	verify_pki_init
-
 	# key type, supplied internally from frontend command call (rsa/ec)
 	key_type="$1"
 	shift
@@ -4005,9 +3967,6 @@ Failed to change the private key passphrase. See above for error messages."
 
 # set-pass backend
 set_pass() {
-	# Verify PKI has been initialised
-	verify_pki_init
-
 	# values supplied by the user:
 	raw_file="$1"
 	file="$EASYRSA_PKI/private/$raw_file.key"
@@ -4067,12 +4026,9 @@ ${cipher:+You will then enter and verify a new PEM pass phrase for this key.}"
 
 # update-db backend
 update_db() {
-	verify_ca_init
-
 	easyrsa_openssl ca -utf8 -updatedb \
 		${EASYRSA_PASSIN:+ -passin "$EASYRSA_PASSIN"} || \
 			die "Failed to perform update-db."
-
 } # => update_db()
 
 # Display subjectAltName
@@ -4161,8 +4117,6 @@ verify_cert() {
 	[ "$1" ] || user_error "\
 Error: didn't find a file base name as the first argument.
 Run easyrsa without commands for usage and command help."
-
-	verify_ca_init
 
 	# Assign file_name_base and dust off!
 	file_name_base="$1"
@@ -4258,17 +4212,14 @@ Run easyrsa without commands for usage help."
 	# Determine cert/req type (v2)
 	case "$type" in
 	cert)
-		verify_ca_init
 		in_file="$EASYRSA_PKI/issued/$name.crt"
 		format="x509"
 	;;
 	req)
-		verify_pki_init
 		in_file="$EASYRSA_PKI/reqs/$name.req"
 		format="req"
 	;;
 	crl)
-		verify_ca_init
 		in_file="$EASYRSA_PKI/$name.pem"
 		format="crl"
 		unset -v type_opts out_opts name_opts
@@ -4313,7 +4264,6 @@ show_ca() {
 		shift
 	done
 
-	verify_ca_init
 	in_file="$EASYRSA_PKI/ca.crt"
 	format="x509"
 
@@ -5226,8 +5176,6 @@ status() {
 	report="$1"
 	target="$2"
 
-	verify_ca_init
-
 	# test fix: https://github.com/OpenVPN/easy-rsa/issues/819
 	export LC_TIME=C.UTF-8
 
@@ -5735,8 +5683,10 @@ verify_working_env() {
 	install_data_to_pki x509-types-only
 
 	# For commands which 'require a PKI' and PKI exists
-	if  [ "$pki_is_required" ] && [ -d "$EASYRSA_PKI" ]
+	if  [ "$pki_is_required" ] # && [ -d "$EASYRSA_PKI" ]
 	then
+		# Verify PKI is initialised
+		verify_pki_init
 
 		# Temp dir MUST exist
 		if [ -d "$EASYRSA_TEMP_DIR" ]; then
@@ -5773,6 +5723,11 @@ verify_working_env - install_data_to_pki vars-setup failed"
 			[ -z "$working_safe_ssl_conf" ] || {
 				die "working_safe_ssl_conf must not be set!"
 			}
+
+			# Verify CA is initialised
+			if [ "$require_ca" ]; then
+				verify_ca_init
+			fi
 
 			# Last setup msg
 			information "
@@ -6682,11 +6637,18 @@ cmd="$1"
 case "$cmd" in
 	init-pki|clean-all|""|help|-h|--help|--usage|version)
 		no_pki_required=1
-		unset -v pki_is_required
+		unset -v pki_is_required require_ca
 	;;
 	*)
 		pki_is_required=1
 		unset -v no_pki_required
+		case "$cmd" in
+			gen-req|gen-dh|build-ca)
+				unset -v require_ca
+			;;
+			*)
+				require_ca=1
+		esac
 esac
 
 # Intelligent env-var detection and auto-loading:
