@@ -5432,7 +5432,10 @@ vars_setup() {
 
 	# Find vars
 	# Explicit user defined vars file:
-	if [ "$EASYRSA_VARS_FILE" ]; then
+	if [ "$EASYRSA_NO_VARS" ]; then
+		: # ok
+
+	elif [ "$EASYRSA_VARS_FILE" ]; then
 		if [ -e "$EASYRSA_VARS_FILE" ]; then
 			vars="$EASYRSA_VARS_FILE"
 			user_vars_true=1
@@ -5517,7 +5520,7 @@ The 'vars' file was not found:
 			;;
 			*)
 				# For init-pki, skip this check
-				if [ "$pki_is_required" ]; then
+				if [ "$require_pki" ]; then
 					[ "$e_pki_vars" ] && print "Found: $pki_vars"
 					[ "$e_easy_vars" ] && print "Found: $easy_vars"
 					[ "$e_pwd_vars" ] && print "Found: $pwd_vars"
@@ -5542,9 +5545,11 @@ Priority should be given to your PKI vars file:
 	fi
 
 	# If EASYRSA_NO_VARS is defined then do not use vars
-	# If no_pki_required then located vars files are not
-	# required
-	if [ "$EASYRSA_NO_VARS" ] || [ "$no_pki_required" ]; then
+	# If PKI is not required then located vars files are
+	# not required
+	if [ "$EASYRSA_NO_VARS" ]; then
+		: # ok
+	elif [ ! "$require_pki" ]; then
 		: # ok
 
 	# If a vars file was located then source it
@@ -5683,8 +5688,7 @@ verify_working_env() {
 	install_data_to_pki x509-types-only
 
 	# For commands which 'require a PKI' and PKI exists
-	if  [ "$pki_is_required" ] # && [ -d "$EASYRSA_PKI" ]
-	then
+	if  [ "$require_pki" ]; then
 		# Verify PKI is initialised
 		verify_pki_init
 
@@ -6633,15 +6637,16 @@ done
 cmd="$1"
 [ "$1" ] && shift # scrape off command
 
+# Establish PKI and CA initialisation requirements
 # This avoids unnecessary warnings and notices
 case "$cmd" in
-	init-pki|clean-all|""|help|-h|--help|--usage|version)
-		no_pki_required=1
-		unset -v pki_is_required require_ca
+	init-pki|clean-all|\
+	help|-h|--help|--usage|\
+	version|upgrade|'')
+		unset -v require_pki require_ca
 	;;
 	*)
-		pki_is_required=1
-		unset -v no_pki_required
+		require_pki=1
 		case "$cmd" in
 			gen-req|gen-dh|build-ca)
 				unset -v require_ca
