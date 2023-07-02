@@ -5561,7 +5561,7 @@ Priority should be given to your PKI vars file:
 	# not required
 	if [ "$EASYRSA_NO_VARS" ]; then
 		: # ok
-	elif [ ! "$require_pki" ]; then
+	elif [ -z "$require_pki" ]; then
 		: # ok
 
 	# If a vars file was located then source it
@@ -5722,7 +5722,8 @@ verify_working_env - install_data_to_pki vars-setup failed"
 
 			# if the vars file in use is not in the PKI
 			# and not user defined then Show the messages
-			if [ "$vars_in_pki" ] || [ "$user_vars_true" ] || \
+			if [ "$vars_in_pki" ] || \
+				[ "$user_vars_true" ] || \
 				[ "$no_new_vars" ]
 			then
 				: # ok - No message required
