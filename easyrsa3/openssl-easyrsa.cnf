@@ -31,6 +31,9 @@ crl_extensions	= crl_ext
 default_days	= $ENV::EASYRSA_CERT_EXPIRE	# how long to certify for
 default_crl_days	= $ENV::EASYRSA_CRL_DAYS	# how long before next CRL
 default_md	= $ENV::EASYRSA_DIGEST		# use public key default MD
+
+# Note: preserve=no|yes, does nothing for EasyRSA.
+# Use sign-req command option 'preserve' instead.
 preserve	= no			# keep passed DN ordering
 
 # This allows to renew certificates which have not been revoked

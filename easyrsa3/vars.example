@@ -105,6 +105,12 @@ fi
 #set_var EASYRSA_REQ_EMAIL	"me@example.net"
 #set_var EASYRSA_REQ_OU		"My Organizational Unit"
 
+# Preserve the Distinguished Name field order
+# of the certificate signing request
+# *Only* effective in --dn-mode=org
+#
+#set_var EASYRSA_PRESERVE_DN	1
+
 # Set no password mode - This will create the entire PKI without passwords.
 # This can be better managed by choosing which entity private keys should be
 # encrypted with the following command line options:
