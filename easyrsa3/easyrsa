@@ -5445,7 +5445,8 @@ vars_setup() {
 	# Find vars
 	# Explicit user defined vars file:
 	if [ "$EASYRSA_NO_VARS" ]; then
-		: # ok
+		warn "\
+EASYRSA_NO_VARS is enabled, not using a 'vars' file.${NL}"
 
 	elif [ "$EASYRSA_VARS_FILE" ]; then
 		if [ -e "$EASYRSA_VARS_FILE" ]; then
@@ -5561,6 +5562,7 @@ Priority should be given to your PKI vars file:
 	# not required
 	if [ "$EASYRSA_NO_VARS" ]; then
 		: # ok
+
 	elif [ -z "$require_pki" ]; then
 		: # ok
 
@@ -5570,8 +5572,8 @@ Priority should be given to your PKI vars file:
 		# 'install_data_to_pki vars-setup' will NOT
 		# create a default PKI/vars
 		if [ -z "$vars" ]; then
-			information \
-				"No Easy-RSA 'vars' configuration file exists!"
+			information "\
+No Easy-RSA 'vars' configuration file exists!"
 			no_new_vars=1
 
 		else
@@ -5604,8 +5606,8 @@ Please, correct these errors and try again."
 			fi
 
 			if grep -q \
-				-e '[[:blank:]]export[[:blank:]]' \
-				-e '[[:blank:]]unset[[:blank:]]' \
+				-e '[[:blank:]]export[[:blank:]]*' \
+				-e '[[:blank:]]unset[[:blank:]]*' \
 				"$vars"
 			then
 				warn "\
@@ -5622,7 +5624,7 @@ One or more of these problems has been found in your 'vars' file:
 			# shellcheck disable=SC2034 # appears unused
 			EASYRSA_CALLER=1
 
-			# Test souring 'vars' in a subshell
+			# Test sourcing 'vars' in a subshell
 			# shellcheck disable=1090 # can't follow .. vars
 			( . "$vars" ) || \
 				die "Failed to source the vars file."
@@ -5687,7 +5689,6 @@ Algorithm '$EASYRSA_ALGO' is invalid: Must be 'rsa', 'ec' or 'ed'"
 	set_var EASYRSA_KDC_REALM		"CHANGEME.EXAMPLE.COM"
 
 	set_var EASYRSA_MAX_TEMP		4
-
 } # => vars_setup()
 
 # Verify working environment
