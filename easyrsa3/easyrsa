@@ -31,7 +31,7 @@ Here is the list of commands available with a short syntax reminder. Use the
   build-ca [ cmd-opts ]
   gen-dh
   gen-req <file_name_base> [ cmd-opts ]
-  sign-req <type> <file_name_base>
+  sign-req <type> <file_name_base> [ cmd-opts ]
   build-client-full <file_name_base> [ cmd-opts ]
   build-server-full <file_name_base> [ cmd-opts ]
   build-serverClient-full <file_name_base> [ cmd-opts ]
@@ -56,7 +56,7 @@ Here is the list of commands available with a short syntax reminder. Use the
   export-p7 <file_name_base> [ cmd-opts ]
   export-p8 <file_name_base> [ cmd-opts ]
   export-p12 <file_name_base> [ cmd-opts ]
-  set-pass  <file_name_base> [ cmd-opts ]
+  set-pass <file_name_base> [ cmd-opts ]
   upgrade <type>"
 
 	# collect/show dir status:
@@ -64,12 +64,35 @@ Here is the list of commands available with a short syntax reminder. Use the
 	err_source="Not defined: vars autodetect failed and no value provided"
 	work_dir="${EASYRSA:-$err_source}"
 	pki_dir="${EASYRSA_PKI:-$err_source}"
+
+	# vars file details
+	case "$found_vars" in
+		0) vars_status="Missing or undefined." ;;
+		1) vars_status="$vars" ;;
+		*) vars_status="WARNING: Multiple conflicting vars files!"
+	esac
+
+	# CA Status
+	if verify_ca_init test; then
+		CA_status="   CA status: OK
+  CA subject: \
+$("$EASYRSA_OPENSSL" x509 -in pki/ca.crt -noout -subject)"
+	else
+		CA_status="   CA status: CA has not been built."
+	fi
+
+	# Print details
 	print "
 DIRECTORY STATUS (commands would take effect on these locations)
      EASYRSA: $work_dir
          PKI: $pki_dir
-  x509-types: ${EASYRSA_EXT_DIR:-Missing or undefined}"
+   vars-file: $vars_status
+  x509-types: ${EASYRSA_EXT_DIR:-Missing or undefined}
+$CA_status"
 
+	# if the vars file in use is not in the PKI
+	# and not user defined then Show the messages
+	prefer_vars_in_pki_msg
 } # => usage()
 
 # Detailed command help
@@ -1319,12 +1342,9 @@ IMPORTANT:
   Edit this 'vars' file to customise the settings for your PKI.
   To use a global vars file, use global option --vars=<FILE>"
 
-	elif [ "$user_vars_true" ] || [ "$old_vars_true" ] || \
-		[ "$no_new_vars" ]
-	then
+	elif [ "$old_vars_true" ] || [ "$no_new_vars" ]; then
 		: # ok - User defined, old or no vars file exist
 	else
-		# Not in PKI and not user defined
 		prefer_vars_in_pki_msg
 	fi
 	information "
@@ -1334,7 +1354,13 @@ Using x509-types directory:
 
 # Must be used in two places, so made it a function
 prefer_vars_in_pki_msg() {
-	information "\
+	if [ "$vars_in_pki" ] || [ "$user_vars_true" ] ||
+		[ "$EASYRSA_NO_VARS" ]
+	then
+		return
+	fi
+
+	information "
   The preferred location for 'vars' is within the PKI folder.
   To silence this message move your 'vars' file to your PKI
   or declare your 'vars' file with option: --vars=<FILE>"
@@ -5520,7 +5546,9 @@ The 'vars' file was not found:
 		# If found_vars greater than 1
 		# then output user info and exit
 		case "$found_vars" in
-			0) unset -v found_vars ;;
+			0)
+				: # ok
+			;;
 			1)
 				# If a SINGLE vars file is found
 				# then assign $vars
@@ -5546,7 +5574,7 @@ Priority should be given to your PKI vars file:
 				fi
 
 				# For init-pki, pki/vars will be deleted
-				# Another vars file exists
+				# However, another vars file exists
 				# so don't create pki/vars
 				no_new_vars=1
 		esac
@@ -5563,27 +5591,28 @@ Priority should be given to your PKI vars file:
 	if [ "$EASYRSA_NO_VARS" ]; then
 		: # ok
 
-	elif [ -z "$require_pki" ]; then
-		: # ok
+	# $vars remains undefined .. no vars found
+	# 'install_data_to_pki vars-setup' will NOT
+	# create a default PKI/vars, no_new_vars
+	elif [ -z "$vars" ]; then
+		no_new_vars=1
+
+		# If PKI is required then warn
+		if [ "$require_pki" ]; then
+			warn "\
+No Easy-RSA 'vars' configuration file exists!"
+		fi
 
 	# If a vars file was located then source it
 	else
-		# $vars remains undefined .. no vars found
-		# 'install_data_to_pki vars-setup' will NOT
-		# create a default PKI/vars
-		if [ -z "$vars" ]; then
-			information "\
-No Easy-RSA 'vars' configuration file exists!"
-			no_new_vars=1
 
-		else
 			# 'vars' now MUST exist
 			[ -e "$vars" ] || die "\
 Missing vars file:
 * $vars"
 
 			# Installation information
-			information "\
+			[ "$require_pki" ] && information "\
 Using Easy-RSA configuration:
 * $vars"
 
@@ -5633,7 +5662,7 @@ One or more of these problems has been found in your 'vars' file:
 			# shellcheck disable=1090 # can't follow .. vars
 			. "$vars" 2>/dev/null
 			unset -v EASYRSA_CALLER
-		fi
+
 	fi
 
 	# Set defaults, preferring existing env-vars if present
@@ -5689,6 +5718,13 @@ Algorithm '$EASYRSA_ALGO' is invalid: Must be 'rsa', 'ec' or 'ed'"
 	set_var EASYRSA_KDC_REALM		"CHANGEME.EXAMPLE.COM"
 
 	set_var EASYRSA_MAX_TEMP		4
+
+	# if the vars file in use is not in the PKI
+	# and not user defined then Show the messages
+	if [ "$require_pki" ]; then
+		prefer_vars_in_pki_msg
+	fi
+
 } # => vars_setup()
 
 # Verify working environment
@@ -5718,17 +5754,6 @@ verify_working_env - secure-session failed"
 			# Other errors only require warning.
 			install_data_to_pki vars-setup || warn "\
 verify_working_env - install_data_to_pki vars-setup failed"
-
-			# if the vars file in use is not in the PKI
-			# and not user defined then Show the messages
-			if [ "$vars_in_pki" ] || \
-				[ "$user_vars_true" ] || \
-				[ "$no_new_vars" ]
-			then
-				: # ok - No message required
-			else
-				prefer_vars_in_pki_msg
-			fi
 
 			# Verify selected algorithm and parameters
 			verify_algo_params
