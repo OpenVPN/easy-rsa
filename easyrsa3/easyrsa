@@ -5762,9 +5762,9 @@ Temporary directory does not exist:
 # the variable when it is already defined (even if currently null)
 # Sets $1 as the value contained in $2 and exports (may be blank)
 set_var() {
-	[ "$1" ] || die "set_var - missing input"
-	[ "$1" = "${1% *}" ] || die "set_var - input error"
+	[ "$#" = 0 ] && return
 	[ "$#" -lt 3 ] || die "set_var - excess input"
+	[ "$1" = "${1% *}" ] || die "set_var - input error"
 	eval "export \"$1\"=\"\${$1-$2}\""
 } #=> set_var()
 
