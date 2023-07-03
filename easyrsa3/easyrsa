@@ -5708,16 +5708,14 @@ verify_working_env() {
 		if [ -d "$EASYRSA_TEMP_DIR" ]; then
 
 			# Temp dir session
-			secure_session || \
-				die "\
+			secure_session || die "\
 verify_working_env - secure-session failed"
 
 			# Install data-files into ALL PKIs
 			# This will find x509-types
 			# and export EASYRSA_EXT_DIR or die.
 			# Other errors only require warning.
-			install_data_to_pki vars-setup || \
-				warn "\
+			install_data_to_pki vars-setup || warn "\
 verify_working_env - install_data_to_pki vars-setup failed"
 
 			# if the vars file in use is not in the PKI
@@ -5737,9 +5735,9 @@ verify_working_env - install_data_to_pki vars-setup failed"
 			# Check $working_safe_ssl_conf, to build
 			# a fully configured safe ssl conf, on the
 			# next invocation of easyrsa_openssl()
-			[ -z "$working_safe_ssl_conf" ] || {
+			if [ "$working_safe_ssl_conf" ]; then
 				die "working_safe_ssl_conf must not be set!"
-			}
+			fi
 
 			# Verify CA is initialised
 			if [ "$require_ca" ]; then
