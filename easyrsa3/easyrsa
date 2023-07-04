@@ -1254,7 +1254,7 @@ init_pki() {
 	while [ "$1" ]; do
 		case "$1" in
 			hard-reset|hard) reset="hard" ;;
-			soft-reset|soft) reset="soft"; old_vars_true=1 ;;
+			soft-reset|soft) reset="soft" ;;
 			*) warn "Ignoring unknown command option: '$1'"
 		esac
 		shift
@@ -1300,8 +1300,13 @@ and initialize a fresh PKI here."
 				ecparams certs_by_serial
 			do
 				# # # shellcheck disable=SC2115 # Use "${var:?}"
-				rm -rf "$EASYRSA_PKI/$i" || \
-					die "init-pki soft reset failed."
+				target="$EASYRSA_PKI/$i"
+				if [ "${#target}" -gt 1 ]; then
+					rm -rf "$target" || \
+						die "init-pki soft reset(1) failed!"
+				else
+					die "init-pki soft reset(2) failed!"
+				fi
 			done
 		;;
 		*)
@@ -1331,9 +1336,16 @@ Your newly created PKI dir is:
 	# if $no_new_vars then there are one or more known vars
 	# which are not in the PKI. All further commands will fail
 	# until vars is manually corrected
-	[ "$no_new_vars" ] || information "
+	if [ "$no_new_vars" ]; then
+		warn "\
+A vars file has not been created in your new PKI because
+conflicting vars files have been found elsewhere."
+		prefer_vars_in_pki_msg
+	else
+		information "
 Using Easy-RSA configuration:
-* ${vars:-Not found}"
+* ${vars:-undefined}"
+	fi
 
 	# For new PKIs , pki/vars was auto-created, show message
 	if [ "$new_vars_true" ]; then
@@ -1343,8 +1355,6 @@ IMPORTANT:
   Edit this 'vars' file to customise the settings for your PKI.
   To use a global vars file, use global option --vars=<FILE>"
 
-	elif [ "$old_vars_true" ] || [ "$no_new_vars" ]; then
-		: # ok - User defined, old or no vars file exist
 	else
 		prefer_vars_in_pki_msg
 	fi
@@ -1362,6 +1372,7 @@ prefer_vars_in_pki_msg() {
 	fi
 
 	information "
+IMPORTANT:
   The preferred location for 'vars' is within the PKI folder.
   To silence this message move your 'vars' file to your PKI
   or declare your 'vars' file with option: --vars=<FILE>"
@@ -1442,16 +1453,19 @@ install_data_to_pki() {
 
 	# Short circuit for x509-types-only
 	if [ "$context" = x509-types-only ]; then
-		verbose "install_data_to_pki: x509-types-only COMPLETED"
+		verbose "\
+install_data_to_pki: $context - COMPLETED"
 		return
 	fi
 
 	# Create PKI/vars from PKI/example
 	unset -v new_vars_true
-	if [ "$found_vars" ] || [ "$user_vars_true" ] || \
+	if [ "$found_vars" = 1 ] || [ "$user_vars_true" ] || \
 		[ "$no_new_vars" ]
 	then
 		: # ok - Do not make a PKI/vars if another vars exists
+		verbose "\
+install_data_to_pki: $context - Not creating pki/vars"
 	else
 		case "$context" in
 		init-pki)
@@ -1463,13 +1477,19 @@ install_data_to_pki() {
 				# Failure means that no vars will exist and
 				# 'cp' will generate an error message
 				# This is not a fatal error
-				cp "${EASYRSA_PKI}/${vars_file_example}" \
-					"${EASYRSA_PKI}/${vars_file}" && \
-						new_vars_true=1
+				if cp "${EASYRSA_PKI}/${vars_file_example}" \
+					"${EASYRSA_PKI}/${vars_file}"
+				then
+					new_vars_true=1
+					vars="${EASYRSA_PKI}/${vars_file}"
+					verbose "\
+install_data_to_pki: $context - vars = '$vars'"
+				else
+					unset -v new_vars_true vars
+					warn "\
+install_data_to_pki: $context - Failed to install vars file"
+				fi
 			fi
-
-			# Use set_var to set vars, do not clobber $vars
-			set_var vars "${EASYRSA_PKI}/${vars_file}"
 		;;
 		vars-setup)
 			: ;; # No change to current 'vars' required
@@ -1489,13 +1509,13 @@ install_data_to_pki() {
 		create_openssl_easyrsa_cnf > \
 			"${EASYRSA_PKI}/${ssl_cnf_file}" || \
 				die "install_data_to_pki - Missing: '$ssl_cnf_file'"
-		verbose "install_data_to_pki: create_openssl_easyrsa_cnf OK"
+		verbose "\
+install_data_to_pki: $context - create_openssl_easyrsa_cnf OK"
 	fi
 
 	[ -d "$EASYRSA_EXT_DIR" ] || \
 		warn "install_data_to_pki - Missing: '$x509_types_dir'"
-	verbose "install_data_to_pki: $context COMPLETED"
-
+	verbose "install_data_to_pki: $context - COMPLETED"
 } # => install_data_to_pki ()
 
 # Create x509-type/ca
@@ -5454,6 +5474,8 @@ To correct this problem, it is recommended that you either:
 		user_error "\
 Use of --silent and --verbose is unresolvable."
 	fi
+
+	verbose "mutual_exclusions: COMPLETED"
 } # => mutual_exclusions()
 
 # vars setup
@@ -5548,6 +5570,7 @@ The 'vars' file was not found:
 		found_vars="$((
 			e_pki_vars + e_easy_vars + e_pwd_vars + e_prog_vars
 			))"
+		verbose "vars_setup: found_vars = '$found_vars'"
 
 		# If found_vars greater than 1
 		# then output user info and exit
@@ -5566,12 +5589,13 @@ The 'vars' file was not found:
 			: # Wipe error status
 		;;
 		*)
-			# For init-pki, skip this check
+			[ "$e_pki_vars" ] && print "Found: $pki_vars"
+			[ "$e_easy_vars" ] && print "Found: $easy_vars"
+			[ "$e_pwd_vars" ] && print "Found: $pwd_vars"
+			[ "$e_prog_vars" ] && print "Found: $prog_vars"
+
+			# For init-pki, version and help, skip this
 			if [ "$require_pki" ]; then
-				[ "$e_pki_vars" ] && print "Found: $pki_vars"
-				[ "$e_easy_vars" ] && print "Found: $easy_vars"
-				[ "$e_pwd_vars" ] && print "Found: $pwd_vars"
-				[ "$e_prog_vars" ] && print "Found: $prog_vars"
 				user_error "\
 Conflicting 'vars' files found.
 
@@ -5583,7 +5607,10 @@ Priority should be given to your PKI vars file:
 			# However, another vars file exists
 			# so don't create pki/vars
 			no_new_vars=1
+			verbose "vars_setup: no_new_vars = '$no_new_vars'"
 		esac
+
+		verbose "vars_setup: vars = '$vars'"
 
 		# Clean up
 		unset -v prog_vars pwd_vars easy_vars pki_vars \
@@ -5601,9 +5628,8 @@ Priority should be given to your PKI vars file:
 	# 'install_data_to_pki vars-setup' will NOT
 	# create a default PKI/vars, no_new_vars
 	elif [ -z "$vars" ]; then
-		no_new_vars=1
-
 		# If PKI is required then warn
+		# For init-pki, version and help, skip this
 		if [ "$require_pki" ]; then
 			warn "\
 No Easy-RSA 'vars' configuration file exists!"
@@ -5618,7 +5644,7 @@ Missing vars file:
 
 		# Installation information
 		[ "$require_pki" ] && information "\
-Using Easy-RSA configuration:
+Using Easy-RSA 'vars' configuration:
 * $vars"
 
 		# Sanitize vars
@@ -5729,7 +5755,7 @@ Algorithm '$EASYRSA_ALGO' is invalid: Must be 'rsa', 'ec' or 'ed'"
 	if [ "$require_pki" ]; then
 		prefer_vars_in_pki_msg
 	fi
-
+	verbose "vars_setup: COMPLETED"
 } # => vars_setup()
 
 # Verify working environment
@@ -5787,6 +5813,7 @@ Temporary directory does not exist:
 * $EASYRSA_TEMP_DIR"
 		fi
 	fi
+	verbose "verify_working_env: COMPLETED"
 } # => verify_working_env()
 
 # variable assignment by indirection when undefined; merely exports
@@ -6453,11 +6480,11 @@ unset -v \
 	prohibit_no_pass \
 	secured_session \
 	working_safe_ssl_conf \
-	user_vars_true \
 	user_san_true \
 	alias_days \
 	do_build_full \
-	error_info
+	error_info \
+	found_vars no_new_vars user_vars_true
 
 	# Used by build-ca->cleanup to restore prompt
 	# after user interrupt when using manual password
