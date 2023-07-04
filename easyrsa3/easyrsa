@@ -5472,6 +5472,8 @@ vars_setup() {
 	# Find vars
 	# Explicit user defined vars file:
 	if [ "$EASYRSA_NO_VARS" ]; then
+		# Found exactly zero vars files
+		found_vars=0
 		warn "\
 EASYRSA_NO_VARS is enabled, not using a 'vars' file.${NL}"
 
