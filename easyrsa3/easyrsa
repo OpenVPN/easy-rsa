@@ -6711,6 +6711,7 @@ cmd="$1"
 case "$cmd" in
 	init-pki|clean-all|\
 	help|-h|--help|--usage|\
+	show-host|\
 	version|upgrade|'')
 		unset -v require_pki require_ca
 	;;
