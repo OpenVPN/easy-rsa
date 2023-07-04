@@ -74,9 +74,10 @@ Here is the list of commands available with a short syntax reminder. Use the
 
 	# CA Status
 	if verify_ca_init test; then
+		CA_cert="$EASYRSA_PKI/ca.crt"
 		CA_status="   CA status: OK
   CA subject: \
-$("$EASYRSA_OPENSSL" x509 -in pki/ca.crt -noout -subject)"
+$("$EASYRSA_OPENSSL" x509 -in "$CA_cert" -noout -subject)"
 	else
 		CA_status="   CA status: CA has not been built."
 	fi
@@ -5477,7 +5478,10 @@ EASYRSA_NO_VARS is enabled, not using a 'vars' file.${NL}"
 	elif [ "$EASYRSA_VARS_FILE" ]; then
 		if [ -e "$EASYRSA_VARS_FILE" ]; then
 			vars="$EASYRSA_VARS_FILE"
+			# User set vars turns off pki/var warning
 			user_vars_true=1
+			# Found exactly one vars file
+			found_vars=1
 		else
 			# If the --vars option does not point to a file
 			user_error "\
