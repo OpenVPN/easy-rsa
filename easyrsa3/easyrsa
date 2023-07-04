@@ -5552,37 +5552,37 @@ The 'vars' file was not found:
 		# If found_vars greater than 1
 		# then output user info and exit
 		case "$found_vars" in
-			0)
-				: # ok
-			;;
-			1)
-				# If a SINGLE vars file is found
-				# then assign $vars
-				[ "$e_prog_vars" ] && vars="$prog_vars"
-				[ "$e_pwd_vars" ] && vars="$pwd_vars"
-				[ "$e_easy_vars" ] && vars="$easy_vars"
-				[ "$e_pki_vars" ] && \
-					vars="$pki_vars" && vars_in_pki=1
-				: # Wipe error status
-			;;
-			*)
-				# For init-pki, skip this check
-				if [ "$require_pki" ]; then
-					[ "$e_pki_vars" ] && print "Found: $pki_vars"
-					[ "$e_easy_vars" ] && print "Found: $easy_vars"
-					[ "$e_pwd_vars" ] && print "Found: $pwd_vars"
-					[ "$e_prog_vars" ] && print "Found: $prog_vars"
-					user_error "\
+		0)
+			: # ok
+		;;
+		1)
+			# If a SINGLE vars file is found
+			# then assign $vars
+			[ "$e_prog_vars" ] && vars="$prog_vars"
+			[ "$e_pwd_vars" ] && vars="$pwd_vars"
+			[ "$e_easy_vars" ] && vars="$easy_vars"
+			[ "$e_pki_vars" ] && \
+				vars="$pki_vars" && vars_in_pki=1
+			: # Wipe error status
+		;;
+		*)
+			# For init-pki, skip this check
+			if [ "$require_pki" ]; then
+				[ "$e_pki_vars" ] && print "Found: $pki_vars"
+				[ "$e_easy_vars" ] && print "Found: $easy_vars"
+				[ "$e_pwd_vars" ] && print "Found: $pwd_vars"
+				[ "$e_prog_vars" ] && print "Found: $prog_vars"
+				user_error "\
 Conflicting 'vars' files found.
 
 Priority should be given to your PKI vars file:
 * $expected_pki_vars"
-				fi
+			fi
 
-				# For init-pki, pki/vars will be deleted
-				# However, another vars file exists
-				# so don't create pki/vars
-				no_new_vars=1
+			# For init-pki, pki/vars will be deleted
+			# However, another vars file exists
+			# so don't create pki/vars
+			no_new_vars=1
 		esac
 
 		# Clean up
@@ -5611,64 +5611,63 @@ No Easy-RSA 'vars' configuration file exists!"
 
 	# If a vars file was located then source it
 	else
-
-			# 'vars' now MUST exist
-			[ -e "$vars" ] || die "\
+		# 'vars' now MUST exist
+		[ -e "$vars" ] || die "\
 Missing vars file:
 * $vars"
 
-			# Installation information
-			[ "$require_pki" ] && information "\
+		# Installation information
+		[ "$require_pki" ] && information "\
 Using Easy-RSA configuration:
 * $vars"
 
-			# Sanitize vars
-			if grep -q \
-				-e 'EASYRSA_PASSIN' -e 'EASYRSA_PASSOUT' \
-				-e '[^(]`[^)]' \
-				"$vars"
-			then
-				user_error "\
+		# Sanitize vars
+		if grep -q \
+			-e 'EASYRSA_PASSIN' -e 'EASYRSA_PASSOUT' \
+			-e '[^(]`[^)]' \
+			"$vars"
+		then
+			user_error "\
 One or more of these problems has been found in your 'vars' file:
 
 * Use of 'EASYRSA_PASSIN' or 'EASYRSA_PASSOUT':
-  Storing password information in the 'vars' file is not permitted.
+Storing password information in the 'vars' file is not permitted.
 
 * Use of unsupported characters:
-  These characters are not supported: \` backtick
+These characters are not supported: \` backtick
 
 Please, correct these errors and try again."
-			fi
+		fi
 
-			if grep -q \
-				-e '[[:blank:]]export[[:blank:]]*' \
-				-e '[[:blank:]]unset[[:blank:]]*' \
-				"$vars"
-			then
-				warn "\
+		# Sanitize vars
+		if grep -q \
+			-e '[[:blank:]]export[[:blank:]]*' \
+			-e '[[:blank:]]unset[[:blank:]]*' \
+			"$vars"
+		then
+			warn "\
 One or more of these problems has been found in your 'vars' file:
 
 * Use of 'export':
-  Remove 'export' or replace it with 'set_var'.
+Remove 'export' or replace it with 'set_var'.
 
 * Use of 'unset':
-  Remove 'unset' ('force_set_var' may also work)."
-			fi
+Remove 'unset' ('force_set_var' may also work)."
+		fi
 
-			# Enable sourcing 'vars'
-			# shellcheck disable=SC2034 # appears unused
-			EASYRSA_CALLER=1
+		# Enable sourcing 'vars'
+		# shellcheck disable=SC2034 # appears unused
+		EASYRSA_CALLER=1
 
-			# Test sourcing 'vars' in a subshell
-			# shellcheck disable=1090 # can't follow .. vars
-			( . "$vars" ) || \
-				die "Failed to source the vars file."
+		# Test sourcing 'vars' in a subshell
+		# shellcheck disable=1090 # can't follow .. vars
+		( . "$vars" ) || \
+			die "Failed to source the vars file."
 
-			# Source 'vars' now
-			# shellcheck disable=1090 # can't follow .. vars
-			. "$vars" 2>/dev/null
-			unset -v EASYRSA_CALLER
-
+		# Source 'vars' now
+		# shellcheck disable=1090 # can't follow .. vars
+		. "$vars" 2>/dev/null
+		unset -v EASYRSA_CALLER
 	fi
 
 	# Set defaults, preferring existing env-vars if present
