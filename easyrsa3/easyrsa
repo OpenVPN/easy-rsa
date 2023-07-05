@@ -1120,32 +1120,33 @@ ${has_config:+-config $easyrsa_safe_ssl_conf }$*"
 # and establish version dependencies
 verify_ssl_lib() {
 	# Run once only
-	[ "$EASYRSA_SSL_OK" ] && die "verify_ssl_lib - Overloaded"
-	EASYRSA_SSL_OK=1
+	[ "$verify_ssl_lib_ok" ] && return
+	verify_ssl_lib_ok=1
 
-	# redirect std-err to ignore missing etc/ssl/openssl.cnf file
+	# redirect std-err, ignore missing ssl/openssl.cnf
 	val="$("$EASYRSA_OPENSSL" version 2>/dev/null)"
+	ssl_version="$val"
 
 	# SSL lib name
+	require_safe_ssl_conf=1
 	case "${val%% *}" in
-		# OpenSSL does require a safe config-file for ampersand
-		OpenSSL)
-			ssl_lib=openssl
-			if [ -z "$EASYRSA_NO_SAFE_SSL" ]; then
-				require_safe_ssl_conf=1
-			fi
-		;;
-		LibreSSL)
-			ssl_lib=libressl
-			require_safe_ssl_conf=1
-			if [ "$EASYRSA_NO_SAFE_SSL" ]; then
-				user_error \
-					"Cannot use '--no-safe-ssl' with LibreSSL"
-			fi
-		;;
-		*)
-			error_msg="$("$EASYRSA_OPENSSL" version 2>&1)"
+	# OpenSSL does require a safe config-file for ampersand
+	OpenSSL)
+		ssl_lib=openssl
+		if [ "$EASYRSA_NO_SAFE_SSL" ]; then
+			unset -v require_safe_ssl_conf
+		fi
+	;;
+	LibreSSL)
+		ssl_lib=libressl
+		if [ "$EASYRSA_NO_SAFE_SSL" ]; then
 			user_error "\
+Cannot use '--no-safe-ssl' with LibreSSL"
+		fi
+	;;
+	*)
+		error_msg="$("$EASYRSA_OPENSSL" version 2>&1)"
+		user_error "\
 * OpenSSL must either exist in your PATH
   or be defined in your vars file.
 
@@ -1158,20 +1159,17 @@ $error_msg"
 	osslv_major="${val#* }"
 	osslv_major="${osslv_major%%.*}"
 	case "$osslv_major" in
-		1) no_password='-nodes' ;;
-		2) no_password='-nodes' ;;
-		3)
-			case "$ssl_lib" in
-				openssl) no_password='-noenc' ;;
-				libressl) no_password='-nodes' ;;
-				*) user_error \
-					"Unsupported SSL library: $ssl_lib"
-			esac
-		;;
-		*) user_error "Unsupported SSL library: $osslv_major"
+	1) no_password='-nodes' ;;
+	2) no_password='-nodes' ;;
+	3)
+		case "$ssl_lib" in
+			openssl) no_password='-noenc' ;;
+			libressl) no_password='-nodes' ;;
+			*) die "Unexpected SSL library: $ssl_lib"
+		esac
+	;;
+	*) die "Unexpected SSL version: $osslv_major"
 	esac
-	ssl_version="$val"
-
 } # => verify_ssl_lib()
 
 # Basic sanity-check of PKI init and complain if missing
@@ -1301,7 +1299,7 @@ and initialize a fresh PKI here."
 			do
 				# # # shellcheck disable=SC2115 # Use "${var:?}"
 				target="$EASYRSA_PKI/$i"
-				if [ "${#target}" -gt 1 ]; then
+				if [ "${target%/*}" ]; then
 					rm -rf "$target" || \
 						die "init-pki soft reset(1) failed!"
 				else
@@ -6476,6 +6474,7 @@ detect_host
 
 # Initialisation requirements
 unset -v \
+	verify_ssl_lib_ok \
 	easyrsa_error_exit \
 	prohibit_no_pass \
 	secured_session \
