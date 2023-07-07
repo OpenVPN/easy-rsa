@@ -16,18 +16,15 @@ usage() {
 	print "
 Easy-RSA 3 usage and overview
 
-USAGE: easyrsa [options] COMMAND [command-options]
+USAGE: easyrsa [global-options] COMMAND [command-options]
 
-A list of commands is shown below. To get detailed usage and help for a
-command, run:
+To get detailed usage and help for a command, use:
   ./easyrsa help COMMAND
 
-For a listing of options that can be supplied before the command, use:
+For a list of global-options, use:
   ./easyrsa help options
 
-Here is the list of commands available with a short syntax reminder. Use the
-'help' command above to get full usage details.
-
+A list of commands is shown below:
   init-pki [ cmd-opts ]
   build-ca [ cmd-opts ]
   gen-dh
@@ -62,9 +59,8 @@ Here is the list of commands available with a short syntax reminder. Use the
 
 	# collect/show dir status:
 	text_only=1
-	err_source="Not defined: vars autodetect failed and no value provided"
-	work_dir="${EASYRSA:-$err_source}"
-	pki_dir="${EASYRSA_PKI:-$err_source}"
+	work_dir="${EASYRSA:-undefined}"
+	pki_dir="${EASYRSA_PKI:-undefined}"
 
 	# vars file details
 	case "$found_vars" in
@@ -114,7 +110,8 @@ cmd_help() {
 
 		opts="
       * hard    - Recursively delete the PKI directory (default).
-      * soft    - Keep the named PKI directory and PKI 'vars' file intact."
+      * soft    - Keep the named PKI directory and PKI 'vars' file
+                  intact."
 	;;
 	build-ca)
 		text="
@@ -126,7 +123,7 @@ cmd_help() {
       * raw-ca  - ONLY use SSL binary to input CA password
         raw       (Equivalent to global option '--raw-ca')
 
-      * nopass  - Do not encrypt the private key (default is encrypted)
+      * nopass  - Do not encrypt the private key (Default: encrypted)
                   (Equivalent to global option '--nopass|--no-pass')
 
       * subca   - Create an intermediate CA keypair and request
@@ -142,12 +139,12 @@ cmd_help() {
 		text="
 * gen-req <file_name_base> [ cmd-opts ]
 
-      Generate a standalone private key and certificate signing request [CSR]
+      Generate a standalone-private-key and certificate-signing-request
 
       This request is suitable for sending to a remote CA for signing."
 
 		opts="
-      * nopass  - Do not encrypt the private key (default is encrypted)
+      * nopass  - Do not encrypt the private key (Default: encrypted)
                   (Equivalent to global option '--nopass|--no-pass')
       * text    - Include certificate text in request"
 	;;
@@ -162,7 +159,7 @@ cmd_help() {
       All supported types are listed in the x509-types directory.
 
       This request file must exist in the reqs/ dir and have a .req file
-      extension. See import-req below for importing reqs from other sources."
+      extension. See 'import-req' for importing from other sources."
 		opts="
       * preserve - Use the DN-field order of the CSR not the CA."
 	;;
@@ -177,7 +174,7 @@ cmd_help() {
       This mode uses the <file_name_base> as the X509 commonName."
 
 		opts="
-      * nopass  - Do not encrypt the private key (default is encrypted)
+      * nopass  - Do not encrypt the private key (Default: encrypted)
                   (Equivalent to global option '--nopass|--no-pass')"
 	;;
 	revoke)
@@ -215,7 +212,7 @@ cmd_help() {
       Rebuild a certificate and key specified by <file_name_base>"
 
 		opts="
-      * nopass  - Do not encrypt the private key (default is encrypted)
+      * nopass  - Do not encrypt the private key (Default: encrypted)
                   (Equivalent to global option '--nopass|--no-pass')"
 	;;
 	renew)
@@ -343,7 +340,7 @@ cmd_help() {
       specified by <file_name_base>"
 
 		opts="
-      * nopass  - Do not encrypt the private key (default is encrypted)
+      * nopass  - Do not encrypt the private key (Default: encrypted)
                   (Equivalent to global option '--nopass|--no-pass')
       * noca    - Do not include the ca.crt file in the PKCS12 output
       * nokey   - Do not include the private key in the PKCS12 output
@@ -367,7 +364,7 @@ cmd_help() {
       specified by <file_name_base>"
 
 		opts="
-      * nopass  - Do not encrypt the private key (default is encrypted)
+      * nopass  - Do not encrypt the private key (Default: encrypted)
                   (Equivalent to global option '--nopass|--no-pass')"
 	;;
 	export-p1)
@@ -378,7 +375,7 @@ cmd_help() {
       specified by <file_name_base>"
 
 		opts="
-      * nopass  - Do not encrypt the private key (default is encrypted)
+      * nopass  - Do not encrypt the private key (Default: encrypted)
                   (Equivalent to global option '--nopass|--no-pass')"
 	;;
 	set-pass|set-ed-pass|set-rsa-pass|set-ec-pass)
@@ -390,7 +387,7 @@ cmd_help() {
   DEPRECATED: 'set-rsa-pass' and 'set-ec-pass'"
 
 		opts="
-      * nopass  - Do not encrypt the private key (default is encrypted)
+      * nopass  - Do not encrypt the private key (Default: encrypted)
                   (Equivalent to global option '--nopass|--no-pass')
       * file    - (Advanced) Treat the file as a raw path, not a short-name"
 	;;
@@ -458,7 +455,8 @@ cmd_help() {
 		usage ;;
 	*)
 		err_text="
-  Unknown command: '$1' (try without commands for a list of commands)"
+  Unknown command: '$1' \
+(try without commands for a list of commands)"
 		easyrsa_exit_with_error=1
 	esac
 
@@ -485,9 +483,11 @@ opt_usage() {
 	print "
 Easy-RSA Global Option Flags
 
-The following options may be provided before the command. Options specified
-at runtime override env-vars and any 'vars' file in use. Unless noted,
-non-empty values to options are mandatory.
+The following global-options may be provided before the command.
+Options specified at runtime override env-vars and any 'vars'
+file in use.
+
+Unless noted, non-empty values to options are mandatory.
 
 General options:
 
@@ -497,11 +497,11 @@ General options:
 --sbatch        : Combined --silent and --batch operating mode
 --silent-ssl|-S : Silence SSL output (Requires batch mode)
 
---no-pass       : Do not use passwords
-                  Can not be used with --passin or --passout
+--nopass|no-pass: Do not use passwords
+                  Can NOT be used with --passin or --passout
 --passin=ARG    : Set -passin ARG for openssl (eg: pass:xEasyRSAy)
 --passout=ARG   : Set -passout ARG for openssl (eg: pass:xEasyRSAy)
---raw-ca        : Build CA with password via RAW SSL input
+--raw|raw-ca    : Build CA with password via RAW SSL input
 
 --vars=FILE     : Define a specific 'vars' file to use for Easy-RSA config
                   (Default vars file is in the EasyRSA PKI directory)
@@ -522,7 +522,7 @@ General options:
 
 Certificate & Request options: (these impact cert/req field values)
 
---no-text       : Create certificates without human readable text
+--notext|no-text: Create certificates without human readable text
 --days=#        : Sets the signing validity to the specified number of days
                   Applies to other commands. For details, see: 'help days'
 --startdate=DATE: Sets the SSL option '-startdate' (Format 'YYYYMMDDhhmmssZ')
@@ -536,7 +536,7 @@ Certificate & Request options: (these impact cert/req field values)
 
 --subca-len=#   : Path length of signed intermediate CA certificates
 --copy-ext      : Copy included request X509 extensions (namely subjAltName)
---san|--subject-alt-name
+--san|--subject-alt-name=<subjectAltName>
                 : Add a subjectAltName.
                   For more info and syntax, see: 'easyrsa help altname'
 
