@@ -4348,16 +4348,16 @@ Run easyrsa without commands for usage help."
 
 	# Verify file exists and is of the correct type
 	[ -e "$in_file" ] || user_error "\
-No such '$type' type file with a <file_name_base> of '$name' is present.
+No such '$type' type file with a <file_name_base> of '$name'.
 Expected to find this file at:
-$in_file"
+* $in_file"
 
 	verify_file "$format" "$in_file" || user_error "\
 This file is not a valid $type file:
-$in_file"
+* $in_file"
 
 	notice "\
-Showing $type details for: '$name'
+Showing '$type' details for: '$name'
 
 This file is stored at:
 * $in_file${NL}"
@@ -4366,7 +4366,6 @@ This file is stored at:
 		${type_opts:+ "$type_opts" "$out_opts"} \
 		${name_opts:+ -nameopt "$name_opts"} || \
 			die "OpenSSL failure to process the input"
-
 } # => show()
 
 # show-ca command backend
@@ -4398,13 +4397,11 @@ $in_file"
 
 	notice "
 Showing details for CA certificate, at:
-* $in_file
-"
+* $in_file${NL}"
 
 	easyrsa_openssl "$format" -in "$in_file" -noout -text \
 		-nameopt "$name_opts" -certopt "$out_opts" || \
 			die "OpenSSL failure to process the input"
-
 } # => show_ca()
 
 # get the serial number of the certificate -> serial=XXXX
