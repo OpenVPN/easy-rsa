@@ -3924,7 +3924,7 @@ Unable to export $pkcs_type for short name '$short_name'.
 Missing cert expected at:
 * $crt_in"
 
-	# For 'nopass' PKCS requires an explicit empty password 'pass:'
+	# For 'nopass' PKCS requires an explicit empty password
 	if [ "$EASYRSA_NO_PASS" ]; then
 		EASYRSA_PASSIN=pass:
 		EASYRSA_PASSOUT=pass:
@@ -3947,8 +3947,8 @@ if you want a p12 without the private key, use 'nokey' option."
 		fi
 
 		# export the p12:
-		easyrsa_openssl pkcs12 -in "$crt_in" -inkey "$key_in" -export \
-			-out "$pkcs_out" \
+		easyrsa_openssl pkcs12 -in "$crt_in" -inkey "$key_in" \
+			-export -out "$pkcs_out" \
 			${nokeys:+ -nokeys} \
 			${pkcs_certfile_path:+ -certfile "$pkcs_certfile_path"} \
 			${pkcs_friendly_name:+ -name "$pkcs_friendly_name"} \
@@ -3990,8 +3990,8 @@ if you want a p12 without the private key, use 'nokey' option."
 	esac
 
 	notice "\
-Successful export of $pkcs_type file. Your exported file is at the following
-location: $pkcs_out"
+Successful export of $pkcs_type file. Your exported file is at:
+* $pkcs_out"
 
 	return 0
 } # => export_pkcs()
