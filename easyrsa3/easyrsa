@@ -5129,7 +5129,7 @@ expire_status - ABSOLUTE seconds mismatch: Use --allow-margin=N"
 					old_cert_expire_date_s - margin_s
 					))"
 
-				if [ "$cert_expire_date_s" -lt "$margin_plus_s" ] && \
+				if [ "$cert_expire_date_s" -lt "$margin_plus_s" ] &&
 					[ "$cert_expire_date_s" -gt "$margin_minus_s" ]
 				then
 					: # ok
@@ -5228,7 +5228,8 @@ revoke_status() {
 renew_status() {
 	# Does a Renewed cert exist ?
 	# files in issued are file name, or in serial are SerialNumber
-	unset -v cert_file_in cert_is_issued cert_is_serial renew_is_old
+	unset -v \
+		cert_file_in cert_is_issued cert_is_serial renew_is_old
 
 	# Find renewed/issued/CN
 	if [ -e "$cert_r_issued" ]; then
@@ -5266,7 +5267,8 @@ serial mismatch:
 
 		# Use cert date
 		# Assigns cert_not_after_date
-		ssl_cert_not_after_date "$cert_file_in" cert_not_after_date
+		ssl_cert_not_after_date \
+			"$cert_file_in" cert_not_after_date
 
 		# Highlight renewed/cert_by_serial
 		if [ "$renew_is_old" ]; then
@@ -5287,7 +5289,6 @@ serial mismatch:
 
 # cert status reports
 status() {
-
 	[ "$#" -gt 0 ] || die "status - input error"
 	report="$1"
 	target="$2"
@@ -5371,7 +5372,8 @@ satisfy_shellcheck() {
 
 # Identify host OS
 detect_host() {
-	unset -v easyrsa_ver_test easyrsa_host_os easyrsa_host_test \
+	unset -v \
+		easyrsa_ver_test easyrsa_host_os easyrsa_host_test \
 			easyrsa_win_git_bash
 
 	# Detect Windows
@@ -5433,7 +5435,6 @@ show_host() {
 
 # Verify the selected algorithm parameters
 verify_algo_params() {
-	# EASYRSA_ALGO_PARAMS must be set depending on selected algo
 	case "$EASYRSA_ALGO" in
 	rsa)
 		# Set RSA key size
@@ -5463,7 +5464,7 @@ Failed to generate ecparam file (permissions?) at:
 Edwards Curve $EASYRSA_CURVE not found."
 	;;
 	*) user_error "\
-Algorithm '$EASYRSA_ALGO' is invalid: Must be 'rsa', 'ec' or 'ed'"
+Unknown algorithm '$EASYRSA_ALGO': Must be 'rsa', 'ec' or 'ed'"
 	esac
 	verbose "\
 verify_algo_params: Params verified for algo '$EASYRSA_ALGO'"
@@ -5513,7 +5514,8 @@ EasyRSA '$cmd' does not support --startdate or --enddate"
 
 	# Insecure Windows directory
 	if [ "$easyrsa_host_os" = win ]; then
-		if echo "$PWD" | grep -q '/P.*/OpenVPN/easy-rsa'; then
+		if echo "$PWD" | grep -q '/Prog.*/OpenVPN/easy-rsa'
+		then
 			warn "\
 Using Windows-System-Folders for your PKI is NOT SECURE!
 Your Easy-RSA PKI CA Private Key is WORLD readable.
@@ -5601,7 +5603,8 @@ The 'vars' file was not found:
 		pwd_vars="$PWD/vars"
 
 		# Clear flags - This is the preferred order to find:
-		unset -v e_pki_vars e_easy_vars e_pwd_vars e_prog_vars \
+		unset -v \
+			e_pki_vars e_easy_vars e_pwd_vars e_prog_vars \
 			found_vars vars_in_pki
 
 		# PKI location, if present:
@@ -5873,9 +5876,9 @@ Temporary directory does not exist:
 	verbose "verify_working_env: COMPLETED"
 } # => verify_working_env()
 
-# variable assignment by indirection when undefined; merely exports
-# the variable when it is already defined (even if currently null)
-# Sets $1 as the value contained in $2 and exports (may be blank)
+# variable assignment by indirection.
+# Sets '$1' as the value contained in '$2'
+# and exports (may be blank)
 set_var() {
 	[ "$#" = 0 ] && return
 	[ "$#" -lt 3 ] || die "set_var - excess input"
@@ -6496,7 +6499,9 @@ return 0
 
 print_version()
 {
-	ssl_version="$("${EASYRSA_OPENSSL:-openssl}" version 2>/dev/null)"
+	ssl_version="$(
+		"${EASYRSA_OPENSSL:-openssl}" version 2>/dev/null
+		)"
 		cat << VERSION_TEXT
 EasyRSA Version Information
 Version:     $EASYRSA_version
