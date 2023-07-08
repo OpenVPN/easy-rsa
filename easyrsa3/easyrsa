@@ -458,11 +458,11 @@ cmd_help() {
 	*)
 		err_text="
   Unknown command: '$1' (try without commands for a list of commands)"
-		easyrsa_error_exit=1
+		easyrsa_exit_with_error=1
 	esac
 
 	if [ "$err_text" ]; then
-		print "${err_text}${NL}"
+		print "${err_text}"
 	else
 		# display the help text
 		[ "$text" ] && print "$text"
@@ -645,9 +645,9 @@ Type the word '$value' to continue, or any other input to abort."
 	read input
 	printf '\n'
 	[ "$input" = "$value" ] && return
-	easyrsa_error_exit=1
+	easyrsa_exit_with_error=1
 	notice "Aborting without confirmation."
-	cleanup 9
+	cleanup
 } # => confirm()
 
 # Generate random hex
@@ -864,15 +864,17 @@ Temporary session not preserved."
 	# Clear traps
 	trap - 0 1 2 3 6 15
 
-	# Exit: Known errors:
+	# Exit: Known errors
 	# -> confirm(): aborted
 	# -> verify_cert(): verify failed --batch mode
-	if [ "$easyrsa_error_exit" ]; then
+	if [ "$easyrsa_exit_with_error" ]; then
+		verbose "Exit: Known errors = true"
 		exit 1
 	fi
 
 	# Exit: SIGINT
 	if [ "$1" = 2 ]; then
+		verbose "exit SIGINT = true"
 		kill -2 "$$"
 	fi
 
@@ -880,12 +882,14 @@ Temporary session not preserved."
 	if [ "$1" = ok ]; then
 		# if there is no error
 		# then 'cleanup ok' is called
+		verbose "Exit: Final Success = true"
 		exit 0
 	fi
 
 	# Exit: Final Fail
 	# if 'cleanup' is called without 'ok'
 	# then an error occurred
+	verbose "Exit: Final Fail = true"
 	exit 1
 } # => cleanup()
 
@@ -4172,29 +4176,19 @@ default_server_san - input error"
 verify_cert() {
 	# pull filename base:
 	[ "$1" ] || user_error "\
-Error: didn't find a file base name as the first argument.
+Error: didn't find a <file-name-base> as the first argument.
 Run easyrsa without commands for usage and command help."
 
 	# Assign file_name_base and dust off!
 	file_name_base="$1"
 	shift
 
-	# Support global --batch mode
-	unset -v exit_with_error
-	if [ "$EASYRSA_BATCH" ]; then
-		exit_with_error=1
-		EASYRSA_SILENT=1
-	fi
-
 	# function opts support
 	while [ "$1" ]; do
 		case "$1" in
-			# batch flag, return status [0/1] to calling program
-			# Otherwise, exit 0 on successful completion
-			batch)
-				exit_with_error=1
-				EASYRSA_SILENT=1
-			;;
+			# batch flag, return status [0/1] to calling
+			# program.  Otherwise, exit 0 on completion.
+			batch) EASYRSA_BATCH=1 ;;
 			*) warn "Ignoring unknown command option: '$1'"
 		esac
 		shift
@@ -4212,24 +4206,41 @@ No certificate found for the input: '$crt_in'"
 	verify_file x509 "$crt_in" || user_error "\
 Input is not a valid certificate: $crt_in"
 
-	# Test SSL out
-	# openssl direct call because error is expected
-	if "$EASYRSA_OPENSSL" verify -CAfile "$ca_crt" \
-		"$crt_in" 1>/dev/null
-	then
+	# Silent SSL or not
+	if [ "$EASYRSA_SILENT_SSL" ]; then
+		# Test SSL out
+		# openssl direct call because error is expected
+		if "$EASYRSA_OPENSSL" verify \
+			-CAfile "$ca_crt" "$crt_in" 1>/dev/null 2>&1
+		then
+			verify_cert_ok=1
+		else
+			unset -v verify_cert_ok
+		fi
+	else
+		if "$EASYRSA_OPENSSL" verify \
+			-CAfile "$ca_crt" "$crt_in"
+		then
+			verify_cert_ok=1
+		else
+			unset -v verify_cert_ok
+		fi
+	fi
+
+	# Return cert status
+	if [ "$verify_cert_ok" ]; then
 		notice "\
   Certificate name:   $file_name_base
   Verfication status: GOOD"
-		# easyrsa_error_exit=1 # Simple 'proof of concept' test
 	else
 		notice "\
   Certificate name:   $file_name_base
   Verfication status: FAILED"
-		# Exit with error (batch mode), otherwise term msg only
-		if [ "$exit_with_error" ]; then
-			easyrsa_error_exit=1
-			# Return error for internal callers (status reports)
-			# or command line in --batch mode
+		# Exit with error (batch mode)
+		if [ "$EASYRSA_BATCH" ]; then
+			# exit with error at cleanup
+			easyrsa_exit_with_error=1
+			# Return error for internal callers
 			return 1
 		fi
 	fi
@@ -6475,14 +6486,13 @@ detect_host
 # Initialisation requirements
 unset -v \
 	verify_ssl_lib_ok \
-	easyrsa_error_exit \
+	easyrsa_exit_with_error error_info \
 	prohibit_no_pass \
 	secured_session \
 	working_safe_ssl_conf \
 	user_san_true \
 	alias_days \
 	do_build_full \
-	error_info \
 	found_vars no_new_vars user_vars_true
 
 	# Used by build-ca->cleanup to restore prompt
@@ -6834,7 +6844,10 @@ case "$cmd" in
 		show_ca "$@"
 		;;
 	verify|verify-cert)
-		verify_cert "$@"
+		# Called with --batch, this will return error
+		# when the certificate fails verification.
+		# Therefore, on error, go directly to cleanup.
+		verify_cert "$@" || cleanup
 		;;
 	show-expire)
 		[ -z "$alias_days" ] || \
