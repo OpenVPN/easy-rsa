@@ -3998,19 +3998,20 @@ Successful export of $pkcs_type file. Your exported file is at:
 
 # set-pass backend legacy
 set_pass_legacy() {
-	# key type, supplied internally from frontend command call (rsa/ec)
+	# key type, supplied internally
+	# from frontend command call (rsa/ec)
 	key_type="$1"
 	shift
+
+	[ "$1" ] || user_error "\
+Unable to set password: incorrect command syntax.
+Run easyrsa without commands for usage and command help."
 
 	# values supplied by the user:
 	raw_file="$1"
 	shift
 
 	file="$EASYRSA_PKI/private/${raw_file}.key"
-
-	[ "$raw_file" ] || user_error "\
-Missing argument to 'set-$key_type-pass' command: no name/file supplied.
-See help output for usage details."
 
 	# parse command options
 	cipher="-aes256"
@@ -4032,12 +4033,12 @@ See help output for usage details."
 	fi
 
 	[ -e "$file" ] || user_error "\
-Missing private key: expected to find the private key component at:
-$file"
+Missing private key: expected to find the private key file at:
+* $file"
 
 	notice "\
-If the key is currently encrypted you must supply the decryption passphrase.
-${cipher:+You will then enter a new PEM passphrase for this key.$NL}"
+If the key is encrypted then you must supply the current password.
+${cipher:+You will then enter a new password for this key.$NL}"
 
 	# Set password
 	out_key_tmp=""
@@ -4048,11 +4049,20 @@ ${cipher:+You will then enter a new PEM passphrase for this key.$NL}"
 		${cipher:+ "$cipher"} \
 		${EASYRSA_PASSIN:+ -passin "$EASYRSA_PASSIN"} \
 		${EASYRSA_PASSOUT:+ -passout "$EASYRSA_PASSOUT"} || die "\
-Failed to change the private key passphrase. See above for possible openssl
-error messages."
+Failed to change the private key passphrase.
+See above for possible openssl error messages."
 
-	mv "$out_key_tmp" "$file" || die "\
-Failed to change the private key passphrase. See above for error messages."
+	# Move old key-file out of the way
+	mv "$file" "${file}.tmp" || \
+		die "Failed to move the old-key file."
+
+	# Move new key-file into place
+	if mv "$out_key_tmp" "$file"; then
+		rm -f "${file}.tmp"
+	else
+		mv -f "${file}.tmp" "$file"
+		die "Failed to update the private key file."
+	fi
 
 	notice "Key passphrase successfully changed"
 
@@ -4091,12 +4101,12 @@ Missing argument: no name/file supplied."
 	fi
 
 	[ -e "$file" ] || user_error "\
-Missing private key: expected to find the private key component at:
-$file"
+Missing private key: expected to find the private key file at:
+* $file"
 
-	warn "\
-If the key is encrypted then you must supply the decryption pass phrase.
-${cipher:+You will then enter and verify a new PEM pass phrase for this key.}"
+	notice "\
+If the key is encrypted then you must supply the current password.
+${cipher:+You will then enter a new password for this key.$NL}"
 
 	# Set password
 	out_key_tmp=""
@@ -4109,9 +4119,17 @@ ${cipher:+You will then enter and verify a new PEM pass phrase for this key.}"
 		${EASYRSA_PASSOUT:+ -passout "$EASYRSA_PASSOUT"} || \
 			die "Failed to change the private key passphrase."
 
-	mv "$out_key_tmp" "$file" || {
+	# Move old key-file out of the way
+	mv "$file" "${file}.tmp" || \
+		die "Failed to move the old-key file."
+
+	# Move new key-file into place
+	if mv "$out_key_tmp" "$file"; then
+		rm -f "${file}.tmp"
+	else
+		mv -f "${file}.tmp" "$file"
 		die "Failed to update the private key file."
-	}
+	fi
 
 	key_update=changed
 	[ "$EASYRSA_NO_PASS" ] && key_update=removed
