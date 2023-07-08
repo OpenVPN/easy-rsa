@@ -3850,24 +3850,25 @@ Run easyrsa without commands for usage and command help."
 	# Request file must exist
 	[ -e "$in_req" ] || user_error "\
 No request found for the input: '$2'
-Expected to find the request at: $in_req"
+Expected to find the request at:
+* $in_req"
 
 	verify_file req "$in_req" || user_error "\
-The input file does not appear to be a certificate request. Aborting import.
-File Path: $in_req"
+The certificate request file is not in a valid X509 format:
+* $req_in"
 
 	# destination must not exist
 	[ -e "$out_req" ] && user_error "\
-Unable to import the request as the destination file already exists.
 Please choose a different name for your imported request file.
-Existing file at: $out_req"
+Conflicting file already exists at:
+* $out_req"
 
 	# now import it
 	cp "$in_req" "$out_req"
 
 	notice "\
-The request has been successfully imported with a short name of: $short_name
-You may now use this name to perform signing operations on this request."
+Request successfully imported with short-name: $short_name
+This request is now ready to be signed."
 
 	return 0
 } # => import_req()
@@ -4341,7 +4342,7 @@ $in_file"
 Showing $type details for: '$name'
 
 This file is stored at:
-* $in_file"
+* $in_file${NL}"
 
 	easyrsa_openssl "$format" -in "$in_file" -noout -text \
 		${type_opts:+ "$type_opts" "$out_opts"} \
@@ -6921,7 +6922,7 @@ if [ $? = 0 ]; then
 fi
 
 # Otherwise, exit with error
-warn "Untrapped error detected!"
+print "Untrapped error detected!"
 cleanup
 
 # vim: ft=sh nu ai sw=8 ts=8 noet
