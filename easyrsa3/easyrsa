@@ -2395,32 +2395,21 @@ The certificate request file is not in a valid X509 format:
 	if [ "$EASYRSA_RAND_SN" != "no" ]; then
 		serial=""
 		check_serial=""
-		unset -v unique_serial
+		unset -v serial_is_unique
 		for i in 1 2 3 4 5; do
 			serial="$(
 				easyrsa_random 16
 				)" || die "sign_req - easyrsa_random"
 
 			# Check for duplicate serial in CA db
-			# Always errors out - Do not capture error
-			# unset EASYRSA_SILENT_SSL to capure all output
-			check_serial="$(
-				unset -v EASYRSA_SILENT_SSL
-				easyrsa_openssl ca -status "$serial" 2>&1
-				)" || :
-
-			case "$check_serial" in
-				*"not present in db"*)
-					unique_serial=1
-					break
-				;;
-				*)
-					verbose "check_serial: $check_serial"
-			esac
+			if check_serial_status "$serial" batch; then
+				serial_is_unique=1
+				break
+			fi
 		done
 
 		# Check for unique_serial
-		[ "$unique_serial" ] || die "\
+		[ "$serial_is_unique" ] || die "\
 sign_req - Randomize Serial number failed:
 
 $check_serial"
@@ -2658,6 +2647,56 @@ Certificate created at:
 
 	return 0
 } # => sign_req()
+
+# Check serial in db
+check_serial_status() {
+	serial="$1"
+	[ "$serial" ] || user_error "Serial number required!"
+
+	[ "$2" = batch ] && internal_batch=1
+
+	unset -v unique_serial
+
+	# Check for openssl -status of serial number
+	# Always errors out - Do not capture error
+	# unset EASYRSA_SILENT_SSL to capure all output
+	check_serial="$(
+		unset -v EASYRSA_SILENT_SSL
+		easyrsa_openssl ca -status "$serial" 2>&1
+		)" || :
+
+	# Check for duplicate serial in CA db
+	case "$check_serial" in
+		(*"not present in db"*)
+			unique_serial=1
+			verbose "check_serial_status: unique_serial=true"
+		;;
+		*)
+			: # Some other response
+	esac
+
+	# In batch return result only
+	if [ "$internal_batch" ] || [ "$EASYRSA_BATCH" ]
+	then
+		[ "$unique_serial" ] && return
+		return 1
+	fi
+
+	# Otherwise, show result to user
+	print "
+check_serial_status() RESULT:
+========================================
+
+$check_serial
+
+========================================
+Complete"
+
+	# Force cleanup() to exit with error,
+	# if the serial number is not unique.
+	# OpenSSL always exits with error, regardless..
+	[ "$unique_serial" ] || easyrsa_exit_with_error=1
+} # => check_serial_status()
 
 # common build backend
 # used to generate+sign in 1 step
@@ -6812,6 +6851,9 @@ case "$cmd" in
 		;;
 	gen-req)
 		gen_req "$@"
+		;;
+	serial|check-serial)
+		check_serial_status "$@"
 		;;
 	sign|sign-req)
 		[ -z "$alias_days" ] || \
