@@ -868,6 +868,7 @@ Temporary session not preserved."
 	# Exit: Known errors
 	# -> confirm(): aborted
 	# -> verify_cert(): verify failed --batch mode
+	# -> check_serial_unique(): not unique --batch mode
 	if [ "$easyrsa_exit_with_error" ]; then
 		verbose "Exit: Known errors = true"
 		exit 1
@@ -2402,7 +2403,7 @@ The certificate request file is not in a valid X509 format:
 				)" || die "sign_req - easyrsa_random"
 
 			# Check for duplicate serial in CA db
-			if check_serial_status "$serial" batch; then
+			if check_serial_unique "$serial" batch; then
 				serial_is_unique=1
 				break
 			fi
@@ -2649,7 +2650,7 @@ Certificate created at:
 } # => sign_req()
 
 # Check serial in db
-check_serial_status() {
+check_serial_unique() {
 	serial="$1"
 	[ "$serial" ] || user_error "Serial number required!"
 
@@ -2669,34 +2670,34 @@ check_serial_status() {
 	case "$check_serial" in
 		(*"not present in db"*)
 			unique_serial=1
-			verbose "check_serial_status: unique_serial=true"
+			verbose "check_serial_unique: unique_serial=true"
 		;;
 		*)
 			: # Some other response
+			verbose "check_serial_unique: unique_serial=false"
 	esac
 
-	# In batch return result only
+	# In batch mode return result only
 	if [ "$internal_batch" ] || [ "$EASYRSA_BATCH" ]
 	then
-		[ "$unique_serial" ] && return
-		return 1
+		if [ "$unique_serial" ]; then
+			return 0
+		else
+			return 1
+		fi
 	fi
 
 	# Otherwise, show result to user
+	# and do not return any error code
 	print "
-check_serial_status() RESULT:
+check_serial_status RESULT:
 ========================================
 
 $check_serial
 
 ========================================
-Complete"
-
-	# Force cleanup() to exit with error,
-	# if the serial number is not unique.
-	# OpenSSL always exits with error, regardless..
-	[ "$unique_serial" ] || easyrsa_exit_with_error=1
-} # => check_serial_status()
+COMPLETE"
+} # => check_serial_unique()
 
 # common build backend
 # used to generate+sign in 1 step
@@ -6584,7 +6585,7 @@ unset -v \
 	working_safe_ssl_conf \
 	user_san_true \
 	alias_days \
-	do_build_full \
+	do_build_full internal_batch \
 	found_vars no_new_vars user_vars_true
 
 	# Used by build-ca->cleanup to restore prompt
@@ -6935,12 +6936,6 @@ case "$cmd" in
 	show-ca)
 		show_ca "$@"
 		;;
-	verify|verify-cert)
-		# Called with --batch, this will return error
-		# when the certificate fails verification.
-		# Therefore, on error, go directly to cleanup.
-		verify_cert "$@" || cleanup
-		;;
 	show-expire)
 		[ -z "$alias_days" ] || \
 			export EASYRSA_PRE_EXPIRY_WINDOW="$alias_days"
@@ -6958,8 +6953,19 @@ case "$cmd" in
 	make-safe-ssl)
 		make_safe_ssl "$@"
 		;;
+	verify|verify-cert)
+		# Called with --batch, this will return error
+		# when the certificate fails verification.
+		# Therefore, on error, exit with error.
+		verify_cert "$@" || \
+			easyrsa_exit_with_error=1
+		;;
 	serial|check-serial)
-		check_serial_status "$@"
+		# Called with --batch, this will return error
+		# when the serial number is not unique.
+		# Therefore, on error, exit with error.
+		check_serial_unique "$@" || \
+			easyrsa_exit_with_error=1
 		;;
 	display-dn)
 		display_dn "$@"
