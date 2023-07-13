@@ -1,6 +1,8 @@
 Easy-RSA 3 ChangeLog
 
 3.1.6 (2023-10-13)
+   * Expose serial-check, display-dn, display-san and default-san to
+     command line. (#980) (Debugging functions, which remain undocumented)
    * Expand default status to include vars-file and CA status (#973)
    * sign-req: Allow the CSR DN-field order to be preserved (#970)
 
