@@ -6852,9 +6852,6 @@ case "$cmd" in
 	gen-req)
 		gen_req "$@"
 		;;
-	serial|check-serial)
-		check_serial_status "$@"
-		;;
 	sign|sign-req)
 		[ -z "$alias_days" ] || \
 			export EASYRSA_CERT_EXPIRE="$alias_days"
@@ -6960,6 +6957,18 @@ case "$cmd" in
 		;;
 	make-safe-ssl)
 		make_safe_ssl "$@"
+		;;
+	serial|check-serial)
+		check_serial_status "$@"
+		;;
+	display-dn)
+		display_dn "$@"
+		;;
+	display-san)
+		display_san "$@"
+		;;
+	default-san)
+		default_server_san "$@"
 		;;
 	upgrade)
 		up23_manage_upgrade_23 "$@"
