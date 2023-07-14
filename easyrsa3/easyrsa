@@ -2424,6 +2424,7 @@ $check_serial"
 		# for use by SSL config
 		print "$serial" > "$EASYRSA_PKI/serial" || \
 			die "sign_req - write serial to file"
+		unset -v serial check_serial serial_is_unique
 	fi
 
 	# When EASYRSA_CP_EXT is defined,
@@ -2457,12 +2458,12 @@ to the latest Easy-RSA release."
 
 		print "$copy_exts" | \
 			awk "$awkscript" "$EASYRSA_SSL_CONF" \
-			> "$conf_tmp" \
-			|| die "Writing SSL config to temp file failed"
+				> "$conf_tmp" || die "\
+Writing 'copy_exts' to SSL config temp-file failed"
 
 		# Use this SSL config for the rest of this function
 		EASYRSA_SSL_CONF="$conf_tmp"
-		verbose "sign_req: copy_extensions = copy"
+		verbose "sign_req: Using '$copy_exts'"
 	fi
 
 	# Find or create x509-type file
@@ -2665,6 +2666,7 @@ check_serial_unique() {
 	# Check for openssl -status of serial number
 	# Always errors out - Do not capture error
 	# unset EASYRSA_SILENT_SSL to capure all output
+	# Do NOT unset check_serial for sign-req error msg
 	check_serial="$(
 		unset -v EASYRSA_SILENT_SSL
 		easyrsa_openssl ca -status "$1" 2>&1
@@ -2685,8 +2687,10 @@ check_serial_unique() {
 	if [ "$internal_batch" ] || [ "$EASYRSA_BATCH" ]
 	then
 		if [ "$unique_serial_true" ]; then
+			unset -v unique_serial_true internal_batch
 			return 0
 		else
+			unset -v unique_serial_true internal_batch
 			return 1
 		fi
 	fi
