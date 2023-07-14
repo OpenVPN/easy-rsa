@@ -6823,7 +6823,7 @@ case "$cmd" in
 	*)
 		require_pki=1
 		case "$cmd" in
-			gen-req|gen-dh|build-ca)
+			gen-req|gen-dh|build-ca|show-req)
 				unset -v require_ca
 			;;
 			*)
