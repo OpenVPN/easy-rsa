@@ -1522,58 +1522,62 @@ install_data_to_pki - Missing: '$x509_types_dir'"
 	verbose "install_data_to_pki: $context - COMPLETED"
 } # => install_data_to_pki ()
 
-# Create x509-type/ca
-create_x509_type_ca() {
-	cat << "CAFILECOMPLETE"
-basicConstraints = CA:TRUE
-subjectKeyIdentifier = hash
-authorityKeyIdentifier = keyid:always,issuer:always
-keyUsage = cRLSign, keyCertSign
-CAFILECOMPLETE
-} # => create_x509_type_ca()
+# Create X509-type files
+create_x509_type() {
+	x509_type="$1"
+	[ "$x509_type" ] || \
+		die "create_x509_type - type undefined"
 
-# Create x509-type/COMMON
-create_x509_type_COMMON() {
-	cat << "COMMONFILECOMPLETE"
-COMMONFILECOMPLETE
-} # => create_x509_type_COMMON()
+	case "$x509_type" in
+	COMMON)
+		cat <<- "X509_TYPE_COMMON"
+		X509_TYPE_COMMON
+	;;
+	serverClient)
+		create_x509_type_easyrsa
+		cat <<- "X509_TYPE_SERV_CLI"
+		extendedKeyUsage = serverAuth,clientAuth
+		X509_TYPE_SERV_CLI
+	;;
+	server)
+		create_x509_type_easyrsa
+		cat <<- "X509_TYPE_SERV"
+		extendedKeyUsage = serverAuth
+		X509_TYPE_SERV
+	;;
+	client)
+		create_x509_type_easyrsa
+		cat <<- "X509_TYPE_CLI"
+		extendedKeyUsage = clientAuth
+		X509_TYPE_CLI
+	;;
+	ca)
+		cat <<- "X509_TYPE_CA"
+		basicConstraints = CA:TRUE
+		subjectKeyIdentifier = hash
+		authorityKeyIdentifier = keyid:always,issuer:always
+		keyUsage = cRLSign, keyCertSign
+		X509_TYPE_CA
+	;;
+	*)
+		# Unknown type: User MUST supply the X509 file
+		die "Unknown X509 type: $x509_type"
+	esac
+} # => create_x509_type()
 
-# Create x509-type/unlisted: easyrsa
-# This could be COMMON but not for a CA
+# Create x509-type/easyrsa
+# This could be COMMON but not is not suitable for a CA
 create_x509_type_easyrsa() {
-	cat << "EASYRSAFILECOMPLETE"
-basicConstraints = CA:FALSE
-subjectKeyIdentifier = hash
-authorityKeyIdentifier = keyid,issuer:always
-keyUsage = digitalSignature,keyEncipherment
-EASYRSAFILECOMPLETE
+	cat <<- "X509_TYPE_EASYRSA"
+		basicConstraints = CA:FALSE
+		subjectKeyIdentifier = hash
+		authorityKeyIdentifier = keyid,issuer:always
+		keyUsage = digitalSignature,keyEncipherment
+		X509_TYPE_EASYRSA
 } # => create_x509_type_easyrsa()
 
-# Create x509-type/serverClient
-create_x509_type_serverClient() {
-	create_x509_type_easyrsa
-	cat << "SRVCLIFILECOMPLETE"
-extendedKeyUsage = serverAuth,clientAuth
-SRVCLIFILECOMPLETE
-} # => create_x509_type_serverClient()
-
-# Create x509-type/server
-create_x509_type_server() {
-	create_x509_type_easyrsa
-	cat << "SRVFILECOMPLETE"
-extendedKeyUsage = serverAuth
-SRVFILECOMPLETE
-} # => create_x509_type_server()
-
-# Create x509-type/client
-create_x509_type_client() {
-	create_x509_type_easyrsa
-	cat << "CLIFILECOMPLETE"
-extendedKeyUsage = clientAuth
-CLIFILECOMPLETE
-} # => create_x509_type_client()
-
 # Create vars.example - Not used
+# TODO
 create_vars_example() {
 	cat << "VARSEXFILECOMPLETE"
 VARSEXFILECOMPLETE
@@ -2349,42 +2353,43 @@ Your files are:
 # common signing backend
 sign_req() {
 	crt_type="$1"
-	req_in="$EASYRSA_PKI/reqs/$2.req"
-	crt_out="$EASYRSA_PKI/issued/$2.crt"
+	file_name_base="$2"
 
 	# Check argument sanity:
-	[ "$2" ] || user_error "\
+	[ "$file_name_base" ] || user_error "\
 Incorrect number of arguments provided to sign-req:
 expected 2, got $# (see command help for usage)"
 
-	# Check for preserve-dn
-	if [ "$3" ]; then
-		case "$3" in
-			preserve*) export EASYRSA_PRESERVE_DN=1 ;;
-			*)
-				warn "Ignoring unknown option '$3'"
-		esac
-	fi
+	req_in="$EASYRSA_PKI/reqs/$file_name_base.req"
+	crt_out="$EASYRSA_PKI/issued/$file_name_base.crt"
+	shift 2
 
-	# Cert type must exist under the EASYRSA_EXT_DIR
-	[ -e "$EASYRSA_EXT_DIR/$crt_type" ] || warn "\
-Missing X509-type '$crt_type'"
-	[ -e "$EASYRSA_EXT_DIR/COMMON" ] || warn "\
-Missing X509-type 'COMMON'"
+	# Check for preserve-dn
+	while [ "$1" ]; do
+		case "$1" in
+			preserve*)
+				export EASYRSA_PRESERVE_DN=1
+			;;
+			*)
+				warn "Ignoring unknown option '$1'"
+		esac
+		shift
+	done
 
 	# Cert type must NOT be COMMON
-	[ "$crt_type" != COMMON ] || user_error "\
+	[ "$crt_type" = COMMON ] && user_error "\
 Invalid certificate type: '$crt_type'"
 
 	# Request file must exist
 	[ -e "$req_in" ] || user_error "\
-No request found for the input: '$2'
-Expected to find the request at: $req_in"
+No request found for the input: '$file_name_base'
+Expected to find the request at:
+* $req_in"
 
 	# Certificate file must NOT exist
 	[ ! -e "$crt_out" ] || user_error "\
-Cannot sign this request for '$2'.
-Conflicting certificate already exists at:
+Cannot sign this request for '$file_name_base'.
+Conflicting certificate exists at:
 * $crt_out"
 
 	# Confirm input is a cert req
@@ -2393,7 +2398,7 @@ The certificate request file is not in a valid X509 format:
 * $req_in"
 
 	# Randomize Serial number
-	if [ "$EASYRSA_RAND_SN" != "no" ]; then
+	if [ "$EASYRSA_RAND_SN" != no ]; then
 		serial=""
 		check_serial=""
 		unset -v serial_is_unique
@@ -2454,9 +2459,81 @@ to the latest Easy-RSA release."
 			awk "$awkscript" "$EASYRSA_SSL_CONF" \
 			> "$conf_tmp" \
 			|| die "Writing SSL config to temp file failed"
+
 		# Use this SSL config for the rest of this function
 		EASYRSA_SSL_CONF="$conf_tmp"
+		verbose "sign_req: copy_extensions = copy"
 	fi
+
+	# Find or create x509-type file
+	if [ -f "$EASYRSA_EXT_DIR/$crt_type" ]; then
+		# Use the x509-types/$crt_type file
+		x509_type_file="$EASYRSA_EXT_DIR/$crt_type"
+	else
+		# Use a temp file
+		x509_type_tmp=""
+		easyrsa_mktemp x509_type_tmp || \
+			die "sign_req - easyrsa_mktemp x509_type_tmp"
+
+		create_x509_type "$crt_type" > "$x509_type_tmp"
+		x509_type_file="$x509_type_tmp"
+	fi
+
+	# Find or create x509 COMMON file
+	if [ -f "$EASYRSA_EXT_DIR/COMMON" ]; then
+		# Use the x509-types/COMMON file
+		x509_COMMON_file="$EASYRSA_EXT_DIR/COMMON"
+	else
+		# Use a temp file
+		x509_COMMON_tmp=""
+		easyrsa_mktemp x509_COMMON_tmp || \
+			die "sign_req - easyrsa_mktemp x509_COMMON_tmp"
+
+		create_x509_type COMMON > "$x509_COMMON_tmp"
+		x509_COMMON_file="$x509_type_tmp"
+	fi
+
+	# Support a dynamic CA path length when present:
+	unset -v basicConstraints
+	if [ "$crt_type" = "ca" ] && [ "$EASYRSA_SUBCA_LEN" ]
+	then
+		# Print the last occurence of basicContraints in
+		# x509-types/ca
+		# If basicContraints is not defined then bail
+		# shellcheck disable=SC2016 # vars don't expand ''
+		awkscript='\
+/^[[:blank:]]*basicConstraints[[:blank:]]*=/ { bC=$0 }
+END { if (length(bC) == 0 ) exit 1; print bC }'
+		basicConstraints="$(
+			awk "$awkscript" "$x509_type_file"
+			)" || die "\
+basicConstraints is not defined, cannot use 'pathlen'"
+		verbose "sign_req: Using basicConstraints pathlen"
+	fi
+
+	# Deprecated Netscape extension support
+	case "$EASYRSA_NS_SUPPORT" in
+		[yY][eE][sS])
+
+		# Netscape extension
+		case "$crt_type" in
+			serverClient)
+				ns_cert_type="nsCertType = serverClient" ;;
+			server)
+				ns_cert_type="nsCertType = server" ;;
+			client)
+				ns_cert_type="nsCertType = client" ;;
+			ca)
+				ns_cert_type="nsCertType = sslCA" ;;
+			*)
+				ns_cert_type="nsCertType = $crt_type"
+		esac
+		verbose "sign_req: Using $ns_cert_type"
+	;;
+	*)
+		# ok No NS support required
+		unset -v ns_cert_type
+	esac
 
 	# Generate the extensions file for this cert:
 	ext_tmp=""
@@ -2466,92 +2543,22 @@ to the latest Easy-RSA release."
 	# Begin output redirect
 	{
 		# Append $cert-type extensions
-		if [ -f "$EASYRSA_EXT_DIR/$crt_type" ]; then
-			cat "$EASYRSA_EXT_DIR/$crt_type"
-		else
-			# Create Easy-RSA base x509 type
-			case "$crt_type" in
-			ca)
-				create_x509_type_ca
-			;;
-			serverClient)
-				create_x509_type_serverClient
-			;;
-			server)
-				create_x509_type_server
-			;;
-			client)
-				create_x509_type_client
-			;;
-			*)
-				: # ok
-			esac
-		fi
-
-		# Append COMMON extensions
-		if [ -f "$EASYRSA_EXT_DIR/COMMON" ]; then
-			cat "$EASYRSA_EXT_DIR/COMMON"
-		else
-			create_x509_type_COMMON
-		fi
+		cat "$x509_COMMON_file"
+		cat "$x509_type_file"
 
 		# Support a dynamic CA path length when present:
-		if [ "$crt_type" = "ca" ] && [ "$EASYRSA_SUBCA_LEN" ]
-		then
-			# x509-types/ca is required
-			[ -f "$EASYRSA_EXT_DIR/$crt_type" ] || {
-				error_msg="Missing file: $EASYRSA_EXT_DIR/$crt_type"
-				return 1
-			}
-
-			# Print the last occurence of basicContraints in
-			# x509-types/ca
-			# If basicContraints is not defined then bail
-			# shellcheck disable=SC2016 # vars don't expand ''
-			awkscript='\
-/^[[:blank:]]*basicConstraints[[:blank:]]*=/ { bC=$0 }
-END { if (length(bC) == 0 ) exit 1; print bC }'
-			basicConstraints="$(
-				awk "$awkscript" "$EASYRSA_EXT_DIR/$crt_type"
-				)" || {
-					error_msg="\
-basicConstraints is not defined, cannot use 'pathlen'"
-					return 1
-					}
-
+		if [ "$basicConstraints" ]; then
 			print "$basicConstraints, pathlen:$EASYRSA_SUBCA_LEN"
-			unset -v basicConstraints
 		fi
 
 		# Deprecated Netscape extension support
-		case "$EASYRSA_NS_SUPPORT" in
-			[yY][eE][sS])
-
-			# Netscape extension
-			case "$crt_type" in
-				serverClient)
-					print "nsCertType = serverClient" ;;
-				server)
-					print "nsCertType = server" ;;
-				client)
-					print "nsCertType = client" ;;
-				ca)
-					print "nsCertType = sslCA" ;;
-				*)
-					error_msg="Unknown Netscape type: $crt_type"
-					return 1
-			esac
-
-			# Netscape comment
-			[ "$EASYRSA_NS_COMMENT" ] && \
-				print "nsComment = \"$EASYRSA_NS_COMMENT\""
-		;;
-		*)
-			: # ok No NS support required
-		esac
+		if [ "$ns_cert_type" ]; then
+			print "$ns_cert_type"
+			print "nsComment = \"$EASYRSA_NS_COMMENT\""
+		fi
 
 		# Add user SAN from --subject-alt-name
-		if [ "$user_san_true" ]; then
+		if [ "$EASYRSA_EXTRA_EXTS" ]; then
 			print "$EASYRSA_EXTRA_EXTS"
 		else
 			# or default server SAN
@@ -2568,16 +2575,13 @@ basicConstraints is not defined, cannot use 'pathlen'"
 					default_server_san "$req_in"
 				fi
 			fi
-
-			# Add user set EASYRSA_EXTRA_EXTS
-			[ -z "$EASYRSA_EXTRA_EXTS" ] || \
-				print "$EASYRSA_EXTRA_EXTS"
 		fi
 	} > "$ext_tmp" || die "\
 Error message: $error_msg
 
 Failed to create temp extension file (bad permissions?) at:
 * $ext_tmp"
+	verbose "sign_req: Generated extensions file OK"
 
 	# Set valid_period message
 	if [ "$EASYRSA_END_DATE" ]; then
@@ -2637,6 +2641,7 @@ $(display_dn req "$req_in")" # => confirm end
 		${EASYRSA_END_DATE:+ -enddate "$EASYRSA_END_DATE"} \
 			|| die "\
 Signing failed (openssl output above may have more detail)"
+	verbose "sign_req: signed cert '$file_name_base' OK"
 
 	mv "$crt_out_tmp" "$crt_out" || \
 		die "Failed to move temp-file to certificate."
@@ -2651,25 +2656,24 @@ Certificate created at:
 
 # Check serial in db
 check_serial_unique() {
-	serial="$1"
-	[ "$serial" ] || user_error "Serial number required!"
+	[ "$1" ] || user_error "Serial number required!"
 
 	[ "$2" = batch ] && internal_batch=1
 
-	unset -v unique_serial
+	unset -v unique_serial_true
 
 	# Check for openssl -status of serial number
 	# Always errors out - Do not capture error
 	# unset EASYRSA_SILENT_SSL to capure all output
 	check_serial="$(
 		unset -v EASYRSA_SILENT_SSL
-		easyrsa_openssl ca -status "$serial" 2>&1
+		easyrsa_openssl ca -status "$1" 2>&1
 		)" || :
 
 	# Check for duplicate serial in CA db
 	case "$check_serial" in
 		(*"not present in db"*)
-			unique_serial=1
+			unique_serial_true=1
 			verbose "check_serial_unique: unique_serial=true"
 		;;
 		*)
@@ -2680,7 +2684,7 @@ check_serial_unique() {
 	# In batch mode return result only
 	if [ "$internal_batch" ] || [ "$EASYRSA_BATCH" ]
 	then
-		if [ "$unique_serial" ]; then
+		if [ "$unique_serial_true" ]; then
 			return 0
 		else
 			return 1
@@ -6757,7 +6761,6 @@ while :; do
 		export EASYRSA_CP_EXT=1
 		;;
 	--subject-alt-name|--san)
-		user_san_true=1
 		export EASYRSA_EXTRA_EXTS="\
 $EASYRSA_EXTRA_EXTS
 subjectAltName = $val"
