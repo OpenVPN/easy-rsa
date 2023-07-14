@@ -6583,14 +6583,14 @@ detect_host
 # Initialisation requirements
 unset -v \
 	verify_ssl_lib_ok \
-	easyrsa_exit_with_error error_info \
-	prohibit_no_pass \
 	secured_session \
 	working_safe_ssl_conf \
-	user_san_true \
 	alias_days \
-	do_build_full internal_batch \
-	found_vars no_new_vars user_vars_true
+	prohibit_no_pass \
+	found_vars no_new_vars user_vars_true \
+	do_build_full error_build_full_cleanup \
+	internal_batch \
+	easyrsa_exit_with_error error_info
 
 	# Used by build-ca->cleanup to restore prompt
 	# after user interrupt when using manual password
