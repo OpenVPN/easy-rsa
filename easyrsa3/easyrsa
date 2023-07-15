@@ -2282,7 +2282,7 @@ Writing 'copy_exts' to SSL config temp-file failed"
 		create_x509_type COMMON > "$x509_COMMON_tmp" || \
 			die "sign_req - create_x509_type COMMON"
 
-		x509_COMMON_file="$x509_type_tmp"
+		x509_COMMON_file="$x509_COMMON_tmp"
 	fi
 
 	# Support a dynamic CA path length when present:
