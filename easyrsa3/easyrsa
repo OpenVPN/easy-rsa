@@ -2449,6 +2449,13 @@ Certificate created at:
 # Check serial in db
 check_serial_unique() {
 	[ "$1" ] || user_error "Serial number required!"
+	case "$1" in
+	(*[!1234567890abcdef]*)
+		user_error "Invalid serial number: '$1'"
+	;;
+	*)
+		: # ok
+	esac
 
 	[ "$2" = batch ] && internal_batch=1
 
