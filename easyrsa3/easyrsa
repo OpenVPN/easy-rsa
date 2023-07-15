@@ -2263,7 +2263,9 @@ Writing 'copy_exts' to SSL config temp-file failed"
 		easyrsa_mktemp x509_type_tmp || \
 			die "sign_req - easyrsa_mktemp x509_type_tmp"
 
-		create_x509_type "$crt_type" > "$x509_type_tmp"
+		create_x509_type "$crt_type" > "$x509_type_tmp" || \
+			die "sign_req - create_x509_type $crt_type"
+
 		x509_type_file="$x509_type_tmp"
 	fi
 
@@ -2277,7 +2279,9 @@ Writing 'copy_exts' to SSL config temp-file failed"
 		easyrsa_mktemp x509_COMMON_tmp || \
 			die "sign_req - easyrsa_mktemp x509_COMMON_tmp"
 
-		create_x509_type COMMON > "$x509_COMMON_tmp"
+		create_x509_type COMMON > "$x509_COMMON_tmp" || \
+			die "sign_req - create_x509_type COMMON"
+
 		x509_COMMON_file="$x509_type_tmp"
 	fi
 
