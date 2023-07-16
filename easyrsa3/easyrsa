@@ -921,7 +921,7 @@ export EASYRSA_REQ_CITY=\"$EASYRSA_REQ_CITY\"
 export EASYRSA_REQ_ORG=\"$EASYRSA_REQ_ORG\"
 export EASYRSA_REQ_OU=\"$EASYRSA_REQ_OU\"
 export EASYRSA_REQ_EMAIL=\"$EASYRSA_REQ_EMAIL\"
-export EASYRSA_REQ_SERIAL=\"$EASYRSA_REQ_SERIAL\"
+export EASYRSA_REQ_SERIAL=\"$EASYRSA_REQ_SERIAL\"\
 " | sed -e s\`'\&'\`'\\\&'\`g \
 		-e s\`'\$'\`'\\\$'\`g \
 			> "$easyrsa_vars_org" || die "\
@@ -1772,14 +1772,14 @@ Raw CA mode
 		if [ -f "$EASYRSA_EXT_DIR/ca" ]; then
 			cat "$EASYRSA_EXT_DIR/ca"
 		else
-			create_x509_type_ca
+			create_x509_type ca
 		fi
 
 		# COMMON file
 		if [ -f "$EASYRSA_EXT_DIR/COMMON" ]; then
 			cat "$EASYRSA_EXT_DIR/COMMON"
 		else
-			create_x509_type_COMMON
+			create_x509_type COMMON
 		fi
 
 		# User extentions
@@ -6100,7 +6100,7 @@ keyUsage = cRLSign, keyCertSign
 # Only issuerAltName and authorityKeyIdentifier make any sense in a CRL.
 
 # issuerAltName=issuer:copy
-authorityKeyIdentifier=keyid:always,issuer:always'
+authorityKeyIdentifier=keyid:always,issuer:always
 SSL_CONFIG
 } # => create_openssl_easyrsa_cnf()
 
