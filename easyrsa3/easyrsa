@@ -2457,8 +2457,6 @@ check_serial_unique() {
 		: # ok
 	esac
 
-	[ "$2" = batch ] && internal_batch=1
-
 	unset -v unique_serial_true
 
 	# Check for openssl -status of serial number
@@ -2482,13 +2480,12 @@ check_serial_unique() {
 	esac
 
 	# In batch mode return result only
-	if [ "$internal_batch" ] || [ "$EASYRSA_BATCH" ]
-	then
+	if [ "$2" = batch ] || [ "$EASYRSA_BATCH" ]; then
 		if [ "$unique_serial_true" ]; then
-			unset -v unique_serial_true internal_batch
+			unset -v unique_serial_true
 			return 0
 		else
-			unset -v unique_serial_true internal_batch
+			unset -v unique_serial_true
 			return 1
 		fi
 	fi
