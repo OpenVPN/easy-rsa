@@ -960,17 +960,17 @@ escape_hazard - Failed to source temp-file"
 
 # Replace environment variable names with current value
 # and write to temp-file or return error from sed
-easyrsa_rewrite_ssl_config () {
+expand_ssl_config() {
 	if [ "$EASYRSA_FORCE_SAFE_SSL" ]; then
 		# Always run
-		verbose "easyrsa_rewrite_ssl_config: FORCED"
+		verbose "expand_ssl_config: FORCED"
 	elif [ "$EASYRSA_NO_SAFE_SSL" ]; then
 		# Never run
-		verbose "easyrsa_rewrite_ssl_config: DENIED"
+		verbose "expand_ssl_config: DENIED"
 		return
 	elif [ "$working_safe_ssl_conf" ]; then
 		# Has run once
-		verbose "easyrsa_rewrite_ssl_config: IGNORED"
+		verbose "expand_ssl_config: IGNORED"
 		return
 	else
 		# set Run once
@@ -980,7 +980,7 @@ easyrsa_rewrite_ssl_config () {
 	# Assign easyrsa_safe_ssl_conf temp-file
 	easyrsa_safe_ssl_conf=""
 	easyrsa_mktemp easyrsa_safe_ssl_conf || die "\
-easyrsa_rewrite_ssl_config - \
+expand_ssl_config - \
 easyrsa_mktemp easyrsa_safe_ssl_conf"
 
 	# Rewrite
@@ -1034,11 +1034,11 @@ easyrsa_mktemp easyrsa_safe_ssl_conf"
 \
 	"$EASYRSA_SSL_CONF" > "$easyrsa_safe_ssl_conf"
 	then
-		verbose "easyrsa_rewrite_ssl_config: COMPLETED"
+		verbose "expand_ssl_config: COMPLETED"
 	else
 		return 1
 	fi
-} # => easyrsa_rewrite_ssl_config()
+} # => expand_ssl_config()
 
 # Easy-RSA meta-wrapper for SSL
 # WARNING: Running easyrsa_openssl in a subshell
@@ -1070,8 +1070,8 @@ easyrsa_openssl() {
 		die "easyrsa_openssl - escape_hazard failed"
 
 	# Rewrite SSL config
-	easyrsa_rewrite_ssl_config || \
-		die "easyrsa_openssl - easyrsa_rewrite_ssl_config failed"
+	expand_ssl_config || \
+		die "easyrsa_openssl - expand_ssl_config failed"
 
 	# Support --no-safe-ssl
 	if [ "$EASYRSA_NO_SAFE_SSL" ]; then
