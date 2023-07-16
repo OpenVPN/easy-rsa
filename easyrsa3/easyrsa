@@ -2338,8 +2338,7 @@ basicConstraints is not defined, cannot use 'pathlen'"
 	# Begin output redirect
 	{
 		# Append $cert-type extensions
-		cat "$x509_COMMON_file"
-		cat "$x509_type_file"
+		cat "$x509_COMMON_file" "$x509_type_file"
 
 		# Support a dynamic CA path length when present:
 		if [ "$basicConstraints" ]; then
