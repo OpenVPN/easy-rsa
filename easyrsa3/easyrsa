@@ -907,7 +907,28 @@ make_safe_ssl: NEW SSL cnf file: $easyrsa_safe_ssl_conf"
 } # => make_safe_ssl_copy()
 
 # Escape hazardous characters
+# Auto-escape hazardous characters:
+# '&' - Workaround 'sed' behavior
+# '$' - Workaround 'easyrsa' based limitation
+# This is required for all SSL libs, otherwise,
+# there are unacceptable differences in behavior
 escape_hazard() {
+	# Run once
+	if [ "$EASYRSA_FORCE_SAFE_SSL" ]; then
+		# Always run
+		verbose "escape_hazard: FORCED"
+	elif [ "$EASYRSA_NO_SAFE_SSL" ]; then
+		# Never run
+		verbose "escape_hazard: DENIED"
+		return
+	elif [ "$working_safe_org_conf" ]; then
+		verbose "escape_hazard: IGNORED"
+		return
+	else
+		# set Run once
+		working_safe_org_conf=1
+	fi
+
 	# Assign temp file
 	easyrsa_vars_org=""
 	easyrsa_mktemp easyrsa_vars_org || die \
@@ -931,6 +952,8 @@ escape_hazard - Failed to write temp-file"
 	# shellcheck disable=SC1090 # can't follow ...
 	(. "$easyrsa_vars_org") || die "\
 escape_hazard - Failed to source temp-file"
+
+	verbose "escape_hazard: COMPLETED"
 	# shellcheck disable=SC1090 # can't follow ...
 	. "$easyrsa_vars_org"
 } # => escape_hazard()
@@ -938,8 +961,31 @@ escape_hazard - Failed to source temp-file"
 # Replace environment variable names with current value
 # and write to temp-file or return error from sed
 easyrsa_rewrite_ssl_config () {
+	if [ "$EASYRSA_FORCE_SAFE_SSL" ]; then
+		# Always run
+		verbose "easyrsa_rewrite_ssl_config: FORCED"
+	elif [ "$EASYRSA_NO_SAFE_SSL" ]; then
+		# Never run
+		verbose "easyrsa_rewrite_ssl_config: DENIED"
+		return
+	elif [ "$working_safe_ssl_conf" ]; then
+		# Has run once
+		verbose "easyrsa_rewrite_ssl_config: IGNORED"
+		return
+	else
+		# set Run once
+		working_safe_ssl_conf=1
+	fi
+
+	# Assign easyrsa_safe_ssl_conf temp-file
+	easyrsa_safe_ssl_conf=""
+	easyrsa_mktemp easyrsa_safe_ssl_conf || die "\
+easyrsa_rewrite_ssl_config - \
+easyrsa_mktemp easyrsa_safe_ssl_conf"
+
+	# Rewrite
 	# shellcheck disable=SC2016 # No expansion inside ''
-	sed \
+	if sed \
 \
 -e s\`'$dir'\`\
 \""$EASYRSA_PKI"\"\`g \
@@ -987,6 +1033,11 @@ easyrsa_rewrite_ssl_config () {
 \""$EASYRSA_REQ_SERIAL"\"\`g \
 \
 	"$EASYRSA_SSL_CONF" > "$easyrsa_safe_ssl_conf"
+	then
+		verbose "easyrsa_rewrite_ssl_config: COMPLETED"
+	else
+		return 1
+	fi
 } # => easyrsa_rewrite_ssl_config()
 
 # Easy-RSA meta-wrapper for SSL
@@ -1014,57 +1065,16 @@ easyrsa_openssl() {
 		has_config=1
 	fi
 
-	# Make LibreSSL safe config file from OpenSSL config file
-	# $require_safe_ssl_conf is ALWAYS set by verify_ssl_lib()
-	# Can be over-ruled for OpenSSL by option --no-safe-ssl
-	if [ "$require_safe_ssl_conf" ] || \
-		[ "$EASYRSA_FORCE_SAFE_SSL" ]
-	then
+	# Auto-escape hazardous characters
+	escape_hazard || \
+		die "easyrsa_openssl - escape_hazard failed"
 
-		# Only create a new safe config,
-		# if it has not been done before.
-		# EASYRSA_FORCE_SAFE_SSL will always over-ride
-		if  [ -z "$EASYRSA_FORCE_SAFE_SSL" ] && \
-			[ "$working_safe_ssl_conf" ]
-		then
-			# ok - This has been done before
-			# Set SAFE SSL conf to working SAFE SSL conf
-			easyrsa_safe_ssl_conf="$working_safe_ssl_conf"
-			verbose "\
-easyrsa_openssl: escape_hazard SKIPPED"
-			verbose "\
-easyrsa_openssl: easyrsa_rewrite_ssl_config SKIPPED"
-		else
-			# Auto-escape hazardous characters:
-			# '&' - Workaround 'sed' behavior
-			# '$' - Workaround 'easyrsa' based limitation
-			# This is required for all SSL libs, otherwise,
-			# there are unacceptable differences in behavior
-			escape_hazard || \
-				die "easyrsa_openssl - escape_hazard failed"
-			verbose "\
-easyrsa_openssl: escape_hazard COMPLETED"
+	# Rewrite SSL config
+	easyrsa_rewrite_ssl_config || \
+		die "easyrsa_openssl - easyrsa_rewrite_ssl_config failed"
 
-			# Assign easyrsa_safe_ssl_conf temp-file
-			easyrsa_safe_ssl_conf=""
-			easyrsa_mktemp easyrsa_safe_ssl_conf || die "\
-easyrsa_openssl - easyrsa_mktemp easyrsa_safe_ssl_conf"
-
-			# Write a safe SSL config temp-file
-			if easyrsa_rewrite_ssl_config; then
-				verbose "\
-easyrsa_openssl: easyrsa_rewrite_ssl_config COMPLETED"
-				# Save the the safe conf file-name
-				working_safe_ssl_conf="$easyrsa_safe_ssl_conf"
-				verbose "\
-easyrsa_openssl: NEW SAFE SSL config: $easyrsa_safe_ssl_conf"
-			else
-				die "\
-easyrsa_openssl - easyrsa_rewrite_ssl_config"
-			fi
-		fi
-
-	else
+	# Support --no-safe-ssl
+	if [ "$EASYRSA_NO_SAFE_SSL" ]; then
 		# Assign safe temp file as Original openssl-easyrsa.conf
 		easyrsa_safe_ssl_conf="$EASYRSA_SSL_CONF"
 		verbose "easyrsa_openssl: No SAFE SSL config"
@@ -1789,6 +1799,7 @@ Raw CA mode
 	} | awk "$awkscript" "$EASYRSA_SSL_CONF" \
 			> "$conf_tmp" || \
 			die "Copying X509_TYPES to config file failed"
+	verbose "build-ca: insert x509 and extensions OK"
 
 	# Use this new SSL config for the rest of this function
 	EASYRSA_SSL_CONF="$conf_tmp"
@@ -6751,7 +6762,7 @@ detect_host
 unset -v \
 	verify_ssl_lib_ok \
 	secured_session \
-	working_safe_ssl_conf \
+	working_safe_ssl_conf working_safe_org_conf \
 	alias_days \
 	prohibit_no_pass \
 	found_vars no_new_vars user_vars_true \
