@@ -897,8 +897,8 @@ Temporary session not preserved."
 
 # Make a copy safe SSL config file
 make_safe_ssl() {
-	EASYRSA_FORCE_SAFE_SSL=1
 	easyrsa_openssl makesafeconf
+
 	notice "\
 Safe SSL config file created at:
 * $EASYRSA_SAFE_CONF"
@@ -913,8 +913,9 @@ make_safe_ssl: NEW SSL cnf file: $safe_ssl_cnf_tmp"
 # This is required for all SSL libs, otherwise,
 # there are unacceptable differences in behavior
 escape_hazard() {
-	# Run once
-	if [ "$EASYRSA_FORCE_SAFE_SSL" ]; then
+	if [ "$EASYRSA_FORCE_SAFE_SSL" ] || \
+		[ "$makesafeconf" ]
+	then
 		# Always run
 		verbose "escape_hazard: FORCED"
 	elif [ "$EASYRSA_NO_SAFE_SSL" ]; then
@@ -922,14 +923,17 @@ escape_hazard() {
 		verbose "escape_hazard: DENIED"
 		return
 	elif [ "$working_safe_org_conf" ]; then
+		# Has run once
 		verbose "escape_hazard: IGNORED"
 		return
 	else
-		# set Run once
-		working_safe_org_conf=1
+		verbose "escape_hazard: RUN-ONCE"
 	fi
 
-	# Assign temp file
+	# Set run once
+	working_safe_org_conf=1
+
+	# Assign temp-file
 	vars_org_tmp=""
 	easyrsa_mktemp vars_org_tmp || die \
 		"escape_hazard - easyrsa_mktemp vars_org_tmp"
@@ -961,7 +965,9 @@ escape_hazard - Failed to source temp-file"
 # Replace environment variable names with current value
 # and write to temp-file or return error from sed
 expand_ssl_config() {
-	if [ "$EASYRSA_FORCE_SAFE_SSL" ]; then
+	if [ "$EASYRSA_FORCE_SAFE_SSL" ] || \
+		[ "$makesafeconf" ]
+	then
 		# Always run
 		verbose "expand_ssl_config: FORCED"
 	elif [ "$EASYRSA_NO_SAFE_SSL" ]; then
@@ -973,11 +979,13 @@ expand_ssl_config() {
 		verbose "expand_ssl_config: IGNORED"
 		return
 	else
-		# set Run once
-		working_safe_ssl_conf=1
+		verbose "expand_ssl_config: RUN-ONCE"
 	fi
 
-	# Assign safe_ssl_cnf_tmp temp-file
+	# Set run once
+	working_safe_ssl_conf=1
+
+	# Assign temp-file
 	safe_ssl_cnf_tmp=""
 	easyrsa_mktemp safe_ssl_cnf_tmp || die "\
 expand_ssl_config - \
@@ -1051,7 +1059,7 @@ easyrsa_openssl() {
 		rand)
 			die "easyrsa_openssl: Illegal SSL command: rand"
 		;;
-		makesafeconf) require_safe_ssl_conf=1 ;;
+		makesafeconf) makesafeconf=1 ;;
 		ca|req|srp|ts) has_config=1 ;;
 		*) unset -v has_config
 	esac
@@ -1095,6 +1103,7 @@ easyrsa_openssl - Safe SSL conf MISSING: $safe_ssl_cnf_tmp"
 	# Execute command - Return on success
 	if [ "$openssl_command" = "makesafeconf" ]; then
 		# COPY temp-file to safessl-easyrsa.cnf
+		unset -v makesafeconf
 		cp -f "$safe_ssl_cnf_tmp" "$EASYRSA_SAFE_CONF" && \
 				return
 
@@ -1144,14 +1153,10 @@ verify_ssl_lib() {
 	ssl_version="$val"
 
 	# SSL lib name
-	require_safe_ssl_conf=1
 	case "${val%% *}" in
 	# OpenSSL does require a safe config-file for ampersand
 	OpenSSL)
 		ssl_lib=openssl
-		if [ "$EASYRSA_NO_SAFE_SSL" ]; then
-			unset -v require_safe_ssl_conf
-		fi
 	;;
 	LibreSSL)
 		ssl_lib=libressl
@@ -4749,10 +4754,6 @@ read_db() {
 			die "read_db - remove_secure_session"
 		secure_session || \
 			die "read_db - secure_session"
-		if [ "$require_safe_ssl_conf" ];  then
-			EASYRSA_SILENT=1 make_safe_ssl || \
-				die "read_db - make_safe_ssl"
-		fi
 
 		# Interpret the db/certificate record
 		unset -v db_serial db_cn db_revoke_date db_reason
@@ -6763,6 +6764,7 @@ unset -v \
 	verify_ssl_lib_ok \
 	secured_session \
 	working_safe_ssl_conf working_safe_org_conf \
+	makesafeconf \
 	alias_days \
 	prohibit_no_pass \
 	found_vars no_new_vars user_vars_true \
@@ -7001,7 +7003,8 @@ case "$cmd" in
 	*)
 		require_pki=1
 		case "$cmd" in
-			gen-req|gen-dh|build-ca|show-req)
+			gen-req|gen-dh|build-ca|show-req| \
+			make-safe-ssl)
 				unset -v require_ca
 			;;
 			*)
