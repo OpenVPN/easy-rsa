@@ -695,7 +695,7 @@ secure_session() {
 		if mkdir "$secured_session"; then
 			# New session requires safe-ssl conf
 			unset -v mktemp_counter \
-				OPENSSL_CONF easyrsa_safe_ssl_conf \
+				OPENSSL_CONF safe_ssl_cnf_tmp \
 				working_safe_ssl_conf
 			easyrsa_err_log="$secured_session/error.log"
 			verbose "\
@@ -716,7 +716,7 @@ remove_secure_session() {
 			verbose "\
 remove_secure_session: DELETED: $secured_session"
 			unset -v secured_session mktemp_counter \
-				OPENSSL_CONF easyrsa_safe_ssl_conf \
+				OPENSSL_CONF safe_ssl_cnf_tmp \
 				working_safe_ssl_conf
 			return
 		fi
@@ -903,7 +903,7 @@ make_safe_ssl() {
 Safe SSL config file created at:
 * $EASYRSA_SAFE_CONF"
 	verbose "\
-make_safe_ssl: NEW SSL cnf file: $easyrsa_safe_ssl_conf"
+make_safe_ssl: NEW SSL cnf file: $safe_ssl_cnf_tmp"
 } # => make_safe_ssl_copy()
 
 # Escape hazardous characters
@@ -977,11 +977,11 @@ expand_ssl_config() {
 		working_safe_ssl_conf=1
 	fi
 
-	# Assign easyrsa_safe_ssl_conf temp-file
-	easyrsa_safe_ssl_conf=""
-	easyrsa_mktemp easyrsa_safe_ssl_conf || die "\
+	# Assign safe_ssl_cnf_tmp temp-file
+	safe_ssl_cnf_tmp=""
+	easyrsa_mktemp safe_ssl_cnf_tmp || die "\
 expand_ssl_config - \
-easyrsa_mktemp easyrsa_safe_ssl_conf"
+easyrsa_mktemp safe_ssl_cnf_tmp"
 
 	# Rewrite
 	# shellcheck disable=SC2016 # No expansion inside ''
@@ -1032,7 +1032,7 @@ easyrsa_mktemp easyrsa_safe_ssl_conf"
 -e s\`'$ENV::EASYRSA_REQ_SERIAL'\`\
 \""$EASYRSA_REQ_SERIAL"\"\`g \
 \
-	"$EASYRSA_SSL_CONF" > "$easyrsa_safe_ssl_conf"
+	"$EASYRSA_SSL_CONF" > "$safe_ssl_cnf_tmp"
 	then
 		verbose "expand_ssl_config: COMPLETED"
 	else
@@ -1076,26 +1076,26 @@ easyrsa_openssl() {
 	# Support --no-safe-ssl
 	if [ "$EASYRSA_NO_SAFE_SSL" ]; then
 		# Assign safe temp file as Original openssl-easyrsa.conf
-		easyrsa_safe_ssl_conf="$EASYRSA_SSL_CONF"
+		safe_ssl_cnf_tmp="$EASYRSA_SSL_CONF"
 		verbose "easyrsa_openssl: No SAFE SSL config"
 	fi
 
 	# VERIFY safe temp-file exists
-	if [ -e "$easyrsa_safe_ssl_conf" ]; then
+	if [ -e "$safe_ssl_cnf_tmp" ]; then
 		verbose "\
-easyrsa_openssl: Safe SSL conf OK: $easyrsa_safe_ssl_conf"
+easyrsa_openssl: Safe SSL conf OK: $safe_ssl_cnf_tmp"
 	else
 		die "\
-easyrsa_openssl - Safe SSL conf MISSING: $easyrsa_safe_ssl_conf"
+easyrsa_openssl - Safe SSL conf MISSING: $safe_ssl_cnf_tmp"
 	fi
 
 	# set $OPENSSL_CONF - Use which-ever file is assigned above
-	export OPENSSL_CONF="$easyrsa_safe_ssl_conf"
+	export OPENSSL_CONF="$safe_ssl_cnf_tmp"
 
 	# Execute command - Return on success
 	if [ "$openssl_command" = "makesafeconf" ]; then
 		# COPY temp-file to safessl-easyrsa.cnf
-		cp -f "$easyrsa_safe_ssl_conf" "$EASYRSA_SAFE_CONF" && \
+		cp -f "$safe_ssl_cnf_tmp" "$EASYRSA_SAFE_CONF" && \
 				return
 
 	elif [ "$has_config" ]; then
@@ -1103,12 +1103,12 @@ easyrsa_openssl - Safe SSL conf MISSING: $easyrsa_safe_ssl_conf"
 		if [ "$EASYRSA_SILENT_SSL" ] && [ "$EASYRSA_BATCH" ]
 		then
 			"$EASYRSA_OPENSSL" "$openssl_command" \
-				-config "$easyrsa_safe_ssl_conf" "$@" \
+				-config "$safe_ssl_cnf_tmp" "$@" \
 				2>/dev/null && \
 					return
 		else
 			"$EASYRSA_OPENSSL" "$openssl_command" \
-				-config "$easyrsa_safe_ssl_conf" "$@" && \
+				-config "$safe_ssl_cnf_tmp" "$@" && \
 					return
 		fi
 
@@ -1129,7 +1129,7 @@ easyrsa_openssl - Safe SSL conf MISSING: $easyrsa_safe_ssl_conf"
 	die "\
 easyrsa_openssl - Command has failed:
 * $EASYRSA_OPENSSL $openssl_command \
-${has_config:+-config $easyrsa_safe_ssl_conf }$*"
+${has_config:+-config $safe_ssl_cnf_tmp }$*"
 } # => easyrsa_openssl()
 
 # Verify the SSL library is functional
