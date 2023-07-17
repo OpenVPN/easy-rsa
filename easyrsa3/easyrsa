@@ -779,7 +779,7 @@ easyrsa_mktemp: temp-file EXISTS: $want_tmp_file"
 						if force_set_var "$1" "$want_tmp_file"
 						then
 							verbose "\
-easyrsa_mktemp: $1 temp-file OK: $want_tmp_file"
+easyrsa_mktemp: $1 OK: $want_tmp_file"
 
 							if [ "$easyrsa_host_os" = win ]; then
 								set +o noclobber
