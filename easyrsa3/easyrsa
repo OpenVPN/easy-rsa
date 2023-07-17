@@ -1786,9 +1786,9 @@ Raw CA mode
 	fi
 
 	# Assign tmp-file for config
-	conf_tmp=""
-	easyrsa_mktemp conf_tmp || \
-		die "build_ca - easyrsa_mktemp conf_tmp"
+	raw_ssl_cnf_tmp=""
+	easyrsa_mktemp raw_ssl_cnf_tmp || \
+		die "build_ca - easyrsa_mktemp raw_ssl_cnf_tmp"
 
 	# Assign awkscript to insert EASYRSA_EXTRA_EXTS
 	# shellcheck disable=SC2016 # vars don't expand in ''
@@ -1819,12 +1819,12 @@ Raw CA mode
 			print "$EASYRSA_EXTRA_EXTS"
 
 	} | awk "$awkscript" "$EASYRSA_SSL_CONF" \
-			> "$conf_tmp" || \
+			> "$raw_ssl_cnf_tmp" || \
 			die "Copying X509_TYPES to config file failed"
 	verbose "build-ca: insert x509 and extensions OK"
 
 	# Use this new SSL config for the rest of this function
-	EASYRSA_SSL_CONF="$conf_tmp"
+	EASYRSA_SSL_CONF="$raw_ssl_cnf_tmp"
 
 	# Generate CA Key
 	if [ "$EASYRSA_RAW_CA" ]; then
@@ -2100,18 +2100,18 @@ $EASYRSA_EXTRA_EXTS"
  {print}
 }'
 		# Assign temp-file for confg
-		conf_tmp=""
-		easyrsa_mktemp conf_tmp || \
-			die "gen_req - easyrsa_mktemp conf_tmp"
+		raw_ssl_cnf_tmp=""
+		easyrsa_mktemp raw_ssl_cnf_tmp || \
+			die "gen_req - easyrsa_mktemp raw_ssl_cnf_tmp"
 
 		# Insert $extra_exts @ %EXTRA_EXTS% in SSL Config
 		print "$extra_exts" | \
 			awk "$awkscript" "$EASYRSA_SSL_CONF" \
-			> "$conf_tmp" || \
+			> "$raw_ssl_cnf_tmp" || \
 				die "Writing SSL config to temp file failed"
 
 		# Use this SSL config for the rest of this function
-		EASYRSA_SSL_CONF="$conf_tmp"
+		EASYRSA_SSL_CONF="$raw_ssl_cnf_tmp"
 	fi
 
 	# Name temp files
@@ -2272,17 +2272,17 @@ to the latest Easy-RSA release."
  {print}
 }'
 		# Assign temp-file for confg
-		conf_tmp=""
-		easyrsa_mktemp conf_tmp || \
-			die "sign_req - easyrsa_mktemp conf_tmp"
+		raw_ssl_cnf_tmp=""
+		easyrsa_mktemp raw_ssl_cnf_tmp || \
+			die "sign_req - easyrsa_mktemp raw_ssl_cnf_tmp"
 
 		print "$copy_exts" | \
 			awk "$awkscript" "$EASYRSA_SSL_CONF" \
-				> "$conf_tmp" || die "\
+				> "$raw_ssl_cnf_tmp" || die "\
 Writing 'copy_exts' to SSL config temp-file failed"
 
 		# Use this SSL config for the rest of this function
-		EASYRSA_SSL_CONF="$conf_tmp"
+		EASYRSA_SSL_CONF="$raw_ssl_cnf_tmp"
 		verbose "sign_req: Using '$copy_exts'"
 	fi
 
