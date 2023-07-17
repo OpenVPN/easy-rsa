@@ -7035,126 +7035,156 @@ vars_setup
 # Check for conflicting input options
 mutual_exclusions
 
-# Final checks of working environment
-verify_working_env
-
 # Hand off to the function responsible
 case "$cmd" in
 	init-pki|clean-all)
+		verify_working_env
 		init_pki "$@"
 		;;
 	build-ca)
+		verify_working_env
 		[ -z "$alias_days" ] || \
 			export EASYRSA_CA_EXPIRE="$alias_days"
 		build_ca "$@"
 		;;
 	gen-dh)
+		verify_working_env
 		gen_dh
 		;;
 	gen-req)
+		verify_working_env
 		gen_req "$@"
 		;;
 	sign|sign-req)
+		verify_working_env
 		[ -z "$alias_days" ] || \
 			export EASYRSA_CERT_EXPIRE="$alias_days"
 		sign_req "$@"
 		;;
 	build-client-full)
+		verify_working_env
 		[ -z "$alias_days" ] || \
 			export EASYRSA_CERT_EXPIRE="$alias_days"
 		build_full client "$@"
 		;;
 	build-server-full)
+		verify_working_env
 		[ -z "$alias_days" ] || \
 			export EASYRSA_CERT_EXPIRE="$alias_days"
 		build_full server "$@"
 		;;
 	build-serverClient-full)
+		verify_working_env
 		[ -z "$alias_days" ] || \
 			export EASYRSA_CERT_EXPIRE="$alias_days"
 		build_full serverClient "$@"
 		;;
 	gen-crl)
+		verify_working_env
 		[ -z "$alias_days" ] || \
 			export EASYRSA_CRL_DAYS="$alias_days"
 		gen_crl
 		;;
 	revoke)
+		verify_working_env
 		revoke "$@"
 		;;
 	revoke-renewed)
+		verify_working_env
 		revoke_renewed "$@"
 		;;
 	renew)
+		verify_working_env
 		[ -z "$alias_days" ] || \
 			export EASYRSA_CERT_EXPIRE="$alias_days"
 		renew "$@"
 		;;
 	rewind-renew)
+		verify_working_env
 		rewind_renew "$@"
 		;;
 	rebuild)
+		verify_working_env
 		[ -z "$alias_days" ] || \
 			export EASYRSA_CERT_EXPIRE="$alias_days"
 		rebuild "$@"
 		;;
 	import-req)
+		verify_working_env
 		import_req "$@"
 		;;
 	export-p12)
+		verify_working_env
 		export_pkcs p12 "$@"
 		;;
 	export-p7)
+		verify_working_env
 		export_pkcs p7 "$@"
 		;;
 	export-p8)
+		verify_working_env
 		export_pkcs p8 "$@"
 		;;
 	export-p1)
+		verify_working_env
 		export_pkcs p1 "$@"
 		;;
 	set-rsa-pass)
+		verify_working_env
 		set_pass_legacy rsa "$@"
 		;;
 	set-ec-pass)
+		verify_working_env
 		set_pass_legacy ec "$@"
 		;;
 	set-pass|set-ed-pass)
+		verify_working_env
 		set_pass "$@"
 		;;
 	update-db)
+		verify_working_env
 		update_db
 		;;
 	show-req)
+		verify_working_env
 		show req "$@"
 		;;
 	show-cert)
+		verify_working_env
 		show cert "$@"
 		;;
 	show-crl)
+		verify_working_env
 		show crl crl
 		;;
 	show-ca)
+		verify_working_env
 		show_ca "$@"
 		;;
 	show-expire)
+		verify_working_env
 		[ -z "$alias_days" ] || \
 			export EASYRSA_PRE_EXPIRY_WINDOW="$alias_days"
 		status expire "$@"
 		;;
 	show-revoke)
+		verify_working_env
 		status revoke "$@"
 		;;
 	show-renew)
+		verify_working_env
 		status renew "$@"
 		;;
 	show-host)
+		verify_working_env
 		show_host "$@"
 		;;
 	make-safe-ssl)
+		verify_working_env
 		make_safe_ssl "$@"
 		;;
 	verify|verify-cert)
+		verify_working_env
 		# Called with --batch, this will return error
 		# when the certificate fails verification.
 		# Therefore, on error, exit with error.
@@ -7162,6 +7192,7 @@ case "$cmd" in
 			easyrsa_exit_with_error=1
 		;;
 	serial|check-serial)
+		verify_working_env
 		# Called with --batch, this will return error
 		# when the serial number is not unique.
 		# Therefore, on error, exit with error.
@@ -7169,18 +7200,23 @@ case "$cmd" in
 			easyrsa_exit_with_error=1
 		;;
 	display-dn)
+		verify_working_env
 		display_dn "$@"
 		;;
 	display-san)
+		verify_working_env
 		display_san "$@"
 		;;
 	default-san)
+		verify_working_env
 		default_server_san "$@"
 		;;
 	upgrade)
+		verify_working_env
 		up23_manage_upgrade_23 "$@"
 		;;
 	""|help|-h|--help|--usage)
+		verify_working_env
 		cmd_help "$1"
 		;;
 	version)
