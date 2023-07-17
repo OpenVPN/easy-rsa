@@ -4000,7 +4000,7 @@ display_san - input error"
 			san="$(
 		x509v3san='X509v3 Subject Alternative Name:'
 		easyrsa_openssl "$format" -in "$path" -noout -text | sed -n \
-		"/${x509v3san}/{n;s/ //g;s/IPAddress:/IP:/g;s/RegisteredID/RID/;p;}"
+		"/${x509v3san}/{n;s/ //g;s/othername:XmppAddr:/otherName:XmppAddr;UTF8/g;s/othername:SRVName:/otherName:SRVName;IA5STRING/g;s/IPAddress:/IP:/g;s/RegisteredID/RID/;p;}"
 		)"
 
 		# Print auto SAN
