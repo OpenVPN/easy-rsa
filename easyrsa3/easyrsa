@@ -918,15 +918,22 @@ escape_hazard() {
 	then
 		# Always run
 		verbose "escape_hazard: FORCED"
-	elif [ "$EASYRSA_NO_SAFE_SSL" ]; then
-		# Never run
-		verbose "escape_hazard: DENIED"
-		return
+	# Do not respect --no-safe-ssl, escape the fields
+	# before they are expanded by OpenSSL or easyrsa.
+	#elif [ "$EASYRSA_NO_SAFE_SSL" ]; then
+	#	# Never run
+	#	verbose "escape_hazard: DENIED"
+	#	return
 	elif [ "$working_safe_org_conf" ]; then
 		# Has run once
+		verbose "escape_hazard: BYPASSED"
+		return
+	elif [ -z "$has_config" ]; then
+		# SSL Config not required
 		verbose "escape_hazard: IGNORED"
 		return
 	else
+		# Run once
 		verbose "escape_hazard: RUN-ONCE"
 	fi
 
@@ -976,9 +983,14 @@ expand_ssl_config() {
 		return
 	elif [ "$working_safe_ssl_conf" ]; then
 		# Has run once
+		verbose "expand_ssl_config: BYPASSED"
+		return
+	elif [ -z "$has_config" ]; then
+		# SSL Config not required
 		verbose "expand_ssl_config: IGNORED"
 		return
 	else
+		# Run once
 		verbose "expand_ssl_config: RUN-ONCE"
 	fi
 
@@ -1051,6 +1063,11 @@ easyrsa_mktemp safe_ssl_cnf_tmp"
 # Easy-RSA meta-wrapper for SSL
 # WARNING: Running easyrsa_openssl in a subshell
 # will hide error message and verbose messages
+#
+# The expansion here takes place on EASYRSA_SSL_CONF,
+# which may have already been replaced by a temp-file
+# with the extensions having been inserted by build-ca,
+# sign-req or gen-req.
 easyrsa_openssl() {
 	openssl_command="$1"; shift
 
@@ -1059,7 +1076,7 @@ easyrsa_openssl() {
 		rand)
 			die "easyrsa_openssl: Illegal SSL command: rand"
 		;;
-		makesafeconf) makesafeconf=1 ;;
+		makesafeconf) makesafeconf=1; has_config=1 ;;
 		ca|req|srp|ts) has_config=1 ;;
 		*) unset -v has_config
 	esac
@@ -1093,7 +1110,7 @@ easyrsa_openssl() {
 		verbose "\
 easyrsa_openssl: Safe SSL conf OK: $safe_ssl_cnf_tmp"
 	else
-		die "\
+		[ "$has_config" ] && die "\
 easyrsa_openssl - Safe SSL conf MISSING: $safe_ssl_cnf_tmp"
 	fi
 
@@ -4247,7 +4264,7 @@ $in_file"
 This file is not a valid $type file:
 $in_file"
 
-	notice "
+	notice "\
 Showing details for CA certificate, at:
 * $in_file${NL}"
 
