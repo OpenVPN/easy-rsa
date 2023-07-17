@@ -941,9 +941,9 @@ escape_hazard() {
 	working_safe_org_conf=1
 
 	# Assign temp-file
-	vars_org_tmp=""
-	easyrsa_mktemp vars_org_tmp || die \
-		"escape_hazard - easyrsa_mktemp vars_org_tmp"
+	escape_hazard_tmp=""
+	easyrsa_mktemp escape_hazard_tmp || die \
+		"escape_hazard - easyrsa_mktemp escape_hazard_tmp"
 
 	# write org fields to org temp-file and escape '&' and '$'
 	print "\
@@ -956,17 +956,17 @@ export EASYRSA_REQ_EMAIL=\"$EASYRSA_REQ_EMAIL\"
 export EASYRSA_REQ_SERIAL=\"$EASYRSA_REQ_SERIAL\"\
 " | sed -e s\`'\&'\`'\\\&'\`g \
 		-e s\`'\$'\`'\\\$'\`g \
-			> "$vars_org_tmp" || die "\
+			> "$escape_hazard_tmp" || die "\
 escape_hazard - Failed to write temp-file"
 
 	# Reload fields from fully escaped temp-file
 	# shellcheck disable=SC1090 # can't follow ...
-	(. "$vars_org_tmp") || die "\
+	(. "$escape_hazard_tmp") || die "\
 escape_hazard - Failed to source temp-file"
 
 	verbose "escape_hazard: COMPLETED"
 	# shellcheck disable=SC1090 # can't follow ...
-	. "$vars_org_tmp"
+	. "$escape_hazard_tmp"
 } # => escape_hazard()
 
 # Replace environment variable names with current value
