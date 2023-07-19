@@ -72,9 +72,14 @@ A list of commands is shown below:
 	# CA Status
 	if verify_ca_init test; then
 		CA_cert="$EASYRSA_PKI/ca.crt"
-		CA_status="   CA status: OK
-  CA subject: \
-$("$EASYRSA_OPENSSL" x509 -in "$CA_cert" -noout -subject)"
+		CA_status="   CA status: OK"
+		CA_subject="$(
+			OPENSSL_CONF=/dev/null \
+				"$EASYRSA_OPENSSL" x509 -in "$CA_cert" \
+					-noout -subject -nameopt multiline
+			)"
+		CA_subject="  CA subject: ${CA_subject#subject=}"
+		CA_status="${CA_status}${NL}${CA_subject}"
 	else
 		CA_status="   CA status: CA has not been built."
 	fi
@@ -661,7 +666,8 @@ easyrsa_random() {
 	(*[!1234567890]*|0*|"") : ;; # invalid input
 	(*)
 		# Only return on success
-		if "$EASYRSA_OPENSSL" rand -hex "$1" 2>/dev/null
+		if OPENSSL_CONF=/dev/null \
+			"$EASYRSA_OPENSSL" rand -hex "$1"
 		then
 			return
 		fi
@@ -1127,12 +1133,13 @@ verify_ssl_lib() {
 	verify_ssl_lib_ok=1
 
 	# redirect std-err, ignore missing ssl/openssl.cnf
-	val="$("$EASYRSA_OPENSSL" version 2>/dev/null)"
+	val="$(
+		OPENSSL_CONF=/dev/null "$EASYRSA_OPENSSL" version
+		)"
 	ssl_version="$val"
 
 	# SSL lib name
 	case "${val%% *}" in
-	# OpenSSL does require a safe config-file for ampersand
 	OpenSSL)
 		ssl_lib=openssl
 	;;
@@ -1959,14 +1966,16 @@ at: $out_file"
 		die "gen_dh - easyrsa_mktemp tmp_dh_file"
 
 	# Generate dh.pem
-	"$EASYRSA_OPENSSL" dhparam -out "$tmp_dh_file" \
-		"$EASYRSA_KEY_SIZE" || \
-			die "Failed to generate DH params"
+	OPENSSL_CONF=/dev/null \
+		"$EASYRSA_OPENSSL" dhparam -out "$tmp_dh_file" \
+			"$EASYRSA_KEY_SIZE" || \
+				die "Failed to generate DH params"
 
 	# Validate dh.pem
-	"$EASYRSA_OPENSSL" dhparam -in "$tmp_dh_file" \
-		-check -noout || \
-			die "Failed to validate DH params"
+	OPENSSL_CONF=/dev/null \
+		"$EASYRSA_OPENSSL" dhparam -in "$tmp_dh_file" \
+			-check -noout || \
+				die "Failed to validate DH params"
 
 	mv -f "$tmp_dh_file" "$out_file" || \
 		die "Failed to move temp DH file"
@@ -4091,16 +4100,17 @@ Input is not a valid certificate: $crt_in"
 	if [ "$EASYRSA_SILENT_SSL" ]; then
 		# Test SSL out
 		# openssl direct call because error is expected
-		if "$EASYRSA_OPENSSL" verify \
-			-CAfile "$ca_crt" "$crt_in" 1>/dev/null 2>&1
+		if OPENSSL_CONF=/dev/null "$EASYRSA_OPENSSL" verify \
+			-CAfile "$ca_crt" "$crt_in" 1>/dev/null
 		then
 			verify_cert_ok=1
 		else
 			unset -v verify_cert_ok
 		fi
 	else
-		if "$EASYRSA_OPENSSL" verify \
-			-CAfile "$ca_crt" "$crt_in"
+		if OPENSSL_CONF=/dev/null \
+			"$EASYRSA_OPENSSL" verify \
+				-CAfile "$ca_crt" "$crt_in"
 		then
 			verify_cert_ok=1
 		else
@@ -4895,9 +4905,10 @@ expire_status: FALL-BACK completed"
 
 		# Check cert expiry against window
 		# openssl direct call because error is expected
-		if "$EASYRSA_OPENSSL" x509 -in "$cert_issued" \
-			-noout -checkend "$pre_expire_window_s" \
-			1>/dev/null
+		if OPENSSL_CONF=/dev/null \
+			"$EASYRSA_OPENSSL" x509 -in "$cert_issued" \
+				-noout -checkend "$pre_expire_window_s" \
+				1>/dev/null
 		then
 			expire_msg="will NOT expire"
 			will_not_expire=1
@@ -5275,18 +5286,21 @@ verify_algo_params - easyrsa_mktemp EASYRSA_ALGO_PARAMS"
 
 		# Create the required ecparams file
 		# call openssl directly because error is expected
-		"$EASYRSA_OPENSSL" ecparam -name "$EASYRSA_CURVE" \
-			-out "$EASYRSA_ALGO_PARAMS" \
-			1>/dev/null || die "\
+		 OPENSSL_CONF=/dev/null \
+			"$EASYRSA_OPENSSL" ecparam \
+				-name "$EASYRSA_CURVE" \
+				-out "$EASYRSA_ALGO_PARAMS" \
+				1>/dev/null || die "\
 Failed to generate ecparam file (permissions?) at:
 * $EASYRSA_ALGO_PARAMS"
 	;;
 	ed)
 		# Verify Edwards curve
 		# call openssl directly because error is expected
-		"$EASYRSA_OPENSSL" genpkey \
-			-algorithm "$EASYRSA_CURVE" \
-			1>/dev/null || die "\
+		 OPENSSL_CONF=/dev/null \
+			"$EASYRSA_OPENSSL" genpkey \
+				-algorithm "$EASYRSA_CURVE" \
+				1>/dev/null || die "\
 Edwards Curve $EASYRSA_CURVE not found."
 	;;
 	*) user_error "\
@@ -6701,7 +6715,8 @@ return 0
 print_version()
 {
 	ssl_version="$(
-		"${EASYRSA_OPENSSL:-openssl}" version 2>/dev/null
+		OPENSSL_CONF=/dev/null \
+			"${EASYRSA_OPENSSL:-openssl}" version
 		)"
 		cat << VERSION_TEXT
 EasyRSA Version Information
