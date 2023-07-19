@@ -918,19 +918,9 @@ escape_hazard() {
 	then
 		# Always run
 		verbose "escape_hazard: FORCED"
-	# Do not respect --no-safe-ssl, escape the fields
-	# before they are expanded by OpenSSL or easyrsa.
-	#elif [ "$EASYRSA_NO_SAFE_SSL" ]; then
-	#	# Never run
-	#	verbose "escape_hazard: DENIED"
-	#	return
 	elif [ "$working_safe_org_conf" ]; then
 		# Has run once
 		verbose "escape_hazard: BYPASSED"
-		return
-	elif [ -z "$has_config" ]; then
-		# SSL Config not required
-		verbose "escape_hazard: IGNORED"
 		return
 	else
 		# Run once
@@ -979,23 +969,27 @@ expand_ssl_config() {
 		verbose "expand_ssl_config: FORCED"
 	elif [ "$EASYRSA_NO_SAFE_SSL" ]; then
 		# Never run
-		verbose "expand_ssl_config: DENIED"
+		verbose "expand_ssl_config: DISABLED"
 		return
 	elif [ "$working_safe_ssl_conf" ]; then
 		# Has run once
 		verbose "expand_ssl_config: BYPASSED"
 		return
-	elif [ -z "$has_config" ]; then
-		# SSL Config not required
+	elif [ "$ssl_lib" = libressl ]; then
+		# Always run
+		verbose "expand_ssl_config: REQUIRED"
+	elif [ "$ssl_lib" = openssl ]; then
+		# OpenSSl does not require a safe config
 		verbose "expand_ssl_config: IGNORED"
 		return
 	else
-		# Run once
-		verbose "expand_ssl_config: RUN-ONCE"
+		# do NOT Run
+		die "expand_ssl_config: EXCEPTION"
 	fi
 
 	# Set run once
 	working_safe_ssl_conf=1
+	verbose "expand_ssl_config: RUN-ONCE"
 
 	# Assign temp-file
 	safe_ssl_cnf_tmp=""
@@ -1098,24 +1092,16 @@ easyrsa_openssl() {
 	expand_ssl_config || \
 		die "easyrsa_openssl - expand_ssl_config failed"
 
-	# Support --no-safe-ssl
-	if [ "$EASYRSA_NO_SAFE_SSL" ]; then
-		# Assign safe temp file as Original openssl-easyrsa.conf
-		safe_ssl_cnf_tmp="$EASYRSA_SSL_CONF"
-		verbose "easyrsa_openssl: No SAFE SSL config"
-	fi
-
 	# VERIFY safe temp-file exists
 	if [ -e "$safe_ssl_cnf_tmp" ]; then
 		verbose "\
 easyrsa_openssl: Safe SSL conf OK: $safe_ssl_cnf_tmp"
+		export OPENSSL_CONF="$safe_ssl_cnf_tmp"
 	else
-		[ "$has_config" ] && die "\
-easyrsa_openssl - Safe SSL conf MISSING: $safe_ssl_cnf_tmp"
+		verbose "\
+easyrsa_openssl: No Safe SSL conf, FALLBACK to default"
+		export OPENSSL_CONF="$EASYRSA_SSL_CONF"
 	fi
-
-	# set $OPENSSL_CONF - Use which-ever file is assigned above
-	export OPENSSL_CONF="$safe_ssl_cnf_tmp"
 
 	# Execute command - Return on success
 	if [ "$openssl_command" = "makesafeconf" ]; then
@@ -1123,32 +1109,18 @@ easyrsa_openssl - Safe SSL conf MISSING: $safe_ssl_cnf_tmp"
 		unset -v makesafeconf
 		cp -f "$safe_ssl_cnf_tmp" "$EASYRSA_SAFE_CONF" && \
 				return
+		die "easyrsa_openssl: makesafeconf FAILED"
+	fi
 
-	elif [ "$has_config" ]; then
-		# Exec SSL with -config temp-file
-		if [ "$EASYRSA_SILENT_SSL" ] && [ "$EASYRSA_BATCH" ]
-		then
-			"$EASYRSA_OPENSSL" "$openssl_command" \
-				-config "$safe_ssl_cnf_tmp" "$@" \
-				2>/dev/null && \
-					return
-		else
-			"$EASYRSA_OPENSSL" "$openssl_command" \
-				-config "$safe_ssl_cnf_tmp" "$@" && \
-					return
-		fi
-
+	# Exec SSL
+	if [ "$EASYRSA_SILENT_SSL" ] && [ "$EASYRSA_BATCH" ]
+	then
+		"$EASYRSA_OPENSSL" "$openssl_command" "$@" \
+			2>/dev/null && \
+				return
 	else
-		# Exec SSL without -config temp-file
-		if [ "$EASYRSA_SILENT_SSL" ] && [ "$EASYRSA_BATCH" ]
-		then
-			"$EASYRSA_OPENSSL" "$openssl_command" "$@" \
-				2>/dev/null && \
-					return
-		else
-			"$EASYRSA_OPENSSL" "$openssl_command" "$@" && \
-					return
-		fi
+		"$EASYRSA_OPENSSL" "$openssl_command" "$@" && \
+				return
 	fi
 
 	# Always fail here
