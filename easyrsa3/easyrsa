@@ -72,9 +72,14 @@ A list of commands is shown below:
 	# CA Status
 	if verify_ca_init test; then
 		CA_cert="$EASYRSA_PKI/ca.crt"
-		CA_status="   CA status: OK
-  CA subject: \
-$("$EASYRSA_OPENSSL" x509 -in "$CA_cert" -noout -subject)"
+		CA_status="   CA status: OK"
+		CA_subject="$(
+			OPENSSL_CONF=/dev/null \
+				"$EASYRSA_OPENSSL" x509 -in "$CA_cert" \
+					-noout -subject -nameopt multiline
+			)"
+		CA_subject="  CA subject: ${CA_subject#subject=}"
+		CA_status="${CA_status}${NL}${CA_subject}"
 	else
 		CA_status="   CA status: CA has not been built."
 	fi
@@ -661,7 +666,8 @@ easyrsa_random() {
 	(*[!1234567890]*|0*|"") : ;; # invalid input
 	(*)
 		# Only return on success
-		if "$EASYRSA_OPENSSL" rand -hex "$1" 2>/dev/null
+		if OPENSSL_CONF=/dev/null \
+			"$EASYRSA_OPENSSL" rand -hex "$1"
 		then
 			return
 		fi
@@ -918,19 +924,9 @@ escape_hazard() {
 	then
 		# Always run
 		verbose "escape_hazard: FORCED"
-	# Do not respect --no-safe-ssl, escape the fields
-	# before they are expanded by OpenSSL or easyrsa.
-	#elif [ "$EASYRSA_NO_SAFE_SSL" ]; then
-	#	# Never run
-	#	verbose "escape_hazard: DENIED"
-	#	return
 	elif [ "$working_safe_org_conf" ]; then
 		# Has run once
 		verbose "escape_hazard: BYPASSED"
-		return
-	elif [ -z "$has_config" ]; then
-		# SSL Config not required
-		verbose "escape_hazard: IGNORED"
 		return
 	else
 		# Run once
@@ -979,23 +975,27 @@ expand_ssl_config() {
 		verbose "expand_ssl_config: FORCED"
 	elif [ "$EASYRSA_NO_SAFE_SSL" ]; then
 		# Never run
-		verbose "expand_ssl_config: DENIED"
+		verbose "expand_ssl_config: DISABLED"
 		return
 	elif [ "$working_safe_ssl_conf" ]; then
 		# Has run once
 		verbose "expand_ssl_config: BYPASSED"
 		return
-	elif [ -z "$has_config" ]; then
-		# SSL Config not required
+	elif [ "$ssl_lib" = libressl ]; then
+		# Always run
+		verbose "expand_ssl_config: REQUIRED"
+	elif [ "$ssl_lib" = openssl ]; then
+		# OpenSSl does not require a safe config
 		verbose "expand_ssl_config: IGNORED"
 		return
 	else
-		# Run once
-		verbose "expand_ssl_config: RUN-ONCE"
+		# do NOT Run
+		die "expand_ssl_config: EXCEPTION"
 	fi
 
 	# Set run once
 	working_safe_ssl_conf=1
+	verbose "expand_ssl_config: RUN-ONCE"
 
 	# Assign temp-file
 	safe_ssl_cnf_tmp=""
@@ -1076,19 +1076,9 @@ easyrsa_openssl() {
 		rand)
 			die "easyrsa_openssl: Illegal SSL command: rand"
 		;;
-		makesafeconf) makesafeconf=1; has_config=1 ;;
-		ca|req|srp|ts) has_config=1 ;;
-		*) unset -v has_config
+		makesafeconf) makesafeconf=1 ;;
+		*) :
 	esac
-
-	# OpenSSL 1x genpkey does not support -config
-	# OpenSSL 3x genpkey requires -config
-	# LibreSSL passes the test without -config ..
-	if [ "$openssl_command" = genpkey ] && \
-		[ "$ssl_lib" = openssl ] && [ "$osslv_major" = 3 ]
-	then
-		has_config=1
-	fi
 
 	# Auto-escape hazardous characters
 	escape_hazard || \
@@ -1098,24 +1088,16 @@ easyrsa_openssl() {
 	expand_ssl_config || \
 		die "easyrsa_openssl - expand_ssl_config failed"
 
-	# Support --no-safe-ssl
-	if [ "$EASYRSA_NO_SAFE_SSL" ]; then
-		# Assign safe temp file as Original openssl-easyrsa.conf
-		safe_ssl_cnf_tmp="$EASYRSA_SSL_CONF"
-		verbose "easyrsa_openssl: No SAFE SSL config"
-	fi
-
 	# VERIFY safe temp-file exists
 	if [ -e "$safe_ssl_cnf_tmp" ]; then
 		verbose "\
 easyrsa_openssl: Safe SSL conf OK: $safe_ssl_cnf_tmp"
+		export OPENSSL_CONF="$safe_ssl_cnf_tmp"
 	else
-		[ "$has_config" ] && die "\
-easyrsa_openssl - Safe SSL conf MISSING: $safe_ssl_cnf_tmp"
+		verbose "\
+easyrsa_openssl: No Safe SSL conf, FALLBACK to default"
+		export OPENSSL_CONF="$EASYRSA_SSL_CONF"
 	fi
-
-	# set $OPENSSL_CONF - Use which-ever file is assigned above
-	export OPENSSL_CONF="$safe_ssl_cnf_tmp"
 
 	# Execute command - Return on success
 	if [ "$openssl_command" = "makesafeconf" ]; then
@@ -1123,39 +1105,24 @@ easyrsa_openssl - Safe SSL conf MISSING: $safe_ssl_cnf_tmp"
 		unset -v makesafeconf
 		cp -f "$safe_ssl_cnf_tmp" "$EASYRSA_SAFE_CONF" && \
 				return
+		die "easyrsa_openssl: makesafeconf FAILED"
+	fi
 
-	elif [ "$has_config" ]; then
-		# Exec SSL with -config temp-file
-		if [ "$EASYRSA_SILENT_SSL" ] && [ "$EASYRSA_BATCH" ]
-		then
-			"$EASYRSA_OPENSSL" "$openssl_command" \
-				-config "$safe_ssl_cnf_tmp" "$@" \
-				2>/dev/null && \
-					return
-		else
-			"$EASYRSA_OPENSSL" "$openssl_command" \
-				-config "$safe_ssl_cnf_tmp" "$@" && \
-					return
-		fi
-
+	# Exec SSL
+	if [ "$EASYRSA_SILENT_SSL" ] && [ "$EASYRSA_BATCH" ]
+	then
+		"$EASYRSA_OPENSSL" "$openssl_command" "$@" \
+			2>/dev/null && \
+				return
 	else
-		# Exec SSL without -config temp-file
-		if [ "$EASYRSA_SILENT_SSL" ] && [ "$EASYRSA_BATCH" ]
-		then
-			"$EASYRSA_OPENSSL" "$openssl_command" "$@" \
-				2>/dev/null && \
-					return
-		else
-			"$EASYRSA_OPENSSL" "$openssl_command" "$@" && \
-					return
-		fi
+		"$EASYRSA_OPENSSL" "$openssl_command" "$@" && \
+				return
 	fi
 
 	# Always fail here
 	die "\
 easyrsa_openssl - Command has failed:
-* $EASYRSA_OPENSSL $openssl_command \
-${has_config:+-config $safe_ssl_cnf_tmp }$*"
+* $EASYRSA_OPENSSL $openssl_command $*"
 } # => easyrsa_openssl()
 
 # Verify the SSL library is functional
@@ -1166,12 +1133,13 @@ verify_ssl_lib() {
 	verify_ssl_lib_ok=1
 
 	# redirect std-err, ignore missing ssl/openssl.cnf
-	val="$("$EASYRSA_OPENSSL" version 2>/dev/null)"
+	val="$(
+		OPENSSL_CONF=/dev/null "$EASYRSA_OPENSSL" version
+		)"
 	ssl_version="$val"
 
 	# SSL lib name
 	case "${val%% *}" in
-	# OpenSSL does require a safe config-file for ampersand
 	OpenSSL)
 		ssl_lib=openssl
 	;;
@@ -1998,14 +1966,16 @@ at: $out_file"
 		die "gen_dh - easyrsa_mktemp tmp_dh_file"
 
 	# Generate dh.pem
-	"$EASYRSA_OPENSSL" dhparam -out "$tmp_dh_file" \
-		"$EASYRSA_KEY_SIZE" || \
-			die "Failed to generate DH params"
+	OPENSSL_CONF=/dev/null \
+		"$EASYRSA_OPENSSL" dhparam -out "$tmp_dh_file" \
+			"$EASYRSA_KEY_SIZE" || \
+				die "Failed to generate DH params"
 
 	# Validate dh.pem
-	"$EASYRSA_OPENSSL" dhparam -in "$tmp_dh_file" \
-		-check -noout || \
-			die "Failed to validate DH params"
+	OPENSSL_CONF=/dev/null \
+		"$EASYRSA_OPENSSL" dhparam -in "$tmp_dh_file" \
+			-check -noout || \
+				die "Failed to validate DH params"
 
 	mv -f "$tmp_dh_file" "$out_file" || \
 		die "Failed to move temp DH file"
@@ -4130,16 +4100,17 @@ Input is not a valid certificate: $crt_in"
 	if [ "$EASYRSA_SILENT_SSL" ]; then
 		# Test SSL out
 		# openssl direct call because error is expected
-		if "$EASYRSA_OPENSSL" verify \
-			-CAfile "$ca_crt" "$crt_in" 1>/dev/null 2>&1
+		if OPENSSL_CONF=/dev/null "$EASYRSA_OPENSSL" verify \
+			-CAfile "$ca_crt" "$crt_in" 1>/dev/null
 		then
 			verify_cert_ok=1
 		else
 			unset -v verify_cert_ok
 		fi
 	else
-		if "$EASYRSA_OPENSSL" verify \
-			-CAfile "$ca_crt" "$crt_in"
+		if OPENSSL_CONF=/dev/null \
+			"$EASYRSA_OPENSSL" verify \
+				-CAfile "$ca_crt" "$crt_in"
 		then
 			verify_cert_ok=1
 		else
@@ -4934,9 +4905,10 @@ expire_status: FALL-BACK completed"
 
 		# Check cert expiry against window
 		# openssl direct call because error is expected
-		if "$EASYRSA_OPENSSL" x509 -in "$cert_issued" \
-			-noout -checkend "$pre_expire_window_s" \
-			1>/dev/null
+		if OPENSSL_CONF=/dev/null \
+			"$EASYRSA_OPENSSL" x509 -in "$cert_issued" \
+				-noout -checkend "$pre_expire_window_s" \
+				1>/dev/null
 		then
 			expire_msg="will NOT expire"
 			will_not_expire=1
@@ -5314,18 +5286,21 @@ verify_algo_params - easyrsa_mktemp EASYRSA_ALGO_PARAMS"
 
 		# Create the required ecparams file
 		# call openssl directly because error is expected
-		"$EASYRSA_OPENSSL" ecparam -name "$EASYRSA_CURVE" \
-			-out "$EASYRSA_ALGO_PARAMS" \
-			1>/dev/null || die "\
+		 OPENSSL_CONF=/dev/null \
+			"$EASYRSA_OPENSSL" ecparam \
+				-name "$EASYRSA_CURVE" \
+				-out "$EASYRSA_ALGO_PARAMS" \
+				1>/dev/null || die "\
 Failed to generate ecparam file (permissions?) at:
 * $EASYRSA_ALGO_PARAMS"
 	;;
 	ed)
 		# Verify Edwards curve
 		# call openssl directly because error is expected
-		"$EASYRSA_OPENSSL" genpkey \
-			-algorithm "$EASYRSA_CURVE" \
-			1>/dev/null || die "\
+		 OPENSSL_CONF=/dev/null \
+			"$EASYRSA_OPENSSL" genpkey \
+				-algorithm "$EASYRSA_CURVE" \
+				1>/dev/null || die "\
 Edwards Curve $EASYRSA_CURVE not found."
 	;;
 	*) user_error "\
@@ -6740,7 +6715,8 @@ return 0
 print_version()
 {
 	ssl_version="$(
-		"${EASYRSA_OPENSSL:-openssl}" version 2>/dev/null
+		OPENSSL_CONF=/dev/null \
+			"${EASYRSA_OPENSSL:-openssl}" version
 		)"
 		cat << VERSION_TEXT
 EasyRSA Version Information
