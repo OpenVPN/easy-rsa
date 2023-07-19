@@ -1070,19 +1070,9 @@ easyrsa_openssl() {
 		rand)
 			die "easyrsa_openssl: Illegal SSL command: rand"
 		;;
-		makesafeconf) makesafeconf=1; has_config=1 ;;
-		ca|req|srp|ts) has_config=1 ;;
-		*) unset -v has_config
+		makesafeconf) makesafeconf=1 ;;
+		*) :
 	esac
-
-	# OpenSSL 1x genpkey does not support -config
-	# OpenSSL 3x genpkey requires -config
-	# LibreSSL passes the test without -config ..
-	if [ "$openssl_command" = genpkey ] && \
-		[ "$ssl_lib" = openssl ] && [ "$osslv_major" = 3 ]
-	then
-		has_config=1
-	fi
 
 	# Auto-escape hazardous characters
 	escape_hazard || \
@@ -1126,8 +1116,7 @@ easyrsa_openssl: No Safe SSL conf, FALLBACK to default"
 	# Always fail here
 	die "\
 easyrsa_openssl - Command has failed:
-* $EASYRSA_OPENSSL $openssl_command \
-${has_config:+-config $safe_ssl_cnf_tmp }$*"
+* $EASYRSA_OPENSSL $openssl_command $*"
 } # => easyrsa_openssl()
 
 # Verify the SSL library is functional
