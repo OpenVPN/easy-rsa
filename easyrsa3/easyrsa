@@ -2943,7 +2943,7 @@ The inline credentials files:
 The duplicate certificate:
 * $dup_crt_by_serial"
 
-	confirm "  Continue with renewal: " "yes" "\
+	confirm "  Continue with renewal: " "yes" "
 Please confirm you wish to renew the certificate
 with the following subject:
 
