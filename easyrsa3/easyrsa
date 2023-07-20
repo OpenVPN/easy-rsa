@@ -2709,7 +2709,7 @@ The inline credentials files:
 The duplicate certificate:
 * $dup_crt_by_serial"
 
-	confirm "  Continue with revocation: " "yes" "\
+	confirm "  Continue with revocation: " "yes" "
 Please confirm that you wish to revoke the certificate
 with the following subject:
 
@@ -2943,7 +2943,7 @@ The inline credentials files:
 The duplicate certificate:
 * $dup_crt_by_serial"
 
-	confirm "  Continue with renewal: " "yes" "\
+	confirm "  Continue with renewal: " "yes" "
 Please confirm you wish to renew the certificate
 with the following subject:
 
@@ -3172,7 +3172,7 @@ This process is destructive!
 These files will be MOVED to the 'revoked' sub-directory:
 * $crt_in${if_exist_key_in}${if_exist_req_in}"
 
-	confirm "  Continue with revocation: " "yes" "\
+	confirm "  Continue with revocation: " "yes" "
   Please confirm you wish to revoke the renewed certificate
   with the following subject:
 
@@ -3309,7 +3309,7 @@ These files will be MOVED to the 'renewed' sub-directory:
 * $key_in
 * $req_in"
 
-	confirm "  Continue with rewind-renew: " "yes" "\
+	confirm "  Continue with rewind-renew: " "yes" "
 Please confirm you wish to rewind-renew the certificate
 with the following subject:
 
@@ -3493,7 +3493,7 @@ The duplicate certificate:
 IMPORTANT: The new key will${EASYRSA_NO_PASS:+ NOT} \
 be password protected."
 
-	confirm "  Continue with rebuild: " "yes" "\
+	confirm "  Continue with rebuild: " "yes" "
 Please confirm you wish to renew the certificate
 with the following subject:
 
