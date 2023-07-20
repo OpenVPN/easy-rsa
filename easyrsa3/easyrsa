@@ -1517,7 +1517,7 @@ install_data_to_pki - Missing: '$ssl_cnf_file'"
 install_data_to_pki: $context - create_openssl_easyrsa_cnf OK"
 	fi
 
-	[ -d "$EASYRSA_EXT_DIR" ] || warn "\
+	[ -d "$EASYRSA_EXT_DIR" ] || verbose "\
 install_data_to_pki - Missing: '$x509_types_dir'"
 	verbose "install_data_to_pki: $context - COMPLETED"
 } # => install_data_to_pki ()
@@ -1627,12 +1627,6 @@ A CA private key exists but no ca.crt is found in your PKI:
 Refusing to create a new CA as this would overwrite your
 current CA. To start a new CA, run init-pki first."
 	fi
-
-	# Cert type must exist under the EASYRSA_EXT_DIR
-	[ -e "$EASYRSA_EXT_DIR/ca" ] || warn "\
-Missing X509-type 'ca'"
-	[ -e "$EASYRSA_EXT_DIR/COMMON" ] || warn "\
-Missing X509-type 'COMMON'"
 
 	# create necessary dirs:
 	err_msg="\
@@ -2737,7 +2731,7 @@ Failed to revoke certificate: revocation command failed."
 	revoke_move
 
 	notice "\
-                        * IMPORTANT *
+                    * IMPORTANT *
 
 Revocation was successful. You must run 'gen-crl' and upload
 a new CRL to your infrastructure in order to prevent the revoked
@@ -2991,7 +2985,7 @@ Failed to write inline file:
 	notice "\
 Renew was successful.
 
-                          * IMPORTANT *
+                    * IMPORTANT *
 
 Renew has created a new certificate, to replace the old one.
 
@@ -3199,7 +3193,7 @@ Failed to revoke renewed certificate: revocation command failed."
 	revoke_renewed_move
 
 	notice "\
-                      * IMPORTANT *
+                    * IMPORTANT *
 
 Revocation was successful. You must run 'gen-crl' and upload
 a new CRL to your infrastructure in order to prevent the revoked
@@ -3496,7 +3490,8 @@ The inline credentials files:
 The duplicate certificate:
 * $dup_crt_by_serial
 
-IMPORTANT: The new key will${EASYRSA_NO_PASS:+ NOT} be password protected."
+IMPORTANT: The new key will${EASYRSA_NO_PASS:+ NOT} \
+be password protected."
 
 	confirm "  Continue with rebuild: " "yes" "\
 Please confirm you wish to renew the certificate
@@ -3506,7 +3501,8 @@ with the following subject:
 
   serial-number: $cert_serial"
 
-	# move renewed files so we can reissue certificate with the same name
+	# move renewed files so we can reissue
+	# certificate with the same name
 	rebuild_move
 	error_undo_rebuild_move=1
 
@@ -3515,9 +3511,9 @@ with the following subject:
 	then
 		unset -v error_undo_rebuild_move
 	else
-		# If rebuild failed then restore cert, key and req. Otherwise,
-		# issue a warning. If *restore* fails then at least the file-names
-		# are not serial-numbers
+		# If rebuild failed then restore cert, key and req.
+		# Otherwise, issue a warning. If *restore* fails
+		# then at least the file-names are not serial-numbers
 		rebuild_restore_move
 		die "\
 Rebuild has failed to build a new certificate/key pair."
@@ -3526,7 +3522,7 @@ Rebuild has failed to build a new certificate/key pair."
 	# Success messages
 	notice "Rebuild was successful.
 
-                              * IMPORTANT *
+                    * IMPORTANT *
 
 Rebuild has created a new certificate and key, to replace
 both old files.
@@ -3573,7 +3569,8 @@ rebuild_restore_move() {
 	if [ "$rrm_err" ]; then
 		warn "Failed to restore renewed files."
 	else
-		notice "Rebuild FAILED but files have been successfully restored."
+		notice "\
+Rebuild FAILED but files have been successfully restored."
 	fi
 
 	return 0
@@ -6620,7 +6617,7 @@ up23_manage_upgrade_23 ()
 	warn "
 =========================================================================
 
-                           * WARNING *
+                             * WARNING *
 
 Found settings from EasyRSA-v2 which are not compatible with EasyRSA-v3.
 Before you can continue, EasyRSA must upgrade your settings and PKI.
