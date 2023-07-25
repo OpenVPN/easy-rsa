@@ -64,7 +64,7 @@ A list of commands is shown below:
 
 	# vars file details
 	case "$found_vars" in
-		0) vars_status="Missing or undefined." ;;
+		0) vars_status="Missing or undefined" ;;
 		1) vars_status="$vars" ;;
 		*) vars_status="WARNING: Multiple conflicting vars files!"
 	esac
@@ -81,7 +81,7 @@ A list of commands is shown below:
 		CA_subject="  CA subject: ${CA_subject#subject=}"
 		CA_status="${CA_status}${NL}${CA_subject}"
 	else
-		CA_status="   CA status: CA has not been built."
+		CA_status="   CA status: CA has not been built"
 	fi
 
 	# Print details
@@ -1131,6 +1131,7 @@ verify_ssl_lib() {
 	# Run once only
 	[ "$verify_ssl_lib_ok" ] && return
 	verify_ssl_lib_ok=1
+	unset -v openssl_v3
 
 	# redirect std-err, ignore missing ssl/openssl.cnf
 	val="$(
@@ -1169,8 +1170,13 @@ $error_msg"
 	2) no_password='-nodes' ;;
 	3)
 		case "$ssl_lib" in
-			openssl) no_password='-noenc' ;;
-			libressl) no_password='-nodes' ;;
+			openssl)
+				openssl_v3=1
+				no_password='-noenc'
+			;;
+			libressl)
+				no_password='-nodes'
+			;;
 			*) die "Unexpected SSL library: $ssl_lib"
 		esac
 	;;
@@ -3715,50 +3721,139 @@ export_pkcs() {
 	shift
 
 	[ "$1" ] || user_error "\
-Unable to export p12: incorrect command syntax.
+Unable to export '$pkcs_type': incorrect command syntax.
 Run easyrsa without commands for usage and command help."
 
-	short_name="$1"
+	file_name_base="$1"
 	shift
 
-	crt_in="$EASYRSA_PKI/issued/$short_name.crt"
-	key_in="$EASYRSA_PKI/private/$short_name.key"
+	crt_in="$EASYRSA_PKI/issued/$file_name_base.crt"
+	key_in="$EASYRSA_PKI/private/$file_name_base.key"
 	crt_ca="$EASYRSA_PKI/ca.crt"
 
 	# opts support
 	cipher=-aes256
 	want_ca=1
 	want_key=1
-	unset -v pkcs_friendly_name
+	unset -v nokeys friendly_name
 	while [ "$1" ]; do
 		case "$1" in
-			noca) want_ca="" ;;
-			nokey) want_key="" ;;
+			noca)
+				want_ca=""
+			;;
+			nokey)
+				want_key=""
+				# Undocumented OpenSSL feature: option
+				# -nokeys will ignore missing -inkey file
+				# No doubt, the reason for the extra -inkey
+				nokeys=-nokeys
+			;;
 			nopass)
 				[ "$prohibit_no_pass" ] || EASYRSA_NO_PASS=1
 			;;
-			usefn) pkcs_friendly_name="$short_name" ;;
+			usefn)
+				friendly_name="$file_name_base"
+			;;
 			*) warn "Ignoring unknown command option: '$1'"
 		esac
 		shift
 	done
 
-	pkcs_certfile_path=
-	if [ "$want_ca" ]; then
-		verify_file x509 "$crt_ca" || user_error "\
-Unable to include CA cert in the $pkcs_type output.
-Missing CA file expected at:
-* $crt_ca
+	# Required options - PKCS, rhymes with mess
+	case "$pkcs_type" in
+		p12|p7)
+			: # ok
+		;;
+		p8|p1)
+			want_key=1
+		;;
+		*) die "Unknown PKCS type: $pkcs_type"
+	esac
 
-Try 'noca' option.)"
-		pkcs_certfile_path="$crt_ca"
+	# Check for CA, if required
+	if [ "$want_ca" ]; then
+		case "$pkcs_type" in
+		p12|p7)
+			# verify_ca_init() here, otherwise not required
+			if verify_ca_init test; then
+				: # ok
+			else
+				warn "\
+Missing CA Certificate, expected at:
+* $crt_ca"
+				confirm "
+  Continue without CA Certificate (EG: option 'noca') ? " yes "
+Your PKI does not include a CA Certificate.
+You can export your User Certificate to a $pkcs_type file
+but the CA Certificate will not be included."
+
+				# --batch mode does not allow
+				# on-the-fly command changes
+				if [ "$EASYRSA_BATCH" ]; then
+					die "export-$pkcs_type: Missing CA"
+				fi
+				want_ca=""
+			fi
+		;;
+		p8|p1)
+			: # Not required
+		;;
+		*) die "Unknown PKCS type: $pkcs_type"
+		esac
 	fi
 
-	# input files must exist
-	verify_file x509 "$crt_in" || user_error "\
-Unable to export $pkcs_type for short name '$short_name'.
-Missing cert expected at:
+	# Check for key, if required
+	if [ "$want_key" ]; then
+		if [ -e "$key_in" ]; then
+			: #ok
+		else
+			case "$pkcs_type" in
+			p12)
+				warn "\
+Missing Private Key, expected at:
+* $key_in"
+				confirm "
+  Continue without Private Key (EG: option 'nokey') ? " yes "
+Your PKI does not include a Private Key for '$file_name_base'.
+You can export your User Certificate to a '$pkcs_type' file
+but the Private Key will not be included."
+
+				# --batch mode does not allow
+				# on-the-fly command changes
+				if [ "$EASYRSA_BATCH" ]; then
+					die "export-$pkcs_type: Missing key"
+				fi
+				nokeys=-nokeys
+			;;
+			p8|p1)
+				user_error "\
+Missing Private Key, expected at:
+* $key_in"
+			;;
+			p7)
+				: # Not required
+			;;
+			*) die "Unknown PKCS type: $pkcs_type"
+			esac
+		fi
+	fi
+
+	# Check for certificate, if required
+	if [ -e "$crt_in" ]; then
+		: # ok
+	else
+		case "$pkcs_type" in
+		p12|p7)
+			user_error "\
+Missing User Certificate, expected at:
 * $crt_in"
+		;;
+		p8|p1)
+			: # Not required
+		;;
+		*) die "Unknown PKCS type: $pkcs_type"
+		esac
+	fi
 
 	# For 'nopass' PKCS requires an explicit empty password
 	if [ "$EASYRSA_NO_PASS" ]; then
@@ -3767,57 +3862,64 @@ Missing cert expected at:
 		unset -v cipher # pkcs#1 only
 	fi
 
+	# Complete export
 	case "$pkcs_type" in
 	p12)
-		pkcs_out="$EASYRSA_PKI/private/$short_name.p12"
-
-		if [ "$want_key" ]; then
-			[ -e "$key_in" ] || user_error "\
-Unable to export p12 for short name '$short_name'.
-Missing key expected at:
-* $key_in
-
-if you want a p12 without the private key, use 'nokey' option."
-		else
-			nokeys=1
-		fi
+		pkcs_out="$EASYRSA_PKI/private/$file_name_base.p12"
 
 		# export the p12:
-		easyrsa_openssl pkcs12 -in "$crt_in" -inkey "$key_in" \
-			-export -out "$pkcs_out" \
-			${nokeys:+ -nokeys} \
-			${pkcs_certfile_path:+ -certfile "$pkcs_certfile_path"} \
-			${pkcs_friendly_name:+ -name "$pkcs_friendly_name"} \
+		easyrsa_openssl pkcs12 -export \
+			-in "$crt_in" \
+			-out "$pkcs_out" \
+			${nokeys} \
+			-inkey "$key_in" \
+			${want_ca:+ -certfile "$crt_ca"} \
+			${friendly_name:+ -name "$friendly_name"} \
 			${EASYRSA_PASSIN:+ -passin "$EASYRSA_PASSIN"} \
 			${EASYRSA_PASSOUT:+ -passout "$EASYRSA_PASSOUT"} \
 				|| die "Failed to export PKCS#12"
 	;;
 	p7)
-		pkcs_out="$EASYRSA_PKI/issued/$short_name.p7b"
+		pkcs_out="$EASYRSA_PKI/issued/$file_name_base.p7b"
 
 		# export the p7:
-		easyrsa_openssl crl2pkcs7 -nocrl -certfile "$crt_in" \
+		easyrsa_openssl crl2pkcs7 -nocrl \
+			-certfile "$crt_in" \
 			-out "$pkcs_out" \
-			${pkcs_certfile_path:+ -certfile "$pkcs_certfile_path"} \
+			${want_ca:+ -certfile "$crt_ca"} \
 				|| die "Failed to export PKCS#7"
 	;;
 	p8)
-		pkcs_out="$EASYRSA_PKI/private/$short_name.p8"
+		pkcs_out="$EASYRSA_PKI/private/$file_name_base.p8"
 
 		# export the p8:
-		easyrsa_openssl pkcs8 -in "$key_in" -topk8 \
+		easyrsa_openssl pkcs8 -topk8 \
+			-in "$key_in" \
 			-out "$pkcs_out" \
 			${EASYRSA_PASSIN:+ -passin "$EASYRSA_PASSIN"} \
 			${EASYRSA_PASSOUT:+ -passout "$EASYRSA_PASSOUT"} \
 				|| die "Failed to export PKCS#8"
-      ;;
+	;;
 	p1)
-		pkcs_out="$EASYRSA_PKI/private/$short_name.p1"
+		pkcs_out="$EASYRSA_PKI/private/$file_name_base.p1"
+
+		# OpenSSLv3 requires -legacy for PKCS#1
+		# Otherwise, OpenSSLv3 outputs PKCS#8
+		[ "$verify_ssl_lib_ok" ] || \
+			die "export_pkcs.p1: verify_ssl_lib_ok FAIL"
+
+		if [ "$openssl_v3" ]; then
+			legacy=-legacy
+		else
+			unset -v legacy
+		fi
 
 		# export the p1:
-		easyrsa_openssl rsa -in "$key_in" \
+		easyrsa_openssl rsa \
+			-in "$key_in" \
 			-out "$pkcs_out" \
-			${cipher:+ "$cipher"} \
+			${legacy} \
+			${cipher} \
 			${EASYRSA_PASSIN:+ -passin "$EASYRSA_PASSIN"} \
 			${EASYRSA_PASSOUT:+ -passout "$EASYRSA_PASSOUT"} \
 				|| die "Failed to export PKCS#1"
@@ -6994,7 +7096,7 @@ case "$cmd" in
 		require_pki=1
 		case "$cmd" in
 			gen-req|gen-dh|build-ca|show-req| \
-			make-safe-ssl)
+			make-safe-ssl|export-p*)
 				unset -v require_ca
 			;;
 			*)
@@ -7009,6 +7111,7 @@ vars_setup
 mutual_exclusions
 
 # Hand off to the function responsible
+# ONLY verify_working_env() for valid commands
 case "$cmd" in
 	init-pki|clean-all)
 		verify_working_env
