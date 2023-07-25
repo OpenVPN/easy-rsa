@@ -3779,13 +3779,13 @@ Run easyrsa without commands for usage and command help."
 				: # ok
 			else
 				warn "\
-Missing CA file expected at:
+Missing CA Certificate, expected at:
 * $crt_ca"
-				confirm "\
-  Continue without CA certificate (EG: option 'noca') ? " yes "
-Your PKI does not include a CA certificate.
-You can export your user certificate to a $pkcs_type file
-but it will not include the CA."
+				confirm "
+  Continue without CA Certificate (EG: option 'noca') ? " yes "
+Your PKI does not include a CA Certificate.
+You can export your User Certificate to a $pkcs_type file
+but the CA Certificate will not be included."
 
 				# --batch mode does not allow
 				# on-the-fly command changes
@@ -3810,13 +3810,13 @@ but it will not include the CA."
 			case "$pkcs_type" in
 			p12)
 				warn "\
-Missing key expected at:
+Missing Private Key, expected at:
 * $key_in"
-				confirm "\
-  Continue without Private key (EG: option 'nokey') ? " yes "
-Your PKI does not include a Private key for '$file_name_base'.
-You can export your user certificate to a '$pkcs_type' file
-but it will not include the Private key."
+				confirm "
+  Continue without Private Key (EG: option 'nokey') ? " yes "
+Your PKI does not include a Private Key for '$file_name_base'.
+You can export your User Certificate to a '$pkcs_type' file
+but the Private Key will not be included."
 
 				# --batch mode does not allow
 				# on-the-fly command changes
@@ -3826,7 +3826,9 @@ but it will not include the Private key."
 				nokeys=-nokeys
 			;;
 			p8|p1)
-				user_error "Private key required."
+				user_error "\
+Missing Private Key, expected at:
+* $key_in"
 			;;
 			p7)
 				: # Not required
@@ -3842,7 +3844,9 @@ but it will not include the Private key."
 	else
 		case "$pkcs_type" in
 		p12|p7)
-			user_error "Certificate required."
+			user_error "\
+Missing User Certificate, expected at:
+* $crt_in"
 		;;
 		p8|p1)
 			: # Not required
@@ -3865,9 +3869,10 @@ but it will not include the Private key."
 
 		# export the p12:
 		easyrsa_openssl pkcs12 -export \
-			-inkey "$key_in" -in "$crt_in" \
+			-in "$crt_in" \
 			-out "$pkcs_out" \
 			${nokeys} \
+			-inkey "$key_in" \
 			${want_ca:+ -certfile "$crt_ca"} \
 			${friendly_name:+ -name "$friendly_name"} \
 			${EASYRSA_PASSIN:+ -passin "$EASYRSA_PASSIN"} \
