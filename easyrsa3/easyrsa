@@ -3724,11 +3724,11 @@ export_pkcs() {
 Unable to export '$pkcs_type': incorrect command syntax.
 Run easyrsa without commands for usage and command help."
 
-	short_name="$1"
+	file_name_base="$1"
 	shift
 
-	crt_in="$EASYRSA_PKI/issued/$short_name.crt"
-	key_in="$EASYRSA_PKI/private/$short_name.key"
+	crt_in="$EASYRSA_PKI/issued/$file_name_base.crt"
+	key_in="$EASYRSA_PKI/private/$file_name_base.key"
 	crt_ca="$EASYRSA_PKI/ca.crt"
 
 	# opts support
@@ -3752,7 +3752,7 @@ Run easyrsa without commands for usage and command help."
 				[ "$prohibit_no_pass" ] || EASYRSA_NO_PASS=1
 			;;
 			usefn)
-				friendly_name="$short_name"
+				friendly_name="$file_name_base"
 			;;
 			*) warn "Ignoring unknown command option: '$1'"
 		esac
@@ -3814,7 +3814,7 @@ Missing key expected at:
 * $key_in"
 				confirm "\
   Continue without Private key (EG: option 'nokey') ? " yes "
-Your PKI does not include a Private key for '$short_name'.
+Your PKI does not include a Private key for '$file_name_base'.
 You can export your user certificate to a '$pkcs_type' file
 but it will not include the Private key."
 
@@ -3861,7 +3861,7 @@ but it will not include the Private key."
 	# Complete export
 	case "$pkcs_type" in
 	p12)
-		pkcs_out="$EASYRSA_PKI/private/$short_name.p12"
+		pkcs_out="$EASYRSA_PKI/private/$file_name_base.p12"
 
 		# export the p12:
 		easyrsa_openssl pkcs12 -export \
@@ -3875,7 +3875,7 @@ but it will not include the Private key."
 				|| die "Failed to export PKCS#12"
 	;;
 	p7)
-		pkcs_out="$EASYRSA_PKI/issued/$short_name.p7b"
+		pkcs_out="$EASYRSA_PKI/issued/$file_name_base.p7b"
 
 		# export the p7:
 		easyrsa_openssl crl2pkcs7 -nocrl \
@@ -3885,7 +3885,7 @@ but it will not include the Private key."
 				|| die "Failed to export PKCS#7"
 	;;
 	p8)
-		pkcs_out="$EASYRSA_PKI/private/$short_name.p8"
+		pkcs_out="$EASYRSA_PKI/private/$file_name_base.p8"
 
 		# export the p8:
 		easyrsa_openssl pkcs8 -topk8 \
@@ -3896,7 +3896,7 @@ but it will not include the Private key."
 				|| die "Failed to export PKCS#8"
 	;;
 	p1)
-		pkcs_out="$EASYRSA_PKI/private/$short_name.p1"
+		pkcs_out="$EASYRSA_PKI/private/$file_name_base.p1"
 
 		# OpenSSLv3 requires -legacy for PKCS#1
 		# Otherwise, OpenSSLv3 outputs PKCS#8
