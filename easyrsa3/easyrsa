@@ -1368,9 +1368,8 @@ IMPORTANT:
 	else
 		prefer_vars_in_pki_msg
 	fi
-	information "
-Using x509-types directory:
-* ${EASYRSA_EXT_DIR:-Not found}"
+	verbose "\
+init_pki: x509-types dir ${EASYRSA_EXT_DIR:-Not found}"
 } # => init_pki()
 
 # Must be used in two places, so made it a function
@@ -1468,6 +1467,16 @@ install_data_to_pki: $context - COMPLETED"
 		return
 	fi
 
+	# Always require a pki/vars.example file
+	if [ -e "$EASYRSA_PKI/vars.example" ];then
+		: # ok
+	else
+		create_vars_example > "$EASYRSA_PKI/vars.example" || \
+			die "install_data_to_pki - create_vars_example FAILED"
+		verbose "\
+install_data_to_pki: $context - create_vars_example OK"
+	fi
+
 	# Create PKI/vars from PKI/example
 	unset -v new_vars_true
 	if [ "$found_vars" = 1 ] || [ "$user_vars_true" ] || \
@@ -1524,7 +1533,7 @@ install_data_to_pki: $context - create_openssl_easyrsa_cnf OK"
 	fi
 
 	[ -d "$EASYRSA_EXT_DIR" ] || verbose "\
-install_data_to_pki - Missing: '$x509_types_dir'"
+install_data_to_pki: $context - Missing: '$x509_types_dir'"
 	verbose "install_data_to_pki: $context - COMPLETED"
 } # => install_data_to_pki ()
 
@@ -3903,7 +3912,7 @@ Missing User Certificate, expected at:
 	p1)
 		pkcs_out="$EASYRSA_PKI/private/$file_name_base.p1"
 
-		# OpenSSLv3 requires -legacy for PKCS#1
+		# OpenSSLv3 requires -traditional for PKCS#1
 		# Otherwise, OpenSSLv3 outputs PKCS#8
 		[ "$verify_ssl_lib_ok" ] || \
 			die "export_pkcs.p1: verify_ssl_lib_ok FAIL"
