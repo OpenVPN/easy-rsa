@@ -1118,7 +1118,7 @@ easyrsa_openssl: No Safe SSL conf, FALLBACK to default"
 		"$EASYRSA_OPENSSL" "$openssl_command" "$@" && \
 				return
 	fi
-
+set +x
 	# Always fail here
 	die "\
 easyrsa_openssl - Command has failed:
@@ -3909,16 +3909,16 @@ Missing User Certificate, expected at:
 			die "export_pkcs.p1: verify_ssl_lib_ok FAIL"
 
 		if [ "$openssl_v3" ]; then
-			legacy=-legacy
+			traditional=-traditional
 		else
-			unset -v legacy
+			unset -v traditional
 		fi
 
 		# export the p1:
 		easyrsa_openssl rsa \
 			-in "$key_in" \
 			-out "$pkcs_out" \
-			${legacy} \
+			${traditional} \
 			${cipher} \
 			${EASYRSA_PASSIN:+ -passin "$EASYRSA_PASSIN"} \
 			${EASYRSA_PASSOUT:+ -passout "$EASYRSA_PASSOUT"} \
