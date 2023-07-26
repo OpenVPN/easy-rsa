@@ -1118,7 +1118,7 @@ easyrsa_openssl: No Safe SSL conf, FALLBACK to default"
 		"$EASYRSA_OPENSSL" "$openssl_command" "$@" && \
 				return
 	fi
-set +x
+
 	# Always fail here
 	die "\
 easyrsa_openssl - Command has failed:
