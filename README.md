@@ -13,7 +13,7 @@ GitHub. Releases are also available as source checkouts using named tags.
 # Documentation
 
 For 3.x project documentation and usage, see the [README.quickstart.md](README.quickstart.md) file or
-the more detailed docs under the doc/ directory. The .md files are in Markdown
+the more detailed docs under the [doc/](doc/) directory. The .md files are in Markdown
 format and can be converted to html files as desired for release packages, or
 read as-is in plaintext.
 
