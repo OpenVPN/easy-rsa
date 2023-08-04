@@ -5828,17 +5828,33 @@ Temporary directory does not exist:
 # Sets '$1' as the value contained in '$2'
 # and exports (may be blank)
 set_var() {
-	[ "$#" = 0 ] && return
-	[ "$#" -lt 3 ] || die "set_var - excess input"
-	[ "$1" = "${1% *}" ] || die "set_var - input error"
-	eval "export \"$1\"=\"\${$1-$2}\""
+	[ -z "$*" ] && return
+	[ -z "$3" ] || \
+		user_error "set_var - excess input '$*'"
+	case "$1" in
+		*=*) user_error "set_var - var '$1'"
+	esac
+	eval "export \"$1\"=\"\${$1-$2}\"" && return
+	die "set_var - eval '$*'"
 } #=> set_var()
 
 # sanatize and set var
+# nix.sh/win.sh/busybox.sh never return error from unset
+# when an invalid variable name 'a=b' is used with a value
+# to set, eg. 'c'; This causes EasyRSA to execute:
+# eval "export a=b=c". 'set_var EASYRSA_PKI=pki' results in
+# $EASYRSA_PKI being set to 'pki=pki-', without error!
+# Guard against this possible user error with 'case'.
 force_set_var() {
-	[ "$#" = 2 ] || die "force_set_var - input"
-	unset -v "$1" || die "force_set_var - unset"
-	set_var "$1" "$2" || die "force_set_var - set_var"
+	[ -z "$3" ] || \
+		user_error "force_set_var - excess input '$*'"
+	case "$1" in
+		*=*) user_error "force_set_var - var '$1'"
+	esac
+	# Guard unset with '|| die', just in case
+	unset -v "$1" || die "force_set_var - unset '$1'"
+	set_var "$1" "$2" && return
+	die "force_set_var - set_var '$*'"
 } # => force_set_var()
 
 
