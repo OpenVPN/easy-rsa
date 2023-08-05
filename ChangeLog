@@ -1,6 +1,9 @@
 Easy-RSA 3 ChangeLog
 
 3.1.6 (2023-10-13)
+   * New commands: 'inline' and 'x509-eku' (#993)
+     inline: Build an inline file for a commonName
+     x509-eku: Extract X509v3 extended key usage from a certificate
    * Expose serial-check, display-dn, display-san and default-san to
      command line. (#980) (Debugging functions, which remain undocumented)
    * Expand default status to include vars-file and CA status (#973)
