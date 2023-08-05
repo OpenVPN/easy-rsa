@@ -4352,6 +4352,57 @@ Showing details for CA certificate, at:
 			die "OpenSSL failure to process the input"
 } # => show_ca()
 
+# Certificate X509v3 Extended Key Usage
+ssl_cert_x509v3_eku() {
+	[ "$1" ] || die "ssl_cert_x509v3_eku - Missing input"
+
+	# check input file name
+	if [ -e "$1" ]; then
+		__crt="$1"
+	else
+		__crt="${EASYRSA_PKI}/issued/${1}.crt"
+		[ -e "$__crt" ] || \
+			die "ssl_cert_x509v3_eku - Missing cert '$__crt'"
+	fi
+
+	# Set output variable
+	__var="$2"
+	shift "$#"
+
+	# required variables
+	__pattern="X509v3 Extended Key Usage:"
+	__cli="TLS Web Client Authentication"
+	__srv="TLS Web Server Authentication"
+	__srv_cli="${__srv}, ${__cli}"
+
+	# Extract certificate usage from old cert
+	__eku="$(
+		easyrsa_openssl x509 -in "${__crt}" -noout -text | \
+			sed -n "/${__pattern}/{n;s/^ *//g;p;}"
+		)"
+
+	case "$__eku" in
+	"$__cli")
+		__type=client
+	;;
+	"$__srv")
+		__type=server
+	;;
+	"$__srv_cli")
+		__type=serverClient
+	;;
+	*) die "Unknown key usage: $__eku"
+	esac
+
+	# Set variable to return
+	if [ "$__var" ]; then
+		force_set_var "$__var" "$__type"
+	else
+		information "${NL}* EasyRSA Certificate type: $__type"
+	fi
+	unset -v __crt __var __pattern __eku __type
+} # => ssl_cert_x509v3_eku()
+
 # get the serial number of the certificate -> serial=XXXX
 ssl_cert_serial() {
 	[ "$#" = 2 ] || die "ssl_cert_serial - input error"
@@ -7295,6 +7346,10 @@ case "$cmd" in
 	default-san)
 		verify_working_env
 		default_server_san "$@"
+		;;
+	x509-eku)
+		verify_working_env
+		ssl_cert_x509v3_eku "$@"
 		;;
 	upgrade)
 		verify_working_env
