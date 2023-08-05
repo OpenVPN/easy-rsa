@@ -33,6 +33,7 @@ A list of commands is shown below:
   build-client-full <file_name_base> [ cmd-opts ]
   build-server-full <file_name_base> [ cmd-opts ]
   build-serverClient-full <file_name_base> [ cmd-opts ]
+  inline <file_name_base>
   revoke <file_name_base> [ cmd-opts ]
   renew <file_name_base>
   revoke-renewed <file_name_base> [ cmd-opts ]
@@ -181,6 +182,15 @@ cmd_help() {
 		opts="
       * nopass  - Do not encrypt the private key (Default: encrypted)
                   (Equivalent to global option '--nopass|--no-pass')"
+	;;
+	inline)
+		text="
+* inline <file_name_base>
+
+      Print inline data for <file_name_base>, with key and CA.
+
+  * NOTE: To create an inline-file the output must be redirected.
+          If the output is incomplete then an error is retruned."
 	;;
 	revoke)
 		text="
@@ -2589,27 +2599,81 @@ Inline file created:
 * $inline_out"
 	else
 		warn "\
-Failed to write inline file:
+INCOMPLETE Inline file created:
 * $inline_out"
 	fi
 
 	return 0
 } # => build_full()
 
-# Create inline credentials file for this node
-inline_creds ()
-{
-	[ "$1" ] || die "inline_creds - Name missing"
-	printf "%s\n\n" "# $crt_type: $1"
-	printf "%s\n" "<cert>"
-	cat "$crt_out"
-	printf "%s\n\n" "</cert>"
-	printf "%s\n" "<key>"
-	[ -e "$key_out" ] && cat "$key_out"
-	printf "%s\n\n" "</key>"
-	printf "%s\n" "<ca>"
-	cat "$EASYRSA_PKI/ca.crt"
-	printf "%s\n\n" "</ca>"
+# Print inline data for file_name_base
+inline_creds () {
+	[ "$1" ] || die "inline_creds - Missing file_name_base"
+
+	# Source files
+	crt_source="${EASYRSA_PKI}/issued/${1}.crt"
+	key_source="${EASYRSA_PKI}/private/${1}.key"
+	ca_source="$EASYRSA_PKI/ca.crt"
+	incomplete=0
+
+	# Generate data
+	if [ -e "$crt_source" ]; then
+		# Get EasyRSA cert type
+		ssl_cert_x509v3_eku "$1" type_data
+
+		crt_data="\
+<cert>
+$(cat "$crt_source")
+</cert>"
+	else
+		# Set EasyRSA cert type to 'undefined'
+		type_data=undefined
+		incomplete=1
+		crt_data="\
+<cert>
+* Paste your user certificate here *
+</cert>"
+	fi
+
+	if [ -e "$key_source" ]; then
+		key_data="\
+<key>
+$(cat "$key_source")
+</key>"
+	else
+		incomplete=1
+		key_data="\
+<key>
+* Paste your private key here *
+</key>"
+	fi
+
+	if [ -e "$ca_source" ]; then
+		ca_data="\
+<ca>
+$(cat "$ca_source")
+</ca>"
+	else
+		incomplete=1
+		ca_data="\
+<ca>
+* Paste your CA certificate here *
+</ca>"
+	fi
+
+	# Print data
+	print "\
+# Easy-RSA Type: ${type_data}
+# Name: ${1}
+
+$crt_data
+
+$key_data
+
+$ca_data
+"
+	# If inline file is incomplete then return error
+	return "$incomplete"
 } # => inline_creds ()
 
 # revoke backend
@@ -2992,7 +3056,7 @@ Inline file created:
 * $inline_in"
 	else
 		warn "\
-Failed to write inline file:
+INCOMPLETE Inline file created:
 * $inline_in"
 	fi
 
@@ -7248,6 +7312,11 @@ case "$cmd" in
 	import-req)
 		verify_working_env
 		import_req "$@"
+		;;
+	inline)
+		verify_working_env
+		inline_creds "$@" || \
+			easyrsa_exit_with_error=1
 		;;
 	export-p12)
 		verify_working_env
