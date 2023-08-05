@@ -2619,7 +2619,7 @@ inline_creds () {
 	# Generate data
 	if [ -e "$crt_source" ]; then
 		# Get EasyRSA cert type
-		ssl_cert_x509v3_eku "$1" type_data
+		ssl_cert_x509v3_eku "$crt_source" type_data
 
 		crt_data="\
 <cert>
@@ -2971,23 +2971,7 @@ Cannot renew this certificate, a conflicting file exists:
 			die "Failed to create inline directoy."
 
 	# Extract certificate usage from old cert
-	cert_ext_key_usage="$(
-		easyrsa_openssl x509 -in "$crt_in" -noout -text |
-		sed -n "/X509v3 Extended Key Usage:/{n;s/^ *//g;p;}"
-		)"
-
-	case "$cert_ext_key_usage" in
-		"TLS Web Client Authentication")
-			cert_type=client
-		;;
-		"TLS Web Server Authentication")
-			cert_type=server
-		;;
-		"TLS Web Server Auth"*", TLS Web Client Auth"*)
-			cert_type=serverClient
-		;;
-		*) die "Unknown key usage: $cert_ext_key_usage"
-	esac
+	ssl_cert_x509v3_eku "$crt_in" cert_type
 
 	# Use SAN from --san if set else use SAN from old cert
 	if echo "$EASYRSA_EXTRA_EXTS" | grep -q subjectAltName
