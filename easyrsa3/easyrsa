@@ -1335,7 +1335,7 @@ and initialize a fresh PKI here."
 	fi
 
 	# new dirs:
-	for i in private reqs; do
+	for i in private reqs inline; do
 		mkdir -p "$EASYRSA_PKI/$i" || \
 			die "\
 Failed to create PKI file structure (permissions?)"
@@ -1656,7 +1656,7 @@ current CA. To start a new CA, run init-pki first."
 	# create necessary dirs:
 	err_msg="\
 Unable to create necessary PKI files (permissions?)"
-	for i in issued inline certs_by_serial \
+	for i in issued certs_by_serial \
 		revoked/certs_by_serial revoked/private_by_serial \
 		revoked/reqs_by_serial
 	do
@@ -7204,7 +7204,7 @@ case "$cmd" in
 		require_pki=1
 		case "$cmd" in
 			gen-req|gen-dh|build-ca|show-req| \
-			make-safe-ssl|export-p*)
+			make-safe-ssl|export-p*|inline)
 				unset -v require_ca
 			;;
 			*)
