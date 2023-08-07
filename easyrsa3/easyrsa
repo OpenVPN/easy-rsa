@@ -167,6 +167,7 @@ cmd_help() {
       This request file must exist in the reqs/ dir and have a .req file
       extension. See 'import-req' for importing from other sources."
 		opts="
+      * comply   - Replace the request subject with the CA subject
       * preserve - Use the DN-field order of the CSR not the CA."
 	;;
 	build|build-client-full|build-server-full|build-serverClient-full)
@@ -2163,6 +2164,8 @@ Your files are:
 sign_req() {
 	crt_type="$1"
 	file_name_base="$2"
+	subj=
+	comply_issuer_subject=
 
 	# Check argument sanity:
 	[ "$file_name_base" ] || user_error "\
@@ -2176,6 +2179,9 @@ expected 2, got $# (see command help for usage)"
 	# Check for preserve-dn
 	while [ "$1" ]; do
 		case "$1" in
+			comply)
+				comply_issuer_subject=1
+			;;
 			preserve*)
 				export EASYRSA_PRESERVE_DN=1
 			;;
@@ -2201,7 +2207,7 @@ Cannot sign this request for '$file_name_base'.
 Conflicting certificate exists at:
 * $crt_out"
 
-	# Confirm input is a cert req
+	# Confirm input is a request
 	verify_file req "$req_in" || user_error "\
 The certificate request file is not in a valid X509 format:
 * $req_in"
@@ -2408,6 +2414,40 @@ until date '$EASYRSA_END_DATE'"
 for '$EASYRSA_CERT_EXPIRE' days"
 	fi
 
+	# Comply to issuer subject and force commonName
+	if [ "$comply_issuer_subject" ]; then
+		case "$EASYRSA_DN" in
+		cn_only)
+			show_subj="\
+    commonName                = ${EASYRSA_REQ_CN}"
+			subj="/CN=${EASYRSA_REQ_CN}"
+		;;
+		org)
+			show_subj="\
+    countryName               = ${EASYRSA_REQ_COUNTRY}
+    stateOrProvinceName       = ${EASYRSA_REQ_PROVINCE}
+    localityName              = ${EASYRSA_REQ_CITY}
+    organizationName          = ${EASYRSA_REQ_ORG}
+    organizationalUnitName    = ${EASYRSA_REQ_OU}
+    commonName                = ${EASYRSA_REQ_CN}
+    emailAddress              = ${EASYRSA_REQ_EMAIL}"
+			subj="\
+/C=${EASYRSA_REQ_COUNTRY}\
+/ST=${EASYRSA_REQ_PROVINCE}\
+/L=${EASYRSA_REQ_CITY}\
+/O=${EASYRSA_REQ_ORG}\
+/OU=${EASYRSA_REQ_OU}\
+/CN=${EASYRSA_REQ_CN}\
+/emailAddress=${EASYRSA_REQ_EMAIL}"
+		;;
+		*)
+			die "sign_req - EASYRSA_DN='$EASYRSA_DN'"
+		;;
+		esac
+	else
+		show_subj="$(display_dn req "$req_in")"
+	fi
+
 	# Display the request subject in an easy-to-read format
 	# Confirm the user wishes to sign this request
 	# The foriegn_request confirmation is not required
@@ -2429,7 +2469,7 @@ You are about to sign the following certificate:
 ${foriegn_request}Request subject, to be signed as a \
 $crt_type certificate ${valid_period}:
 
-$(display_dn req "$req_in")" # => confirm end
+$show_subj" # => confirm end
 
 	# Assign temp cert file
 	crt_out_tmp=""
@@ -2440,6 +2480,7 @@ $(display_dn req "$req_in")" # => confirm end
 	easyrsa_openssl ca -utf8 -batch \
 		-in "$req_in" -out "$crt_out_tmp" \
 		-extfile "$ext_tmp" \
+		${comply_issuer_subject:+ -subj "$subj"} \
 		${EASYRSA_PRESERVE_DN:+ -preserveDN} \
 		${EASYRSA_PASSIN:+ -passin "$EASYRSA_PASSIN"} \
 		${EASYRSA_NO_TEXT:+ -notext} \
