@@ -5867,6 +5867,9 @@ Algorithm '$EASYRSA_ALGO' is invalid: Must be 'rsa', 'ec' or 'ed'"
 
 # Verify working environment
 verify_working_env() {
+	# Do not allow demented paths, eg: '/' or '\'
+	sanitize_path
+
 	# Verify SSL Lib - One time ONLY
 	verify_ssl_lib
 
@@ -5923,6 +5926,38 @@ Temporary directory does not exist:
 	verbose "verify_working_env: COMPLETED"
 } # => verify_working_env()
 
+# Sanitize demented directory names
+sanitize_path() {
+	# Sanitize PWD
+	verbose "Working dir: $PWD"
+	case "$PWD" in
+	*/|*\\|?:)
+		user_error "\
+EasyRSA cannot be run in the root directory: $PWD"
+	esac
+
+	# Sanitize EASYRSA
+	verbose "EASYRSA: $EASYRSA"
+	case "$EASYRSA" in
+	*/|*\\|?:)
+		user_error "Invalid EASYRSA: $EASYRSA"
+	esac
+
+	# Sanitize EASYRSA_PKI
+	verbose "EASYRSA_PKI: $EASYRSA_PKI"
+	case "$EASYRSA_PKI" in
+	*/|*\\|?:)
+		user_error "Invalid EASYRSA_PKI: $EASYRSA_PKI"
+	esac
+
+	# Sanitize EASYRSA_TEMP_DIR
+	verbose "EASYRSA_TEMP_DIR: $EASYRSA_TEMP_DIR"
+	case "$EASYRSA_TEMP_DIR" in
+	*/|*\\|?:)
+		user_error "Invalid EASYRSA_TEMP_DIR: $EASYRSA_TEMP_DIR"
+	esac
+} # => sanitize_path()
+
 # variable assignment by indirection.
 # Sets '$1' as the value contained in '$2'
 # and exports (may be blank)
@@ -5935,7 +5970,7 @@ set_var() {
 	esac
 	eval "export \"$1\"=\"\${$1-$2}\"" && return
 	die "set_var - eval '$*'"
-} #=> set_var()
+} # => set_var()
 
 # sanatize and set var
 # nix.sh/win.sh/busybox.sh never return error from unset
