@@ -1,6 +1,6 @@
 Easy-RSA 3 ChangeLog
 
-3.1.6 (2023-10-13)
+3.1.6 (2023-07-18)
    * New commands: 'inline' and 'x509-eku' (#993)
      inline: Build an inline file for a commonName
      x509-eku: Extract X509v3 extended key usage from a certificate
