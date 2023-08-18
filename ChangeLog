@@ -1,5 +1,8 @@
 Easy-RSA 3 ChangeLog
 
+3.2.0 (TBD)
+   * Update OpenSSL to 3.1.6
+
 3.1.6 (2023-07-18)
    * New commands: 'inline' and 'x509-eku' (#993)
      inline: Build an inline file for a commonName
