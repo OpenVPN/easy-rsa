@@ -24,6 +24,9 @@ To get detailed usage and help for a command, use:
 For a list of global-options, use:
   ./easyrsa help options
 
+For a list of extra test commands, use:
+  ./easyrsa help more
+
 A list of commands is shown below:
   init-pki [ cmd-opts ]
   build-ca [ cmd-opts ]
@@ -41,7 +44,6 @@ A list of commands is shown below:
   rebuild <file_name_base> [ cmd-opts ]
   gen-crl
   update-db
-  make-safe-ssl
   show-req <file_name_base> [ cmd-opts ]
   show-cert <file_name_base> [ cmd-opts ]
   show-ca [ cmd-opts ]
@@ -90,7 +92,6 @@ DIRECTORY STATUS (commands would take effect on these locations)
      EASYRSA: $work_dir
          PKI: $pki_dir
    vars-file: $vars_status
-  x509-types: ${EASYRSA_EXT_DIR:-Missing or undefined}
 $CA_status"
 
 	# if the vars file in use is not in the PKI
@@ -450,6 +451,28 @@ cmd_help() {
         eg: '--batch --req-cn=NAME build-ca [subca]'
       * To generate a certificate signing request:
         eg: '--batch --req-cn=NAME gen-req <file_name_base>'"
+	;;
+	more|test|xtra|extra|ext)
+		# Test features
+		text_only=1
+		text="
+  Make safessl-easyrsa.cnf file:
+    mss|make-safe-ssl
+
+  Check <SERIAL> number is unique:
+    serial|check-serial <SERIAL>
+
+  Display DN of certificate:
+    display-dn <file_name_base>
+
+  Display SAN of certificate:
+    display-san <file_name_base>
+
+  Generate default SAN of request:
+    default-san <file_name_base>
+
+  Display EKU of certificate:
+    x509-eku <file_name_base>"
 	;;
 	opts|options)
 		opt_usage
@@ -4180,6 +4203,15 @@ default_server_san - input error"
 	path="$1"
 	shift
 
+	# Command line support for <file_name_base>
+	if [ -e "$path" ]; then
+		: # ok
+	else
+		path="${EASYRSA_PKI}/reqs/${path}.req"
+		[ -e "$path" ] || \
+			user_error "Missing file: $path"
+	fi
+
 	# Extract CN from DN
 	cn="$(
 		easyrsa_openssl req -in "$path" -noout -subject \
@@ -6795,10 +6827,6 @@ case "$cmd" in
 		verify_working_env
 		show_host "$@"
 		;;
-	make-safe-ssl)
-		verify_working_env
-		make_safe_ssl "$@"
-		;;
 	verify|verify-cert)
 		verify_working_env
 		# Called with --batch, this will return error
@@ -6806,6 +6834,10 @@ case "$cmd" in
 		# Therefore, on error, exit with error.
 		verify_cert "$@" || \
 			easyrsa_exit_with_error=1
+		;;
+	mss|make-safe-ssl)
+		verify_working_env
+		make_safe_ssl "$@"
 		;;
 	serial|check-serial)
 		verify_working_env
