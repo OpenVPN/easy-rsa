@@ -457,10 +457,10 @@ cmd_help() {
 		text_only=1
 		text="
   Make safessl-easyrsa.cnf file:
-    mss|make-safe-ssl
+    make-safe-ssl
 
   Check <SERIAL> number is unique:
-    serial|check-serial <SERIAL>
+    check-serial <SERIAL>
 
   Display DN of certificate:
     display-dn <file_name_base>
@@ -924,6 +924,12 @@ Temporary session not preserved."
 
 # Make a copy safe SSL config file
 make_safe_ssl() {
+	# Allow this to run for init-pki
+	if [ -z "$secured_session" ]; then
+		secure_session || \
+			die "make_safe_ssl - secure_session"
+	fi
+
 	easyrsa_openssl makesafeconf
 
 	notice "\
@@ -1530,6 +1536,9 @@ install_data_to_pki: $context - vars = '$vars'"
 install_data_to_pki: $context - Failed to install vars file"
 				fi
 			fi
+			# Create a Safe SSL config ONLY for init-pki
+			make_safe_ssl || \
+				die "install_data_to_pki - make-safe-ssl"
 		;;
 		vars-setup)
 			: ;; # No change to current 'vars' required
@@ -6662,8 +6671,9 @@ case "$cmd" in
 	*)
 		require_pki=1
 		case "$cmd" in
-			gen-req|gen-dh|build-ca|show-req| \
-			make-safe-ssl|export-p*|inline)
+			gen-req|show-req|inline|\
+			build-ca|gen-dh|\
+			export-p*|make-safe-ssl)
 				unset -v require_ca
 			;;
 			*)
@@ -6835,11 +6845,11 @@ case "$cmd" in
 		verify_cert "$@" || \
 			easyrsa_exit_with_error=1
 		;;
-	mss|make-safe-ssl)
+	make-safe-ssl)
 		verify_working_env
 		make_safe_ssl "$@"
 		;;
-	serial|check-serial)
+	check-serial)
 		verify_working_env
 		# Called with --batch, this will return error
 		# when the serial number is not unique.
