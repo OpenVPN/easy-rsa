@@ -1293,14 +1293,13 @@ and initialize a fresh PKI here."
 		# now remove it:
 		case "$reset" in
 		hard)
-
 			# Promote use of soft init
-			confirm "Remove current 'vars' file? " yes "\
-* SECOND WARNING!!!
-
-* This will remove everything in your current PKI directory.
-  To keep your current settings use 'init-pki soft' instead.
-  Using 'init-pki soft' is recommended."
+#			confirm "Completely remove current PKI ? " yes "\
+#* SECOND WARNING!!!
+#
+#* This will remove everything in your current PKI directory.
+#  To keep your current settings use 'init-pki soft' instead.
+#  Using 'init-pki soft' is recommended."
 
 			# # # shellcheck disable=SC2115 # Use "${var:?}"
 			rm -rf "$EASYRSA_PKI" || \
@@ -1333,6 +1332,7 @@ and initialize a fresh PKI here."
 			user_error "Unknown reset type: $reset"
 		esac
 	fi
+	verbose "init-pki $reset: Removal COMPLETE"
 
 	# new dirs:
 	for i in private reqs inline; do
@@ -1502,6 +1502,11 @@ install_data_to_pki: $context - Not creating pki/vars"
 	else
 		case "$context" in
 		init-pki)
+		# Disable creating a vars file
+		if :
+		then
+			verbose "install_data_to_pki: New vars DISABLED"
+		else
 			# Only create for 'init-pki', if one does not exist
 			# 'init-pki soft' should have it's own 'vars' file
 			if [ -e "${EASYRSA_PKI}/${vars_file_example}" ] && \
@@ -1523,6 +1528,7 @@ install_data_to_pki: $context - vars = '$vars'"
 install_data_to_pki: $context - Failed to install vars file"
 				fi
 			fi
+		fi
 		;;
 		vars-setup)
 			: ;; # No change to current 'vars' required
