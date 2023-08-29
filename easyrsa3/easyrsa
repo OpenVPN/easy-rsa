@@ -6135,16 +6135,6 @@ fi
 
 # DO YOUR EDITS BELOW THIS POINT
 
-# This variable is used as the base location of configuration files needed by
-# easyrsa.  More specific variables for specific files (eg: EASYRSA_SSL_CONF)
-# may override this default.
-#
-# The default value of this variable is the location of the easyrsa script
-# itself, which is also where the configuration files are located in the
-# easy-rsa tree.
-#
-#set_var EASYRSA	"${0%/*}"
-
 # If your OpenSSL command is not in the system PATH, you will need to define
 # the path here. Normally this means a full path to the executable, otherwise
 # you could have left it undefined here and the shown default would be used.
@@ -6157,19 +6147,6 @@ fi
 #
 # This sample is in Windows syntax -- edit it for your path if not using PATH:
 #set_var EASYRSA_OPENSSL	"C:/Program Files/OpenSSL-Win32/bin/openssl.exe"
-
-# Edit this variable to point to your soon-to-be-created key directory.
-# By default, this will be "$PWD/pki" (ie: the "pki" subdirectory of the
-# directory you are currently in).
-#
-# WARNING: init-pki will do a rm -rf on this directory so make sure you define
-# it correctly!  Interactive mode will prompt before acting.
-#
-#set_var EASYRSA_PKI		"$PWD/pki"
-
-# Define directory for temporary subdirectories.
-#
-#set_var EASYRSA_TEMP_DIR	"$EASYRSA_PKI"
 
 # Define X509 DN mode.
 #
