@@ -1395,8 +1395,10 @@ init_pki: x509-types dir ${EASYRSA_EXT_DIR:-Not found}"
 
 # Must be used in two places, so made it a function
 prefer_vars_in_pki_msg() {
-	if [ "$vars_in_pki" ] || [ "$user_vars_true" ] ||
+	if [ "$vars_in_pki" ] ||
+		[ "$user_vars_true" ] ||
 		[ "$EASYRSA_NO_VARS" ]
+		[ "$user_pki_true" ]
 	then
 		return
 	fi
@@ -5809,10 +5811,42 @@ Remove 'unset' ('force_set_var' may also work)."
 		( . "$vars" ) || \
 			die "Failed to source the vars file."
 
+		# Take note of important variables
+		# set before sourcing vars
+		unset -v before_EASYRSA
+			[ -z "$EASYRSA" ] || before_EASYRSA=1
+		unset -v before_EASYRSA_PKI
+			[ -z "$EASYRSA_PKI" ] || before_EASYRSA_PKI=1
+
 		# Source 'vars' now
 		# shellcheck disable=1090 # can't follow .. vars
 		. "$vars" 2>/dev/null
 		unset -v EASYRSA_CALLER
+
+		# Take note of important variables
+		# set after sourcing vars
+		unset -v after_EASYRSA
+			[ -z "$EASYRSA" ] || after_EASYRSA=1
+		unset -v after_EASYRSA_PKI
+			[ -z "$EASYRSA_PKI" ] || after_EASYRSA_PKI=1
+
+		# If the user has set something important
+		# then they know what they are doing
+		if [ "$before_EASYRSA" ] ||
+			[ "$before_EASYRSA_PKI" ] ||
+			[ "$after_EASYRSA" ] ||
+			[ "$after_EASYRSA_PKI" ]
+		then
+			# Don't pester about vars in PKI
+			user_pki_true=1
+			verbose "\
+vars_setup: disable vars_in_pki_msg, user pki"
+		else
+			unset -v user_pki_true
+		fi
+		unset -v \
+			before_EASYRSA before_EASYRSA_PKI \
+			after_EASYRSA after_EASYRSA_PKI
 	fi
 
 	# Set defaults, preferring existing env-vars if present
