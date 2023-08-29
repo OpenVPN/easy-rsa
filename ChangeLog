@@ -1,7 +1,6 @@
 Easy-RSA 3 ChangeLog
 
 3.2.0 (TBD)
-   * Completely Remove Upgrade Functionality (#1001)
    * Update OpenSSL to 3.1.6
 
 3.1.6 (2023-07-18)
