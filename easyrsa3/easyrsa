@@ -1390,6 +1390,10 @@ prefer_vars_in_pki_msg() {
 		return
 	fi
 
+	# disable this until v3.2-ish
+	verbose "prefer_vars_in_pki_msg: DISABLED"
+	return 0
+
 	information "
 IMPORTANT:
   The preferred location for 'vars' is within the PKI folder.
