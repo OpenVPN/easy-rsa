@@ -1477,7 +1477,7 @@ install_data_to_pki() {
 	# Short circuit for x509-types-only
 	if [ "$context" = x509-types-only ]; then
 		verbose "\
-install_data_to_pki: $context - COMPLETED"
+install_data_to_pki $context: $EASYRSA_EXT_DIR"
 		return
 	fi
 
@@ -1488,7 +1488,7 @@ install_data_to_pki: $context - COMPLETED"
 		create_vars_example > "$EASYRSA_PKI/vars.example" || \
 			die "install_data_to_pki - create_vars_example FAILED"
 		verbose "\
-install_data_to_pki: $context - create_vars_example OK"
+install_data_to_pki $context: create_vars_example OK"
 	fi
 
 	# Create PKI/vars from PKI/example
@@ -1498,14 +1498,15 @@ install_data_to_pki: $context - create_vars_example OK"
 	then
 		: # ok - Do not make a PKI/vars if another vars exists
 		verbose "\
-install_data_to_pki: $context - Not creating pki/vars"
+install_data_to_pki $context: Not creating pki/vars"
 	else
 		case "$context" in
 		init-pki)
-		# Disable creating a vars file
+		# ALWAYS Disable creating a vars file
 		if :
 		then
-			verbose "install_data_to_pki: New vars DISABLED"
+			verbose "\
+install_data_to_pki $context: New vars DISABLED"
 		else
 			# Only create for 'init-pki', if one does not exist
 			# 'init-pki soft' should have it's own 'vars' file
@@ -1521,11 +1522,11 @@ install_data_to_pki: $context - Not creating pki/vars"
 					new_vars_true=1
 					vars="${EASYRSA_PKI}/${vars_file}"
 					verbose "\
-install_data_to_pki: $context - vars = '$vars'"
+install_data_to_pki $context: vars = '$vars'"
 				else
 					unset -v new_vars_true vars
 					warn "\
-install_data_to_pki: $context - Failed to install vars file"
+install_data_to_pki $context: Failed to install vars file"
 				fi
 			fi
 		fi
@@ -1549,12 +1550,12 @@ install_data_to_pki: $context - Failed to install vars file"
 			"${EASYRSA_PKI}/${ssl_cnf_file}" || die "\
 install_data_to_pki - Missing: '$ssl_cnf_file'"
 		verbose "\
-install_data_to_pki: $context - create_openssl_easyrsa_cnf OK"
+install_data_to_pki $context: create_openssl_easyrsa_cnf OK"
 	fi
 
 	[ -d "$EASYRSA_EXT_DIR" ] || verbose "\
 install_data_to_pki: $context - Missing: '$x509_types_dir'"
-	verbose "install_data_to_pki: $context - COMPLETED"
+	verbose "install_data_to_pki $context: COMPLETED"
 } # => install_data_to_pki ()
 
 # Disable terminal echo, if possible, otherwise warn
@@ -5642,12 +5643,14 @@ The 'vars' file was not found:
 			unset -v prog_in_pwd
 		fi
 
-		# Program dir vars - This location is least wanted.
+		# Program dir vars
 		prog_vars="${prog_dir}/vars"
 
-		# set up PKI path vars - Top preference
+		# set up PKI path vars
+		# Due to EASYRSA_PKI being a usable variable
+		# in the vars file, this is currently NOT a
+		# suitable location for vars
 		pki_vars="${EASYRSA_PKI:-$PWD/pki}/vars"
-		expected_pki_vars="$pki_vars"
 
 		# Some other place vars, out of scope.
 		if [ "$EASYRSA" ]; then
@@ -5656,10 +5659,11 @@ The 'vars' file was not found:
 			unset -v easy_vars
 		fi
 
-		# vars of last resort
+		# Working dir vars
+		# This location is most suitable
 		pwd_vars="$PWD/vars"
 
-		# Clear flags - This is the preferred order to find:
+		# Clear flags
 		unset -v \
 			e_pki_vars e_easy_vars e_pwd_vars e_prog_vars \
 			found_vars vars_in_pki
@@ -5670,10 +5674,10 @@ The 'vars' file was not found:
 		# EASYRSA, if defined:
 		[ -e "$easy_vars" ] && e_easy_vars=1
 
-		# vars of last resort
+		# Working dir:
 		[ -e "$pwd_vars" ] && e_pwd_vars=1
 
-		# program location:
+		# Program location:
 		[ -e "$prog_vars" ] && e_prog_vars=1
 
 		# Filter duplicates
@@ -5712,19 +5716,19 @@ The 'vars' file was not found:
 			[ "$e_prog_vars" ] && print "Found: $prog_vars"
 
 			# For init-pki, version and help, skip this
-			if [ "$require_pki" ]; then
+			#if [ "$require_pki" ]; then
 				user_error "\
-Conflicting 'vars' files found.
-
-Priority should be given to your PKI vars file:
-* $expected_pki_vars"
-			fi
+Conflicting 'vars' files found, see above.
+EasyRSA cannot be used with multiple 'vars' files.
+Either declare which 'vars' file to use with --vars=<FILE>
+or remove the 'vars' files which are not in use."
+			#fi
 
 			# For init-pki, pki/vars will be deleted
 			# However, another vars file exists
 			# so don't create pki/vars
-			no_new_vars=1
-			verbose "vars_setup: no_new_vars = '$no_new_vars'"
+			#no_new_vars=1
+			#verbose "vars_setup: no_new_vars = '$no_new_vars'"
 		esac
 
 		verbose "vars_setup: vars = '$vars'"
