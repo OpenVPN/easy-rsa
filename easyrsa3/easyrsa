@@ -5742,8 +5742,8 @@ or remove the 'vars' files which are not in use."
 		# If PKI is required then warn
 		# For init-pki, version and help, skip this
 		if [ "$require_pki" ]; then
-			warn "\
-No Easy-RSA 'vars' configuration file exists!"
+			information "\
+No Easy-RSA 'vars' configuration file exists."
 		fi
 
 	# If a vars file was located then source it
