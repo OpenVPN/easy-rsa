@@ -1538,7 +1538,8 @@ install_data_to_pki $context: Failed to install vars file"
 	else
 		create_openssl_easyrsa_cnf > \
 			"${EASYRSA_PKI}/${ssl_cnf_file}" || die "\
-install_data_to_pki - Missing: '$ssl_cnf_file'"
+install_data_to_pki $context: \
+Missing: '${EASYRSA_PKI}/${ssl_cnf_file}'"
 		verbose "\
 install_data_to_pki $context: create_openssl_easyrsa_cnf OK"
 	fi
