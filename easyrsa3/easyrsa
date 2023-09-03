@@ -5624,26 +5624,7 @@ The 'vars' file was not found:
 	# Otherwise, find vars
 	else
 
-		# set up program path
-		prog_file="$0"
-		prog_dir="${prog_file%/*}"
-		if [ "$prog_dir" = . ] || [ "$prog_dir" = "$PWD" ]
-		then
-			prog_in_pwd=1
-		else
-			unset -v prog_in_pwd
-		fi
-
-		# Program dir vars
-		prog_vars="${prog_dir}/vars"
-
-		# set up PKI path vars
-		# Due to EASYRSA_PKI being a usable variable
-		# in the vars file, this is currently NOT a
-		# suitable location for vars
-		pki_vars="${EASYRSA_PKI:-$PWD/pki}/vars"
-
-		# Some other place vars, out of scope.
+		# User defined EASYRSA vars
 		if [ "$EASYRSA" ]; then
 			easy_vars="${EASYRSA}/vars"
 		else
@@ -5654,13 +5635,28 @@ The 'vars' file was not found:
 		# This location is most suitable
 		pwd_vars="$PWD/vars"
 
+		# Program dir
+		prog_dir="${0%/*}"
+		verbose "vars_setup: prog_dir=$prog_dir"
+
+		# If prog_dir is PWD then do not check prog_vars
+		if [ "$prog_dir" = . ] || [ "$prog_dir" = "$PWD" ]
+		then
+			unset -v prog_vars
+		else
+			prog_vars="${prog_dir}/vars"
+		fi
+
+		# set up PKI path vars
+		# Due to EASYRSA_PKI being a usable variable
+		# in the vars file, this is currently NOT a
+		# suitable location for vars
+		pki_vars="${EASYRSA_PKI:-$PWD/pki}/vars"
+
 		# Clear flags
 		unset -v \
 			e_pki_vars e_easy_vars e_pwd_vars e_prog_vars \
 			found_vars vars_in_pki
-
-		# PKI location, if present:
-		[ -e "$pki_vars" ] && e_pki_vars=1
 
 		# EASYRSA, if defined:
 		[ -e "$easy_vars" ] && e_easy_vars=1
@@ -5671,62 +5667,77 @@ The 'vars' file was not found:
 		# Program location:
 		[ -e "$prog_vars" ] && e_prog_vars=1
 
-		# Filter duplicates
-		if [ "$e_prog_vars" ] && [ "$e_pwd_vars" ] && \
-			[ "$prog_in_pwd" ]
-		then
-			unset -v prog_vars e_prog_vars
-		fi
+		# PKI location, if present:
+		[ -e "$pki_vars" ] && e_pki_vars=1
 
-		# Allow only one vars to be found, No exceptions!
+		# Count found vars files
 		found_vars="$((
 			e_pki_vars + e_easy_vars + e_pwd_vars + e_prog_vars
 			))"
 		verbose "vars_setup: found_vars = '$found_vars'"
 
 		# If found_vars greater than 1
-		# then output user info and exit
+		# then output user info
 		case "$found_vars" in
 		0)
 			: # ok
 		;;
 		1)
-			# If a SINGLE vars file is found
-			# then assign $vars
-			[ "$e_prog_vars" ] && vars="$prog_vars"
-			[ "$e_pwd_vars" ] && vars="$pwd_vars"
-			[ "$e_easy_vars" ] && vars="$easy_vars"
-			[ "$e_pki_vars" ] && \
-				vars="$pki_vars" && vars_in_pki=1
-			: # Wipe error status
+			# If a SINGLE vars file is found then
+			# Select single vars file, with priority
+			if [ "$e_easy_vars" ]; then
+				vars="$easy_vars"
+			elif [ "$e_pwd_vars" ]; then
+				vars="$pwd_vars"
+			elif [ "$e_prog_vars" ]; then
+				vars="$prog_vars"
+			elif [ "$e_pki_vars" ]; then
+				vars="$pki_vars"
+				vars_in_pki=1
+			else
+				# This cannot happen
+				die "Detecting vars file failed!"
+			fi
 		;;
 		*)
-			[ "$e_pki_vars" ] && print "Found: $pki_vars"
-			[ "$e_easy_vars" ] && print "Found: $easy_vars"
-			[ "$e_pwd_vars" ] && print "Found: $pwd_vars"
-			[ "$e_prog_vars" ] && print "Found: $prog_vars"
-
-			# For init-pki, version and help, skip this
-			#if [ "$require_pki" ]; then
-				user_error "\
-Conflicting 'vars' files found, see above.
+			# Multiple vars files
+			warn "\
+Conflicting 'vars' files found, see below.
 EasyRSA cannot be used with multiple 'vars' files.
 Either declare which 'vars' file to use with --vars=<FILE>
-or remove the 'vars' files which are not in use."
-			#fi
+or remove the 'vars' files which are not in use.${NL}"
 
-			# For init-pki, pki/vars will be deleted
-			# However, another vars file exists
-			# so don't create pki/vars
-			#no_new_vars=1
-			#verbose "vars_setup: no_new_vars = '$no_new_vars'"
+			# Show found vars files
+			[ "$e_easy_vars" ] && \
+				print "  easy_vars Found: $easy_vars"
+			[ "$e_pwd_vars" ] && \
+				print "  pwd_vars  Found: $pwd_vars"
+			[ "$e_prog_vars" ] && \
+				print "  prog_vars Found: $prog_vars"
+			[ "$e_pki_vars" ] && \
+				print "  pki_vars  Found: $pki_vars"
+
+			# Select single vars file, with priority
+			if [ "$e_easy_vars" ]; then
+				vars="$easy_vars"
+			elif [ "$e_pwd_vars" ]; then
+				vars="$pwd_vars"
+			elif [ "$e_prog_vars" ]; then
+				vars="$prog_vars"
+			elif [ "$e_pki_vars" ]; then
+				vars="$pki_vars"
+			else
+				# This cannot happen
+				die "Detecting vars file failed!"
+			fi
 		esac
 
-		verbose "vars_setup: vars = '$vars'"
+		# Show selected vars
+		print "  * Selected vars: $vars"
+		[ "$EASYRSA_VERBOSE" ] && print
 
 		# Clean up
-		unset -v prog_vars pwd_vars easy_vars pki_vars \
-				expected_pki_vars
+		unset -v prog_vars pwd_vars easy_vars pki_vars
 	# END: Find vars
 	fi
 
