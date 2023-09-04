@@ -1389,6 +1389,13 @@ vars_in_pki_msg() {
 		return
 	fi
 
+	# Resolve setting EASYRSA_PKI in vars file
+	# when vars file is default 'pki/vars'
+	# and potentially points to a different PKI.
+	# Once resolved, a user set PKI will over-rule
+	# a vars setting and this message can be disabled
+	#return
+
 	information "
 IMPORTANT:
   Do NOT keep your 'vars' within your PKI directory.
@@ -5656,8 +5663,10 @@ setup_vars() {
 		[ -e "$prog_vars" ] && e_prog_vars=1
 
 		# PKI location, if present:
-		[ -e "$pki_vars" ] && e_pki_vars=1 && \
+		if [ -e "$pki_vars" ]; then
+			e_pki_vars=1
 			vars_in_pki=1
+		fi
 
 		# Count found vars files
 		found_vars="$((
@@ -5680,6 +5689,9 @@ setup_vars() {
 				vars="$prog_vars"
 			elif [ "$e_pki_vars" ]; then
 				vars="$pki_vars"
+				# Set expected_pki
+				# to stop vars changing EASYRSA_PKI
+				expected_pki="${pki_vars%/*}"
 			else
 				# This cannot happen
 				die "Detecting vars file failed!"
@@ -5708,6 +5720,9 @@ or remove the 'vars' files which are not in use.${NL}"
 				vars="$prog_vars"
 			elif [ "$e_pki_vars" ]; then
 				vars="$pki_vars"
+				# Set expected_pki
+				# to stop vars changing EASYRSA_PKI
+				expected_pki="${pki_vars%/*}"
 			else
 				# This cannot happen
 				die "Detecting vars file failed!"
@@ -5862,6 +5877,34 @@ Algorithm '$EASYRSA_ALGO' is invalid: Must be 'rsa', 'ec' or 'ed'"
 	set_var EASYRSA_KDC_REALM		"CHANGEME.EXAMPLE.COM"
 
 	set_var EASYRSA_MAX_TEMP		4
+
+	# expected_pki is set when default 'pki/vars' is used
+	# This blocks pki/vars changing EASYRSA_PKI
+	if [ "$expected_pki" ] # && [ "$require_pki" ]
+	then
+		if [ "$expected_pki" = "$EASYRSA_PKI" ]
+		then
+			: # ok
+		else
+			# Show warning
+			warn "\
+'EASYRSA_PKI' is set incorrectly in the 'vars' file.
+
+  This vars file:
+  * $vars
+
+  Uses this PKI:
+  * $EASYRSA_PKI"
+
+			# Require user consent to continue
+			confirm "\
+  Continue with invalid configuration ? " yes "
+  'vars' configuration for 'EASYRSA_PKI' is invalid."
+
+			verbose "\
+source_vars: Invalid PKI accepted for EASYRSA_PKI"
+		fi
+	fi
 
 	# if the vars file in use is not in the PKI
 	# and not user defined then Show the messages
@@ -7018,6 +7061,7 @@ detect_host
 
 # Initialisation requirements
 unset -v \
+	expected_pki \
 	verify_ssl_lib_ok \
 	secured_session \
 	working_safe_ssl_conf working_safe_org_conf \
