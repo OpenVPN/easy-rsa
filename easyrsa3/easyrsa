@@ -94,9 +94,9 @@ DIRECTORY STATUS (commands would take effect on these locations)
   x509-types: ${EASYRSA_EXT_DIR:-Missing or undefined}
 $CA_status"
 
-	# if the vars file in use is not in the PKI
-	# and not user defined then Show the messages
-	prefer_vars_in_pki_msg
+	# if the vars file in use is in the PKI
+	# and not user defined then Show the message
+	vars_in_pki_msg
 } # => usage()
 
 # Detailed command help
@@ -1308,7 +1308,7 @@ and initialize a fresh PKI here."
 			# If vars was in the old pki, it has been removed
 			# If vars was somewhere else, it is user defined
 			# Clear found_vars, we MUST not find pki/vars
-			[ "$vars_in_pki" ] && unset -v found_vars
+			unset -v vars_in_pki found_vars
 		;;
 		soft)
 		# There is no unit test for a soft reset
@@ -1354,13 +1354,12 @@ Your newly created PKI dir is:
 
 	# Installation information
 	# if $no_new_vars then there are one or more known vars
-	# which are not in the PKI. All further commands will fail
-	# until vars is manually corrected
+	# which are not in the PKI
 	if [ "$no_new_vars" ]; then
 		warn "\
 A vars file has not been created in your new PKI because
 conflicting vars files have been found elsewhere."
-		prefer_vars_in_pki_msg
+		vars_in_pki_msg
 	else
 		information "
 Using Easy-RSA configuration:
@@ -1376,30 +1375,26 @@ IMPORTANT:
   To use a global vars file, use global option --vars=<FILE>"
 
 	else
-		prefer_vars_in_pki_msg
+		vars_in_pki_msg
 	fi
 	verbose "\
 init_pki: x509-types dir ${EASYRSA_EXT_DIR:-Not found}"
 } # => init_pki()
 
 # Must be used in two places, so made it a function
-prefer_vars_in_pki_msg() {
-	if [ "$vars_in_pki" ] || [ "$user_vars_true" ] ||
-		[ "$EASYRSA_NO_VARS" ]
+vars_in_pki_msg() {
+	[ "$vars_in_pki" ] || return 0
+	if [ "$user_vars_true" ] || [ "$EASYRSA_NO_VARS" ]
 	then
 		return
 	fi
 
-	# disable this until v3.2-ish
-	verbose "prefer_vars_in_pki_msg: DISABLED"
-	return 0
-
 	information "
 IMPORTANT:
-  The preferred location for 'vars' is within the PKI folder.
-  To silence this message move your 'vars' file to your PKI
+  Do NOT keep your 'vars' within your PKI directory.
+  To silence this message, move your 'vars' file out of your PKI
   or declare your 'vars' file with option: --vars=<FILE>"
-} # => prefer_vars_in_pki_msg()
+} # => vars_in_pki_msg()
 
 # Copy data-files from various sources
 install_data_to_pki() {
@@ -5661,7 +5656,8 @@ setup_vars() {
 		[ -e "$prog_vars" ] && e_prog_vars=1
 
 		# PKI location, if present:
-		[ -e "$pki_vars" ] && e_pki_vars=1
+		[ -e "$pki_vars" ] && e_pki_vars=1 && \
+			vars_in_pki=1
 
 		# Count found vars files
 		found_vars="$((
@@ -5684,7 +5680,6 @@ setup_vars() {
 				vars="$prog_vars"
 			elif [ "$e_pki_vars" ]; then
 				vars="$pki_vars"
-				vars_in_pki=1
 			else
 				# This cannot happen
 				die "Detecting vars file failed!"
@@ -5713,16 +5708,15 @@ or remove the 'vars' files which are not in use.${NL}"
 				vars="$prog_vars"
 			elif [ "$e_pki_vars" ]; then
 				vars="$pki_vars"
-				vars_in_pki=1
 			else
 				# This cannot happen
 				die "Detecting vars file failed!"
 			fi
-		esac
 
-		# Show selected vars
-		print "  * Selected vars: $vars"
-		[ "$EASYRSA_VERBOSE" ] && print
+			# Show selected vars
+			print "  * Selected vars: $vars"
+			[ "$EASYRSA_VERBOSE" ] && print
+		esac
 
 		# Clean up
 		unset -v prog_vars pwd_vars easy_vars pki_vars
@@ -5872,7 +5866,7 @@ Algorithm '$EASYRSA_ALGO' is invalid: Must be 'rsa', 'ec' or 'ed'"
 	# if the vars file in use is not in the PKI
 	# and not user defined then Show the messages
 	if [ "$require_pki" ]; then
-		prefer_vars_in_pki_msg
+		vars_in_pki_msg
 	fi
 	verbose "source_vars: COMPLETED"
 } # => source_vars()
