@@ -5590,7 +5590,7 @@ Use of --silent and --verbose is unresolvable."
 # Here sourcing of 'vars' if present occurs.
 # If not present, defaults are used to support
 # running without a sourced config format
-vars_setup() {
+setup_vars() {
 	# Try to locate a 'vars' file in order of preference.
 	# If one is found then source it.
 	# NOTE: EASYRSA_PKI is never set here,
@@ -5633,7 +5633,7 @@ vars_setup() {
 
 		# Program dir
 		prog_dir="${0%/*}"
-		verbose "vars_setup: prog_dir=$prog_dir"
+		verbose "setup_vars: prog_dir = $prog_dir"
 
 		# If prog_dir is PWD then do not check prog_vars
 		if [ "$prog_dir" = . ] || [ "$prog_dir" = "$PWD" ]
@@ -5667,7 +5667,7 @@ vars_setup() {
 		found_vars="$((
 			e_pwd_vars + e_prog_vars + e_pki_vars
 			))"
-		verbose "vars_setup: found_vars = '$found_vars'"
+		verbose "setup_vars: found_vars = '$found_vars'"
 
 		# If found_vars greater than 1
 		# then output user info
@@ -5728,7 +5728,10 @@ or remove the 'vars' files which are not in use.${NL}"
 		unset -v prog_vars pwd_vars easy_vars pki_vars
 	# END: Find vars
 	fi
+} # => setup_vars()
 
+# Source vars file and set defaults
+source_vars() {
 	# If EASYRSA_NO_VARS is defined then do not use vars
 	# If PKI is not required then located vars files are
 	# not required
@@ -5871,8 +5874,8 @@ Algorithm '$EASYRSA_ALGO' is invalid: Must be 'rsa', 'ec' or 'ed'"
 	if [ "$require_pki" ]; then
 		prefer_vars_in_pki_msg
 	fi
-	verbose "vars_setup: COMPLETED"
-} # => vars_setup()
+	verbose "source_vars: COMPLETED"
+} # => source_vars()
 
 # Verify working environment
 verify_working_env() {
@@ -7272,8 +7275,11 @@ case "$cmd" in
 		esac
 esac
 
-# Intelligent env-var detection and auto-loading:
-vars_setup
+# Determine which vars file to use
+setup_vars
+
+# Source the vars file
+source_vars
 
 # Check for conflicting input options
 mutual_exclusions
