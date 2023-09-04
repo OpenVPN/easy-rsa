@@ -5600,36 +5600,32 @@ vars_setup() {
 	vars=
 
 	# Find vars
-	# Explicit user defined vars file:
+	# Explicit user defined NO vars file:
 	if [ "$EASYRSA_NO_VARS" ]; then
-		# Found exactly zero vars files
+		user_vars_true=1
 		found_vars=0
-		warn "\
-EASYRSA_NO_VARS is enabled, not using a 'vars' file.${NL}"
 
+	# Explicit user defined vars file:
 	elif [ "$EASYRSA_VARS_FILE" ]; then
-		if [ -e "$EASYRSA_VARS_FILE" ]; then
-			vars="$EASYRSA_VARS_FILE"
-			# User set vars turns off pki/var warning
+		vars="$EASYRSA_VARS_FILE"
+		user_vars_true=1
+		found_vars=1
+
+	# Implicit User defined EASYRSA vars
+	elif [ "$EASYRSA" ]; then
+		vars="${EASYRSA}/vars"
+		if [ -e "${EASYRSA}/vars" ]; then
 			user_vars_true=1
-			# Found exactly one vars file
 			found_vars=1
 		else
-			# If the --vars option does not point to a file
-			user_error "\
-The 'vars' file was not found:
-* $EASYRSA_VARS_FILE"
+			# Allow without a default vars file
+			unset -v vars
+			user_vars_true=1
+			found_vars=0
 		fi
 
 	# Otherwise, find vars
 	else
-
-		# User defined EASYRSA vars
-		if [ "$EASYRSA" ]; then
-			easy_vars="${EASYRSA}/vars"
-		else
-			unset -v easy_vars
-		fi
 
 		# Working dir vars
 		# This location is most suitable
@@ -5655,11 +5651,8 @@ The 'vars' file was not found:
 
 		# Clear flags
 		unset -v \
-			e_pki_vars e_easy_vars e_pwd_vars e_prog_vars \
+			e_pki_vars e_pwd_vars e_prog_vars \
 			found_vars vars_in_pki
-
-		# EASYRSA, if defined:
-		[ -e "$easy_vars" ] && e_easy_vars=1
 
 		# Working dir:
 		[ -e "$pwd_vars" ] && e_pwd_vars=1
@@ -5672,7 +5665,7 @@ The 'vars' file was not found:
 
 		# Count found vars files
 		found_vars="$((
-			e_pki_vars + e_easy_vars + e_pwd_vars + e_prog_vars
+			e_pwd_vars + e_prog_vars + e_pki_vars
 			))"
 		verbose "vars_setup: found_vars = '$found_vars'"
 
@@ -5685,9 +5678,7 @@ The 'vars' file was not found:
 		1)
 			# If a SINGLE vars file is found then
 			# Select single vars file, with priority
-			if [ "$e_easy_vars" ]; then
-				vars="$easy_vars"
-			elif [ "$e_pwd_vars" ]; then
+			if [ "$e_pwd_vars" ]; then
 				vars="$pwd_vars"
 			elif [ "$e_prog_vars" ]; then
 				vars="$prog_vars"
@@ -5708,8 +5699,6 @@ Either declare which 'vars' file to use with --vars=<FILE>
 or remove the 'vars' files which are not in use.${NL}"
 
 			# Show found vars files
-			[ "$e_easy_vars" ] && \
-				print "  easy_vars Found: $easy_vars"
 			[ "$e_pwd_vars" ] && \
 				print "  pwd_vars  Found: $pwd_vars"
 			[ "$e_prog_vars" ] && \
@@ -5718,14 +5707,13 @@ or remove the 'vars' files which are not in use.${NL}"
 				print "  pki_vars  Found: $pki_vars"
 
 			# Select single vars file, with priority
-			if [ "$e_easy_vars" ]; then
-				vars="$easy_vars"
-			elif [ "$e_pwd_vars" ]; then
+			if [ "$e_pwd_vars" ]; then
 				vars="$pwd_vars"
 			elif [ "$e_prog_vars" ]; then
 				vars="$prog_vars"
 			elif [ "$e_pki_vars" ]; then
 				vars="$pki_vars"
+				vars_in_pki=1
 			else
 				# This cannot happen
 				die "Detecting vars file failed!"
@@ -5765,7 +5753,7 @@ No Easy-RSA 'vars' configuration file exists."
 Missing vars file:
 * $vars"
 
-		# Installation information
+		# Show the vars file in use
 		[ "$require_pki" ] && information "\
 Using Easy-RSA 'vars' configuration:
 * $vars"
