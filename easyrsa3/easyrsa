@@ -1385,8 +1385,6 @@ install_data_to_pki() {
 	shift
 
 	# Set required sources
-	vars_file='vars'
-	vars_file_example='vars.example'
 	ssl_cnf_file='openssl-easyrsa.cnf'
 	x509_types_dir='x509-types'
 
@@ -1461,35 +1459,7 @@ install_data_to_pki $context: Not creating pki/vars"
 	else
 		case "$context" in
 		init-pki)
-		# ALWAYS Disable creating a vars file
-		if :
-		then
-			verbose "\
-install_data_to_pki $context: New vars DISABLED"
-		else
-			# Only create for 'init-pki', if one does not exist
-			# 'init-pki soft' should have it's own 'vars' file
-			if [ -e "${EASYRSA_PKI}/${vars_file_example}" ] && \
-				[ ! -e "${EASYRSA_PKI}/${vars_file}" ]
-			then
-				# Failure means that no vars will exist and
-				# 'cp' will generate an error message
-				# This is not a fatal error
-				if cp "${EASYRSA_PKI}/${vars_file_example}" \
-					"${EASYRSA_PKI}/${vars_file}"
-				then
-					new_vars_true=1
-					vars="${EASYRSA_PKI}/${vars_file}"
-					verbose "\
-install_data_to_pki $context: vars = '$vars'"
-				else
-					unset -v new_vars_true vars
-					warn "\
-install_data_to_pki $context: Failed to install vars file"
-				fi
-			fi
-		fi
-		;;
+			: ;; # No change to current 'vars' required
 		vars-setup)
 			: ;; # No change to current 'vars' required
 		x509-types-only)
