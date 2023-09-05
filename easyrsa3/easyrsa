@@ -5887,22 +5887,16 @@ Algorithm '$EASYRSA_ALGO' is invalid: Must be 'rsa', 'ec' or 'ed'"
 			: # ok
 		else
 			# Show warning
-			warn "\
+			user_error "\
 'EASYRSA_PKI' is set incorrectly in the 'vars' file.
 
   This vars file:
   * $vars
 
   Uses this PKI:
-  * $EASYRSA_PKI"
+  * $EASYRSA_PKI
 
-			# Require user consent to continue
-			confirm "\
-  Continue with invalid configuration ? " yes "
-  'vars' configuration for 'EASYRSA_PKI' is invalid."
-
-			verbose "\
-source_vars: Invalid PKI accepted for EASYRSA_PKI"
+Cannot continue with invalid configuration."
 		fi
 	fi
 
