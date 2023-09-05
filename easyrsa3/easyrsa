@@ -1293,14 +1293,6 @@ and initialize a fresh PKI here."
 		# now remove it:
 		case "$reset" in
 		hard)
-			# Promote use of soft init
-#			confirm "Completely remove current PKI ? " yes "\
-#* SECOND WARNING!!!
-#
-#* This will remove everything in your current PKI directory.
-#  To keep your current settings use 'init-pki soft' instead.
-#  Using 'init-pki soft' is recommended."
-
 			# # # shellcheck disable=SC2115 # Use "${var:?}"
 			rm -rf "$EASYRSA_PKI" || \
 				die "init-pki hard reset failed."
@@ -1352,31 +1344,6 @@ Failed to install required data-files to PKI. (init)"
 Your newly created PKI dir is:
 * $EASYRSA_PKI"
 
-	# Installation information
-	# if $no_new_vars then there are one or more known vars
-	# which are not in the PKI
-	if [ "$no_new_vars" ]; then
-		warn "\
-A vars file has not been created in your new PKI because
-conflicting vars files have been found elsewhere."
-		vars_in_pki_msg
-	else
-		information "
-Using Easy-RSA configuration:
-* ${vars:-undefined}"
-	fi
-
-	# For new PKIs , pki/vars was auto-created, show message
-	if [ "$new_vars_true" ]; then
-		information "
-IMPORTANT:
-  Easy-RSA 'vars' template file has been created in your new PKI.
-  Edit this 'vars' file to customise the settings for your PKI.
-  To use a global vars file, use global option --vars=<FILE>"
-
-	else
-		vars_in_pki_msg
-	fi
 	verbose "\
 init_pki: x509-types dir ${EASYRSA_EXT_DIR:-Not found}"
 } # => init_pki()
