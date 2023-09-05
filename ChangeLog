@@ -3,6 +3,8 @@ Easy-RSA 3 ChangeLog
 3.2.0 (TBD)
 
 3.1.7 (ETA 2023-10-13)
+   * Guard against default 'pki/vars' setting a different PKI (#1014)
+   * Retract preference for 'vars' file to exist in the PKI (#1014)
    * Disable all code which requests vars in PKI (#1014)
    * Update OpenSSL to 3.1.2
 
