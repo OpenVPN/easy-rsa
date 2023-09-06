@@ -3,6 +3,7 @@ Easy-RSA 3 ChangeLog
 3.2.0 (TBD)
 
 3.1.7 (ETA 2023-10-13)
+   * Insert required errors and warning to control vars location (#1014)
    * Guard against default 'pki/vars' setting a different PKI (#1014)
    * Retract preference for 'vars' file to exist in the PKI (#1014)
    * Disable all code which requests vars in PKI (#1014)

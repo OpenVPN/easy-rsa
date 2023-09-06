@@ -93,10 +93,6 @@ DIRECTORY STATUS (commands would take effect on these locations)
    vars-file: $vars_status
   x509-types: ${EASYRSA_EXT_DIR:-Missing or undefined}
 $CA_status"
-
-	# if the vars file in use is in the PKI
-	# and not user defined then Show the message
-	vars_in_pki_msg
 } # => usage()
 
 # Detailed command help
@@ -875,6 +871,10 @@ Temporary session not preserved."
 		*) warn "prompt_restore: '$prompt_restore'"
 	esac
 
+	# if the vars file in use is in the PKI
+	# and not user defined then Show the message
+	vars_in_pki_msg
+
 	# Get a clean line
 	[ "$EASYRSA_SILENT" ] || print
 
@@ -892,7 +892,7 @@ Temporary session not preserved."
 
 	# Exit: SIGINT
 	if [ "$1" = 2 ]; then
-		verbose "exit SIGINT = true"
+		verbose "Exit: SIGINT = true"
 		kill -2 "$$"
 	fi
 
@@ -5599,10 +5599,30 @@ setup_vars() {
 		# Program location:
 		[ -e "$prog_vars" ] && e_prog_vars=1
 
-		# PKI location, if present:
+		# PKI location, least desirable:
 		if [ -e "$pki_vars" ]; then
 			e_pki_vars=1
 			vars_in_pki=1
+
+			# Conflicting vars:
+			if [ "$e_pwd_vars" ] || [ "$e_prog_vars" ]
+			then
+				user_error "\
+There is a 'vars' file located inside the default PKI.
+This 'vars' file must be moved to the working directory.
+
+  'vars' file:
+  * $pki_vars
+
+  PKI directory:
+  * ${pki_vars%/vars}
+
+  Working directory:
+  * $PWD
+
+  Info:
+  * https://github.com/OpenVPN/easy-rsa/issues/1009"
+			fi
 		fi
 
 		# Count found vars files
@@ -5698,12 +5718,12 @@ No Easy-RSA 'vars' configuration file exists."
 	# If a vars file was located then source it
 	else
 		# 'vars' MUST not be a directory
-		[ -d "$vars" ] && die "\
+		[ -d "$vars" ] && user_error "\
 Missing vars file:
 * $vars"
 
 		# 'vars' now MUST exist
-		[ -e "$vars" ] || die "\
+		[ -e "$vars" ] || user_error "\
 Missing vars file:
 * $vars"
 
@@ -5736,7 +5756,7 @@ Please, correct these errors and try again."
 			-e '[[:blank:]]unset[[:blank:]]*' \
 			"$vars"
 		then
-			warn "\
+			user_error "\
 One or more of these problems has been found in your 'vars' file:
 
 * Use of 'export':
@@ -5815,33 +5835,26 @@ Algorithm '$EASYRSA_ALGO' is invalid: Must be 'rsa', 'ec' or 'ed'"
 
 	set_var EASYRSA_MAX_TEMP		4
 
+	# https://github.com/OpenVPN/easy-rsa/issues/1009
 	# expected_pki is set when default 'pki/vars' is used
-	# This blocks pki/vars changing EASYRSA_PKI
-	if [ "$expected_pki" ] # && [ "$require_pki" ]
-	then
-		if [ "$expected_pki" = "$EASYRSA_PKI" ]
-		then
+	# This blocks pki/vars UNEXPECTEDLY changing EASYRSA_PKI
+	if [ "$expected_pki" ]; then
+		if [ "$expected_pki" = "$EASYRSA_PKI" ]; then
 			: # ok
 		else
-			# Show warning
 			user_error "\
-'EASYRSA_PKI' is set incorrectly in the 'vars' file.
+'EASYRSA_PKI' is set incorrectly in the default 'vars' file.
 
-  This vars file:
+  The default pki/vars file:
   * $vars
 
-  Uses this PKI:
+  Uses a different PKI:
   * $EASYRSA_PKI
 
 Cannot continue with invalid configuration."
 		fi
 	fi
 
-	# if the vars file in use is not in the PKI
-	# and not user defined then Show the messages
-	if [ "$require_pki" ]; then
-		vars_in_pki_msg
-	fi
 	verbose "source_vars: COMPLETED"
 } # => source_vars()
 
@@ -5894,7 +5907,7 @@ verify_working_env - install_data_to_pki vars-setup failed"
 			# Last setup msg
 			information "
 Using SSL:
-* $EASYRSA_OPENSSL $ssl_version"
+* $EASYRSA_OPENSSL $ssl_version${NL}"
 
 		else
 			# The directory does not exist
@@ -7226,10 +7239,12 @@ cmd="$1"
 # Establish PKI and CA initialisation requirements
 # This avoids unnecessary warnings and notices
 case "$cmd" in
-	init-pki|clean-all|\
-	help|-h|--help|--usage|\
-	show-host|\
-	version|upgrade|'')
+	version|upgrade|show-host)
+		unset -v require_pki require_ca
+		EASYRSA_NO_VARS=1
+	;;
+	help|-h|--help|--usage|''| \
+	init-pki|clean-all)
 		unset -v require_pki require_ca
 	;;
 	*)
