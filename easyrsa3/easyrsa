@@ -3721,6 +3721,11 @@ gen_crl() {
 	easyrsa_mktemp out_file_tmp || \
 		die "gen_crl - easyrsa_mktemp out_file_tmp"
 
+	if [ -r "$out_file" ]; then 
+		cp -p "$out_file" "$out_file_tmp" || \
+			warn "Failed to copy existing crl.pem - won't preserve file permissions."
+	fi
+
 	easyrsa_openssl ca -utf8 -gencrl -out "$out_file_tmp" \
 		${EASYRSA_CRL_DAYS:+ -days "$EASYRSA_CRL_DAYS"} \
 		${EASYRSA_PASSIN:+ -passin "$EASYRSA_PASSIN"} || \
