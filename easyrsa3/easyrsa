@@ -5781,6 +5781,15 @@ Remove 'unset' ('force_set_var' may also work)."
 		unset -v EASYRSA_CALLER
 	fi
 
+	# Set expected PKI to determine if vars has changed PKI
+	# Required for init-pki
+	case "$cmd" in
+		init-pki|clean-all)
+			expected_pki="${expected_pki:-"$PWD/pki"}"
+		;;
+		*) : # ok
+	esac
+
 	# Set defaults, preferring existing env-vars if present
 	set_var EASYRSA					"$PWD"
 	set_var EASYRSA_OPENSSL			openssl
