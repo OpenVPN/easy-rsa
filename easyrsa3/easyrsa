@@ -5785,7 +5785,13 @@ Remove 'unset' ('force_set_var' may also work)."
 	# Required for init-pki
 	case "$cmd" in
 		init-pki|clean-all)
-			expected_pki="${expected_pki:-"$PWD/pki"}"
+			if [ "$EASYRSA_PKI" ]; then
+				expected_pki="${expected_pki:-"$EASYRSA_PKI"}"
+			elif [ "$EASYRSA" ]; then
+				expected_pki="${expected_pki:-"$EASYRSA/pki"}"
+			else
+				expected_pki="${expected_pki:-"$PWD/pki"}"
+			fi
 		;;
 		*) : # ok
 	esac
