@@ -1390,6 +1390,9 @@ prefer_vars_in_pki_msg() {
 		return
 	fi
 
+	# Never show this message
+	return
+
 	information "
 IMPORTANT:
   The preferred location for 'vars' is within the PKI folder.
@@ -5691,24 +5694,31 @@ The 'vars' file was not found:
 			[ "$e_prog_vars" ] && vars="$prog_vars"
 			[ "$e_pwd_vars" ] && vars="$pwd_vars"
 			[ "$e_easy_vars" ] && vars="$easy_vars"
-			[ "$e_pki_vars" ] && \
-				vars="$pki_vars" && vars_in_pki=1
-			: # Wipe error status
+			if [ "$e_pki_vars" ]; then
+				vars="$pki_vars"
+				vars_in_pki=1
+				user_error "\
+Use of a default 'vars' file in the default PKI is prohibited.
+Please move the 'pki/vars' file to the working directory:
+* ${pwd_vars%/vars}/"
+			fi
 		;;
 		*)
-			[ "$e_pki_vars" ] && print "Found: $pki_vars"
-			[ "$e_easy_vars" ] && print "Found: $easy_vars"
-			[ "$e_pwd_vars" ] && print "Found: $pwd_vars"
-			[ "$e_prog_vars" ] && print "Found: $prog_vars"
+			[ "$e_pki_vars" ] && \
+				found_msg="${NL} * Found: $pki_vars"
+			[ "$e_easy_vars" ] && \
+				found_msg="${found_msg}${NL} * Found: $easy_vars"
+			[ "$e_pwd_vars" ] && \
+				found_msg="${found_msg}${NL} * Found: $pwd_vars"
+			[ "$e_prog_vars" ] && \
+				found_msg="${found_msg}${NL} * Found: $prog_vars"
 
-			# For init-pki, version and help, skip this
-			if [ "$require_pki" ]; then
-				user_error "\
-Conflicting 'vars' files found.
+			user_error "\
+Conflicting 'vars' files found:
+$found_msg
 
-Priority should be given to your PKI vars file:
-* $expected_pki_vars"
-			fi
+Priority should be given to this vars file:
+* $pwd_vars"
 
 			# For init-pki, pki/vars will be deleted
 			# However, another vars file exists
