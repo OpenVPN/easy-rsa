@@ -607,7 +607,8 @@ EasyRSA version $EASYRSA_version
 Error
 -----
 $1"
-	exit 1
+	easyrsa_exit_with_error=1
+	cleanup
 } # => user_error()
 
 # verbose information
@@ -5604,7 +5605,7 @@ setup_vars() {
 			e_pki_vars=1
 			vars_in_pki=1
 
-			# Conflicting vars:
+			# Conflicting default pki/vars:
 			if [ "$e_pwd_vars" ] || [ "$e_prog_vars" ]
 			then
 				user_error "\
@@ -5702,7 +5703,7 @@ source_vars() {
 	# If PKI is not required then located vars files are
 	# not required
 	if [ "$EASYRSA_NO_VARS" ]; then
-		: # ok
+		verbose "source_vars: Explicit NO vars"
 
 	# $vars remains undefined .. no vars found
 	# 'install_data_to_pki vars-setup' will NOT
@@ -5712,7 +5713,7 @@ source_vars() {
 		# For init-pki, version and help, skip this
 		if [ "$require_pki" ]; then
 			information "\
-No Easy-RSA 'vars' configuration file exists."
+No Easy-RSA 'vars' configuration file exists.${NL}"
 		fi
 
 	# If a vars file was located then source it
@@ -5730,7 +5731,19 @@ Missing vars file:
 		# Show the vars file in use
 		[ "$require_pki" ] && information "\
 Using Easy-RSA 'vars' configuration:
-* $vars"
+* $vars${NL}"
+
+		# Setup: catch vars file changing PKI unexpectedly
+		if [ "$EASYRSA_PKI" ]; then
+			expected_pki="${expected_pki:-"$EASYRSA_PKI"}"
+		elif [ "$EASYRSA" ]; then
+			expected_pki="${expected_pki:-"$EASYRSA/pki"}"
+		elif [ "$user_vars_true" ]; then
+			expected_pki=
+		else
+			expected_pki="${expected_pki:-"$PWD/pki"}"
+		fi
+		verbose "source_vars: expected_pki=$expected_pki"
 
 		# Sanitize vars
 		if grep -q \
@@ -5772,29 +5785,25 @@ Remove 'unset' ('force_set_var' may also work)."
 
 		# Test sourcing 'vars' in a subshell
 		# shellcheck disable=1090 # can't follow .. vars
-		( . "$vars" ) || \
-			die "Failed to source the vars file."
+		if ( . "$vars" ); then
+			: # ok
+		else
+			if [ "$vars" = "${vars%/*}" ]; then
+				user_error "\
+Failed to source the vars file: '$vars'
+Perhaps you need to specify the PATH. eg: './$vars'"
+			else
+				die "\
+Failed to source the vars file: '$vars'
+The error above may have more information."
+			fi
+		fi
 
 		# Source 'vars' now
 		# shellcheck disable=1090 # can't follow .. vars
-		. "$vars" 2>/dev/null
+		. "$vars"
 		unset -v EASYRSA_CALLER
 	fi
-
-	# Set expected PKI to determine if vars has changed PKI
-	# Required for init-pki
-	case "$cmd" in
-		init-pki|clean-all)
-			if [ "$EASYRSA_PKI" ]; then
-				expected_pki="${expected_pki:-"$EASYRSA_PKI"}"
-			elif [ "$EASYRSA" ]; then
-				expected_pki="${expected_pki:-"$EASYRSA/pki"}"
-			else
-				expected_pki="${expected_pki:-"$PWD/pki"}"
-			fi
-		;;
-		*) : # ok
-	esac
 
 	# Set defaults, preferring existing env-vars if present
 	set_var EASYRSA					"$PWD"
@@ -5855,7 +5864,7 @@ Algorithm '$EASYRSA_ALGO' is invalid: Must be 'rsa', 'ec' or 'ed'"
 	# This blocks pki/vars UNEXPECTEDLY changing EASYRSA_PKI
 	if [ "$expected_pki" ]; then
 		if [ "$expected_pki" = "$EASYRSA_PKI" ]; then
-			: # ok
+			verbose "source_vars: expected_pki OK"
 		else
 			user_error "\
 'EASYRSA_PKI' is set incorrectly in the default 'vars' file.
@@ -5866,8 +5875,13 @@ Algorithm '$EASYRSA_ALGO' is invalid: Must be 'rsa', 'ec' or 'ed'"
   Uses a different PKI:
   * $EASYRSA_PKI
 
+  Expected PKI to be:
+  * $expected_pki
+
 Cannot continue with invalid configuration."
 		fi
+	else
+		verbose "source_vars: expected_pki NOT defined"
 	fi
 
 	verbose "source_vars: COMPLETED"
@@ -5920,7 +5934,8 @@ verify_working_env - install_data_to_pki vars-setup failed"
 			fi
 
 			# Last setup msg
-			information "
+			[ "$EASYRSA_VERBOSE" ] && print
+			information "\
 Using SSL:
 * $EASYRSA_OPENSSL $ssl_version${NL}"
 
