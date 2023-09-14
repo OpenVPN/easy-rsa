@@ -5736,6 +5736,11 @@ No Easy-RSA 'vars' configuration file exists!"
 
 	# If a vars file was located then source it
 	else
+		# 'vars' MUST not be a directory
+		[ -d "$vars" ] && die "\
+Missing vars file:
+* $vars"
+
 		# 'vars' now MUST exist
 		[ -e "$vars" ] || die "\
 Missing vars file:
