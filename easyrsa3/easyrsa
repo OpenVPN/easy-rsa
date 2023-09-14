@@ -1454,8 +1454,8 @@ install_data_to_pki() {
 				EASYRSA_EXT_DIR "${area}/${x509_types_dir}"
 
 			# Find other files - Omitting "$vars_file"
+			# shellcheck disable=2066 # Loop will only run once
 			for source in \
-				"$vars_file_example" \
 				"$ssl_cnf_file" \
 				# EOL
 			do
@@ -1478,16 +1478,6 @@ install_data_to_pki() {
 		verbose "\
 install_data_to_pki: $context - COMPLETED"
 		return
-	fi
-
-	# Always require a pki/vars.example file
-	if [ -e "$EASYRSA_PKI/vars.example" ];then
-		: # ok
-	else
-		create_vars_example > "$EASYRSA_PKI/vars.example" || \
-			die "install_data_to_pki - create_vars_example FAILED"
-		verbose "\
-install_data_to_pki: $context - create_vars_example OK"
 	fi
 
 	# Create PKI/vars from PKI/example
@@ -5640,7 +5630,6 @@ The 'vars' file was not found:
 
 		# set up PKI path vars - Top preference
 		pki_vars="${EASYRSA_PKI:-$PWD/pki}/vars"
-		expected_pki_vars="$pki_vars"
 
 		# Some other place vars, out of scope.
 		if [ "$EASYRSA" ]; then
