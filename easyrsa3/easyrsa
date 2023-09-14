@@ -5788,16 +5788,21 @@ Remove 'unset' ('force_set_var' may also work)."
 		# Enable sourcing 'vars'
 		# shellcheck disable=SC2034 # appears unused
 		EASYRSA_CALLER=1
+		easyrsa_path="$PATH"
+		PATH=./
 
 		# Test sourcing 'vars' in a subshell
 		# shellcheck disable=1090 # can't follow .. vars
 		( . "$vars" ) || \
-			die "Failed to source the vars file."
+			die "Failed to dry-run the vars file."
 
 		# Source 'vars' now
 		# shellcheck disable=1090 # can't follow .. vars
-		. "$vars"
-		unset -v EASYRSA_CALLER
+		. "$vars" || \
+			die "Failed to source the vars file."
+
+		PATH="$easyrsa_path"
+		unset -v EASYRSA_CALLER easyrsa_path
 		verbose "vars_setup: sourced 'vars' OK"
 	fi
 
