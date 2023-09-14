@@ -5586,10 +5586,10 @@ vars_setup() {
 	# Find vars
 	# Explicit user defined vars file:
 	if [ "$EASYRSA_NO_VARS" ]; then
+		# User set vars turns off pki/var warning
+		user_vars_true=1
 		# Found exactly zero vars files
 		found_vars=0
-		warn "\
-EASYRSA_NO_VARS is enabled, not using a 'vars' file.${NL}"
 
 	elif [ "$EASYRSA_VARS_FILE" ]; then
 		if [ -e "$EASYRSA_VARS_FILE" ]; then
@@ -5721,7 +5721,7 @@ Priority should be given to this vars file:
 	# If PKI is not required then located vars files are
 	# not required
 	if [ "$EASYRSA_NO_VARS" ]; then
-		: # ok
+		verbose "vars_setup: EASYRSA_NO_VARS enabled"
 
 	# $vars remains undefined .. no vars found
 	# 'install_data_to_pki vars-setup' will NOT
@@ -5730,19 +5730,19 @@ Priority should be given to this vars file:
 		# If PKI is required then warn
 		# For init-pki, version and help, skip this
 		if [ "$require_pki" ]; then
-			warn "\
+			information "\
 No Easy-RSA 'vars' configuration file exists!"
 		fi
 
 	# If a vars file was located then source it
 	else
 		# 'vars' MUST not be a directory
-		[ -d "$vars" ] && die "\
+		[ -d "$vars" ] && user_error "\
 Missing vars file:
 * $vars"
 
 		# 'vars' now MUST exist
-		[ -e "$vars" ] || die "\
+		[ -e "$vars" ] || user_error "\
 Missing vars file:
 * $vars"
 
@@ -5775,7 +5775,7 @@ Please, correct these errors and try again."
 			-e '[[:blank:]]unset[[:blank:]]*' \
 			"$vars"
 		then
-			warn "\
+			user_error "\
 One or more of these problems has been found in your 'vars' file:
 
 * Use of 'export':
@@ -5796,8 +5796,9 @@ Remove 'unset' ('force_set_var' may also work)."
 
 		# Source 'vars' now
 		# shellcheck disable=1090 # can't follow .. vars
-		. "$vars" 2>/dev/null
+		. "$vars"
 		unset -v EASYRSA_CALLER
+		verbose "vars_setup: sourced 'vars' OK"
 	fi
 
 	# Set defaults, preferring existing env-vars if present
