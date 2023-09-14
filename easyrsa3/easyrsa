@@ -611,7 +611,8 @@ EasyRSA version $EASYRSA_version
 Error
 -----
 $1"
-	exit 1
+	easyrsa_exit_with_error=1
+	cleanup
 } # => user_error()
 
 # verbose information
@@ -885,6 +886,7 @@ Temporary session not preserved."
 	# -> confirm(): aborted
 	# -> verify_cert(): verify failed --batch mode
 	# -> check_serial_unique(): not unique --batch mode
+	# -> user_error(): User errors but not die()
 	if [ "$easyrsa_exit_with_error" ]; then
 		verbose "Exit: Known errors = true"
 		exit 1
