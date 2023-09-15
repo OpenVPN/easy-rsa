@@ -611,7 +611,8 @@ EasyRSA version $EASYRSA_version
 Error
 -----
 $1"
-	exit 1
+	easyrsa_exit_with_error=1
+	cleanup
 } # => user_error()
 
 # verbose information
@@ -885,6 +886,7 @@ Temporary session not preserved."
 	# -> confirm(): aborted
 	# -> verify_cert(): verify failed --batch mode
 	# -> check_serial_unique(): not unique --batch mode
+	# -> user_error(): User errors but not die()
 	if [ "$easyrsa_exit_with_error" ]; then
 		verbose "Exit: Known errors = true"
 		exit 1
@@ -1293,15 +1295,6 @@ and initialize a fresh PKI here."
 		# now remove it:
 		case "$reset" in
 		hard)
-
-			# Promote use of soft init
-			confirm "Remove current 'vars' file? " yes "\
-* SECOND WARNING!!!
-
-* This will remove everything in your current PKI directory.
-  To keep your current settings use 'init-pki soft' instead.
-  Using 'init-pki soft' is recommended."
-
 			# # # shellcheck disable=SC2115 # Use "${var:?}"
 			rm -rf "$EASYRSA_PKI" || \
 				die "init-pki hard reset failed."
@@ -1390,6 +1383,9 @@ prefer_vars_in_pki_msg() {
 		return
 	fi
 
+	# Never show this message
+	return
+
 	information "
 IMPORTANT:
   The preferred location for 'vars' is within the PKI folder.
@@ -1451,8 +1447,8 @@ install_data_to_pki() {
 				EASYRSA_EXT_DIR "${area}/${x509_types_dir}"
 
 			# Find other files - Omitting "$vars_file"
+			# shellcheck disable=2066 # Loop will only run once
 			for source in \
-				"$vars_file_example" \
 				"$ssl_cnf_file" \
 				# EOL
 			do
@@ -1475,16 +1471,6 @@ install_data_to_pki() {
 		verbose "\
 install_data_to_pki: $context - COMPLETED"
 		return
-	fi
-
-	# Always require a pki/vars.example file
-	if [ -e "$EASYRSA_PKI/vars.example" ];then
-		: # ok
-	else
-		create_vars_example > "$EASYRSA_PKI/vars.example" || \
-			die "install_data_to_pki - create_vars_example FAILED"
-		verbose "\
-install_data_to_pki: $context - create_vars_example OK"
 	fi
 
 	# Create PKI/vars from PKI/example
@@ -5600,10 +5586,10 @@ vars_setup() {
 	# Find vars
 	# Explicit user defined vars file:
 	if [ "$EASYRSA_NO_VARS" ]; then
+		# User set vars turns off pki/var warning
+		user_vars_true=1
 		# Found exactly zero vars files
 		found_vars=0
-		warn "\
-EASYRSA_NO_VARS is enabled, not using a 'vars' file.${NL}"
 
 	elif [ "$EASYRSA_VARS_FILE" ]; then
 		if [ -e "$EASYRSA_VARS_FILE" ]; then
@@ -5637,7 +5623,6 @@ The 'vars' file was not found:
 
 		# set up PKI path vars - Top preference
 		pki_vars="${EASYRSA_PKI:-$PWD/pki}/vars"
-		expected_pki_vars="$pki_vars"
 
 		# Some other place vars, out of scope.
 		if [ "$EASYRSA" ]; then
@@ -5691,24 +5676,31 @@ The 'vars' file was not found:
 			[ "$e_prog_vars" ] && vars="$prog_vars"
 			[ "$e_pwd_vars" ] && vars="$pwd_vars"
 			[ "$e_easy_vars" ] && vars="$easy_vars"
-			[ "$e_pki_vars" ] && \
-				vars="$pki_vars" && vars_in_pki=1
-			: # Wipe error status
+			if [ "$e_pki_vars" ]; then
+				vars="$pki_vars"
+				vars_in_pki=1
+				user_error "\
+Use of a default 'vars' file in the default PKI is prohibited.
+Please move the 'pki/vars' file to the working directory:
+* ${pwd_vars%/vars}/"
+			fi
 		;;
 		*)
-			[ "$e_pki_vars" ] && print "Found: $pki_vars"
-			[ "$e_easy_vars" ] && print "Found: $easy_vars"
-			[ "$e_pwd_vars" ] && print "Found: $pwd_vars"
-			[ "$e_prog_vars" ] && print "Found: $prog_vars"
+			[ "$e_pki_vars" ] && \
+				found_msg="${NL} * Found: $pki_vars"
+			[ "$e_easy_vars" ] && \
+				found_msg="${found_msg}${NL} * Found: $easy_vars"
+			[ "$e_pwd_vars" ] && \
+				found_msg="${found_msg}${NL} * Found: $pwd_vars"
+			[ "$e_prog_vars" ] && \
+				found_msg="${found_msg}${NL} * Found: $prog_vars"
 
-			# For init-pki, version and help, skip this
-			if [ "$require_pki" ]; then
-				user_error "\
-Conflicting 'vars' files found.
+			user_error "\
+Conflicting 'vars' files found:
+$found_msg
 
-Priority should be given to your PKI vars file:
-* $expected_pki_vars"
-			fi
+Priority should be given to this vars file:
+* $pwd_vars"
 
 			# For init-pki, pki/vars will be deleted
 			# However, another vars file exists
@@ -5729,7 +5721,7 @@ Priority should be given to your PKI vars file:
 	# If PKI is not required then located vars files are
 	# not required
 	if [ "$EASYRSA_NO_VARS" ]; then
-		: # ok
+		verbose "vars_setup: EASYRSA_NO_VARS enabled"
 
 	# $vars remains undefined .. no vars found
 	# 'install_data_to_pki vars-setup' will NOT
@@ -5738,14 +5730,19 @@ Priority should be given to your PKI vars file:
 		# If PKI is required then warn
 		# For init-pki, version and help, skip this
 		if [ "$require_pki" ]; then
-			warn "\
+			information "\
 No Easy-RSA 'vars' configuration file exists!"
 		fi
 
 	# If a vars file was located then source it
 	else
+		# 'vars' MUST not be a directory
+		[ -d "$vars" ] && user_error "\
+Missing vars file:
+* $vars"
+
 		# 'vars' now MUST exist
-		[ -e "$vars" ] || die "\
+		[ -e "$vars" ] || user_error "\
 Missing vars file:
 * $vars"
 
@@ -5778,7 +5775,7 @@ Please, correct these errors and try again."
 			-e '[[:blank:]]unset[[:blank:]]*' \
 			"$vars"
 		then
-			warn "\
+			user_error "\
 One or more of these problems has been found in your 'vars' file:
 
 * Use of 'export':
@@ -5791,16 +5788,22 @@ Remove 'unset' ('force_set_var' may also work)."
 		# Enable sourcing 'vars'
 		# shellcheck disable=SC2034 # appears unused
 		EASYRSA_CALLER=1
+		easyrsa_path="$PATH"
+		PATH=./
 
 		# Test sourcing 'vars' in a subshell
 		# shellcheck disable=1090 # can't follow .. vars
 		( . "$vars" ) || \
-			die "Failed to source the vars file."
+			die "Failed to dry-run the vars file."
 
 		# Source 'vars' now
 		# shellcheck disable=1090 # can't follow .. vars
-		. "$vars" 2>/dev/null
-		unset -v EASYRSA_CALLER
+		. "$vars" || \
+			die "Failed to source the vars file."
+
+		PATH="$easyrsa_path"
+		unset -v EASYRSA_CALLER easyrsa_path
+		verbose "vars_setup: sourced 'vars' OK"
 	fi
 
 	# Set defaults, preferring existing env-vars if present
