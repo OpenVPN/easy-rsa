@@ -4834,6 +4834,7 @@ db_date_to_iso_8601_date - input error"
 
 	# Assign iso_8601 date
 	out_date="${yyyy}-${mm}-${dd} ${HH}:${MM}:${SS}${TZ}"
+	verbose "db_date_to_iso_8601_date: out_date=$out_date"
 
 	# Return out_date
 	force_set_var "$2" "$out_date" || die "\
@@ -5086,10 +5087,14 @@ expire_status: FALL-BACK completed"
 
 	else
 		verbose "expire_status: cert does NOT exist"
-		# Translate db date to usable date
+		# Translate db date to 8601_date
 		cert_not_after_date=
 		db_date_to_iso_8601_date \
 			"$db_notAfter" cert_not_after_date
+
+		# Translate 8601_date to time-stamp-seconds
+		iso_8601_timestamp_to_seconds \
+			"$cert_not_after_date" cert_expire_date_s
 		# Cert does not exist
 	fi
 
