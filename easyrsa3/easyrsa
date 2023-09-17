@@ -469,6 +469,9 @@ cmd_help() {
 		# Test features
 		text_only=1
 		text="
+  Print vars.example here-doc to stdout:
+    make-vars
+
   Make safessl-easyrsa.cnf file:
     mss|make-safe-ssl
 
@@ -7302,6 +7305,14 @@ case "$cmd" in
 			*)
 				require_ca=1
 		esac
+esac
+
+# Run these commands with NO setup
+case "$cmd" in
+	make-vars)
+		create_vars_example
+		cleanup ok
+	;;
 esac
 
 # Intelligent env-var detection and auto-loading:
