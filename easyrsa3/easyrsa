@@ -5830,6 +5830,7 @@ Remove 'unset' ('force_set_var' may also work)."
 		# shellcheck disable=SC2034 # appears unused
 		EASYRSA_CALLER=1
 		easyrsa_path="$PATH"
+		# shellcheck disable=SC2123 # PATH is the shell ..
 		PATH=./
 
 		# Test sourcing 'vars' in a subshell
