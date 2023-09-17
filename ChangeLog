@@ -1,6 +1,8 @@
 Easy-RSA 3 ChangeLog
 
 3.2.0 (TBD)
+
+3.1.7 (2023-10-13)
    * New command: make-vars - Print vars.example (here-doc) to stdout (#1024)
    * show-expire: Calculate cert. expire seconds from DB date (#1023)
    * Forbid "default vars in the default PKI" for all commands (#1021)
