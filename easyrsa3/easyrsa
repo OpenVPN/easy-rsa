@@ -5625,13 +5625,14 @@ vars_setup() {
 	vars=
 
 	# Find vars
-	# Explicit user defined vars file:
+	# User set vars '$user_vars_true' takes priority
+	# Deliberate NO vars
 	if [ "$EASYRSA_NO_VARS" ]; then
-		# User set vars turns off pki/var warning
 		user_vars_true=1
 		# Found exactly zero vars files
 		found_vars=0
 
+	# Priority: Explicit user defined vars file:
 	elif [ "$EASYRSA_VARS_FILE" ]; then
 		if [ -e "$EASYRSA_VARS_FILE" ]; then
 			vars="$EASYRSA_VARS_FILE"
@@ -5646,45 +5647,58 @@ The 'vars' file was not found:
 * $EASYRSA_VARS_FILE"
 		fi
 
+	# Secondary: Setting EASYRSA forces vars to EASYRSA/vars
+	elif [ "$EASYRSA" ]; then
+		if [ -e "$EASYRSA/vars" ]; then
+			vars="${EASYRSA}/vars"
+			user_vars_true=1
+			found_vars=1
+		else
+			# Allow to run without EASYRSA/vars file
+			user_vars_true=1
+			found_vars=0
+		fi
+
 	# Otherwise, find vars
 	else
 
 		# set up program path
+		# Program dir vars - This location is least wanted.
 		prog_file="$0"
 		prog_dir="${prog_file%/*}"
 		if [ "$prog_dir" = . ] || [ "$prog_dir" = "$PWD" ]
 		then
 			prog_in_pwd=1
+			unset -v prog_vars
 		else
+			prog_vars="${prog_dir}/vars"
 			unset -v prog_in_pwd
 		fi
 
-		# Program dir vars - This location is least wanted.
-		prog_vars="${prog_dir}/vars"
-
-		# set up PKI path vars - Top preference
-		pki_vars="${EASYRSA_PKI:-$PWD/pki}/vars"
-
-		# Some other place vars, out of scope.
-		if [ "$EASYRSA" ]; then
-			easy_vars="${EASYRSA}/vars"
+		# If EASYRSA_PKI is set then it is user set,
+		# allow use of the default vars in the PKI
+		if [ "$EASYRSA_PKI" ]; then
+			pki_vars="${EASYRSA_PKI}/vars"
+			user_pki_true=1
+			unset -v default_pki_true
 		else
-			unset -v easy_vars
+			# default pki/vars
+			# if this conflicts then bail
+			pki_vars="${PWD}/pki/vars"
+			default_pki_true=1
+			unset -v user_pki_true
 		fi
 
-		# vars of last resort
+		# vars of last resort; The Default
 		pwd_vars="$PWD/vars"
 
 		# Clear flags - This is the preferred order to find:
 		unset -v \
-			e_pki_vars e_easy_vars e_pwd_vars e_prog_vars \
+			e_pki_vars e_pwd_vars e_prog_vars \
 			found_vars vars_in_pki
 
 		# PKI location, if present:
 		[ -e "$pki_vars" ] && e_pki_vars=1
-
-		# EASYRSA, if defined:
-		[ -e "$easy_vars" ] && e_easy_vars=1
 
 		# vars of last resort
 		[ -e "$pwd_vars" ] && e_pwd_vars=1
@@ -5692,16 +5706,9 @@ The 'vars' file was not found:
 		# program location:
 		[ -e "$prog_vars" ] && e_prog_vars=1
 
-		# Filter duplicates
-		if [ "$e_prog_vars" ] && [ "$e_pwd_vars" ] && \
-			[ "$prog_in_pwd" ]
-		then
-			unset -v prog_vars e_prog_vars
-		fi
-
 		# Allow only one vars to be found, No exceptions!
 		found_vars="$((
-			e_pki_vars + e_easy_vars + e_pwd_vars + e_prog_vars
+			e_pki_vars + e_pwd_vars + e_prog_vars
 			))"
 		verbose "vars_setup: found_vars = '$found_vars'"
 
@@ -5716,45 +5723,33 @@ The 'vars' file was not found:
 			# then assign $vars
 			[ "$e_prog_vars" ] && vars="$prog_vars"
 			[ "$e_pwd_vars" ] && vars="$pwd_vars"
-			[ "$e_easy_vars" ] && vars="$easy_vars"
 			if [ "$e_pki_vars" ]; then
 				vars="$pki_vars"
 				vars_in_pki=1
-				user_error "\
-Use of a default 'vars' file in the default PKI is prohibited.
-Please move the 'pki/vars' file to the working directory:
-* ${pwd_vars%/vars}/"
+			else
+				unset -v vars_in_pki
 			fi
 		;;
 		*)
+			found_msg=""
 			[ "$e_pki_vars" ] && \
-				found_msg="${NL} * Found: $pki_vars"
-			[ "$e_easy_vars" ] && \
-				found_msg="${found_msg}${NL} * Found: $easy_vars"
+				found_msg="${found_msg}${NL} * Found pki_vars : $pki_vars"
 			[ "$e_pwd_vars" ] && \
-				found_msg="${found_msg}${NL} * Found: $pwd_vars"
+				found_msg="${found_msg}${NL} * Found pwd_vars : $pwd_vars"
 			[ "$e_prog_vars" ] && \
-				found_msg="${found_msg}${NL} * Found: $prog_vars"
+				found_msg="${found_msg}${NL} * Found prog_vars: $prog_vars"
 
 			user_error "\
 Conflicting 'vars' files found:
 $found_msg
 
-Priority should be given to this vars file:
-* $pwd_vars"
-
-			# For init-pki, pki/vars will be deleted
-			# However, another vars file exists
-			# so don't create pki/vars
-			no_new_vars=1
-			verbose "vars_setup: no_new_vars = '$no_new_vars'"
+Use option --vars=<path-to/FILE> to define the vars file
+or remove the conflicting vars files."
 		esac
-
 		verbose "vars_setup: vars = '$vars'"
 
 		# Clean up
-		unset -v prog_vars pwd_vars easy_vars pki_vars \
-				expected_pki_vars
+		unset -v prog_vars pwd_vars pki_vars
 	# END: Find vars
 	fi
 
