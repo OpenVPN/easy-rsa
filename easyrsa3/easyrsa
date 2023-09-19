@@ -5662,21 +5662,8 @@ The 'vars' file was not found:
 	# Otherwise, find vars
 	else
 
-		# set up program path
-		# Program dir vars - This location is least wanted.
-		prog_file="$0"
-		prog_dir="${prog_file%/*}"
-		if [ "$prog_dir" = . ] || [ "$prog_dir" = "$PWD" ]
-		then
-			prog_in_pwd=1
-			unset -v prog_vars
-		else
-			prog_vars="${prog_dir}/vars"
-			unset -v prog_in_pwd
-		fi
-
 		# If EASYRSA_PKI is set then it is user set,
-		# allow use of the default vars in the PKI
+		# allow use of the default vars in the set PKI
 		if [ "$EASYRSA_PKI" ]; then
 			pki_vars="${EASYRSA_PKI}/vars"
 			user_pki_true=1
@@ -5694,7 +5681,7 @@ The 'vars' file was not found:
 
 		# Clear flags - This is the preferred order to find:
 		unset -v \
-			e_pki_vars e_pwd_vars e_prog_vars \
+			e_pki_vars e_pwd_vars \
 			found_vars vars_in_pki
 
 		# PKI location, if present:
@@ -5703,12 +5690,9 @@ The 'vars' file was not found:
 		# vars of last resort
 		[ -e "$pwd_vars" ] && e_pwd_vars=1
 
-		# program location:
-		[ -e "$prog_vars" ] && e_prog_vars=1
-
 		# Allow only one vars to be found, No exceptions!
 		found_vars="$((
-			e_pki_vars + e_pwd_vars + e_prog_vars
+			e_pki_vars + e_pwd_vars
 			))"
 		verbose "vars_setup: found_vars = '$found_vars'"
 
@@ -5721,7 +5705,6 @@ The 'vars' file was not found:
 		1)
 			# If a SINGLE vars file is found
 			# then assign $vars
-			[ "$e_prog_vars" ] && vars="$prog_vars"
 			[ "$e_pwd_vars" ] && vars="$pwd_vars"
 			if [ "$e_pki_vars" ]; then
 				vars="$pki_vars"
@@ -5736,8 +5719,6 @@ The 'vars' file was not found:
 				found_msg="${found_msg}${NL} * Found pki_vars : $pki_vars"
 			[ "$e_pwd_vars" ] && \
 				found_msg="${found_msg}${NL} * Found pwd_vars : $pwd_vars"
-			[ "$e_prog_vars" ] && \
-				found_msg="${found_msg}${NL} * Found prog_vars: $prog_vars"
 
 			user_error "\
 Conflicting 'vars' files found:
@@ -5749,7 +5730,7 @@ or remove the conflicting vars files."
 		verbose "vars_setup: vars = '$vars'"
 
 		# Clean up
-		unset -v prog_vars pwd_vars pki_vars
+		unset -v pwd_vars pki_vars
 	# END: Find vars
 	fi
 
