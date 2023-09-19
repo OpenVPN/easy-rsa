@@ -5665,15 +5665,16 @@ The 'vars' file was not found:
 		# If EASYRSA_PKI is set then it is user set,
 		# allow use of the default vars in the set PKI
 		if [ "$EASYRSA_PKI" ]; then
+			# EASYRSA_PKI will not be changed by vars
 			pki_vars="${EASYRSA_PKI}/vars"
-			user_pki_true=1
-			unset -v default_pki_true
 		else
 			# default pki/vars
 			# if this conflicts then bail
 			pki_vars="${PWD}/pki/vars"
-			default_pki_true=1
-			unset -v user_pki_true
+
+			# Setup "catch EXPECTED PKI changed"
+			# auto-load 'pki/vars' is FORBIDDEN to change PKI
+			expected_pki="${PWD}/pki"
 		fi
 
 		# vars of last resort; The Default
@@ -5877,6 +5878,16 @@ Algorithm '$EASYRSA_ALGO' is invalid: Must be 'rsa', 'ec' or 'ed'"
 	set_var EASYRSA_KDC_REALM		"CHANGEME.EXAMPLE.COM"
 
 	set_var EASYRSA_MAX_TEMP		4
+
+	# Catch unexpected PKI change
+	if [ "$expected_pki" ]; then
+		[ "$expected_pki" = "$EASYRSA_PKI" ] || \
+			user_error "\
+The PKI was unexpectedly changed by the vars file.
+vars    : $vars
+Expected: $expected_pki
+Set     : $EASYRSA_PKI"
+	fi
 
 	# if the vars file in use is not in the PKI
 	# and not user defined then Show the messages
@@ -7040,6 +7051,7 @@ unset -v \
 	alias_days \
 	prohibit_no_pass \
 	found_vars no_new_vars user_vars_true \
+	expected_pki \
 	do_build_full error_build_full_cleanup \
 	internal_batch \
 	easyrsa_exit_with_error error_info
