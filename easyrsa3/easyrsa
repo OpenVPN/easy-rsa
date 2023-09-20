@@ -546,9 +546,10 @@ General options:
 --raw|raw-ca    : Build CA with password via RAW SSL input
 
 --vars=FILE     : Define a specific 'vars' file to use for Easy-RSA config
-                  (Default vars file is in the EasyRSA PKI directory)
---pki-dir=DIR   : Declare the PKI directory
+                  (Default vars file is in the current working directory)
+--pki=DIR       : Declare the PKI directory
                   (Default PKI directory is sub-directory 'pki')
+                  See Advanced.md for in depth usage.
 
 --ssl-conf=FILE : Define a specific OpenSSL config file for Easy-RSA to use
                   (Default config file is in the EasyRSA PKI directory)
@@ -5884,9 +5885,10 @@ Algorithm '$EASYRSA_ALGO' is invalid: Must be 'rsa', 'ec' or 'ed'"
 		[ "$expected_pki" = "$EASYRSA_PKI" ] || \
 			user_error "\
 The PKI was unexpectedly changed by the vars file.
-vars    : $vars
-Expected: $expected_pki
-Set     : $EASYRSA_PKI"
+
+ * vars    : $vars
+ * Expected: $expected_pki
+ * Set     : $EASYRSA_PKI"
 	fi
 
 	# if the vars file in use is not in the PKI
@@ -7089,7 +7091,7 @@ while :; do
 	--enddate)
 		export EASYRSA_END_DATE="$val"
 		;;
-	--pki-dir)
+	--pki-dir|--pki)
 		export EASYRSA_PKI="$val"
 		;;
 	--tmp-dir)
