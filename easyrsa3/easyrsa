@@ -5722,12 +5722,15 @@ The 'vars' file was not found:
 			[ "$e_pwd_vars" ] && \
 				found_msg="${found_msg}${NL} * Found pwd_vars : $pwd_vars"
 
-			user_error "\
+			# If command is not 'help' etc then Error out
+			[ "$ignore_vars" ] || user_error "\
 Conflicting 'vars' files found:
 $found_msg
 
 Use option --vars=<path-to/FILE> to define the vars file
 or remove the conflicting vars files."
+
+			verbose "vars_setup: Conflicting vars IGNORED"
 		esac
 		verbose "vars_setup: vars = '$vars'"
 
@@ -7280,10 +7283,11 @@ cmd="$1"
 # Establish PKI and CA initialisation requirements
 # This avoids unnecessary warnings and notices
 case "$cmd" in
-	init-pki|clean-all|\
-	help|-h|--help|--usage|\
-	show-host|\
-	version|upgrade|'')
+	''|help|-h|--help|--usage|version|upgrade|show-host)
+		unset -v require_pki require_ca
+		ignore_vars=1
+	;;
+	init-pki|clean-all)
 		unset -v require_pki require_ca
 	;;
 	*)
