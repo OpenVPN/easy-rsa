@@ -546,9 +546,10 @@ General options:
 --raw|raw-ca    : Build CA with password via RAW SSL input
 
 --vars=FILE     : Define a specific 'vars' file to use for Easy-RSA config
-                  (Default vars file is in the EasyRSA PKI directory)
---pki-dir=DIR   : Declare the PKI directory
+                  (Default vars file is in the current working directory)
+--pki=DIR       : Declare the PKI directory
                   (Default PKI directory is sub-directory 'pki')
+                  See Advanced.md for in depth usage.
 
 --ssl-conf=FILE : Define a specific OpenSSL config file for Easy-RSA to use
                   (Default config file is in the EasyRSA PKI directory)
@@ -5622,13 +5623,14 @@ vars_setup() {
 	vars=
 
 	# Find vars
-	# Explicit user defined vars file:
+	# User set vars '$user_vars_true' takes priority
+	# Deliberate NO vars
 	if [ "$EASYRSA_NO_VARS" ]; then
-		# User set vars turns off pki/var warning
 		user_vars_true=1
 		# Found exactly zero vars files
 		found_vars=0
 
+	# Priority: Explicit user defined vars file:
 	elif [ "$EASYRSA_VARS_FILE" ]; then
 		if [ -e "$EASYRSA_VARS_FILE" ]; then
 			vars="$EASYRSA_VARS_FILE"
@@ -5643,62 +5645,53 @@ The 'vars' file was not found:
 * $EASYRSA_VARS_FILE"
 		fi
 
+	# Secondary: Setting EASYRSA forces vars to EASYRSA/vars
+	elif [ "$EASYRSA" ]; then
+		if [ -e "$EASYRSA/vars" ]; then
+			vars="${EASYRSA}/vars"
+			user_vars_true=1
+			found_vars=1
+		else
+			# Allow to run without EASYRSA/vars file
+			user_vars_true=1
+			found_vars=0
+		fi
+
 	# Otherwise, find vars
 	else
 
-		# set up program path
-		prog_file="$0"
-		prog_dir="${prog_file%/*}"
-		if [ "$prog_dir" = . ] || [ "$prog_dir" = "$PWD" ]
-		then
-			prog_in_pwd=1
+		# If EASYRSA_PKI is set then it is user set,
+		# allow use of the default vars in the set PKI
+		if [ "$EASYRSA_PKI" ]; then
+			# EASYRSA_PKI will not be changed by vars
+			pki_vars="${EASYRSA_PKI}/vars"
 		else
-			unset -v prog_in_pwd
+			# default pki/vars
+			# if this conflicts then bail
+			pki_vars="${PWD}/pki/vars"
+
+			# Setup "catch EXPECTED PKI changed"
+			# auto-load 'pki/vars' is FORBIDDEN to change PKI
+			expected_pki="${PWD}/pki"
 		fi
 
-		# Program dir vars - This location is least wanted.
-		prog_vars="${prog_dir}/vars"
-
-		# set up PKI path vars - Top preference
-		pki_vars="${EASYRSA_PKI:-$PWD/pki}/vars"
-
-		# Some other place vars, out of scope.
-		if [ "$EASYRSA" ]; then
-			easy_vars="${EASYRSA}/vars"
-		else
-			unset -v easy_vars
-		fi
-
-		# vars of last resort
+		# vars of last resort; The Default
 		pwd_vars="$PWD/vars"
 
 		# Clear flags - This is the preferred order to find:
 		unset -v \
-			e_pki_vars e_easy_vars e_pwd_vars e_prog_vars \
+			e_pki_vars e_pwd_vars \
 			found_vars vars_in_pki
 
 		# PKI location, if present:
 		[ -e "$pki_vars" ] && e_pki_vars=1
 
-		# EASYRSA, if defined:
-		[ -e "$easy_vars" ] && e_easy_vars=1
-
 		# vars of last resort
 		[ -e "$pwd_vars" ] && e_pwd_vars=1
 
-		# program location:
-		[ -e "$prog_vars" ] && e_prog_vars=1
-
-		# Filter duplicates
-		if [ "$e_prog_vars" ] && [ "$e_pwd_vars" ] && \
-			[ "$prog_in_pwd" ]
-		then
-			unset -v prog_vars e_prog_vars
-		fi
-
 		# Allow only one vars to be found, No exceptions!
 		found_vars="$((
-			e_pki_vars + e_easy_vars + e_pwd_vars + e_prog_vars
+			e_pki_vars + e_pwd_vars
 			))"
 		verbose "vars_setup: found_vars = '$found_vars'"
 
@@ -5711,47 +5704,38 @@ The 'vars' file was not found:
 		1)
 			# If a SINGLE vars file is found
 			# then assign $vars
-			[ "$e_prog_vars" ] && vars="$prog_vars"
 			[ "$e_pwd_vars" ] && vars="$pwd_vars"
-			[ "$e_easy_vars" ] && vars="$easy_vars"
 			if [ "$e_pki_vars" ]; then
 				vars="$pki_vars"
 				vars_in_pki=1
-				user_error "\
-Use of a default 'vars' file in the default PKI is prohibited.
-Please move the 'pki/vars' file to the working directory:
-* ${pwd_vars%/vars}/"
+			else
+				unset -v vars_in_pki
 			fi
 		;;
 		*)
+			found_msg=""
 			[ "$e_pki_vars" ] && \
-				found_msg="${NL} * Found: $pki_vars"
-			[ "$e_easy_vars" ] && \
-				found_msg="${found_msg}${NL} * Found: $easy_vars"
+				found_msg="${found_msg}${NL} * Found pki_vars : $pki_vars"
 			[ "$e_pwd_vars" ] && \
-				found_msg="${found_msg}${NL} * Found: $pwd_vars"
-			[ "$e_prog_vars" ] && \
-				found_msg="${found_msg}${NL} * Found: $prog_vars"
+				found_msg="${found_msg}${NL} * Found pwd_vars : $pwd_vars"
 
-			user_error "\
+			# If command is not 'help' etc then Error out
+			[ "$ignore_vars" ] || user_error "\
 Conflicting 'vars' files found:
 $found_msg
 
-Priority should be given to this vars file:
-* $pwd_vars"
+Use option --vars=<FILE> to define the vars file
+or remove the conflicting vars files.
 
-			# For init-pki, pki/vars will be deleted
-			# However, another vars file exists
-			# so don't create pki/vars
-			no_new_vars=1
-			verbose "vars_setup: no_new_vars = '$no_new_vars'"
+Easy-RSA recommends moving your vars file to your PKI and using
+option --pki=<DIR>, which will auto-select the correct vars file."
+
+			verbose "vars_setup: Conflicting vars IGNORED"
 		esac
-
 		verbose "vars_setup: vars = '$vars'"
 
 		# Clean up
-		unset -v prog_vars pwd_vars easy_vars pki_vars \
-				expected_pki_vars
+		unset -v pwd_vars pki_vars
 	# END: Find vars
 	fi
 
@@ -5898,6 +5882,17 @@ Algorithm '$EASYRSA_ALGO' is invalid: Must be 'rsa', 'ec' or 'ed'"
 	set_var EASYRSA_KDC_REALM		"CHANGEME.EXAMPLE.COM"
 
 	set_var EASYRSA_MAX_TEMP		4
+
+	# Catch unexpected PKI change
+	if [ "$expected_pki" ]; then
+		[ "$expected_pki" = "$EASYRSA_PKI" ] || \
+			user_error "\
+The PKI was unexpectedly changed by the vars file.
+
+ * vars    : $vars
+ * Expected: $expected_pki
+ * Set     : $EASYRSA_PKI"
+	fi
 
 	# if the vars file in use is not in the PKI
 	# and not user defined then Show the messages
@@ -6131,16 +6126,6 @@ fi
 
 # DO YOUR EDITS BELOW THIS POINT
 
-# This variable is used as the base location of configuration files needed by
-# easyrsa.  More specific variables for specific files (eg: EASYRSA_SSL_CONF)
-# may override this default.
-#
-# The default value of this variable is the location of the easyrsa script
-# itself, which is also where the configuration files are located in the
-# easy-rsa tree.
-#
-#set_var EASYRSA	"${0%/*}"
-
 # If your OpenSSL command is not in the system PATH, you will need to define
 # the path here. Normally this means a full path to the executable, otherwise
 # you could have left it undefined here and the shown default would be used.
@@ -6153,19 +6138,6 @@ fi
 #
 # This sample is in Windows syntax -- edit it for your path if not using PATH:
 #set_var EASYRSA_OPENSSL	"C:/Program Files/OpenSSL-Win32/bin/openssl.exe"
-
-# Edit this variable to point to your soon-to-be-created key directory.
-# By default, this will be "$PWD/pki" (ie: the "pki" subdirectory of the
-# directory you are currently in).
-#
-# WARNING: init-pki will do a rm -rf on this directory so make sure you define
-# it correctly!  Interactive mode will prompt before acting.
-#
-#set_var EASYRSA_PKI		"$PWD/pki"
-
-# Define directory for temporary subdirectories.
-#
-#set_var EASYRSA_TEMP_DIR	"$EASYRSA_PKI"
 
 # Define X509 DN mode.
 #
@@ -6253,6 +6225,10 @@ fi
 # Cut-off window for checking expiring certificates.
 #
 #set_var EASYRSA_PRE_EXPIRY_WINDOW	90
+
+# Define directory for temporary subdirectories.
+#
+#set_var EASYRSA_TEMP_DIR	"$EASYRSA_PKI"
 VARS_EXAMPLE
 } # => create_vars_example()
 
@@ -7061,6 +7037,7 @@ unset -v \
 	alias_days \
 	prohibit_no_pass \
 	found_vars no_new_vars user_vars_true \
+	expected_pki \
 	do_build_full error_build_full_cleanup \
 	internal_batch \
 	easyrsa_exit_with_error error_info
@@ -7098,7 +7075,7 @@ while :; do
 	--enddate)
 		export EASYRSA_END_DATE="$val"
 		;;
-	--pki-dir)
+	--pki-dir|--pki)
 		export EASYRSA_PKI="$val"
 		;;
 	--tmp-dir)
@@ -7283,10 +7260,11 @@ cmd="$1"
 # Establish PKI and CA initialisation requirements
 # This avoids unnecessary warnings and notices
 case "$cmd" in
-	init-pki|clean-all|\
-	help|-h|--help|--usage|\
-	show-host|\
-	version|upgrade|'')
+	''|help|-h|--help|--usage|version|upgrade|show-host)
+		unset -v require_pki require_ca
+		ignore_vars=1
+	;;
+	init-pki|clean-all)
 		unset -v require_pki require_ca
 	;;
 	*)
