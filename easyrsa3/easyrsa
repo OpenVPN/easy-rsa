@@ -5727,8 +5727,11 @@ The 'vars' file was not found:
 Conflicting 'vars' files found:
 $found_msg
 
-Use option --vars=<path-to/FILE> to define the vars file
-or remove the conflicting vars files."
+Use option --vars=<FILE> to define the vars file
+or remove the conflicting vars files.
+
+Easy-RSA recommends moving your vars file to your PKI and using
+option --pki=<DIR>, which will auto-select the correct vars file."
 
 			verbose "vars_setup: Conflicting vars IGNORED"
 		esac
