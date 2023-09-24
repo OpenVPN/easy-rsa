@@ -1310,11 +1310,6 @@ and initialize a fresh PKI here."
 			# # # shellcheck disable=SC2115 # Use "${var:?}"
 			rm -rf "$EASYRSA_PKI" || \
 				die "init-pki hard reset failed."
-
-			# If vars was in the old pki, it has been removed
-			# If vars was somewhere else, it is user defined
-			# Clear found_vars, we MUST not find pki/vars
-			[ "$vars_in_pki" ] && unset -v found_vars
 		;;
 		soft)
 		# There is no unit test for a soft reset
@@ -1487,7 +1482,7 @@ install_data_to_pki: $context - COMPLETED"
 
 	# Create PKI/vars from PKI/example
 	unset -v new_vars_true
-	if [ "$found_vars" = 1 ] || [ "$user_vars_true" ] || \
+	if [ "$user_vars_true" ] || \
 		[ "$no_new_vars" ]
 	then
 		: # ok - Do not make a PKI/vars if another vars exists
@@ -5663,7 +5658,7 @@ select_vars() {
 	fi
 
 	if [ -z "$EASYRSA_VARS_FILE" ]; then
-		information "\
+		[ "$ignore_vars" ] || information "\
 No Easy-RSA 'vars' configuration file exists!"
 		EASYRSA_NO_VARS=1
 	fi
@@ -6978,7 +6973,7 @@ unset -v \
 	makesafeconf \
 	alias_days \
 	prohibit_no_pass \
-	found_vars no_new_vars user_vars_true \
+	no_new_vars user_vars_true \
 	expected_pki \
 	do_build_full error_build_full_cleanup \
 	internal_batch \
