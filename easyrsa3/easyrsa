@@ -5609,11 +5609,212 @@ Use of --silent and --verbose is unresolvable."
 	verbose "mutual_exclusions: COMPLETED"
 } # => mutual_exclusions()
 
+# Select vars in order preference:
+# Here sourcing of 'vars' if present occurs.
+# If not present, defaults are used to support
+# running without a sourced config format.
+select_vars() {
+	# No vars file will be used
+	if [ "$EASYRSA_NO_VARS" ]; then
+		verbose "select_vars: EASYRSA_NO_VARS"
+		return
+	fi
+
+	# User specified vars file will be used ONLY
+	if [ "$EASYRSA_VARS_FILE" ]; then
+		verbose "select_vars: EASYRSA_VARS_FILE"
+		source_vars "$EASYRSA_VARS_FILE"
+		return
+	fi
+
+	# User specified PKI; if vars exists, use it ONLY
+	if [ "$EASYRSA_PKI" ]; then
+		if [ -e "$EASYRSA_PKI/vars" ]; then
+			verbose "select_vars: source EASYRSA_PKI/vars"
+			source_vars "$EASYRSA_PKI/vars"
+			return
+		fi
+	fi
+
+	# User specified EASYRSA; if vars exists, use it ONLY
+	if [ "$EASYRSA" ]; then
+		if [ -e "$EASYRSA/vars" ]; then
+			verbose "select_vars: EASYRSA/vars"
+			source_vars "$EASYRSA/vars"
+			return
+		fi
+	fi
+
+	# Default PKI; if vars exists, use it ONLY
+	if [ -e "$PWD/pki/vars" ]; then
+		# Prevent vars from changing values
+		set_var EASYRSA "$PWD"
+		set_var EASYRSA_PKI "$EASYRSA/pki"
+		verbose "select_vars: PWD/pki/vars"
+		source_vars "$PWD/pki/vars"
+		return
+	fi
+
+	# Default working dir; if vars exists, use it ONLY
+	if [ -e "$PWD/vars" ]; then
+		# Prevent vars from changing values
+		set_var EASYRSA "$PWD"
+		verbose "select_vars: PWD/vars"
+		source_vars "$PWD/vars"
+		return
+	fi
+
+	information "\
+No Easy-RSA 'vars' configuration file exists!"
+} # => setup_vars()
+
+# Source a vars file
+source_vars() {
+	# Never use vars file
+	if [ "$EASYRSA_NO_VARS" ]; then
+		verbose "source_vars: EASYRSA_NO_VARS"
+		return
+	fi
+
+	# File to be sourced
+	target_file="$1"
+
+	# 'vars' MUST not be a directory
+	[ -d "$target_file" ] && user_error "\
+Missing vars file:
+* $target_file"
+
+	# 'vars' now MUST exist
+	[ -e "$target_file" ] || user_error "\
+Missing vars file:
+* $target_file"
+
+	# Installation information
+	[ "$require_pki" ] && information "\
+Using Easy-RSA 'vars' configuration:
+* $target_file"
+
+	# Sanitize vars
+	if grep -q \
+		-e 'EASYRSA_PASSIN' -e 'EASYRSA_PASSOUT' \
+		-e '[^(]`[^)]' \
+		"$target_file"
+	then
+		user_error "\
+One or more of these problems has been found in your 'vars' file:
+* $target_file
+
+* Use of 'EASYRSA_PASSIN' or 'EASYRSA_PASSOUT':
+Storing password information in the 'vars' file is not permitted.
+
+* Use of unsupported characters:
+These characters are not supported: \` backtick
+
+Please, correct these errors and try again."
+	fi
+
+	# Sanitize vars
+	if grep -q \
+		-e '[[:blank:]]export[[:blank:]]*' \
+		-e '[[:blank:]]unset[[:blank:]]*' \
+		"$target_file"
+	then
+		user_error "\
+One or more of these problems has been found in your 'vars' file:
+* $target_file
+
+* Use of 'export':
+Remove 'export' or replace it with 'set_var'.
+
+* Use of 'unset':
+Remove 'unset' ('force_set_var' may also work)."
+	fi
+
+	# Enable sourcing 'vars'
+	# shellcheck disable=SC2034 # appears unused
+	EASYRSA_CALLER=1
+	easyrsa_path="$PATH"
+	# shellcheck disable=SC2123 # PATH is the shell ..
+	PATH=./
+
+	# Test sourcing 'vars' in a subshell
+	# shellcheck disable=1090 # can't follow .. vars
+	( . "$target_file" ) || \
+		die "Failed to dry-run the '$target_file' file."
+
+	# Source 'vars' now
+	# shellcheck disable=1090 # can't follow .. vars
+	. "$target_file" || \
+		die "Failed to source the '$target_file' file."
+
+	PATH="$easyrsa_path"
+	verbose "source_vars: sourced OK '$target_file'"
+	unset -v EASYRSA_CALLER easyrsa_path target_file
+} # => source_vars()
+
+# Set defaults
+default_vars() {
+	# Set defaults, preferring existing env-vars if present
+	set_var EASYRSA					"$PWD"
+	set_var EASYRSA_OPENSSL			openssl
+	set_var EASYRSA_PKI				"$EASYRSA/pki"
+	set_var EASYRSA_DN				cn_only
+	set_var EASYRSA_REQ_COUNTRY		"US"
+	set_var EASYRSA_REQ_PROVINCE	"California"
+	set_var EASYRSA_REQ_CITY		"San Francisco"
+	set_var EASYRSA_REQ_ORG			"Copyleft Certificate Co"
+	set_var EASYRSA_REQ_EMAIL		me@example.net
+	set_var EASYRSA_REQ_OU			"My Organizational Unit"
+	set_var EASYRSA_REQ_SERIAL		""
+	set_var EASYRSA_ALGO			rsa
+	set_var EASYRSA_KEY_SIZE		2048
+
+	case "$EASYRSA_ALGO" in
+	rsa)
+		: # ok
+		# default EASYRSA_KEY_SIZE must always be set
+		# it must NOT be set selectively because it is
+		# present in the SSL config file
+	;;
+	ec)
+		set_var EASYRSA_CURVE		secp384r1
+	;;
+	ed)
+		set_var EASYRSA_CURVE		ed25519
+	;;
+	*) user_error "\
+Algorithm '$EASYRSA_ALGO' is invalid: Must be 'rsa', 'ec' or 'ed'"
+	esac
+
+	set_var EASYRSA_CA_EXPIRE		3650
+	set_var EASYRSA_CERT_EXPIRE		825
+	set_var \
+		EASYRSA_PRE_EXPIRY_WINDOW	90
+	set_var EASYRSA_CRL_DAYS		180
+	set_var EASYRSA_NS_SUPPORT		no
+	set_var EASYRSA_NS_COMMENT		\
+		"Easy-RSA (~VER~) Generated Certificate"
+
+	set_var EASYRSA_TEMP_DIR		"$EASYRSA_PKI"
+	set_var EASYRSA_REQ_CN			ChangeMe
+	set_var EASYRSA_DIGEST			sha256
+
+	set_var EASYRSA_SSL_CONF		\
+		"$EASYRSA_PKI/openssl-easyrsa.cnf"
+	set_var EASYRSA_SAFE_CONF		\
+		"$EASYRSA_PKI/safessl-easyrsa.cnf"
+
+	set_var EASYRSA_KDC_REALM		"CHANGEME.EXAMPLE.COM"
+
+	set_var EASYRSA_MAX_TEMP		4
+} # => default_vars()
+
 # vars setup
 # Here sourcing of 'vars' if present occurs.
 # If not present, defaults are used to support
 # running without a sourced config format
 vars_setup() {
+	die "vars_setup: DISABLED"
 	# Try to locate a 'vars' file in order of preference.
 	# If one is found then source it.
 	# NOTE: EASYRSA_PKI is never set here,
@@ -5758,6 +5959,7 @@ No Easy-RSA 'vars' configuration file exists!"
 
 	# If a vars file was located then source it
 	else
+
 		# 'vars' MUST not be a directory
 		[ -d "$vars" ] && user_error "\
 Missing vars file:
@@ -7288,7 +7490,10 @@ case "$cmd" in
 esac
 
 # Intelligent env-var detection and auto-loading:
-vars_setup
+# Select and source vars file
+select_vars
+# then set defaults
+default_vars
 
 # Check for conflicting input options
 mutual_exclusions
