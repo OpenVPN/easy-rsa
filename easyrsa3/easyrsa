@@ -5611,31 +5611,34 @@ select_vars() {
 	if [ "$EASYRSA_NO_VARS" ]; then
 		verbose "select_vars: EASYRSA_NO_VARS"
 		unset -v EASYRSA_VARS_FILE
+		# skip the rest of this function
+		return
+	fi
 
 	# User specified vars file will be used ONLY
-	elif [ "$EASYRSA_VARS_FILE" ]; then
+	if [ "$EASYRSA_VARS_FILE" ]; then
+		# Takes priority, nothing to do
 		verbose "select_vars: EASYRSA_VARS_FILE"
+	fi
 
 	# User specified PKI; if vars exists, use it ONLY
-	elif [ "$EASYRSA_PKI" ]; then
+	if [ "$EASYRSA_PKI" ]; then
 		if [ -e "$EASYRSA_PKI/vars" ]; then
 			verbose "select_vars: source EASYRSA_PKI/vars"
-			EASYRSA_VARS_FILE="$EASYRSA_PKI/vars"
-		else
-			EASYRSA_NO_VARS=1
+			set_var EASYRSA_VARS_FILE "$EASYRSA_PKI/vars"
 		fi
+	fi
 
 	# User specified EASYRSA; if vars exists, use it ONLY
-	elif [ "$EASYRSA" ]; then
+	if [ "$EASYRSA" ]; then
 		if [ -e "$EASYRSA/vars" ]; then
 			verbose "select_vars: EASYRSA/vars"
-			EASYRSA_VARS_FILE="$EASYRSA/vars"
-		else
-			EASYRSA_NO_VARS=1
+			set_var EASYRSA_VARS_FILE "$EASYRSA/vars"
 		fi
+	fi
 
 	# Default PKI; if vars exists, use it ONLY
-	elif [ -e "$PWD/pki/vars" ]; then
+	if [ -e "$PWD/pki/vars" ]; then
 		# Prevent vars from changing expected PKI.
 		# A vars in the PKI MUST always imply EASYRSA_PKI
 		# This is NOT backward compatible
@@ -5650,14 +5653,16 @@ select_vars() {
 		#set_var EASYRSA_PKI "$EASYRSA/pki"
 
 		verbose "select_vars: PWD/pki/vars"
-		EASYRSA_VARS_FILE="$PWD/pki/vars"
+		set_var EASYRSA_VARS_FILE "$PWD/pki/vars"
+	fi
 
 	# Default working dir; if vars exists, use it ONLY
-	elif [ -e "$PWD/vars" ]; then
+	if [ -e "$PWD/vars" ]; then
 		verbose "select_vars: PWD/vars"
-		EASYRSA_VARS_FILE="$PWD/vars"
+		set_var EASYRSA_VARS_FILE="$PWD/vars"
+	fi
 
-	else
+	if [ -z "$EASYRSA_VARS_FILE" ]; then
 		information "\
 No Easy-RSA 'vars' configuration file exists!"
 		EASYRSA_NO_VARS=1
