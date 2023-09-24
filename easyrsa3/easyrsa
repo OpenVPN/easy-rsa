@@ -5615,14 +5615,14 @@ select_vars() {
 	# User specified vars file will be used ONLY
 	elif [ "$EASYRSA_VARS_FILE" ]; then
 		verbose "select_vars: EASYRSA_VARS_FILE"
-		source_vars "$EASYRSA_VARS_FILE"
 
 	# User specified PKI; if vars exists, use it ONLY
 	elif [ "$EASYRSA_PKI" ]; then
 		if [ -e "$EASYRSA_PKI/vars" ]; then
 			verbose "select_vars: source EASYRSA_PKI/vars"
 			EASYRSA_VARS_FILE="$EASYRSA_PKI/vars"
-			source_vars "$EASYRSA_VARS_FILE"
+		else
+			EASYRSA_NO_VARS=1
 		fi
 
 	# User specified EASYRSA; if vars exists, use it ONLY
@@ -5630,7 +5630,8 @@ select_vars() {
 		if [ -e "$EASYRSA/vars" ]; then
 			verbose "select_vars: EASYRSA/vars"
 			EASYRSA_VARS_FILE="$EASYRSA/vars"
-			source_vars "$EASYRSA_VARS_FILE"
+		else
+			EASYRSA_NO_VARS=1
 		fi
 
 	# Default PKI; if vars exists, use it ONLY
@@ -5650,19 +5651,21 @@ select_vars() {
 
 		verbose "select_vars: PWD/pki/vars"
 		EASYRSA_VARS_FILE="$PWD/pki/vars"
-		source_vars "$EASYRSA_VARS_FILE"
 
 	# Default working dir; if vars exists, use it ONLY
 	elif [ -e "$PWD/vars" ]; then
 		verbose "select_vars: PWD/vars"
 		EASYRSA_VARS_FILE="$PWD/vars"
-		source_vars "$EASYRSA_VARS_FILE"
 
 	else
 		information "\
 No Easy-RSA 'vars' configuration file exists!"
+		EASYRSA_NO_VARS=1
 	fi
-} # => setup_vars()
+
+	# source the vars file
+	source_vars "$EASYRSA_VARS_FILE"
+} # => select_vars()
 
 # Source a vars file
 source_vars() {
