@@ -65,13 +65,6 @@ A list of commands is shown below:
 	work_dir="${EASYRSA:-undefined}"
 	pki_dir="${EASYRSA_PKI:-undefined}"
 
-	# vars file details
-	case "$found_vars" in
-		0) vars_status="Missing or undefined" ;;
-		1) vars_status="$vars" ;;
-		*) vars_status="WARNING: Multiple conflicting vars files!"
-	esac
-
 	# CA Status
 	if verify_ca_init test; then
 		CA_cert="$EASYRSA_PKI/ca.crt"
@@ -92,7 +85,7 @@ A list of commands is shown below:
 DIRECTORY STATUS (commands would take effect on these locations)
      EASYRSA: $work_dir
          PKI: $pki_dir
-   vars-file: $vars_status
+   vars-file: ${EASYRSA_VARS_FILE:-Missing or undefined}
   x509-types: ${EASYRSA_EXT_DIR:-Missing or undefined}
 $CA_status"
 
