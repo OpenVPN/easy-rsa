@@ -80,12 +80,20 @@ A list of commands is shown below:
 		CA_status="   CA status: CA has not been built"
 	fi
 
+	if [ "$invalid_vars" ]; then
+		ivmsg="
+   *WARNING*: \
+Invalid vars setting for EASYRSA and/or EASYRSA_PKI${NL}"
+	else
+		unset -v ivmsg
+	fi
+
 	# Print details
 	print "
 DIRECTORY STATUS (commands would take effect on these locations)
      EASYRSA: $work_dir
          PKI: $pki_dir
-   vars-file: ${EASYRSA_VARS_FILE:-Missing or undefined}
+   vars-file: ${EASYRSA_VARS_FILE:-Missing or undefined}${ivmsg}
   x509-types: ${EASYRSA_EXT_DIR:-Missing or undefined}
 $CA_status"
 
@@ -5658,7 +5666,7 @@ select_vars() {
 	fi
 
 	if [ -z "$EASYRSA_VARS_FILE" ]; then
-		[ "$ignore_vars" ] || information "\
+		[ "$require_pki" ] && information "\
 No Easy-RSA 'vars' configuration file exists!"
 		EASYRSA_NO_VARS=1
 	fi
@@ -5817,25 +5825,37 @@ validate_default_vars() {
 	if [ "$expected_EASYRSA" ]; then
 		[ "$expected_EASYRSA" = "$EASYRSA" ] || \
 			unexpected_error="\
-  EASYRSA: $EASYRSA -- expected: $expected_EASYRSA${NL}"
+       EASYRSA: $EASYRSA
+      Expected: $expected_EASYRSA"
 	fi
 
 	# EASYRSA_PKI
 	if [ "$expected_EASYRSA_PKI" ]; then
-		[ "$expected_EASYRSA_PKI" = "$EASYRSA_PKI" ] || \
+		if [ "$expected_EASYRSA_PKI" = "$EASYRSA_PKI" ]; then
+			: # ok
+		else
+			if [ "$unexpected_error" ]; then
+				# Add a new-line Extra separator, for clarity
+				unexpected_error="${unexpected_error}${NL}${NL}"
+			fi
 			unexpected_error="${unexpected_error}\
-  EASYRSA_PKI: $EASYRSA_PKI -- expected: $expected_EASYRSA_PKI"
+   EASYRSA_PKI: $EASYRSA_PKI
+      Expected: $expected_EASYRSA_PKI"
+		fi
 	fi
 
 	# Return no error
 	[ -z "$unexpected_error" ] && return
 
-	# This is an unacceptable error
-	user_error "\
+	# This is an almost unacceptable error
+	invalid_vars=1
+	[ "$ignore_vars" ] || user_error "\
 The values in the vars file have unexpectedly changed the values for
 EASYRSA and/or EASYRSA_PKI. The default pki/vars file is forbidden to
-change these values:
-  vars-file: $EASYRSA_VARS_FILE
+change these values.
+
+     vars-file: $EASYRSA_VARS_FILE
+
 ${unexpected_error}"
 } # => validate_default_vars()
 
@@ -6973,8 +6993,8 @@ unset -v \
 	makesafeconf \
 	alias_days \
 	prohibit_no_pass \
+	invalid_vars \
 	no_new_vars user_vars_true \
-	expected_pki \
 	do_build_full error_build_full_cleanup \
 	internal_batch \
 	easyrsa_exit_with_error error_info
