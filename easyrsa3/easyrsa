@@ -5617,55 +5617,58 @@ select_vars() {
 	# No vars file will be used
 	if [ "$EASYRSA_NO_VARS" ]; then
 		verbose "select_vars: EASYRSA_NO_VARS"
-		return
-	fi
+		unset -v EASYRSA_VARS_FILE
 
 	# User specified vars file will be used ONLY
-	if [ "$EASYRSA_VARS_FILE" ]; then
+	elif [ "$EASYRSA_VARS_FILE" ]; then
 		verbose "select_vars: EASYRSA_VARS_FILE"
 		source_vars "$EASYRSA_VARS_FILE"
-		return
-	fi
 
 	# User specified PKI; if vars exists, use it ONLY
-	if [ "$EASYRSA_PKI" ]; then
+	elif [ "$EASYRSA_PKI" ]; then
 		if [ -e "$EASYRSA_PKI/vars" ]; then
 			verbose "select_vars: source EASYRSA_PKI/vars"
-			source_vars "$EASYRSA_PKI/vars"
-			return
+			EASYRSA_VARS_FILE="$EASYRSA_PKI/vars"
+			source_vars "$EASYRSA_VARS_FILE"
 		fi
-	fi
 
 	# User specified EASYRSA; if vars exists, use it ONLY
-	if [ "$EASYRSA" ]; then
+	elif [ "$EASYRSA" ]; then
 		if [ -e "$EASYRSA/vars" ]; then
 			verbose "select_vars: EASYRSA/vars"
-			source_vars "$EASYRSA/vars"
-			return
+			EASYRSA_VARS_FILE="$EASYRSA/vars"
+			source_vars "$EASYRSA_VARS_FILE"
 		fi
-	fi
 
 	# Default PKI; if vars exists, use it ONLY
-	if [ -e "$PWD/pki/vars" ]; then
-		# Prevent vars from changing values
-		set_var EASYRSA "$PWD"
-		set_var EASYRSA_PKI "$EASYRSA/pki"
+	elif [ -e "$PWD/pki/vars" ]; then
+		# Prevent vars from changing expected PKI.
+		# A vars in the PKI MUST always imply EASYRSA_PKI
+		# This is NOT backward compatible
+		# Use expected value comparison for v3.1.7
+		expected_EASYRSA="$PWD"
+		expected_EASYRSA_PKI="$PWD/pki"
+		#
+		# Use this for v3.2.0
+		# If the pki/vars sets a different PKI then
+		# there will be no PKI in the default /pki
+		#set_var EASYRSA "$PWD"
+		#set_var EASYRSA_PKI "$EASYRSA/pki"
+
 		verbose "select_vars: PWD/pki/vars"
-		source_vars "$PWD/pki/vars"
-		return
-	fi
+		EASYRSA_VARS_FILE="$PWD/pki/vars"
+		source_vars "$EASYRSA_VARS_FILE"
 
 	# Default working dir; if vars exists, use it ONLY
-	if [ -e "$PWD/vars" ]; then
-		# Prevent vars from changing values
-		set_var EASYRSA "$PWD"
+	elif [ -e "$PWD/vars" ]; then
 		verbose "select_vars: PWD/vars"
-		source_vars "$PWD/vars"
-		return
-	fi
+		EASYRSA_VARS_FILE="$PWD/vars"
+		source_vars "$EASYRSA_VARS_FILE"
 
-	information "\
+	else
+		information "\
 No Easy-RSA 'vars' configuration file exists!"
+	fi
 } # => setup_vars()
 
 # Source a vars file
@@ -5808,6 +5811,37 @@ Algorithm '$EASYRSA_ALGO' is invalid: Must be 'rsa', 'ec' or 'ed'"
 
 	set_var EASYRSA_MAX_TEMP		4
 } # => default_vars()
+
+# Validate expected values for EASYRSA and EASYRSA_PKI
+validate_default_vars() {
+	unset -v unexpected_error
+
+	# Keep checks separate
+	# EASYRSA
+	if [ "$expected_EASYRSA" ]; then
+		[ "$expected_EASYRSA" = "$EASYRSA" ] || \
+			unexpected_error="\
+  EASYRSA: $EASYRSA -- expected: $expected_EASYRSA${NL}"
+	fi
+
+	# EASYRSA_PKI
+	if [ "$expected_EASYRSA_PKI" ]; then
+		[ "$expected_EASYRSA_PKI" = "$EASYRSA_PKI" ] || \
+			unexpected_error="${unexpected_error}\
+  EASYRSA_PKI: $EASYRSA_PKI -- expected: $expected_EASYRSA_PKI"
+	fi
+
+	# Return no error
+	[ -z "$unexpected_error" ] && return
+
+	# This is an unacceptable error
+	user_error "\
+The values in the vars file have unexpectedly changed the values for
+EASYRSA and/or EASYRSA_PKI. The default pki/vars file is forbidden to
+change these values:
+  vars-file: $EASYRSA_VARS_FILE
+${unexpected_error}"
+} # => validate_default_vars()
 
 # vars setup
 # Here sourcing of 'vars' if present occurs.
@@ -7494,6 +7528,11 @@ esac
 select_vars
 # then set defaults
 default_vars
+
+# Check for unexpected changes to EASYRSA or EASYRSA_PKI
+# This will be resolved in v3.2.0
+# https://github.com/OpenVPN/easy-rsa/issues/1006
+validate_default_vars
 
 # Check for conflicting input options
 mutual_exclusions
