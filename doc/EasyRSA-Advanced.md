@@ -76,7 +76,7 @@ Environmental Variables Reference
 ---------------------------------
 
 A list of env-vars, any matching global option (CLI) to set/override it, and a
-possible terse description is shown below:
+short description is shown below:
 
  *  `EASYRSA` - should point to the Easy-RSA top-level dir, where the easyrsa
     script is located.
@@ -84,6 +84,7 @@ possible terse description is shown below:
  *  `EASYRSA_SSL_CONF` - the openssl config file to use
  *  `EASYRSA_PKI` (CLI: `--pki-dir`) - dir to use to hold all PKI-specific
     files, defaults to `$PWD/pki`.
+ *  `EASYRSA_VARS_FILE` (CLI: `--vars`) - Set the `vars` file to use
  *  `EASYRSA_DN` (CLI: `--dn-mode`) - set to the string `cn_only` or `org` to
     alter the fields to include in the req DN
  *  `EASYRSA_REQ_COUNTRY` (CLI: `--req-c`) - set the DN country with org mode
@@ -102,16 +103,14 @@ possible terse description is shown below:
  *  `EASYRSA_ALGO` (CLI: `--use-algo`) - set the crypto alg to use: rsa, ec or
     ed
  *  `EASYRSA_CURVE` (CLI: `--curve`) - define the named EC curve to use
- *  `EASYRSA_EC_DIR` - dir to store generated ecparams
  *  `EASYRSA_CA_EXPIRE` (CLI: `--days`) - set the CA expiration time in days
  *  `EASYRSA_CERT_EXPIRE` (CLI: `--days`) - set the issued cert expiration time
     in days
  *  `EASYRSA_CRL_DAYS` (CLI: `--days`) - set the CRL 'next publish' time in days
  *  `EASYRSA_NS_SUPPORT` (CLI: `--ns-cert`) - string 'yes' or 'no' fields to
-    include the deprecated Netscape extensions
+    include the **deprecated** Netscape extensions
  *  `EASYRSA_NS_COMMENT` (CLI: `--ns-comment`) - string comment to include when
-    using the deprecated Netscape extensions
- *  `EASYRSA_TEMP_FILE` - a temp file to use when dynamically creating req/cert
+    using the **deprecated** Netscape extensions
     extensions
  *  `EASYRSA_REQ_CN` (CLI: `--req-cn`) - default CN, can only be used in BATCH
     mode
@@ -123,8 +122,9 @@ possible terse description is shown below:
     password using any openssl password options like pass:1234 or env:var
  *  `EASYRSA_PASSOUT` (CLI: `--passout`) - allows to specify a source for
     password using any openssl password options like pass:1234 or env:var
+ *  `EASYRSA_NO_PASS` (CLI: `--nopass`) - disable use of passwords
  *  `EASYRSA_UMASK` - safe umask to use for file creation. Defaults to `077`
  *  `EASYRSA_NO_UMASK` - disable safe umask. Files will be created using the
     system's default
-
-**NOTE:** the global options need to be provided before the actual commands.
+ *  `EASYRSA_TEMP_DIR` (CLI: `--tmp-dir`) - a temp directory to use for temporary files
+**NOTE:** the global options must be provided before the commands.
