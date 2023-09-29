@@ -5665,7 +5665,7 @@ select_vars() {
 		# Default working dir; if vars exists, use it ONLY
 		if [ -e "$PWD/vars" ]; then
 			verbose "select_vars: PWD/vars"
-			set_var EASYRSA_VARS_FILE="$PWD/vars"
+			set_var EASYRSA_VARS_FILE "$PWD/vars"
 		fi
 	fi
 
