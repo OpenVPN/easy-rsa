@@ -5616,55 +5616,60 @@ select_vars() {
 		unset -v EASYRSA_VARS_FILE
 		# skip the rest of this function
 		return
-	fi
 
 	# User specified vars file will be used ONLY
-	if [ "$EASYRSA_VARS_FILE" ]; then
+	elif [ "$EASYRSA_VARS_FILE" ]; then
 		# Takes priority, nothing to do
 		verbose "select_vars: EASYRSA_VARS_FILE"
-	fi
 
-	# User specified PKI; if vars exists, use it ONLY
-	if [ "$EASYRSA_PKI" ]; then
-		if [ -e "$EASYRSA_PKI/vars" ]; then
-			verbose "select_vars: source EASYRSA_PKI/vars"
-			set_var EASYRSA_VARS_FILE "$EASYRSA_PKI/vars"
+	# This is where auto-load goes bananas
+	else
+
+		# User specified PKI; if vars exists, use it ONLY
+		if [ "$EASYRSA_PKI" ]; then
+			if [ -e "$EASYRSA_PKI/vars" ]; then
+				verbose "select_vars: source EASYRSA_PKI/vars"
+				set_var EASYRSA_VARS_FILE "$EASYRSA_PKI/vars"
+			fi
+		fi
+
+		# User specified EASYRSA; if vars exists, use it ONLY
+		if [ "$EASYRSA" ]; then
+			if [ -e "$EASYRSA/vars" ]; then
+				verbose "select_vars: EASYRSA/vars"
+				set_var EASYRSA_VARS_FILE "$EASYRSA/vars"
+			fi
+		fi
+
+		# Default PKI; if vars exists, use it ONLY
+		if [ -e "$PWD/pki/vars" ]; then
+			# Prevent vars from changing expected PKI.
+			# A vars in the PKI MUST always imply EASYRSA_PKI
+			# This is NOT backward compatible
+			# Use expected value comparison for v3.1.7
+			if [ -z "$EASYRSA_VARS_FILE" ]; then
+				expected_EASYRSA="$PWD"
+				expected_EASYRSA_PKI="$PWD/pki"
+			fi
+
+			# Use this for v3.2.0
+			# If the pki/vars sets a different PKI then
+			# there will be no PKI in the default /pki
+			#set_var EASYRSA "$PWD"
+			#set_var EASYRSA_PKI "$EASYRSA/pki"
+
+			verbose "select_vars: PWD/pki/vars"
+			set_var EASYRSA_VARS_FILE "$PWD/pki/vars"
+		fi
+
+		# Default working dir; if vars exists, use it ONLY
+		if [ -e "$PWD/vars" ]; then
+			verbose "select_vars: PWD/vars"
+			set_var EASYRSA_VARS_FILE="$PWD/vars"
 		fi
 	fi
 
-	# User specified EASYRSA; if vars exists, use it ONLY
-	if [ "$EASYRSA" ]; then
-		if [ -e "$EASYRSA/vars" ]; then
-			verbose "select_vars: EASYRSA/vars"
-			set_var EASYRSA_VARS_FILE "$EASYRSA/vars"
-		fi
-	fi
-
-	# Default PKI; if vars exists, use it ONLY
-	if [ -e "$PWD/pki/vars" ]; then
-		# Prevent vars from changing expected PKI.
-		# A vars in the PKI MUST always imply EASYRSA_PKI
-		# This is NOT backward compatible
-		# Use expected value comparison for v3.1.7
-		expected_EASYRSA="$PWD"
-		expected_EASYRSA_PKI="$PWD/pki"
-		#
-		# Use this for v3.2.0
-		# If the pki/vars sets a different PKI then
-		# there will be no PKI in the default /pki
-		#set_var EASYRSA "$PWD"
-		#set_var EASYRSA_PKI "$EASYRSA/pki"
-
-		verbose "select_vars: PWD/pki/vars"
-		set_var EASYRSA_VARS_FILE "$PWD/pki/vars"
-	fi
-
-	# Default working dir; if vars exists, use it ONLY
-	if [ -e "$PWD/vars" ]; then
-		verbose "select_vars: PWD/vars"
-		set_var EASYRSA_VARS_FILE="$PWD/vars"
-	fi
-
+	# User info
 	if [ -z "$EASYRSA_VARS_FILE" ]; then
 		[ "$require_pki" ] && information "\
 No Easy-RSA 'vars' configuration file exists!"
