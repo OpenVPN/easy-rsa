@@ -5642,7 +5642,10 @@ select_vars() {
 		fi
 
 		# Default PKI; if vars exists, use it ONLY
-		if [ -e "$PWD/pki/vars" ]; then
+		if [ -e "$PWD/pki/vars" ] && \
+			[ -z "$EASYRSA_PKI" ] && \
+			[ -z "$EASYRSA" ]
+		then
 			# Prevent vars from changing expected PKI.
 			# A vars in the PKI MUST always imply EASYRSA_PKI
 			# This is NOT backward compatible
