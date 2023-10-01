@@ -420,7 +420,10 @@ help_verb="-vv"
 sc_file='shellcheck'
 unset -v sc_bin sc_bin_ok
 # v 0.8.0
-sc_hash='SHA256(shellcheck)= f4bce23c11c3919c1b20bcb0f206f6b44c44e26f2bc95f8aa708716095fa0651'
+#sc_hash='SHA256(shellcheck)= f4bce23c11c3919c1b20bcb0f206f6b44c44e26f2bc95f8aa708716095fa0651'
+
+# v 0.9.0
+sc_hash='SHA256(shellcheck)= 7087178d54de6652b404c306233264463cb9e7a9afeb259bb663cc4dbfd64149'
 
 ssl_file='openssl'
 unset -v ssl_bin ssl_bin_ok
