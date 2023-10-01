@@ -3,12 +3,18 @@ Easy-RSA 3 ChangeLog
 3.2.0 (TBD)
 
 3.1.7 (2023-10-13)
+   * Rewrite vars-auto-detect, adhere to EasyRSA-Advanced.md (#1029)
+     Under the hood, this is a considerable change but there are no user
+     noticable differences. With the exception of:
+     Caveat: The default '$PWD/pki/vars' file is forbidden to change either
+             EASYRSA or EASYRSA_PKI, which are both implied by default.
+   * EasyRSA-Advanced.md: Correct vars-auto-detect hierarchy (#1029)
+     Commit: ecd65065e3303da78811278a154ef7a969c2777b
+             EASYRSA/vars is moved to a higher priority than a default PKI.
+             vars-auto-detect no longer searches 'easyrsa' program directory.
    * gen-crl: preserve existing crl.pem ownership+mode (#1020)
    * New command: make-vars - Print vars.example (here-doc) to stdout (#1024)
    * show-expire: Calculate cert. expire seconds from DB date (#1023)
-   * Forbid "default vars in the default PKI" for all commands (#1021)
-     There can be only one default vars file, that is now './vars' ONLY.
-     Use of other 'vars' files can be done by using option --vars=<FILE>
    * Update OpenSSL to 3.1.2
 
 3.1.6 (2023-07-18)

@@ -33,13 +33,26 @@ Configuration Reference
 
   1. The file referenced by the `--vars` CLI option
   2. The file referenced by the env-var named `EASYRSA_VARS_FILE`
-  3. The directory referenced by the `EASYRSA_PKI` env-var
-  4. The default PKI directory at `$PWD/pki`
-  4. The directory referenced by the `EASYRSA` env-var
-  5. The directory containing the easyrsa program
+  3. The directory referenced by the `--pki` CLI option (Recommended)
+  4. The directory referenced by the `EASYRSA_PKI` env-var
+  5. The directory referenced by the `EASYRSA` env-var
+  6. The default PKI directory at `$PWD/pki` (See note below)
+  7. The default working directory at `$PWD`
 
   Defining the env-var `EASYRSA_NO_VARS` will override the sourcing of the vars
   file in all cases, including defining it subsequently as a global option.
+
+  Note: If the vars file `$PWD/pki/vars` is sourced then it is forbidden from
+        setting/changing the current PKI, as defined by `EASYRSA_PKI` env-var.
+
+#### Use of `--pki` verses `--vars`
+
+  It is recommended to use option `--pki=DIR` to define your PKI at runtime.
+  This method will always auto-load the `vars` file found in defined PKI.
+
+  In a multi-PKI installation, use of `--vars` can potentially lead to
+  a vars file that is configured to set a PKI which cannot be verified
+  as the expected PKI. Use of `--vars` is not recommended.
 
 #### OpenSSL Config
 
