@@ -1302,6 +1302,12 @@ init_pki() {
 		shift
 	done
 
+	# EasyRSA will NOT do 'rm -rf /'
+	case "$EASYRSA_PKI" in
+		.|..|./|../|.//*|..//*|/|//*|\\|?:|'')
+			user_error "Invalid PKI: $EASYRSA_PKI"
+	esac
+
 	# If EASYRSA_PKI exists, confirm before deletion
 	if [ -e "$EASYRSA_PKI" ]; then
 		confirm "Confirm removal: " "yes" "
@@ -5584,7 +5590,7 @@ EasyRSA '$cmd' does not support --startdate or --enddate"
 	if [ "$easyrsa_host_os" = win ]; then
 		if echo "$PWD" | grep -q '/Prog.*/OpenVPN/easy-rsa'
 		then
-			warn "\
+			verbose "\
 Using Windows-System-Folders for your PKI is NOT SECURE!
 Your Easy-RSA PKI CA Private Key is WORLD readable.
 
@@ -5594,12 +5600,6 @@ To correct this problem, it is recommended that you either:
   'easyrsa --pki-dir=\"C:/Users/<your-user-name>/easy-rsa/pki\"\
  <command>'"
 		fi
-	fi
-
-	# Use of --silent and --verbose
-	if [ "$EASYRSA_SILENT" ] && [ "$EASYRSA_VERBOSE" ]; then
-		user_error "\
-Use of --silent and --verbose is unresolvable."
 	fi
 
 	verbose "mutual_exclusions: COMPLETED"
@@ -5869,9 +5869,6 @@ ${unexpected_error}"
 
 # Verify working environment
 verify_working_env() {
-	# Do not allow demented paths, eg: '/' or '\'
-	sanitize_path
-
 	# Verify SSL Lib - One time ONLY
 	verify_ssl_lib
 
@@ -5927,38 +5924,6 @@ Temporary directory does not exist:
 	fi
 	verbose "verify_working_env: COMPLETED"
 } # => verify_working_env()
-
-# Sanitize demented directory names
-sanitize_path() {
-	# Sanitize PWD
-	verbose "Working dir: $PWD"
-	case "$PWD" in
-	*/|*\\|?:)
-		user_error "\
-EasyRSA cannot be run in the root directory: $PWD"
-	esac
-
-	# Sanitize EASYRSA
-	verbose "EASYRSA: $EASYRSA"
-	case "$EASYRSA" in
-	*/|*\\|?:)
-		user_error "Invalid EASYRSA: $EASYRSA"
-	esac
-
-	# Sanitize EASYRSA_PKI
-	verbose "EASYRSA_PKI: $EASYRSA_PKI"
-	case "$EASYRSA_PKI" in
-	*/|*\\|?:)
-		user_error "Invalid EASYRSA_PKI: $EASYRSA_PKI"
-	esac
-
-	# Sanitize EASYRSA_TEMP_DIR
-	verbose "EASYRSA_TEMP_DIR: $EASYRSA_TEMP_DIR"
-	case "$EASYRSA_TEMP_DIR" in
-	*/|*\\|?:)
-		user_error "Invalid EASYRSA_TEMP_DIR: $EASYRSA_TEMP_DIR"
-	esac
-} # => sanitize_path()
 
 # variable assignment by indirection.
 # Sets '$1' as the value contained in '$2'
