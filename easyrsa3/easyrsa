@@ -1376,6 +1376,8 @@ A vars file has not been created in your new PKI because
 conflicting vars files have been found elsewhere."
 		prefer_vars_in_pki_msg
 	else
+		unset -v EASYRSA_VARS_FILE
+		select_vars
 		information "
 Using Easy-RSA configuration:
 * ${EASYRSA_VARS_FILE:-undefined}"
@@ -5678,9 +5680,6 @@ select_vars() {
 No Easy-RSA 'vars' configuration file exists!"
 		EASYRSA_NO_VARS=1
 	fi
-
-	# source the vars file
-	source_vars "$EASYRSA_VARS_FILE"
 } # => select_vars()
 
 # Source a vars file
@@ -5754,13 +5753,15 @@ Remove 'unset' ('force_set_var' may also work)."
 
 	# Test sourcing 'vars' in a subshell
 	# shellcheck disable=1090 # can't follow .. vars
-	( . "$target_file" ) || \
+	if ( . "$target_file" ); then
+		# Source 'vars' now
+		# shellcheck disable=1090 # can't follow .. vars
+		. "$target_file" || \
+			die "Failed to source the '$target_file' file."
+	else
+		PATH="$easyrsa_path"
 		die "Failed to dry-run the '$target_file' file."
-
-	# Source 'vars' now
-	# shellcheck disable=1090 # can't follow .. vars
-	. "$target_file" || \
-		die "Failed to source the '$target_file' file."
+	fi
 
 	PATH="$easyrsa_path"
 	verbose "source_vars: sourced OK '$target_file'"
@@ -7218,8 +7219,12 @@ case "$cmd" in
 esac
 
 # Intelligent env-var detection and auto-loading:
-# Select and source vars file
+# Select vars file as EASYRSA_VARS_FILE
 select_vars
+
+# source the vars file
+source_vars "$EASYRSA_VARS_FILE"
+
 # then set defaults
 default_vars
 
