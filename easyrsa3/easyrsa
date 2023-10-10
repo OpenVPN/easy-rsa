@@ -1378,7 +1378,7 @@ conflicting vars files have been found elsewhere."
 	else
 		information "
 Using Easy-RSA configuration:
-* ${vars:-undefined}"
+* ${EASYRSA_VARS_FILE:-undefined}"
 	fi
 
 	# For new PKIs , pki/vars was auto-created, show message
