@@ -1362,22 +1362,12 @@ Failed to install required data-files to PKI. (init)"
 Your newly created PKI dir is:
 * $EASYRSA_PKI"
 
-	# Installation information
-	# if $no_new_vars then there are one or more known vars
-	# which are not in the PKI. All further commands will fail
-	# until vars is manually corrected
-	if [ "$no_new_vars" ]; then
-		warn "\
-A vars file has not been created in your new PKI because
-conflicting vars files have been found elsewhere."
-		#prefer_vars_in_pki_msg
-	else
-		unset -v EASYRSA_VARS_FILE
-		select_vars
-		information "
+	# Select and show vars file
+	unset -v EASYRSA_VARS_FILE
+	select_vars
+	information "
 Using Easy-RSA configuration:
 * ${EASYRSA_VARS_FILE:-undefined}"
-	fi
 
 	# For new PKIs , pki/vars was auto-created, show message
 	if [ "$new_vars_true" ]; then
@@ -1476,8 +1466,7 @@ install_data_to_pki: $context - COMPLETED"
 
 	# Create PKI/vars from PKI/example
 	unset -v new_vars_true
-	if [ "$user_vars_true" ] || \
-		[ "$no_new_vars" ]
+	if [ "$user_vars_true" ]
 	then
 		: # ok - Do not make a PKI/vars if another vars exists
 		verbose "\
@@ -6946,7 +6935,7 @@ unset -v \
 	alias_days \
 	prohibit_no_pass \
 	invalid_vars \
-	no_new_vars user_vars_true \
+	user_vars_true \
 	do_build_full error_build_full_cleanup \
 	internal_batch \
 	easyrsa_exit_with_error error_info
