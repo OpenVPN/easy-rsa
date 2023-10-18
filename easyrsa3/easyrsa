@@ -4404,6 +4404,7 @@ ssl_cert_serial() {
 } # => ssl_cert_serial()
 
 # Get certificate start date
+# shellcheck disable=2317 # Unreachable code ..
 ssl_cert_not_before_date() {
 	verbose "DEPRECATED: ssl_cert_not_before_date()"
 	[ "$#" = 2 ] || die "\
@@ -4446,6 +4447,7 @@ ssl_cert_not_after_date - failed to set var '$*'"
 } # => ssl_cert_not_after_date()
 
 # SSL -- v3 -- startdate iso_8601
+# shellcheck disable=2317 # Unreachable code ..
 iso_8601_cert_startdate() {
 	verbose "NEW: iso_8601_cert_startdate"
 	[ "$#" = 2 ] || die "\
@@ -4795,6 +4797,7 @@ db_date_to_iso_8601_date: force_set_var - $2 - $out_date"
 # Convert default SSL date to iso_8601 date
 # This may not be feasible, due to different languages
 # Alow the caller to assess those errors (eg. Fall-back)
+# shellcheck disable=2317 # Unreachable code ..
 cert_date_to_iso_8601_date() {
 	verbose "iso_8601-WIP: cert_date_to_iso_8601_date"
 	die "BLOCKED: cert_date_to_iso_8601_date"
@@ -5313,6 +5316,7 @@ before they can be revoked."
 # Fake declare known variables for shellcheck
 # Use these options without this function:
 # -o all -e 2250,2244,2248 easyrsa
+# shellcheck disable=2317 # Unreachable code ..
 satisfy_shellcheck() {
 	die "Security feature enabled!"
 	# Add more as/if required
