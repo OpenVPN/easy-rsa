@@ -1437,7 +1437,7 @@ install_data_to_pki() {
 				if [ -e "${EASYRSA_PKI}/${source}" ]; then
 					continue
 				else
-					cp "${area}/${source}" "$EASYRSA_PKI" || die \
+					cp "${area}/${source}" "$EASYRSA_PKI" || warn \
 						"Failed to copy to PKI: ${area}/${source}"
 				fi
 			done
