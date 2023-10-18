@@ -996,13 +996,8 @@ export EASYRSA_REQ_SERIAL=\"$EASYRSA_REQ_SERIAL\"\
 escape_hazard - Failed to write temp-file"
 
 	# Reload fields from fully escaped temp-file
-	# shellcheck disable=SC1090 # can't follow ...
-	(. "$escape_hazard_tmp") || die "\
-escape_hazard - Failed to source temp-file"
-
+	source_vars "$escape_hazard_tmp"
 	verbose "escape_hazard: COMPLETED"
-	# shellcheck disable=SC1090 # can't follow ...
-	. "$escape_hazard_tmp"
 } # => escape_hazard()
 
 # Replace environment variable names with current value
@@ -5684,12 +5679,6 @@ No Easy-RSA 'vars' configuration file exists!"
 
 # Source a vars file
 source_vars() {
-	# Never use vars file
-	if [ "$EASYRSA_NO_VARS" ]; then
-		verbose "source_vars: EASYRSA_NO_VARS"
-		return
-	fi
-
 	# File to be sourced
 	target_file="$1"
 
@@ -7223,7 +7212,7 @@ esac
 select_vars
 
 # source the vars file
-source_vars "$EASYRSA_VARS_FILE"
+[ "$EASYRSA_NO_VARS" ] || source_vars "$EASYRSA_VARS_FILE"
 
 # then set defaults
 default_vars
