@@ -1451,27 +1451,6 @@ install_data_to_pki: $context - COMPLETED"
 		return
 	fi
 
-	# Create PKI/vars from PKI/example
-	if [ "$user_vars_true" ]
-	then
-		: # ok - Do not make a PKI/vars if another vars exists
-		verbose "\
-install_data_to_pki: $context - Not creating pki/vars"
-	else
-		case "$context" in
-		init-pki)
-			: ;; # No change to current 'vars' required
-		vars-setup)
-			: ;; # No change to current 'vars' required
-		x509-types-only)
-			die "install_data_to_pki - unexpected context" ;;
-		'')
-			die "install_data_to_pki - unspecified context" ;;
-		*)
-			die "install_data_to_pki - unknown context: $context"
-		esac
-	fi
-
 	# Check PKI is updated - Omit unnecessary checks
 	if [ -e "${EASYRSA_PKI}/${ssl_cnf_file}" ]; then
 		: # ok
@@ -6901,7 +6880,6 @@ unset -v \
 	alias_days \
 	prohibit_no_pass \
 	invalid_vars \
-	user_vars_true \
 	do_build_full error_build_full_cleanup \
 	internal_batch \
 	easyrsa_exit_with_error error_info
@@ -7063,7 +7041,6 @@ while :; do
 		export EASYRSA_SUBCA_LEN="$val"
 		;;
 	--vars)
-		user_vars_true=1
 		export EASYRSA_VARS_FILE="$val"
 		;;
 	--copy-ext)
