@@ -1388,8 +1388,6 @@ install_data_to_pki() {
 	shift
 
 	# Set required sources
-	vars_file='vars'
-	vars_file_example='vars.example'
 	ssl_cnf_file='openssl-easyrsa.cnf'
 	x509_types_dir='x509-types'
 
