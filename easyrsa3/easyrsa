@@ -6682,21 +6682,22 @@ up23_manage_upgrade_23 ()
 	EASYRSA_FOUND_VARS=0
 
 	# Verify all existing versions of vars/vars.bat
-	if [ -f "$vars" ]
+	if [ -f "$EASYRSA_VARS_FILE" ]
 	then
-		if grep -q 'Complain if a user tries to do this:' "$vars"
+		if grep -q 'Complain if a user tries to do this:' \
+			"$EASYRSA_VARS_FILE"
 		then
 			EASYRSA_FOUND_VARS=1
 			EASYRSA_VARS_IS_VER3=1
 		fi
 
 		# Easyrsa v3 does not use NOR allow use of `export`.
-		if grep -q 'export' "$vars"
+		if grep -q 'export' "$EASYRSA_VARS_FILE"
 		then
 			EASYRSA_FOUND_VARS=1
 			EASYRSA_VARS_IS_VER2=1
-			EASYRSA_VER2_VARSFILE="$vars"
-			EASYRSA_TARGET_VARSFILE="$vars"
+			EASYRSA_VER2_VARSFILE="$EASYRSA_VARS_FILE"
+			EASYRSA_TARGET_VARSFILE="$EASYRSA_VARS_FILE"
 		fi
 	fi
 
