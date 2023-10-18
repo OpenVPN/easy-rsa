@@ -1369,17 +1369,6 @@ Your newly created PKI dir is:
 Using Easy-RSA configuration:
 * ${EASYRSA_VARS_FILE:-undefined}"
 
-	# For new PKIs , pki/vars was auto-created, show message
-	if [ "$new_vars_true" ]; then
-		information "
-IMPORTANT:
-  Easy-RSA 'vars' template file has been created in your new PKI.
-  Edit this 'vars' file to customise the settings for your PKI.
-  To use a global vars file, use global option --vars=<FILE>"
-
-	else
-		: #prefer_vars_in_pki_msg
-	fi
 	verbose "\
 init_pki: x509-types dir ${EASYRSA_EXT_DIR:-Not found}"
 } # => init_pki()
@@ -1465,7 +1454,6 @@ install_data_to_pki: $context - COMPLETED"
 	fi
 
 	# Create PKI/vars from PKI/example
-	unset -v new_vars_true
 	if [ "$user_vars_true" ]
 	then
 		: # ok - Do not make a PKI/vars if another vars exists
@@ -1474,28 +1462,7 @@ install_data_to_pki: $context - Not creating pki/vars"
 	else
 		case "$context" in
 		init-pki)
-			# Only create for 'init-pki', if one does not exist
-			# 'init-pki soft' should have it's own 'vars' file
-			if [ -e "${EASYRSA_PKI}/${vars_file_example}" ] && \
-				[ ! -e "${EASYRSA_PKI}/${vars_file}" ]
-			then
-				# Failure means that no vars will exist and
-				# 'cp' will generate an error message
-				# This is not a fatal error
-				if cp "${EASYRSA_PKI}/${vars_file_example}" \
-					"${EASYRSA_PKI}/${vars_file}"
-				then
-					new_vars_true=1
-					vars="${EASYRSA_PKI}/${vars_file}"
-					verbose "\
-install_data_to_pki: $context - vars = '$vars'"
-				else
-					unset -v new_vars_true vars
-					warn "\
-install_data_to_pki: $context - Failed to install vars file"
-				fi
-			fi
-		;;
+			: ;; # No change to current 'vars' required
 		vars-setup)
 			: ;; # No change to current 'vars' required
 		x509-types-only)
