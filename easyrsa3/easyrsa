@@ -96,10 +96,6 @@ DIRECTORY STATUS (commands would take effect on these locations)
    vars-file: ${EASYRSA_VARS_FILE:-Missing or undefined}${ivmsg}
   x509-types: ${EASYRSA_EXT_DIR:-Missing or undefined}
 $CA_status"
-
-	# if the vars file in use is not in the PKI
-	# and not user defined then Show the messages
-	prefer_vars_in_pki_msg
 } # => usage()
 
 # Detailed command help
@@ -1374,7 +1370,7 @@ Your newly created PKI dir is:
 		warn "\
 A vars file has not been created in your new PKI because
 conflicting vars files have been found elsewhere."
-		prefer_vars_in_pki_msg
+		#prefer_vars_in_pki_msg
 	else
 		unset -v EASYRSA_VARS_FILE
 		select_vars
@@ -1392,29 +1388,11 @@ IMPORTANT:
   To use a global vars file, use global option --vars=<FILE>"
 
 	else
-		prefer_vars_in_pki_msg
+		: #prefer_vars_in_pki_msg
 	fi
 	verbose "\
 init_pki: x509-types dir ${EASYRSA_EXT_DIR:-Not found}"
 } # => init_pki()
-
-# Must be used in two places, so made it a function
-prefer_vars_in_pki_msg() {
-	if [ "$vars_in_pki" ] || [ "$user_vars_true" ] ||
-		[ "$EASYRSA_NO_VARS" ]
-	then
-		return
-	fi
-
-	# Never show this message
-	return
-
-	information "
-IMPORTANT:
-  The preferred location for 'vars' is within the PKI folder.
-  To silence this message move your 'vars' file to your PKI
-  or declare your 'vars' file with option: --vars=<FILE>"
-} # => prefer_vars_in_pki_msg()
 
 # Copy data-files from various sources
 install_data_to_pki() {
