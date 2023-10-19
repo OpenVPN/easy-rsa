@@ -1468,8 +1468,7 @@ install_data_to_pki: $context - Missing: '$x509_types_dir'"
 } # => install_data_to_pki ()
 
 # Disable terminal echo, if possible, otherwise warn
-hide_read_pass()
-{
+hide_read_pass() {
 	# 3040 - In POSIX sh, set option [name] is undefined
 	# 3045 - In POSIX sh, some-command-with-flag is undefined
 	# shellcheck disable=SC3040,SC3045
@@ -6243,8 +6242,7 @@ SSL_CONFIG
 # --------------------------------------------------------------------------
 #
 
-up23_fail_upgrade ()
-{
+up23_fail_upgrade () {
 	# Replace die()
 	unset -v EASYRSA_BATCH
 	notice "
@@ -6263,14 +6261,12 @@ Easyrsa3 upgrade FAILED
 	exit 9
 } #=> up23_fail_upgrade ()
 
-up23_verbose ()
-{
+up23_verbose () {
 	[ "$VERBOSE" ] || return 0
 	printf "%s\n" "$1"
 } #=> up23_verbose ()
 
-up23_verify_new_pki ()
-{
+up23_verify_new_pki () {
 	# Fail now, before any changes are made
 
 	up23_verbose "> Verify DEFAULT NEW PKI does not exist .."
@@ -6298,8 +6294,7 @@ up23_verify_new_pki ()
 } #=> up23_verify_new_pki ()
 
 # shellcheck disable=SC2154
-up23_verify_current_pki ()
-{
+up23_verify_current_pki () {
 	up23_verbose "> Verify CURRENT PKI vars .."
 
 	# This can probably be improved
@@ -6324,8 +6319,7 @@ up23_verify_current_pki ()
 } #=> up23_verify_current_pki ()
 
 # shellcheck disable=SC2154
-up23_verify_current_ca ()
-{
+up23_verify_current_ca () {
 	up23_verbose "> Find CA .."
 	# $KEY_DIR is assigned in up23_verify_current_pki ()
 	[ -f "$KEY_DIR/ca.crt" ] \
@@ -6388,8 +6382,7 @@ up23_verify_current_ca ()
 	CURRENT_CA_IS_VERIFIED="$in_file"
 } #=> up23_verify_current_ca ()
 
-up23_show_current_ca ()
-{
+up23_show_current_ca () {
 	name_opts="utf8,sep_multiline,space_eq,lname,align"
 	printf "%s\n" "-------------------------------------------------------------------------"
 	# $opts is always set here
@@ -6400,8 +6393,7 @@ up23_show_current_ca ()
 	printf "%s\n" "-------------------------------------------------------------------------"
 } #=> up23_show_current_ca ()
 
-up23_backup_current_pki ()
-{
+up23_backup_current_pki () {
 	up23_verbose "> Backup current PKI .."
 
 	mkdir -p "$EASYRSA_SAFE_PKI" \
@@ -6418,8 +6410,7 @@ up23_backup_current_pki ()
 	up23_verbose "  Current PKI backup created in: $EASYRSA_SAFE_PKI"
 } #=> up23_backup_current_pki ()
 
-up23_create_new_pki ()
-{
+up23_create_new_pki () {
 	# Dirs: renewed and revoked are created when used.
 	up23_verbose "> Create NEW PKI .."
 	up23_verbose ">> Create NEW PKI dirs .."
@@ -6460,8 +6451,7 @@ up23_create_new_pki ()
 	up23_verbose "  New PKI created in: $EASYRSA_PKI"
 } #=> up23_create_new_pki ()
 
-up23_upgrade_ca ()
-{
+up23_upgrade_ca () {
 	[ -d "$EASYRSA_PKI" ] || return 0
 	up23_verbose "> Confirm that index.txt.attr exists and 'unique_subject = no'"
 	if [ -f "$EASYRSA_PKI/index.txt.attr" ]
@@ -6485,8 +6475,7 @@ up23_upgrade_ca ()
 	up23_verbose "  Upgraded index.txt.attr to v306+"
 } #=> up23_upgrade_index_txt_attr ()
 
-up23_create_openssl_cnf ()
-{
+up23_create_openssl_cnf () {
 	up23_verbose "> OpenSSL config .."
 	EASYRSA_PKI_SSL_CNFFILE="$EASYRSA_PKI/openssl-easyrsa.cnf"
 	EASYRSA_PKI_SAFE_CNFFILE="$EASYRSA_PKI/safessl-easyrsa.cnf"
@@ -6514,8 +6503,7 @@ up23_create_openssl_cnf ()
 	fi
 } #=> up23_create_openssl_cnf ()
 
-up23_move_easyrsa2_programs ()
-{
+up23_move_easyrsa2_programs () {
 	# These files may not exist here
 	up23_verbose "> Move easyrsa2 programs to SAFE PKI .."
 	for i in build-ca build-dh build-inter build-key build-key-pass \
@@ -6556,8 +6544,7 @@ up23_move_easyrsa2_programs ()
 } #=> up23_move_easyrsa2_programs ()
 
 # shellcheck disable=SC2154
-up23_build_v3_vars ()
-{
+up23_build_v3_vars () {
 	up23_verbose "> Build v3 vars file .."
 
 	EASYRSA_EXT="easyrsa-upgrade-23"
@@ -6621,8 +6608,7 @@ up23_build_v3_vars ()
 } #=> up23_build_v3_vars ()
 
 # shellcheck disable=SC2154
-up23_do_upgrade_23 ()
-{
+up23_do_upgrade_23 () {
 	up23_verbose "============================================================================"
 	up23_verbose "Begin ** $1 ** upgrade process .."
 	up23_verbose ""
@@ -6656,8 +6642,7 @@ up23_do_upgrade_23 ()
 	rm -f "$EASYRSA_VARS_LIVEBKP"
 } #= up23_do_upgrade_23 ()
 
-up23_manage_upgrade_23 ()
-{
+up23_manage_upgrade_23 () {
 	EASYRSA_UPGRADE_VERSION="v1.0a (2020/01/08)"
 	EASYRSA_UPGRADE_TYPE="$1"
 	EASYRSA_FOUND_VARS=0
@@ -6835,8 +6820,7 @@ return 0
 
 } # => up23_manage_upgrade_23 ()
 
-print_version()
-{
+print_version() {
 	ssl_version="$(
 		OPENSSL_CONF=/dev/null \
 			"${EASYRSA_OPENSSL:-openssl}" version
