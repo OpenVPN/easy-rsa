@@ -1850,14 +1850,13 @@ build_ca: CA certificate password created via RAW"
 build_ca: CA certificate password created via temp-files"
 	fi
 
-	# Move temp-files to output files
-	mv "$out_key_tmp" "$out_key" || {
-		die "Failed to move key temp-file"
-	}
-	mv "$out_file_tmp" "$out_file" || {
-		rm -f "$out_key" # Also remove the key
-		die "Failed to move cert temp-file"
-	}
+	# Move temp-files to target-files
+	mv "$out_key_tmp" "$out_key" || mv_temp_error=1
+	mv "$out_file_tmp" "$out_file" || mv_temp_error=1
+	if [ "$mv_temp_error" ]; then
+		rm -f "$out_key" "$out_file"
+		die "Failed to move new CA files."
+	fi
 
 	# Success messages
 	if [ "$sub_ca" ]; then
@@ -1915,8 +1914,12 @@ at: $out_file"
 			-check -noout || \
 				die "Failed to validate DH params"
 
-	mv -f "$tmp_dh_file" "$out_file" || \
-		die "Failed to move temp DH file"
+	# Move temp-files to target-files
+	mv "$tmp_dh_file" "$out_file" || mv_temp_error=1
+	if [ "$mv_temp_error" ]; then
+		rm -f "$out_file"
+		die "Failed to move temp DH file."
+	fi
 
 	notice "
 DH parameters of size $EASYRSA_KEY_SIZE created at:
@@ -2060,13 +2063,12 @@ $EASYRSA_EXTRA_EXTS"
 	fi
 
 	# Move temp-files to target-files
-	mv "$key_out_tmp" "$key_out" || {
-		die "Failed to move key temp-file"
-	}
-	mv "$req_out_tmp" "$req_out" || {
-		rm -f "$key_out" # Also remove the key
-		die "Failed to move req temp-file"
-	}
+	mv "$key_out_tmp" "$key_out" || mv_temp_error=1
+	mv "$req_out_tmp" "$req_out" || mv_temp_error=1
+	if [ "$mv_temp_error" ]; then
+		rm -f "$key_out" "$req_out"
+		die "Failed to move temp key/req file."
+	fi
 
 	# Success messages
 	notice "\
@@ -2369,8 +2371,12 @@ $(display_dn req "$req_in")" # => confirm end
 Signing failed (openssl output above may have more detail)"
 	verbose "sign_req: signed cert '$file_name_base' OK"
 
-	mv "$crt_out_tmp" "$crt_out" || \
-		die "Failed to move temp-file to certificate."
+	# Move temp-files to target-files
+	mv "$crt_out_tmp" "$crt_out" || mv_temp_error=1
+	if [ "$mv_temp_error" ]; then
+		rm -f "$crt_out"
+		die "Failed to move temp certificate file."
+	fi
 
 	# Success messages
 	notice "\
@@ -3650,8 +3656,12 @@ gen_crl() {
 		${EASYRSA_PASSIN:+ -passin "$EASYRSA_PASSIN"} || \
 			die "CRL Generation failed."
 
-	mv ${EASYRSA_BATCH:+ -f} "$out_file_tmp" "$out_file" || \
-		die "Failed to update CRL file."
+	# Move temp-files to target-files
+	mv "$out_file_tmp" "$out_file" || mv_temp_error=1
+	if [ "$mv_temp_error" ]; then
+		#rm -f "$out_file"
+		die "Failed to move temp CRL file."
+	fi
 
 	notice "\
 An updated CRL has been created:
@@ -6869,7 +6879,7 @@ unset -v \
 	prohibit_no_pass \
 	invalid_vars \
 	do_build_full error_build_full_cleanup \
-	internal_batch \
+	internal_batch	mv_temp_error \
 	easyrsa_exit_with_error error_info
 
 	# Used by build-ca->cleanup to restore prompt
