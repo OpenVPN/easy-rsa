@@ -485,7 +485,7 @@ cmd_help() {
     default-san <file_name_base>
 
   Display EKU of certificate:
-    x509-eku <file_name_base>"
+    show-eku <file_name_base>"
 	;;
 	opts|options)
 		opt_usage
@@ -7326,7 +7326,7 @@ case "$cmd" in
 		verify_working_env
 		default_server_san "$@"
 		;;
-	x509-eku)
+	x509-eku|show-eku)
 		verify_working_env
 		ssl_cert_x509v3_eku "$@"
 		;;
