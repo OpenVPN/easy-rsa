@@ -3033,9 +3033,9 @@ with the following subject:
 	then
 		unset -v error_undo_renew_move
 	else
-		# If renew failed then restore cert.
-		# Otherwise, issue a warning
+		# If sign_req failed then restore cert.
 		renew_restore_move
+		unset -v error_undo_renew_move
 		die "\
 Renewal has failed to build a new certificate."
 	fi
