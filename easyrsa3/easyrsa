@@ -2627,8 +2627,8 @@ inline_creds () {
 
 	# Generate data
 	if [ -e "$crt_source" ]; then
-		# Get EasyRSA cert type
-		ssl_cert_x509v3_eku "$crt_source" type_data
+		# Get EasyRSA cert type, ignore error
+		ssl_cert_x509v3_eku "$crt_source" type_data || :
 
 		crt_data="\
 <cert>
@@ -2980,7 +2980,8 @@ Cannot renew this certificate, a conflicting file exists:
 			die "Failed to create inline directoy."
 
 	# Extract certificate usage from old cert
-	ssl_cert_x509v3_eku "$crt_in" cert_type
+	ssl_cert_x509v3_eku "$crt_in" cert_type || \
+		die "Unknown EKU: $cert_type"
 
 	# Use SAN from --san if set else use SAN from old cert
 	if echo "$EASYRSA_EXTRA_EXTS" | grep -q subjectAltName
@@ -4446,33 +4447,63 @@ ssl_cert_x509v3_eku() {
 	__cli="TLS Web Client Authentication"
 	__srv="TLS Web Server Authentication"
 	__srv_cli="${__srv}, ${__cli}"
+	__codeSign="Code Signing"
+	unset -v __known
 
-	# Extract certificate usage from old cert
+	# Extract certificate Extended Key Usage
 	__eku="$(
-		easyrsa_openssl x509 -in "${__crt}" -noout -text | \
-			sed -n "/${__pattern}/{n;s/^ *//g;p;}"
+		OPENSSL_CONF=/dev/null
+		"$EASYRSA_OPENSSL" x509 -in "${__crt}" -noout \
+			-ext extendedKeyUsage | \
+				sed -e /"${__pattern}"/d -e s/^\ *//
 		)"
 
+	# Match EKU with supported usage
 	case "$__eku" in
+	"$__srv_cli")
+		__known=1
+		__type=serverClient
+	;;
 	"$__cli")
+		__known=1
 		__type=client
 	;;
 	"$__srv")
+		__known=1
 		__type=server
 	;;
-	"$__srv_cli")
-		__type=serverClient
+	"$__codeSign")
+		__known=1
+		__type=codeSign
 	;;
-	*) die "Unknown key usage: $__eku"
+	'')
+		__type=undefined
+	;;
+	*)
+		__type="'$__eku'"
 	esac
 
 	# Set variable to return
 	if [ "$__var" ]; then
+		verbose "ssl_cert_x509v3_eku - EKU: $__type"
 		force_set_var "$__var" "$__type"
+	elif [ "$__known" ]; then
+		information "
+* Known X509v3 Extended Key Usage: $__type"
 	else
-		information "${NL}* EasyRSA Certificate type: $__type"
+		information "
+* Unknown X509v3 Extended Key Usage: $__type"
 	fi
-	unset -v __crt __var __pattern __eku __type
+
+	unset -v __crt __var __pattern __srv_cli __cli __srv \
+		__codeSign __eku __type
+
+	if [ "$__known" ]; then
+		unset -v __known
+		return
+	fi
+
+	return 1
 } # => ssl_cert_x509v3_eku()
 
 # get the serial number of the certificate -> serial=XXXX
@@ -7420,7 +7451,8 @@ case "$cmd" in
 		;;
 	x509-eku)
 		verify_working_env
-		ssl_cert_x509v3_eku "$@"
+		ssl_cert_x509v3_eku "$@" || \
+			easyrsa_exit_with_error=1
 		;;
 	upgrade)
 		verify_working_env
