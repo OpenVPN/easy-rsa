@@ -1105,6 +1105,7 @@ easyrsa_mktemp safe_ssl_cnf_tmp"
 # sign-req or gen-req.
 easyrsa_openssl() {
 	openssl_command="$1"; shift
+	verbose "> easyrsa_openssl - BEGIN $openssl_command"
 
 	# Do not allow 'rand' here, see easyrsa_random()
 	case "$openssl_command" in
@@ -1126,15 +1127,16 @@ easyrsa_openssl() {
 	# VERIFY safe temp-file exists
 	if [ -e "$safe_ssl_cnf_tmp" ]; then
 		verbose "\
-easyrsa_openssl: Safe SSL conf OK: $safe_ssl_cnf_tmp"
+> easyrsa_openssl: Safe SSL conf OK: $safe_ssl_cnf_tmp"
 		export OPENSSL_CONF="$safe_ssl_cnf_tmp"
 	else
 		verbose "\
-easyrsa_openssl: No Safe SSL conf, FALLBACK to default"
+> easyrsa_openssl: No Safe SSL conf, FALLBACK to default"
 		export OPENSSL_CONF="$EASYRSA_SSL_CONF"
 	fi
 
 	# Execute command - Return on success
+	verbose "> easyrsa_openssl - EXEC $openssl_command $*"
 	if [ "$openssl_command" = "makesafeconf" ]; then
 		# COPY temp-file to safessl-easyrsa.cnf
 		unset -v makesafeconf
@@ -5953,7 +5955,7 @@ Temporary directory does not exist:
 * $EASYRSA_TEMP_DIR"
 		fi
 	fi
-	verbose "verify_working_env: COMPLETED"
+	verbose "verify_working_env: COMPLETED Handover-to: $cmd"
 } # => verify_working_env()
 
 # variable assignment by indirection.
