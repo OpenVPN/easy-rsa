@@ -858,6 +858,15 @@ cleanup() {
 		print
 	fi
 
+	# undo changes BEFORE delete temp-dir
+	# Remove files when build_full()->sign_req() is interrupted
+	[ "$error_build_full_cleanup" ] && \
+		rm -f "$crt_out" "$req_out" "$key_out"
+	# Restore files when renew is interrupted
+	[ "$error_undo_renew_move" ] && renew_restore_move
+	# Restore files when rebuild is interrupted
+	[ "$error_undo_rebuild_move" ] && rebuild_restore_move
+
 	if [ "${secured_session%/*}" ] && \
 		[ -d "$secured_session" ]
 	then
@@ -878,22 +887,12 @@ Temporary session not preserved."
 				mv -f "$secured_session" "$keep_tmp"
 				print "Temp session preserved: $keep_tmp"
 			fi
-		else
-			# remove temp-session
-			remove_secure_session || \
-				warn "cleanup - remove_secure_session failed"
 		fi
-	fi
 
-	# These cleanup routines must be called after die()
-	# because the relate commands can die in subshells.
-	# Remove files when build_full()->sign_req() is interrupted
-	[ "$error_build_full_cleanup" ] && \
-		rm -f "$crt_out" "$req_out" "$key_out"
-	# Restore files when renew is interrupted
-	[ "$error_undo_renew_move" ] && renew_restore_move
-	# Restore files when rebuild is interrupted
-	[ "$error_undo_rebuild_move" ] && rebuild_restore_move
+		# remove temp-session
+		remove_secure_session || \
+			warn "cleanup - remove_secure_session failed"
+	fi
 
 	# shellcheck disable=SC3040
 	# In POSIX sh, set option [name] is undefined
