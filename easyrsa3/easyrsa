@@ -6028,6 +6028,15 @@ create_x509_type() {
 		keyUsage = cRLSign, keyCertSign
 		X509_TYPE_CA
 	;;
+	codeSign)
+		cat <<- "X509_CODE_SIGNING"
+		basicConstraints = CA:FALSE
+		subjectKeyIdentifier = hash
+		authorityKeyIdentifier = keyid,issuer:always
+		extendedKeyUsage = codeSigning
+		keyUsage = digitalSignature
+		X509_CODE_SIGNING
+	;;
 	*)
 		return 1
 	esac
