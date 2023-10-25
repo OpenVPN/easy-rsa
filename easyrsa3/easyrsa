@@ -6028,8 +6028,7 @@ create_x509_type() {
 		X509_TYPE_CA
 	;;
 	*)
-		# Unknown type: User MUST supply the X509 file
-		die "create_x509_type - Unknown X509 type: '$1'"
+		return 1
 	esac
 } # => create_x509_type()
 
