@@ -1137,24 +1137,26 @@ easyrsa_openssl() {
 
 	# Execute command - Return on success
 	verbose "> easyrsa_openssl - EXEC $openssl_command $*"
-	if [ "$openssl_command" = "makesafeconf" ]; then
+
+	case "$openssl_command" in
+	makesafeconf)
 		# COPY temp-file to safessl-easyrsa.cnf
 		unset -v makesafeconf
 		cp -f "$safe_ssl_cnf_tmp" "$EASYRSA_SAFE_CONF" && \
-				return
-		die "easyrsa_openssl: makesafeconf FAILED"
-	fi
-
-	# Exec SSL
-	if [ "$EASYRSA_SILENT_SSL" ] && [ "$EASYRSA_BATCH" ]
-	then
-		"$EASYRSA_OPENSSL" "$openssl_command" "$@" \
-			2>/dev/null && \
-				return
-	else
-		"$EASYRSA_OPENSSL" "$openssl_command" "$@" && \
-				return
-	fi
+			return
+	;;
+	*)
+		# Exec SSL
+		if [ "$EASYRSA_SILENT_SSL" ] && [ "$EASYRSA_BATCH" ]
+		then
+			"$EASYRSA_OPENSSL" "$openssl_command" "$@" \
+				2>/dev/null && \
+					return
+		else
+			"$EASYRSA_OPENSSL" "$openssl_command" "$@" && \
+					return
+		fi
+	esac
 
 	# Always fail here
 	die "\
