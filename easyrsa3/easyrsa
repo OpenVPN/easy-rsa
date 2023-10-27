@@ -992,13 +992,8 @@ export EASYRSA_REQ_SERIAL=\"$EASYRSA_REQ_SERIAL\"\
 escape_hazard - Failed to write temp-file"
 
 	# Reload fields from fully escaped temp-file
-	# shellcheck disable=SC1090 # can't follow ...
-	(. "$escape_hazard_tmp") || die "\
-escape_hazard - Failed to source temp-file"
-
+	source_vars "$escape_hazard_tmp"
 	verbose "escape_hazard: COMPLETED"
-	# shellcheck disable=SC1090 # can't follow ...
-	. "$escape_hazard_tmp"
 } # => escape_hazard()
 
 # Replace environment variable names with current value
@@ -5608,12 +5603,6 @@ No Easy-RSA 'vars' configuration file exists!"
 
 # Source a vars file
 source_vars() {
-	# Never use vars file
-	if [ "$EASYRSA_NO_VARS" ]; then
-		verbose "source_vars: EASYRSA_NO_VARS"
-		return
-	fi
-
 	# File to be sourced
 	target_file="$1"
 
@@ -5636,36 +5625,60 @@ Using Easy-RSA 'vars' configuration:
 	if grep -q \
 		-e 'EASYRSA_PASSIN' -e 'EASYRSA_PASSOUT' \
 		-e '[^(]`[^)]' \
-		"$target_file"
-	then
-		user_error "\
-One or more of these problems has been found in your 'vars' file:
-* $target_file
-
-* Use of 'EASYRSA_PASSIN' or 'EASYRSA_PASSOUT':
-Storing password information in the 'vars' file is not permitted.
-
-* Use of unsupported characters:
-These characters are not supported: \` backtick
-
-Please, correct these errors and try again."
-	fi
-
-	# Sanitize vars
-	if grep -q \
 		-e '[[:blank:]]export[[:blank:]]*' \
 		-e '[[:blank:]]unset[[:blank:]]*' \
 		"$target_file"
 	then
-		user_error "\
-One or more of these problems has been found in your 'vars' file:
-* $target_file
+		# here we go ..
+		err_msg="\
+These problems have been found in your 'vars' settings:${NL}"
 
-* Use of 'export':
-Remove 'export' or replace it with 'set_var'.
+		# No passwords!
+		if grep -q \
+			-e 'EASYRSA_PASSIN' -e 'EASYRSA_PASSOUT' \
+			"$target_file"
+		then
+			err_msg="${err_msg}
+  Use of 'EASYRSA_PASSIN' or 'EASYRSA_PASSOUT':
+  Storing password information in the 'vars' file is not permitted."
+		fi
 
-* Use of 'unset':
-Remove 'unset' ('force_set_var' may also work)."
+		# No backticks
+		if grep -q \
+			-e '[^(]`[^)]' \
+			"$target_file"
+		then
+			err_msg="${err_msg}
+  Use of unsupported characters:
+  These characters are not supported: \` backtick"
+		fi
+
+		# No export
+		if grep -q \
+			-e '[[:blank:]]export[[:blank:]]*' \
+			"$target_file"
+		then
+			err_msg="${err_msg}
+  Use of 'export':
+  Remove 'export' or replace it with 'set_var'."
+		fi
+
+		# No unset
+		if grep -q \
+			-e '[[:blank:]]unset[[:blank:]]*' \
+			"$target_file"
+		then
+			err_msg="${err_msg}
+  Use of 'unset':
+  Remove 'unset' ('force_set_var' may also work)."
+		fi
+
+		# Fatal error
+		user_error "${err_msg}${NL}
+Please, correct these errors and try again."
+
+	else
+		verbose "source_vars: CLEAN '$target_file'"
 	fi
 
 	# Enable sourcing 'vars'
@@ -7131,7 +7144,7 @@ esac
 select_vars
 
 # source the vars file
-source_vars "$EASYRSA_VARS_FILE"
+[ "$EASYRSA_NO_VARS" ] || source_vars "$EASYRSA_VARS_FILE"
 
 # then set defaults
 default_vars
