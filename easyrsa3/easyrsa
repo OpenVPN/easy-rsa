@@ -854,6 +854,15 @@ cleanup() {
 		print
 	fi
 
+	# undo changes BEFORE delete temp-dir
+	# Remove files when build_full()->sign_req() is interrupted
+	[ "$error_build_full_cleanup" ] && \
+		rm -f "$crt_out" "$req_out" "$key_out"
+	# Restore files when renew is interrupted
+	[ "$error_undo_renew_move" ] && renew_restore_move
+	# Restore files when rebuild is interrupted
+	[ "$error_undo_rebuild_move" ] && rebuild_restore_move
+
 	if [ "${secured_session%/*}" ] && \
 		[ -d "$secured_session" ]
 	then
@@ -874,22 +883,12 @@ Temporary session not preserved."
 				mv -f "$secured_session" "$keep_tmp"
 				print "Temp session preserved: $keep_tmp"
 			fi
-		else
-			# remove temp-session
-			remove_secure_session || \
-				warn "cleanup - remove_secure_session failed"
 		fi
-	fi
 
-	# These cleanup routines must be called after die()
-	# because the relate commands can die in subshells.
-	# Remove files when build_full()->sign_req() is interrupted
-	[ "$error_build_full_cleanup" ] && \
-		rm -f "$crt_out" "$req_out" "$key_out"
-	# Restore files when renew is interrupted
-	[ "$error_undo_renew_move" ] && renew_restore_move
-	# Restore files when rebuild is interrupted
-	[ "$error_undo_rebuild_move" ] && rebuild_restore_move
+		# remove temp-session
+		remove_secure_session || \
+			warn "cleanup - remove_secure_session failed"
+	fi
 
 	# shellcheck disable=SC3040
 	# In POSIX sh, set option [name] is undefined
@@ -1097,6 +1096,7 @@ easyrsa_mktemp safe_ssl_cnf_tmp"
 # sign-req or gen-req.
 easyrsa_openssl() {
 	openssl_command="$1"; shift
+	verbose "> easyrsa_openssl - BEGIN $openssl_command"
 
 	# Do not allow 'rand' here, see easyrsa_random()
 	case "$openssl_command" in
@@ -1118,33 +1118,36 @@ easyrsa_openssl() {
 	# VERIFY safe temp-file exists
 	if [ -e "$safe_ssl_cnf_tmp" ]; then
 		verbose "\
-easyrsa_openssl: Safe SSL conf OK: $safe_ssl_cnf_tmp"
+> easyrsa_openssl: Safe SSL conf OK: $safe_ssl_cnf_tmp"
 		export OPENSSL_CONF="$safe_ssl_cnf_tmp"
 	else
 		verbose "\
-easyrsa_openssl: No Safe SSL conf, FALLBACK to default"
+> easyrsa_openssl: No Safe SSL conf, FALLBACK to default"
 		export OPENSSL_CONF="$EASYRSA_SSL_CONF"
 	fi
 
 	# Execute command - Return on success
-	if [ "$openssl_command" = "makesafeconf" ]; then
+	verbose "> easyrsa_openssl - EXEC $openssl_command $*"
+
+	case "$openssl_command" in
+	makesafeconf)
 		# COPY temp-file to safessl-easyrsa.cnf
 		unset -v makesafeconf
 		cp -f "$safe_ssl_cnf_tmp" "$EASYRSA_SAFE_CONF" && \
-				return
-		die "easyrsa_openssl: makesafeconf FAILED"
-	fi
-
-	# Exec SSL
-	if [ "$EASYRSA_SILENT_SSL" ] && [ "$EASYRSA_BATCH" ]
-	then
-		"$EASYRSA_OPENSSL" "$openssl_command" "$@" \
-			2>/dev/null && \
-				return
-	else
-		"$EASYRSA_OPENSSL" "$openssl_command" "$@" && \
-				return
-	fi
+			return
+	;;
+	*)
+		# Exec SSL
+		if [ "$EASYRSA_SILENT_SSL" ] && [ "$EASYRSA_BATCH" ]
+		then
+			"$EASYRSA_OPENSSL" "$openssl_command" "$@" \
+				2>/dev/null && \
+					return
+		else
+			"$EASYRSA_OPENSSL" "$openssl_command" "$@" && \
+					return
+		fi
+	esac
 
 	# Always fail here
 	die "\
@@ -2538,8 +2541,8 @@ inline_creds () {
 
 	# Generate data
 	if [ -e "$crt_source" ]; then
-		# Get EasyRSA cert type
-		ssl_cert_x509v3_eku "$crt_source" type_data
+		# Get EasyRSA cert type, ignore error
+		ssl_cert_x509v3_eku "$crt_source" type_data || :
 
 		crt_data="\
 <cert>
@@ -2891,7 +2894,8 @@ Cannot renew this certificate, a conflicting file exists:
 			die "Failed to create inline directoy."
 
 	# Extract certificate usage from old cert
-	ssl_cert_x509v3_eku "$crt_in" cert_type
+	ssl_cert_x509v3_eku "$crt_in" cert_type || \
+		die "Unknown EKU: $cert_type"
 
 	# Use SAN from --san if set else use SAN from old cert
 	if echo "$EASYRSA_EXTRA_EXTS" | grep -q subjectAltName
@@ -2944,9 +2948,9 @@ with the following subject:
 	then
 		unset -v error_undo_renew_move
 	else
-		# If renew failed then restore cert.
-		# Otherwise, issue a warning
+		# If sign_req failed then restore cert.
 		renew_restore_move
+		unset -v error_undo_renew_move
 		die "\
 Renewal has failed to build a new certificate."
 	fi
@@ -4361,33 +4365,63 @@ ssl_cert_x509v3_eku() {
 	__cli="TLS Web Client Authentication"
 	__srv="TLS Web Server Authentication"
 	__srv_cli="${__srv}, ${__cli}"
+	__codeSign="Code Signing"
+	unset -v __known
 
-	# Extract certificate usage from old cert
+	# Extract certificate Extended Key Usage
 	__eku="$(
-		easyrsa_openssl x509 -in "${__crt}" -noout -text | \
-			sed -n "/${__pattern}/{n;s/^ *//g;p;}"
+		OPENSSL_CONF=/dev/null
+		"$EASYRSA_OPENSSL" x509 -in "${__crt}" -noout \
+			-ext extendedKeyUsage | \
+				sed -e /"${__pattern}"/d -e s/^\ *//
 		)"
 
+	# Match EKU with supported usage
 	case "$__eku" in
+	"$__srv_cli")
+		__known=1
+		__type=serverClient
+	;;
 	"$__cli")
+		__known=1
 		__type=client
 	;;
 	"$__srv")
+		__known=1
 		__type=server
 	;;
-	"$__srv_cli")
-		__type=serverClient
+	"$__codeSign")
+		__known=1
+		__type=codeSign
 	;;
-	*) die "Unknown key usage: $__eku"
+	'')
+		__type=undefined
+	;;
+	*)
+		__type="'$__eku'"
 	esac
 
 	# Set variable to return
 	if [ "$__var" ]; then
+		verbose "ssl_cert_x509v3_eku - EKU: $__type"
 		force_set_var "$__var" "$__type"
+	elif [ "$__known" ]; then
+		information "
+* Known X509v3 Extended Key Usage: $__type"
 	else
-		information "${NL}* EasyRSA Certificate type: $__type"
+		information "
+* Unknown X509v3 Extended Key Usage: $__type"
 	fi
-	unset -v __crt __var __pattern __eku __type
+
+	unset -v __crt __var __pattern __srv_cli __cli __srv \
+		__codeSign __eku __type
+
+	if [ "$__known" ]; then
+		unset -v __known
+		return
+	fi
+
+	return 1
 } # => ssl_cert_x509v3_eku()
 
 # get the serial number of the certificate -> serial=XXXX
@@ -5860,7 +5894,7 @@ Temporary directory does not exist:
 * $EASYRSA_TEMP_DIR"
 		fi
 	fi
-	verbose "verify_working_env: COMPLETED"
+	verbose "verify_working_env: COMPLETED Handover-to: $cmd"
 } # => verify_working_env()
 
 # variable assignment by indirection.
@@ -5933,9 +5967,17 @@ create_x509_type() {
 		keyUsage = cRLSign, keyCertSign
 		X509_TYPE_CA
 	;;
+	codeSign)
+		cat <<- "X509_CODE_SIGNING"
+		basicConstraints = CA:FALSE
+		subjectKeyIdentifier = hash
+		authorityKeyIdentifier = keyid,issuer:always
+		extendedKeyUsage = codeSigning
+		keyUsage = digitalSignature
+		X509_CODE_SIGNING
+	;;
 	*)
-		# Unknown type: User MUST supply the X509 file
-		die "create_x509_type - Unknown X509 type: '$1'"
+		return 1
 	esac
 } # => create_x509_type()
 
@@ -7341,7 +7383,8 @@ case "$cmd" in
 		;;
 	x509-eku|show-eku)
 		verify_working_env
-		ssl_cert_x509v3_eku "$@"
+		ssl_cert_x509v3_eku "$@" || \
+			easyrsa_exit_with_error=1
 		;;
 	upgrade)
 		verify_working_env
