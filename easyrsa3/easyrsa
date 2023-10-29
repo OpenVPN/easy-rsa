@@ -4102,7 +4102,9 @@ display_san - input error"
 		)"
 
 		# Print auto SAN
-		[ "$san" ] && print "$san"
+		if [ "$san" ]; then
+			print "$san"
+		fi
 	fi
 } # => display_san()
 
