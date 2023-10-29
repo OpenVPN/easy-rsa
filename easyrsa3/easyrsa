@@ -2271,22 +2271,22 @@ basicConstraints is not defined, cannot use 'pathlen'"
 		unset -v ns_cert_type
 	esac
 
-	# Add user SAN from --subject-alt-name
-	unset -v san
-	if [ "$EASYRSA_EXTRA_EXTS" ]; then
-		san="$EASYRSA_EXTRA_EXTS"
-	else
-		# or default server SAN
-		# If type is server and no subjectAltName was
-		# requested then add one to the extensions file
-		case "$crt_type" in server|serverClient)
+	# If type is server and no subjectAltName was
+	# requested then add one to the extensions file
+	if [ -z "$EASYRSA_EXTRA_EXTS" ]; then
+		# default server SAN
+		case "$crt_type" in
+		server|serverClient)
 			# req san or default server SAN
-			san="$(display_san req "$req_in")"
-			if [ "$san" ]; then
-				san="subjectAltName = $san"
+			__san="$(display_san req "$req_in")"
+			if [ "$__san" ]; then
+				__san="subjectAltName = $__san"
 			else
-				san="$(default_server_san "$req_in")"
+				__san="$(default_server_san "$req_in")"
 			fi
+			[ "$__san" ] || die "No default server SAN!"
+			export EASYRSA_EXTRA_EXTS="$__san"
+			unset -v __san
 		esac
 	fi
 
@@ -2311,9 +2311,10 @@ basicConstraints is not defined, cannot use 'pathlen'"
 			print "nsComment = \"$EASYRSA_NS_COMMENT\""
 		fi
 
-		# Add SAN
-		if [ "$san" ]; then
-			print "$san"
+		# Add user supplied extra extensions
+		# and/or SAN extension
+		if [ "$EASYRSA_EXTRA_EXTS" ]; then
+			print "$EASYRSA_EXTRA_EXTS"
 		fi
 	} > "$ext_tmp" || die "\
 Error message: $error_msg
