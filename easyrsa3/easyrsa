@@ -2271,6 +2271,25 @@ basicConstraints is not defined, cannot use 'pathlen'"
 		unset -v ns_cert_type
 	esac
 
+	# Add user SAN from --subject-alt-name
+	unset -v san
+	if [ "$EASYRSA_EXTRA_EXTS" ]; then
+		san="$EASYRSA_EXTRA_EXTS"
+	else
+		# or default server SAN
+		# If type is server and no subjectAltName was
+		# requested then add one to the extensions file
+		case "$crt_type" in server|serverClient)
+			# req san or default server SAN
+			san="$(display_san req "$req_in")"
+			if [ "$san" ]; then
+				san="subjectAltName = $san"
+			else
+				san="$(default_server_san "$req_in")"
+			fi
+		esac
+	fi
+
 	# Generate the extensions file for this cert:
 	ext_tmp=""
 	easyrsa_mktemp ext_tmp || \
@@ -2292,24 +2311,9 @@ basicConstraints is not defined, cannot use 'pathlen'"
 			print "nsComment = \"$EASYRSA_NS_COMMENT\""
 		fi
 
-		# Add user SAN from --subject-alt-name
-		if [ "$EASYRSA_EXTRA_EXTS" ]; then
-			print "$EASYRSA_EXTRA_EXTS"
-		else
-			# or default server SAN
-			# If type is server and no subjectAltName was
-			# requested then add one to the extensions file
-			if [ "$crt_type" = 'server' ] || \
-				[ "$crt_type" = 'serverClient' ];
-			then
-				# req san or default server SAN
-				san="$(display_san req "$req_in")"
-				if [ "$san" ]; then
-					print "subjectAltName = $san"
-				else
-					default_server_san "$req_in"
-				fi
-			fi
+		# Add SAN
+		if [ "$san" ]; then
+			print "$san"
 		fi
 	} > "$ext_tmp" || die "\
 Error message: $error_msg
