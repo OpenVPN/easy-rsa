@@ -1,6 +1,7 @@
 Easy-RSA 3 ChangeLog
 
 3.2.0 (TBD)
+   * New diagnostic command 'display-cn' (#1040)
    * Expand renewable certificate types to include code-signing (#1039)
 
 3.1.7 (2023-10-13)
