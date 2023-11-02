@@ -4163,10 +4163,9 @@ display_dn - input error"
 	shift 2
 
 	# Display DN
-	name_opts="utf8,sep_multiline,space_eq,lname,align"
 	print "$(
 		easyrsa_openssl "$format" -in "$path" -noout -subject \
-			-nameopt "$name_opts"
+			-nameopt utf8,sep_multiline,space_eq,lname,align
 		)"
 
 	# Display SAN, if present
