@@ -4153,6 +4153,31 @@ display_cn - Type '$format', missing: '$path'"
 		def_dir dot_3 path format internal_batch
 } # => display_cn()
 
+# display cert DN info on a req/X509, passed by full pathname
+display_dn() {
+	[ "$#" = 2 ] || die "\
+display_dn - input error"
+
+	format="$1"
+	path="$2"
+	shift 2
+
+	# Display DN
+	name_opts="utf8,sep_multiline,space_eq,lname,align"
+	print "$(
+		easyrsa_openssl "$format" -in "$path" -noout -subject \
+			-nameopt "$name_opts"
+		)"
+
+	# Display SAN, if present
+	san="$(display_san "$format" "$path")"
+	if [ "$san" ]; then
+		print ""
+		print "X509v3 Subject Alternative Name:"
+		print "    $san"
+	fi
+} # => display_dn()
+
 # Display subjectAltName
 display_san() {
 	[ "$#" = 2 ] || die "\
@@ -4183,31 +4208,6 @@ display_san - input error"
 		fi
 	fi
 } # => display_san()
-
-# display cert DN info on a req/X509, passed by full pathname
-display_dn() {
-	[ "$#" = 2 ] || die "\
-display_dn - input error"
-
-	format="$1"
-	path="$2"
-	shift 2
-
-	# Display DN
-	name_opts="utf8,sep_multiline,space_eq,lname,align"
-	print "$(
-		easyrsa_openssl "$format" -in "$path" -noout -subject \
-			-nameopt "$name_opts"
-		)"
-
-	# Display SAN, if present
-	san="$(display_san "$format" "$path")"
-	if [ "$san" ]; then
-		print ""
-		print "X509v3 Subject Alternative Name:"
-		print "    $san"
-	fi
-} # => display_dn()
 
 # generate default SAN from req/X509, passed by full pathname
 default_server_san() {
