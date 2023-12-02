@@ -96,10 +96,6 @@ DIRECTORY STATUS (commands would take effect on these locations)
    vars-file: ${EASYRSA_VARS_FILE:-Missing or undefined}${ivmsg}
   x509-types: ${EASYRSA_EXT_DIR:-Missing or undefined}
 $CA_status"
-
-	# if the vars file in use is not in the PKI
-	# and not user defined then Show the messages
-	prefer_vars_in_pki_msg
 } # => usage()
 
 # Detailed command help
@@ -479,6 +475,9 @@ cmd_help() {
   Check <SERIAL> number is unique:
     serial|check-serial <SERIAL>
 
+  Display CN of certificate: <form> = req|x509
+    display-cn <form> <file_name_base>
+
   Display DN of certificate:
     display-dn <file_name_base>
 
@@ -489,7 +488,7 @@ cmd_help() {
     default-san <file_name_base>
 
   Display EKU of certificate:
-    x509-eku <file_name_base>"
+    show-eku <file_name_base>"
 	;;
 	opts|options)
 		opt_usage
@@ -619,9 +618,9 @@ Easy-RSA error:
 
 $1
 "
-	# error_info is currently unused
+	# error_info is for hard-to-spot errors!
 	if [ "$error_info" ]; then
-		print "${error_info}${NL}"
+		print "  * $cmd: ${error_info}${NL}"
 	fi
 
 	# show host info
@@ -858,6 +857,15 @@ cleanup() {
 		print
 	fi
 
+	# undo changes BEFORE delete temp-dir
+	# Remove files when build_full()->sign_req() is interrupted
+	[ "$error_build_full_cleanup" ] && \
+		rm -f "$crt_out" "$req_out" "$key_out"
+	# Restore files when renew is interrupted
+	[ "$error_undo_renew_move" ] && renew_restore_move
+	# Restore files when rebuild is interrupted
+	[ "$error_undo_rebuild_move" ] && rebuild_restore_move
+
 	if [ "${secured_session%/*}" ] && \
 		[ -d "$secured_session" ]
 	then
@@ -878,22 +886,12 @@ Temporary session not preserved."
 				mv -f "$secured_session" "$keep_tmp"
 				print "Temp session preserved: $keep_tmp"
 			fi
-		else
-			# remove temp-session
-			remove_secure_session || \
-				warn "cleanup - remove_secure_session failed"
 		fi
-	fi
 
-	# These cleanup routines must be called after die()
-	# because the relate commands can die in subshells.
-	# Remove files when build_full()->sign_req() is interrupted
-	[ "$error_build_full_cleanup" ] && \
-		rm -f "$crt_out" "$req_out" "$key_out"
-	# Restore files when renew is interrupted
-	[ "$error_undo_renew_move" ] && renew_restore_move
-	# Restore files when rebuild is interrupted
-	[ "$error_undo_rebuild_move" ] && rebuild_restore_move
+		# remove temp-session
+		remove_secure_session || \
+			warn "cleanup - remove_secure_session failed"
+	fi
 
 	# shellcheck disable=SC3040
 	# In POSIX sh, set option [name] is undefined
@@ -996,13 +994,8 @@ export EASYRSA_REQ_SERIAL=\"$EASYRSA_REQ_SERIAL\"\
 escape_hazard - Failed to write temp-file"
 
 	# Reload fields from fully escaped temp-file
-	# shellcheck disable=SC1090 # can't follow ...
-	(. "$escape_hazard_tmp") || die "\
-escape_hazard - Failed to source temp-file"
-
+	source_vars "$escape_hazard_tmp"
 	verbose "escape_hazard: COMPLETED"
-	# shellcheck disable=SC1090 # can't follow ...
-	. "$escape_hazard_tmp"
 } # => escape_hazard()
 
 # Replace environment variable names with current value
@@ -1106,6 +1099,7 @@ easyrsa_mktemp safe_ssl_cnf_tmp"
 # sign-req or gen-req.
 easyrsa_openssl() {
 	openssl_command="$1"; shift
+	verbose "> easyrsa_openssl - BEGIN $openssl_command"
 
 	# Do not allow 'rand' here, see easyrsa_random()
 	case "$openssl_command" in
@@ -1127,33 +1121,36 @@ easyrsa_openssl() {
 	# VERIFY safe temp-file exists
 	if [ -e "$safe_ssl_cnf_tmp" ]; then
 		verbose "\
-easyrsa_openssl: Safe SSL conf OK: $safe_ssl_cnf_tmp"
+> easyrsa_openssl: Safe SSL conf OK: $safe_ssl_cnf_tmp"
 		export OPENSSL_CONF="$safe_ssl_cnf_tmp"
 	else
 		verbose "\
-easyrsa_openssl: No Safe SSL conf, FALLBACK to default"
+> easyrsa_openssl: No Safe SSL conf, FALLBACK to default"
 		export OPENSSL_CONF="$EASYRSA_SSL_CONF"
 	fi
 
 	# Execute command - Return on success
-	if [ "$openssl_command" = "makesafeconf" ]; then
+	verbose "> easyrsa_openssl - EXEC $openssl_command $*"
+
+	case "$openssl_command" in
+	makesafeconf)
 		# COPY temp-file to safessl-easyrsa.cnf
 		unset -v makesafeconf
 		cp -f "$safe_ssl_cnf_tmp" "$EASYRSA_SAFE_CONF" && \
-				return
-		die "easyrsa_openssl: makesafeconf FAILED"
-	fi
-
-	# Exec SSL
-	if [ "$EASYRSA_SILENT_SSL" ] && [ "$EASYRSA_BATCH" ]
-	then
-		"$EASYRSA_OPENSSL" "$openssl_command" "$@" \
-			2>/dev/null && \
-				return
-	else
-		"$EASYRSA_OPENSSL" "$openssl_command" "$@" && \
-				return
-	fi
+			return
+	;;
+	*)
+		# Exec SSL
+		if [ "$EASYRSA_SILENT_SSL" ] && [ "$EASYRSA_BATCH" ]
+		then
+			"$EASYRSA_OPENSSL" "$openssl_command" "$@" \
+				2>/dev/null && \
+					return
+		else
+			"$EASYRSA_OPENSSL" "$openssl_command" "$@" && \
+					return
+		fi
+	esac
 
 	# Always fail here
 	die "\
@@ -1366,55 +1363,16 @@ Failed to install required data-files to PKI. (init)"
 Your newly created PKI dir is:
 * $EASYRSA_PKI"
 
-	# Installation information
-	# if $no_new_vars then there are one or more known vars
-	# which are not in the PKI. All further commands will fail
-	# until vars is manually corrected
-	if [ "$no_new_vars" ]; then
-		warn "\
-A vars file has not been created in your new PKI because
-conflicting vars files have been found elsewhere."
-		prefer_vars_in_pki_msg
-	else
-		unset -v EASYRSA_VARS_FILE
-		select_vars
-		information "
+	# Select and show vars file
+	unset -v EASYRSA_VARS_FILE
+	select_vars
+	information "
 Using Easy-RSA configuration:
 * ${EASYRSA_VARS_FILE:-undefined}"
-	fi
 
-	# For new PKIs , pki/vars was auto-created, show message
-	if [ "$new_vars_true" ]; then
-		information "
-IMPORTANT:
-  Easy-RSA 'vars' template file has been created in your new PKI.
-  Edit this 'vars' file to customise the settings for your PKI.
-  To use a global vars file, use global option --vars=<FILE>"
-
-	else
-		prefer_vars_in_pki_msg
-	fi
 	verbose "\
 init_pki: x509-types dir ${EASYRSA_EXT_DIR:-Not found}"
 } # => init_pki()
-
-# Must be used in two places, so made it a function
-prefer_vars_in_pki_msg() {
-	if [ "$vars_in_pki" ] || [ "$user_vars_true" ] ||
-		[ "$EASYRSA_NO_VARS" ]
-	then
-		return
-	fi
-
-	# Never show this message
-	return
-
-	information "
-IMPORTANT:
-  The preferred location for 'vars' is within the PKI folder.
-  To silence this message move your 'vars' file to your PKI
-  or declare your 'vars' file with option: --vars=<FILE>"
-} # => prefer_vars_in_pki_msg()
 
 # Copy data-files from various sources
 install_data_to_pki() {
@@ -1431,8 +1389,6 @@ install_data_to_pki() {
 	shift
 
 	# Set required sources
-	vars_file='vars'
-	vars_file_example='vars.example'
 	ssl_cnf_file='openssl-easyrsa.cnf'
 	x509_types_dir='x509-types'
 
@@ -1482,7 +1438,7 @@ install_data_to_pki() {
 				if [ -e "${EASYRSA_PKI}/${source}" ]; then
 					continue
 				else
-					cp "${area}/${source}" "$EASYRSA_PKI" || die \
+					cp "${area}/${source}" "$EASYRSA_PKI" || warn \
 						"Failed to copy to PKI: ${area}/${source}"
 				fi
 			done
@@ -1494,50 +1450,6 @@ install_data_to_pki() {
 		verbose "\
 install_data_to_pki: $context - COMPLETED"
 		return
-	fi
-
-	# Create PKI/vars from PKI/example
-	unset -v new_vars_true
-	if [ "$user_vars_true" ] || \
-		[ "$no_new_vars" ]
-	then
-		: # ok - Do not make a PKI/vars if another vars exists
-		verbose "\
-install_data_to_pki: $context - Not creating pki/vars"
-	else
-		case "$context" in
-		init-pki)
-			# Only create for 'init-pki', if one does not exist
-			# 'init-pki soft' should have it's own 'vars' file
-			if [ -e "${EASYRSA_PKI}/${vars_file_example}" ] && \
-				[ ! -e "${EASYRSA_PKI}/${vars_file}" ]
-			then
-				# Failure means that no vars will exist and
-				# 'cp' will generate an error message
-				# This is not a fatal error
-				if cp "${EASYRSA_PKI}/${vars_file_example}" \
-					"${EASYRSA_PKI}/${vars_file}"
-				then
-					new_vars_true=1
-					vars="${EASYRSA_PKI}/${vars_file}"
-					verbose "\
-install_data_to_pki: $context - vars = '$vars'"
-				else
-					unset -v new_vars_true vars
-					warn "\
-install_data_to_pki: $context - Failed to install vars file"
-				fi
-			fi
-		;;
-		vars-setup)
-			: ;; # No change to current 'vars' required
-		x509-types-only)
-			die "install_data_to_pki - unexpected context" ;;
-		'')
-			die "install_data_to_pki - unspecified context" ;;
-		*)
-			die "install_data_to_pki - unknown context: $context"
-		esac
 	fi
 
 	# Check PKI is updated - Omit unnecessary checks
@@ -1557,8 +1469,7 @@ install_data_to_pki: $context - Missing: '$x509_types_dir'"
 } # => install_data_to_pki ()
 
 # Disable terminal echo, if possible, otherwise warn
-hide_read_pass()
-{
+hide_read_pass() {
 	# 3040 - In POSIX sh, set option [name] is undefined
 	# 3045 - In POSIX sh, some-command-with-flag is undefined
 	# shellcheck disable=SC3040,SC3045
@@ -1940,14 +1851,13 @@ build_ca: CA certificate password created via RAW"
 build_ca: CA certificate password created via temp-files"
 	fi
 
-	# Move temp-files to output files
-	mv "$out_key_tmp" "$out_key" || {
-		die "Failed to move key temp-file"
-	}
-	mv "$out_file_tmp" "$out_file" || {
-		rm -f "$out_key" # Also remove the key
-		die "Failed to move cert temp-file"
-	}
+	# Move temp-files to target-files
+	mv "$out_key_tmp" "$out_key" || mv_temp_error=1
+	mv "$out_file_tmp" "$out_file" || mv_temp_error=1
+	if [ "$mv_temp_error" ]; then
+		rm -f "$out_key" "$out_file"
+		die "Failed to move new CA files."
+	fi
 
 	# Success messages
 	if [ "$sub_ca" ]; then
@@ -2005,8 +1915,12 @@ at: $out_file"
 			-check -noout || \
 				die "Failed to validate DH params"
 
-	mv -f "$tmp_dh_file" "$out_file" || \
-		die "Failed to move temp DH file"
+	# Move temp-files to target-files
+	mv "$tmp_dh_file" "$out_file" || mv_temp_error=1
+	if [ "$mv_temp_error" ]; then
+		rm -f "$out_file"
+		die "Failed to move temp DH file."
+	fi
 
 	notice "
 DH parameters of size $EASYRSA_KEY_SIZE created at:
@@ -2150,13 +2064,12 @@ $EASYRSA_EXTRA_EXTS"
 	fi
 
 	# Move temp-files to target-files
-	mv "$key_out_tmp" "$key_out" || {
-		die "Failed to move key temp-file"
-	}
-	mv "$req_out_tmp" "$req_out" || {
-		rm -f "$key_out" # Also remove the key
-		die "Failed to move req temp-file"
-	}
+	mv "$key_out_tmp" "$key_out" || mv_temp_error=1
+	mv "$req_out_tmp" "$req_out" || mv_temp_error=1
+	if [ "$mv_temp_error" ]; then
+		rm -f "$key_out" "$req_out"
+		die "Failed to move temp key/req file."
+	fi
 
 	# Success messages
 	notice "\
@@ -2361,6 +2274,25 @@ basicConstraints is not defined, cannot use 'pathlen'"
 		unset -v ns_cert_type
 	esac
 
+	# If type is server and no subjectAltName was
+	# requested then add one to the extensions file
+	if [ -z "$EASYRSA_EXTRA_EXTS" ]; then
+		# default server SAN
+		case "$crt_type" in
+		server|serverClient)
+			# req san or default server SAN
+			__san="$(display_san req "$req_in")"
+			if [ "$__san" ]; then
+				__san="subjectAltName = $__san"
+			else
+				__san="$(default_server_san "$req_in")"
+			fi
+			[ "$__san" ] || die "No default server SAN!"
+			export EASYRSA_EXTRA_EXTS="$__san"
+			unset -v __san
+		esac
+	fi
+
 	# Generate the extensions file for this cert:
 	ext_tmp=""
 	easyrsa_mktemp ext_tmp || \
@@ -2382,24 +2314,10 @@ basicConstraints is not defined, cannot use 'pathlen'"
 			print "nsComment = \"$EASYRSA_NS_COMMENT\""
 		fi
 
-		# Add user SAN from --subject-alt-name
+		# Add user supplied extra extensions
+		# and/or SAN extension
 		if [ "$EASYRSA_EXTRA_EXTS" ]; then
 			print "$EASYRSA_EXTRA_EXTS"
-		else
-			# or default server SAN
-			# If type is server and no subjectAltName was
-			# requested then add one to the extensions file
-			if [ "$crt_type" = 'server' ] || \
-				[ "$crt_type" = 'serverClient' ];
-			then
-				# req san or default server SAN
-				san="$(display_san req "$req_in")"
-				if [ "$san" ]; then
-					print "subjectAltName = $san"
-				else
-					default_server_san "$req_in"
-				fi
-			fi
 		fi
 	} > "$ext_tmp" || die "\
 Error message: $error_msg
@@ -2459,8 +2377,12 @@ $(display_dn req "$req_in")" # => confirm end
 Signing failed (openssl output above may have more detail)"
 	verbose "sign_req: signed cert '$file_name_base' OK"
 
-	mv "$crt_out_tmp" "$crt_out" || \
-		die "Failed to move temp-file to certificate."
+	# Move temp-files to target-files
+	mv "$crt_out_tmp" "$crt_out" || mv_temp_error=1
+	if [ "$mv_temp_error" ]; then
+		rm -f "$crt_out"
+		die "Failed to move temp certificate file."
+	fi
 
 	# Success messages
 	notice "\
@@ -2627,8 +2549,8 @@ inline_creds () {
 
 	# Generate data
 	if [ -e "$crt_source" ]; then
-		# Get EasyRSA cert type
-		ssl_cert_x509v3_eku "$crt_source" type_data
+		# Get EasyRSA cert type, ignore error
+		ssl_cert_x509v3_eku "$crt_source" type_data || :
 
 		crt_data="\
 <cert>
@@ -2980,7 +2902,8 @@ Cannot renew this certificate, a conflicting file exists:
 			die "Failed to create inline directoy."
 
 	# Extract certificate usage from old cert
-	ssl_cert_x509v3_eku "$crt_in" cert_type
+	ssl_cert_x509v3_eku "$crt_in" cert_type || \
+		die "Unknown EKU: $cert_type"
 
 	# Use SAN from --san if set else use SAN from old cert
 	if echo "$EASYRSA_EXTRA_EXTS" | grep -q subjectAltName
@@ -3033,9 +2956,9 @@ with the following subject:
 	then
 		unset -v error_undo_renew_move
 	else
-		# If renew failed then restore cert.
-		# Otherwise, issue a warning
+		# If sign_req failed then restore cert.
 		renew_restore_move
+		unset -v error_undo_renew_move
 		die "\
 Renewal has failed to build a new certificate."
 	fi
@@ -3740,8 +3663,12 @@ gen_crl() {
 		${EASYRSA_PASSIN:+ -passin "$EASYRSA_PASSIN"} || \
 			die "CRL Generation failed."
 
-	mv ${EASYRSA_BATCH:+ -f} "$out_file_tmp" "$out_file" || \
-		die "Failed to update CRL file."
+	# Move temp-files to target-files
+	mv "$out_file_tmp" "$out_file" || mv_temp_error=1
+	if [ "$mv_temp_error" ]; then
+		#rm -f "$out_file"
+		die "Failed to move temp CRL file."
+	fi
 
 	notice "\
 An updated CRL has been created:
@@ -4153,6 +4080,103 @@ update_db() {
 			die "Failed to perform update-db."
 } # => update_db()
 
+# Display commonName
+display_cn() {
+	format="$1"
+	path="$2"
+	var_name="$3"
+	shift "$#"
+
+	case "$format" in
+	req)
+		def_dir=reqs
+		dot_3=req
+	;;
+	x509)
+		def_dir=issued
+		dot_3=crt
+	;;
+	'')
+		user_error "display_cn - Unspecified format"
+	;;
+	*)
+		user_error "display_cn - Unknown format: '$format'"
+	esac
+
+	# Check for absolute or relative file name
+	if [ -e "$path" ]; then
+		: # ok
+	else
+		in_file="${EASYRSA_PKI}/${def_dir}/${path}.${dot_3}"
+		in_file_1="${EASYRSA_PKI}/${def_dir}/${path}"
+		if [ -e "$in_file" ]; then
+			path="$in_file"
+		elif [ -e "$in_file_1" ]; then
+			path="$in_file_1"
+		else
+			user_error "\
+display_cn - Type '$format', missing: '$path'"
+		fi
+	fi
+
+	# Extract commonName
+	error_info="Certs require form 'x509'; Reqs require form 'req'"
+	if ssl_cn="$(
+		export OPENSSL_CONF=/dev/null
+		"$EASYRSA_OPENSSL" "$format" -in "$path" -noout -subject \
+			-nameopt utf8,sep_multiline,space_eq,lname,align | \
+				grep '^[[:blank:]]*commonName'
+		)"
+	then
+		unset -v error_info
+	else
+		 die "display_cn - ssl_cn: Not found 'commonName'"
+	fi
+
+	# Return commonName
+	if [ "$internal_batch" ] || [ "$EASYRSA_BATCH" ]; then
+		# Remove the label
+		ssl_cn="${ssl_cn#*= }"
+		# if set then return CN via variable
+		if [ "$var_name" ]; then
+			verbose "display_cn - force_set_var '$var_name' '$ssl_cn'"
+			force_set_var "$var_name" "$ssl_cn" || \
+				die "display_cn - force_set_var '$var_name' '$ssl_cn'"
+		else
+			print "$ssl_cn"
+		fi
+	else
+		print "$ssl_cn"
+	fi
+
+	unset -v ssl_cn var_name in_file in_file_1 \
+		def_dir dot_3 path format internal_batch
+} # => display_cn()
+
+# display cert DN info on a req/X509, passed by full pathname
+display_dn() {
+	[ "$#" = 2 ] || die "\
+display_dn - input error"
+
+	format="$1"
+	path="$2"
+	shift 2
+
+	# Display DN
+	print "$(
+		easyrsa_openssl "$format" -in "$path" -noout -subject \
+			-nameopt utf8,sep_multiline,space_eq,lname,align
+		)"
+
+	# Display SAN, if present
+	san="$(display_san "$format" "$path")"
+	if [ "$san" ]; then
+		print ""
+		print "X509v3 Subject Alternative Name:"
+		print "    $san"
+	fi
+} # => display_dn()
+
 # Display subjectAltName
 display_san() {
 	[ "$#" = 2 ] || die "\
@@ -4178,34 +4202,11 @@ display_san - input error"
 		)"
 
 		# Print auto SAN
-		[ "$san" ] && print "$san"
+		if [ "$san" ]; then
+			print "$san"
+		fi
 	fi
 } # => display_san()
-
-# display cert DN info on a req/X509, passed by full pathname
-display_dn() {
-	[ "$#" = 2 ] || die "\
-display_dn - input error"
-
-	format="$1"
-	path="$2"
-	shift 2
-
-	# Display DN
-	name_opts="utf8,sep_multiline,space_eq,lname,align"
-	print "$(
-		easyrsa_openssl "$format" -in "$path" -noout -subject \
-			-nameopt "$name_opts"
-		)"
-
-	# Display SAN, if present
-	san="$(display_san "$format" "$path")"
-	if [ "$san" ]; then
-		print ""
-		print "X509v3 Subject Alternative Name:"
-		print "    $san"
-	fi
-} # => display_dn()
 
 # generate default SAN from req/X509, passed by full pathname
 default_server_san() {
@@ -4446,33 +4447,63 @@ ssl_cert_x509v3_eku() {
 	__cli="TLS Web Client Authentication"
 	__srv="TLS Web Server Authentication"
 	__srv_cli="${__srv}, ${__cli}"
+	__codeSign="Code Signing"
+	unset -v __known
 
-	# Extract certificate usage from old cert
+	# Extract certificate Extended Key Usage
 	__eku="$(
-		easyrsa_openssl x509 -in "${__crt}" -noout -text | \
-			sed -n "/${__pattern}/{n;s/^ *//g;p;}"
+		OPENSSL_CONF=/dev/null
+		"$EASYRSA_OPENSSL" x509 -in "${__crt}" -noout \
+			-ext extendedKeyUsage | \
+				sed -e /"${__pattern}"/d -e s/^\ *//
 		)"
 
+	# Match EKU with supported usage
 	case "$__eku" in
+	"$__srv_cli")
+		__known=1
+		__type=serverClient
+	;;
 	"$__cli")
+		__known=1
 		__type=client
 	;;
 	"$__srv")
+		__known=1
 		__type=server
 	;;
-	"$__srv_cli")
-		__type=serverClient
+	"$__codeSign")
+		__known=1
+		__type=codeSign
 	;;
-	*) die "Unknown key usage: $__eku"
+	'')
+		__type=undefined
+	;;
+	*)
+		__type="'$__eku'"
 	esac
 
 	# Set variable to return
 	if [ "$__var" ]; then
+		verbose "ssl_cert_x509v3_eku - EKU: $__type"
 		force_set_var "$__var" "$__type"
+	elif [ "$__known" ]; then
+		information "
+* Known X509v3 Extended Key Usage: $__type"
 	else
-		information "${NL}* EasyRSA Certificate type: $__type"
+		information "
+* Unknown X509v3 Extended Key Usage: $__type"
 	fi
-	unset -v __crt __var __pattern __eku __type
+
+	unset -v __crt __var __pattern __srv_cli __cli __srv \
+		__codeSign __eku __type
+
+	if [ "$__known" ]; then
+		unset -v __known
+		return
+	fi
+
+	return 1
 } # => ssl_cert_x509v3_eku()
 
 # get the serial number of the certificate -> serial=XXXX
@@ -4493,6 +4524,7 @@ ssl_cert_serial() {
 } # => ssl_cert_serial()
 
 # Get certificate start date
+# shellcheck disable=2317 # Unreachable code ..
 ssl_cert_not_before_date() {
 	verbose "DEPRECATED: ssl_cert_not_before_date()"
 	[ "$#" = 2 ] || die "\
@@ -4535,6 +4567,7 @@ ssl_cert_not_after_date - failed to set var '$*'"
 } # => ssl_cert_not_after_date()
 
 # SSL -- v3 -- startdate iso_8601
+# shellcheck disable=2317 # Unreachable code ..
 iso_8601_cert_startdate() {
 	verbose "NEW: iso_8601_cert_startdate"
 	[ "$#" = 2 ] || die "\
@@ -4884,6 +4917,7 @@ db_date_to_iso_8601_date: force_set_var - $2 - $out_date"
 # Convert default SSL date to iso_8601 date
 # This may not be feasible, due to different languages
 # Alow the caller to assess those errors (eg. Fall-back)
+# shellcheck disable=2317 # Unreachable code ..
 cert_date_to_iso_8601_date() {
 	verbose "iso_8601-WIP: cert_date_to_iso_8601_date"
 	die "BLOCKED: cert_date_to_iso_8601_date"
@@ -5402,6 +5436,7 @@ before they can be revoked."
 # Fake declare known variables for shellcheck
 # Use these options without this function:
 # -o all -e 2250,2244,2248 easyrsa
+# shellcheck disable=2317 # Unreachable code ..
 satisfy_shellcheck() {
 	die "Security feature enabled!"
 	# Add more as/if required
@@ -5684,12 +5719,6 @@ No Easy-RSA 'vars' configuration file exists!"
 
 # Source a vars file
 source_vars() {
-	# Never use vars file
-	if [ "$EASYRSA_NO_VARS" ]; then
-		verbose "source_vars: EASYRSA_NO_VARS"
-		return
-	fi
-
 	# File to be sourced
 	target_file="$1"
 
@@ -5712,36 +5741,60 @@ Using Easy-RSA 'vars' configuration:
 	if grep -q \
 		-e 'EASYRSA_PASSIN' -e 'EASYRSA_PASSOUT' \
 		-e '[^(]`[^)]' \
-		"$target_file"
-	then
-		user_error "\
-One or more of these problems has been found in your 'vars' file:
-* $target_file
-
-* Use of 'EASYRSA_PASSIN' or 'EASYRSA_PASSOUT':
-Storing password information in the 'vars' file is not permitted.
-
-* Use of unsupported characters:
-These characters are not supported: \` backtick
-
-Please, correct these errors and try again."
-	fi
-
-	# Sanitize vars
-	if grep -q \
 		-e '[[:blank:]]export[[:blank:]]*' \
 		-e '[[:blank:]]unset[[:blank:]]*' \
 		"$target_file"
 	then
-		user_error "\
-One or more of these problems has been found in your 'vars' file:
-* $target_file
+		# here we go ..
+		err_msg="\
+These problems have been found in your 'vars' settings:${NL}"
 
-* Use of 'export':
-Remove 'export' or replace it with 'set_var'.
+		# No passwords!
+		if grep -q \
+			-e 'EASYRSA_PASSIN' -e 'EASYRSA_PASSOUT' \
+			"$target_file"
+		then
+			err_msg="${err_msg}
+  Use of 'EASYRSA_PASSIN' or 'EASYRSA_PASSOUT':
+  Storing password information in the 'vars' file is not permitted."
+		fi
 
-* Use of 'unset':
-Remove 'unset' ('force_set_var' may also work)."
+		# No backticks
+		if grep -q \
+			-e '[^(]`[^)]' \
+			"$target_file"
+		then
+			err_msg="${err_msg}
+  Use of unsupported characters:
+  These characters are not supported: \` backtick"
+		fi
+
+		# No export
+		if grep -q \
+			-e '[[:blank:]]export[[:blank:]]*' \
+			"$target_file"
+		then
+			err_msg="${err_msg}
+  Use of 'export':
+  Remove 'export' or replace it with 'set_var'."
+		fi
+
+		# No unset
+		if grep -q \
+			-e '[[:blank:]]unset[[:blank:]]*' \
+			"$target_file"
+		then
+			err_msg="${err_msg}
+  Use of 'unset':
+  Remove 'unset' ('force_set_var' may also work)."
+		fi
+
+		# Fatal error
+		user_error "${err_msg}${NL}
+Please, correct these errors and try again."
+
+	else
+		verbose "source_vars: CLEAN '$target_file'"
 	fi
 
 	# Enable sourcing 'vars'
@@ -5923,7 +5976,7 @@ Temporary directory does not exist:
 * $EASYRSA_TEMP_DIR"
 		fi
 	fi
-	verbose "verify_working_env: COMPLETED"
+	verbose "verify_working_env: COMPLETED Handover-to: $cmd"
 } # => verify_working_env()
 
 # variable assignment by indirection.
@@ -5996,9 +6049,17 @@ create_x509_type() {
 		keyUsage = cRLSign, keyCertSign
 		X509_TYPE_CA
 	;;
+	codeSign)
+		cat <<- "X509_CODE_SIGNING"
+		basicConstraints = CA:FALSE
+		subjectKeyIdentifier = hash
+		authorityKeyIdentifier = keyid,issuer:always
+		extendedKeyUsage = codeSigning
+		keyUsage = digitalSignature
+		X509_CODE_SIGNING
+	;;
 	*)
-		# Unknown type: User MUST supply the X509 file
-		die "create_x509_type - Unknown X509 type: '$1'"
+		return 1
 	esac
 } # => create_x509_type()
 
@@ -6328,8 +6389,7 @@ SSL_CONFIG
 # --------------------------------------------------------------------------
 #
 
-up23_fail_upgrade ()
-{
+up23_fail_upgrade () {
 	# Replace die()
 	unset -v EASYRSA_BATCH
 	notice "
@@ -6348,14 +6408,12 @@ Easyrsa3 upgrade FAILED
 	exit 9
 } #=> up23_fail_upgrade ()
 
-up23_verbose ()
-{
+up23_verbose () {
 	[ "$VERBOSE" ] || return 0
 	printf "%s\n" "$1"
 } #=> up23_verbose ()
 
-up23_verify_new_pki ()
-{
+up23_verify_new_pki () {
 	# Fail now, before any changes are made
 
 	up23_verbose "> Verify DEFAULT NEW PKI does not exist .."
@@ -6383,8 +6441,7 @@ up23_verify_new_pki ()
 } #=> up23_verify_new_pki ()
 
 # shellcheck disable=SC2154
-up23_verify_current_pki ()
-{
+up23_verify_current_pki () {
 	up23_verbose "> Verify CURRENT PKI vars .."
 
 	# This can probably be improved
@@ -6409,8 +6466,7 @@ up23_verify_current_pki ()
 } #=> up23_verify_current_pki ()
 
 # shellcheck disable=SC2154
-up23_verify_current_ca ()
-{
+up23_verify_current_ca () {
 	up23_verbose "> Find CA .."
 	# $KEY_DIR is assigned in up23_verify_current_pki ()
 	[ -f "$KEY_DIR/ca.crt" ] \
@@ -6473,8 +6529,7 @@ up23_verify_current_ca ()
 	CURRENT_CA_IS_VERIFIED="$in_file"
 } #=> up23_verify_current_ca ()
 
-up23_show_current_ca ()
-{
+up23_show_current_ca () {
 	name_opts="utf8,sep_multiline,space_eq,lname,align"
 	printf "%s\n" "-------------------------------------------------------------------------"
 	# $opts is always set here
@@ -6485,8 +6540,7 @@ up23_show_current_ca ()
 	printf "%s\n" "-------------------------------------------------------------------------"
 } #=> up23_show_current_ca ()
 
-up23_backup_current_pki ()
-{
+up23_backup_current_pki () {
 	up23_verbose "> Backup current PKI .."
 
 	mkdir -p "$EASYRSA_SAFE_PKI" \
@@ -6503,8 +6557,7 @@ up23_backup_current_pki ()
 	up23_verbose "  Current PKI backup created in: $EASYRSA_SAFE_PKI"
 } #=> up23_backup_current_pki ()
 
-up23_create_new_pki ()
-{
+up23_create_new_pki () {
 	# Dirs: renewed and revoked are created when used.
 	up23_verbose "> Create NEW PKI .."
 	up23_verbose ">> Create NEW PKI dirs .."
@@ -6545,8 +6598,7 @@ up23_create_new_pki ()
 	up23_verbose "  New PKI created in: $EASYRSA_PKI"
 } #=> up23_create_new_pki ()
 
-up23_upgrade_ca ()
-{
+up23_upgrade_ca () {
 	[ -d "$EASYRSA_PKI" ] || return 0
 	up23_verbose "> Confirm that index.txt.attr exists and 'unique_subject = no'"
 	if [ -f "$EASYRSA_PKI/index.txt.attr" ]
@@ -6570,8 +6622,7 @@ up23_upgrade_ca ()
 	up23_verbose "  Upgraded index.txt.attr to v306+"
 } #=> up23_upgrade_index_txt_attr ()
 
-up23_create_openssl_cnf ()
-{
+up23_create_openssl_cnf () {
 	up23_verbose "> OpenSSL config .."
 	EASYRSA_PKI_SSL_CNFFILE="$EASYRSA_PKI/openssl-easyrsa.cnf"
 	EASYRSA_PKI_SAFE_CNFFILE="$EASYRSA_PKI/safessl-easyrsa.cnf"
@@ -6599,8 +6650,7 @@ up23_create_openssl_cnf ()
 	fi
 } #=> up23_create_openssl_cnf ()
 
-up23_move_easyrsa2_programs ()
-{
+up23_move_easyrsa2_programs () {
 	# These files may not exist here
 	up23_verbose "> Move easyrsa2 programs to SAFE PKI .."
 	for i in build-ca build-dh build-inter build-key build-key-pass \
@@ -6641,8 +6691,7 @@ up23_move_easyrsa2_programs ()
 } #=> up23_move_easyrsa2_programs ()
 
 # shellcheck disable=SC2154
-up23_build_v3_vars ()
-{
+up23_build_v3_vars () {
 	up23_verbose "> Build v3 vars file .."
 
 	EASYRSA_EXT="easyrsa-upgrade-23"
@@ -6706,8 +6755,7 @@ up23_build_v3_vars ()
 } #=> up23_build_v3_vars ()
 
 # shellcheck disable=SC2154
-up23_do_upgrade_23 ()
-{
+up23_do_upgrade_23 () {
 	up23_verbose "============================================================================"
 	up23_verbose "Begin ** $1 ** upgrade process .."
 	up23_verbose ""
@@ -6741,28 +6789,28 @@ up23_do_upgrade_23 ()
 	rm -f "$EASYRSA_VARS_LIVEBKP"
 } #= up23_do_upgrade_23 ()
 
-up23_manage_upgrade_23 ()
-{
+up23_manage_upgrade_23 () {
 	EASYRSA_UPGRADE_VERSION="v1.0a (2020/01/08)"
 	EASYRSA_UPGRADE_TYPE="$1"
 	EASYRSA_FOUND_VARS=0
 
 	# Verify all existing versions of vars/vars.bat
-	if [ -f "$vars" ]
+	if [ -f "$EASYRSA_VARS_FILE" ]
 	then
-		if grep -q 'Complain if a user tries to do this:' "$vars"
+		if grep -q 'Complain if a user tries to do this:' \
+			"$EASYRSA_VARS_FILE"
 		then
 			EASYRSA_FOUND_VARS=1
 			EASYRSA_VARS_IS_VER3=1
 		fi
 
 		# Easyrsa v3 does not use NOR allow use of `export`.
-		if grep -q 'export' "$vars"
+		if grep -q 'export' "$EASYRSA_VARS_FILE"
 		then
 			EASYRSA_FOUND_VARS=1
 			EASYRSA_VARS_IS_VER2=1
-			EASYRSA_VER2_VARSFILE="$vars"
-			EASYRSA_TARGET_VARSFILE="$vars"
+			EASYRSA_VER2_VARSFILE="$EASYRSA_VARS_FILE"
+			EASYRSA_TARGET_VARSFILE="$EASYRSA_VARS_FILE"
 		fi
 	fi
 
@@ -6919,8 +6967,7 @@ return 0
 
 } # => up23_manage_upgrade_23 ()
 
-print_version()
-{
+print_version() {
 	ssl_version="$(
 		OPENSSL_CONF=/dev/null \
 			"${EASYRSA_OPENSSL:-openssl}" version
@@ -6968,9 +7015,8 @@ unset -v \
 	alias_days \
 	prohibit_no_pass \
 	invalid_vars \
-	no_new_vars user_vars_true \
 	do_build_full error_build_full_cleanup \
-	internal_batch \
+	internal_batch mv_temp_error \
 	easyrsa_exit_with_error error_info
 
 	# Used by build-ca->cleanup to restore prompt
@@ -7130,7 +7176,6 @@ while :; do
 		export EASYRSA_SUBCA_LEN="$val"
 		;;
 	--vars)
-		user_vars_true=1
 		export EASYRSA_VARS_FILE="$val"
 		;;
 	--copy-ext)
@@ -7223,7 +7268,7 @@ esac
 select_vars
 
 # source the vars file
-source_vars "$EASYRSA_VARS_FILE"
+[ "$EASYRSA_NO_VARS" ] || source_vars "$EASYRSA_VARS_FILE"
 
 # then set defaults
 default_vars
@@ -7406,6 +7451,10 @@ case "$cmd" in
 		check_serial_unique "$@" || \
 			easyrsa_exit_with_error=1
 		;;
+	display-cn)
+		verify_working_env
+		display_cn "$@"
+		;;
 	display-dn)
 		verify_working_env
 		display_dn "$@"
@@ -7418,9 +7467,10 @@ case "$cmd" in
 		verify_working_env
 		default_server_san "$@"
 		;;
-	x509-eku)
+	x509-eku|show-eku)
 		verify_working_env
-		ssl_cert_x509v3_eku "$@"
+		ssl_cert_x509v3_eku "$@" || \
+			easyrsa_exit_with_error=1
 		;;
 	upgrade)
 		verify_working_env
