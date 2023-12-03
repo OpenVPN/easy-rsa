@@ -698,18 +698,24 @@ Type the word '$value' to continue, or any other input to abort."
 # Cannot use easyrsa-openssl() due to chicken vs egg,
 # easyrsa_openssl() creates temp-files,
 # which needs `openssl rand`.
-# Redirect error-out, ignore complaints of missing config
 easyrsa_random() {
 	case "$1" in
-	(*[!1234567890]*|0*|"") : ;; # invalid input
-	(*)
-		# Only return on success
-		if OPENSSL_CONF=/dev/null \
-			"$EASYRSA_OPENSSL" rand -hex "$1"
-		then
-			return
-		fi
+	*[!1234567890]*|0*|"")
+		die "easyrsa_random - input"
 	esac
+
+	unset -v rand_hex
+	if rand_hex="$(
+			OPENSSL_CONF=/dev/null \
+				"$EASYRSA_OPENSSL" rand -hex "$1"
+		)"
+	then
+		if [ "$2" ]; then
+			force_set_var "$2" "$rand_hex"
+		fi
+		return
+	fi
+
 	die "easyrsa_random failed"
 } # => easyrsa_random()
 
@@ -729,10 +735,9 @@ secure_session() {
 * $EASYRSA_TEMP_DIR"
 	fi
 
+	session=
 	for i in 1 2 3; do
-		session="$(
-			easyrsa_random 4
-			)" || die "secure_session - session"
+		easyrsa_random 4 session
 		secured_session="${EASYRSA_TEMP_DIR}/${session}"
 
 		# atomic:
@@ -2134,9 +2139,7 @@ The certificate request file is not in a valid X509 format:
 		check_serial=""
 		unset -v serial_is_unique
 		for i in 1 2 3 4 5; do
-			serial="$(
-				easyrsa_random 16
-				)" || die "sign_req - easyrsa_random"
+			easyrsa_random 4 serial
 
 			# Check for duplicate serial in CA db
 			if check_serial_unique "$serial" batch; then
