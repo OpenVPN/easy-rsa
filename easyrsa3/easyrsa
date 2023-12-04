@@ -1521,7 +1521,9 @@ get_passphrase() {
 # build-ca backend:
 build_ca() {
 	cipher="-aes256"
-	unset -v sub_ca ssl_batch date_stamp x509 error_info
+	unset -v sub_ca ssl_batch date_stamp x509 error_info \
+			ca_password_via_cmdline
+
 	while [ "$1" ]; do
 		case "$1" in
 			intca|subca) sub_ca=1 ;;
@@ -1659,9 +1661,10 @@ Raw CA mode
 
 	elif [ "$EASYRSA_PASSOUT" ] && [ "$EASYRSA_PASSIN" ]
 	then
-		: # passphrase defined
+		# passphrase defined on command line
 		# Both --passout and --passin
 		# must be defined for a CA with a password
+		ca_password_via_cmdline=1
 
 	else
 		# Assign passphrase vars
@@ -1739,50 +1742,6 @@ Raw CA mode
 	EASYRSA_SSL_CONF="$raw_ssl_cnf_tmp"
 
 	# Generate CA Key
-	if [ "$EASYRSA_RAW_CA" ]; then
-		case "$EASYRSA_ALGO" in
-		rsa)
-			if easyrsa_openssl genpkey \
-				-algorithm "$EASYRSA_ALGO" \
-				-pkeyopt \
-					rsa_keygen_bits:"$EASYRSA_ALGO_PARAMS" \
-				-out "$out_key_tmp" \
-				${cipher:+ "$cipher"}
-			then
-				: # ok
-			else
-				die "Failed create CA private key"
-			fi
-		;;
-		ec)
-			if easyrsa_openssl genpkey \
-				-paramfile "$EASYRSA_ALGO_PARAMS" \
-				-out "$out_key_tmp" \
-				${cipher:+ "$cipher"}
-			then
-				: # ok
-			else
-				die "Failed create CA private key"
-			fi
-		;;
-		ed)
-			if easyrsa_openssl genpkey \
-				-algorithm "$EASYRSA_CURVE" \
-				-out "$out_key_tmp" \
-				${cipher:+ "$cipher"}
-			then
-				: # ok
-			else
-				die "Failed create CA private key"
-			fi
-		;;
-		*)	die "Unknown algorithm: $EASYRSA_ALGO"
-		esac
-
-		verbose "\
-build_ca: CA key password created via RAW"
-
-	else
 		case "$EASYRSA_ALGO" in
 		rsa)
 		easyrsa_openssl genpkey \
@@ -1815,46 +1774,39 @@ build_ca: CA key password created via RAW"
 		*)	die "Unknown algorithm: $EASYRSA_ALGO"
 		esac
 
-		[ "$EASYRSA_NO_PASS" ] || verbose "\
+	# verbose notice
+	if [ "$EASYRSA_RAW_CA" ]; then
+		verbose "\
+build_ca: CA key password created via RAW"
+	else
+		if [ "$ca_password_via_cmdline" ]; then
+			verbose "\
+build_ca: CA key password created via command options"
+		else
+			if [ "$EASYRSA_NO_PASS" ]; then
+				verbose "\
+build_ca: CA key has no password"
+			else
+				verbose "\
 build_ca: CA key password created via temp-files"
+			fi
+		fi
 	fi
 
 	# Generate the CA keypair:
-	if [ "$EASYRSA_RAW_CA" ]; then
-		if easyrsa_openssl req -utf8 -new \
-			-key "$out_key_tmp" \
-			-out "$out_file_tmp" \
-			${x509:+ -x509} \
-			${date_stamp:+ -days "$EASYRSA_CA_EXPIRE"} \
-			${EASYRSA_DIGEST:+ -"$EASYRSA_DIGEST"}
-		then
-			: # ok
-			unset -v error_info
-		else
-			die "Failed to build the CA keypair."
-		fi
-
-		verbose "\
-build_ca: CA certificate password created via RAW"
-
-	else
-		easyrsa_openssl req -utf8 -new \
-			-key "$out_key_tmp" -keyout "$out_key_tmp" \
-			-out "$out_file_tmp" \
-			${ssl_batch:+ -batch} \
-			${x509:+ -x509} \
-			${date_stamp:+ -days "$EASYRSA_CA_EXPIRE"} \
-			${EASYRSA_DIGEST:+ -"$EASYRSA_DIGEST"} \
-			${EASYRSA_NO_PASS:+ "$no_password"} \
-			${EASYRSA_PASSIN:+ -passin "$EASYRSA_PASSIN"} \
-			${EASYRSA_PASSOUT:+ -passout "$EASYRSA_PASSOUT"} \
-			${in_key_pass_tmp:+ -passin file:"$in_key_pass_tmp"} \
-			${out_key_pass_tmp:+ -passout file:"$out_key_pass_tmp"} \
-				|| die "Failed to build the CA keypair"
-
-		[ "$EASYRSA_NO_PASS" ] || verbose "\
-build_ca: CA certificate password created via temp-files"
-	fi
+	easyrsa_openssl req -utf8 -new \
+		-key "$out_key_tmp" -keyout "$out_key_tmp" \
+		-out "$out_file_tmp" \
+		${ssl_batch:+ -batch} \
+		${x509:+ -x509} \
+		${date_stamp:+ -days "$EASYRSA_CA_EXPIRE"} \
+		${EASYRSA_DIGEST:+ -"$EASYRSA_DIGEST"} \
+		${EASYRSA_NO_PASS:+ "$no_password"} \
+		${EASYRSA_PASSIN:+ -passin "$EASYRSA_PASSIN"} \
+		${EASYRSA_PASSOUT:+ -passout "$EASYRSA_PASSOUT"} \
+		${in_key_pass_tmp:+ -passin file:"$in_key_pass_tmp"} \
+		${out_key_pass_tmp:+ -passout file:"$out_key_pass_tmp"} \
+			|| die "Failed to build the CA keypair"
 
 	# Move temp-files to target-files
 	mv "$out_key_tmp" "$out_key" || mv_temp_error=1
