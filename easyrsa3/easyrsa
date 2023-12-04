@@ -5890,46 +5890,37 @@ verify_working_env() {
 		# Verify PKI is initialised
 		verify_pki_init
 
-		# Temp dir MUST exist
-		if [ -d "$EASYRSA_TEMP_DIR" ]; then
-
-			# Temp dir session
-			secure_session || die "\
+		# Temp dir session
+		secure_session || die "\
 verify_working_env - secure-session failed"
 
-			# Install data-files into ALL PKIs
-			# This will find x509-types
-			# and export EASYRSA_EXT_DIR or die.
-			# Other errors only require warning.
-			install_data_to_pki vars-setup || warn "\
+		# Install data-files into ALL PKIs
+		# This will find x509-types
+		# and export EASYRSA_EXT_DIR or die.
+		# Other errors only require warning.
+		install_data_to_pki vars-setup || warn "\
 verify_working_env - install_data_to_pki vars-setup failed"
 
-			# Verify selected algorithm and parameters
-			verify_algo_params
+		# Verify selected algorithm and parameters
+		verify_algo_params
 
-			# Check $working_safe_ssl_conf, to build
-			# a fully configured safe ssl conf, on the
-			# next invocation of easyrsa_openssl()
-			if [ "$working_safe_ssl_conf" ]; then
-				die "working_safe_ssl_conf must not be set!"
-			fi
+		# Check $working_safe_ssl_conf, to build
+		# a fully configured safe ssl conf, on the
+		# next invocation of easyrsa_openssl()
+		if [ "$working_safe_ssl_conf" ]; then
+			die "working_safe_ssl_conf must not be set!"
+		fi
 
-			# Verify CA is initialised
-			if [ "$require_ca" ]; then
-				verify_ca_init
-			fi
+		# Verify CA is initialised
+		if [ "$require_ca" ]; then
+			verify_ca_init
+		fi
 
-			# Last setup msg
-			information "
+		# Last setup msg
+		information "
 Using SSL:
 * $EASYRSA_OPENSSL $ssl_version"
 
-		else
-			# The directory does not exist
-			user_error "\
-Temporary directory does not exist:
-* $EASYRSA_TEMP_DIR"
-		fi
 	fi
 	verbose "verify_working_env: COMPLETED Handover-to: $cmd"
 } # => verify_working_env()
