@@ -5602,15 +5602,8 @@ To correct this problem, it is recommended that you either:
 # If not present, defaults are used to support
 # running without a sourced config format.
 select_vars() {
-	# No vars file will be used
-	if [ "$EASYRSA_NO_VARS" ]; then
-		verbose "select_vars: EASYRSA_NO_VARS"
-		unset -v EASYRSA_VARS_FILE
-		# skip the rest of this function
-		return
-
 	# User specified vars file will be used ONLY
-	elif [ "$EASYRSA_VARS_FILE" ]; then
+	if [ "$EASYRSA_VARS_FILE" ]; then
 		# Takes priority, nothing to do
 		verbose "select_vars: EASYRSA_VARS_FILE"
 
@@ -5668,7 +5661,8 @@ select_vars() {
 	if [ -z "$EASYRSA_VARS_FILE" ]; then
 		[ "$require_pki" ] && information "\
 No Easy-RSA 'vars' configuration file exists!"
-		EASYRSA_NO_VARS=1
+		# select_vars failed to find a vars file
+		return 1
 	fi
 } # => select_vars()
 
@@ -7211,10 +7205,9 @@ esac
 
 # Intelligent env-var detection and auto-loading:
 # Select vars file as EASYRSA_VARS_FILE
-select_vars
-
-# source the vars file
-[ "$EASYRSA_NO_VARS" ] || source_vars "$EASYRSA_VARS_FILE"
+# then source the vars file, if found
+# otherwise, ignore no vars file
+select_vars && source_vars "$EASYRSA_VARS_FILE"
 
 # then set defaults
 default_vars
