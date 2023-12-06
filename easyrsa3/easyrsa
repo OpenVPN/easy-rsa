@@ -5392,52 +5392,6 @@ before they can be revoked."
 
 } # => status()
 
-# set_var is not known by shellcheck, therefore:
-# Fake declare known variables for shellcheck
-# Use these options without this function:
-# -o all -e 2250,2244,2248 easyrsa
-# shellcheck disable=2317 # Unreachable code ..
-satisfy_shellcheck() {
-	die "Security feature enabled!"
-	# Add more as/if required
-
-	# Enable the heredoc for a peek
-#cat << SC2154
-	EASYRSA=
-	EASYRSA_OPENSSL=
-	EASYRSA_PKI=
-	EASYRSA_DN=
-	EASYRSA_REQ_COUNTRY=
-	EASYRSA_REQ_PROVINCE=
-	EASYRSA_REQ_CITY=
-	EASYRSA_REQ_ORG=
-	EASYRSA_REQ_EMAIL=
-	EASYRSA_REQ_OU=
-	EASYRSA_ALGO=
-	EASYRSA_KEY_SIZE=
-	EASYRSA_CURVE=
-	EASYRSA_CA_EXPIRE=
-	EASYRSA_CERT_EXPIRE=
-	EASYRSA_PRE_EXPIRY_WINDOW=
-	EASYRSA_CRL_DAYS=
-	EASYRSA_NS_SUPPORT=
-	EASYRSA_NS_COMMENT=
-	EASYRSA_TEMP_DIR=
-	EASYRSA_REQ_CN=
-	EASYRSA_DIGEST=
-
-	EASYRSA_SSL_CONF=
-	EASYRSA_SAFE_CONF=
-	OPENSSL_CONF=
-
-	#EASYRSA_KDC_REALM=
-
-	EASYRSA_RAND_SN=
-	KSH_VERSION=
-#SC2154
-
-} # => satisfy_shellcheck()
-
 # Identify host OS
 detect_host() {
 	unset -v \
