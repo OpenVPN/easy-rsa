@@ -2075,8 +2075,7 @@ expected 2, got $# (see command help for usage)"
 			preserve*)
 				export EASYRSA_PRESERVE_DN=1
 			;;
-			*)
-				warn "Ignoring unknown option '$1'"
+			*) warn "Ignoring unknown option '$1'"
 		esac
 		shift
 	done
@@ -2209,7 +2208,7 @@ basicConstraints is not defined, cannot use 'pathlen'"
 
 	# Deprecated Netscape extension support
 	case "$EASYRSA_NS_SUPPORT" in
-		[yY][eE][sS])
+	[yY][eE][sS])
 
 		confirm "Confirm use of Netscape extensions: " yes \
 			"WARNING: Netscape extensions are DEPRECATED!"
@@ -2358,9 +2357,6 @@ check_serial_unique() {
 	case "$1" in
 	(*[!1234567890abcdef]*)
 		user_error "Invalid serial number: '$1'"
-	;;
-	*)
-		: # ok
 	esac
 
 	unset -v unique_serial_true
