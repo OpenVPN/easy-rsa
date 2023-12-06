@@ -3914,7 +3914,9 @@ Run easyrsa without commands for usage and command help."
 			nopass)
 				[ "$prohibit_no_pass" ] || EASYRSA_NO_PASS=1
 			;;
-			file) file="$raw_file" ;;
+			file)
+				file="$raw_file"
+			;;
 			*) warn "Ignoring unknown command option: '$1'"
 		esac
 		shift
@@ -3982,7 +3984,9 @@ Missing argument: no name/file supplied."
 			nopass)
 				[ "$prohibit_no_pass" ] || EASYRSA_NO_PASS=1
 			;;
-			file) file="$raw_file" ;;
+			file)
+				file="$raw_file"
+			;;
 			*) warn "Ignoring unknown command option: '$1'"
 		esac
 		shift
