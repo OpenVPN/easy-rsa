@@ -3652,7 +3652,7 @@ Expected to find the request at:
 
 	verify_file req "$in_req" || user_error "\
 The certificate request file is not in a valid X509 format:
-* $req_in"
+* $in_req"
 
 	# destination must not exist
 	[ -e "$out_req" ] && user_error "\
