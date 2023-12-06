@@ -2158,14 +2158,8 @@ Writing 'copy_exts' to SSL config temp-file failed"
 		x509_type_file="$EASYRSA_EXT_DIR/$crt_type"
 	else
 		# Use a temp file
-		x509_type_tmp=""
-		easyrsa_mktemp x509_type_tmp || \
-			die "sign_req - easyrsa_mktemp x509_type_tmp"
-
-		create_x509_type "$crt_type" > "$x509_type_tmp" || \
-			die "sign_req - create_x509_type $crt_type"
-
-		x509_type_file="$x509_type_tmp"
+		write_x509_type_tmp "$crt_type"
+		x509_type_file="$x509_tmp"
 	fi
 
 	# Find or create x509 COMMON file
@@ -2174,14 +2168,8 @@ Writing 'copy_exts' to SSL config temp-file failed"
 		x509_COMMON_file="$EASYRSA_EXT_DIR/COMMON"
 	else
 		# Use a temp file
-		x509_COMMON_tmp=""
-		easyrsa_mktemp x509_COMMON_tmp || \
-			die "sign_req - easyrsa_mktemp x509_COMMON_tmp"
-
-		create_x509_type COMMON > "$x509_COMMON_tmp" || \
-			die "sign_req - create_x509_type COMMON"
-
-		x509_COMMON_file="$x509_COMMON_tmp"
+		write_x509_type_tmp COMMON
+		x509_COMMON_file="$x509_tmp"
 	fi
 
 	# Support a dynamic CA path length when present:
@@ -5957,6 +5945,24 @@ force_set_var() {
 ############################################################################
 #
 # Create X509-type files
+
+# Write x509 type file to a temp file
+write_x509_type_tmp() {
+		# Use a temp file
+		type="$1"
+		shift
+
+		x509_tmp=""
+		easyrsa_mktemp x509_tmp || \
+			die "write_x509_type_tmp - easyrsa_mktemp x509_tmp"
+
+		create_x509_type "$type" > "$x509_tmp" || \
+			die "write_x509_type_tmp - create_x509_type $type"
+
+		verbose "write_x509_type_tmp: $type COMPLETE"
+} # => write_x509_type_tmp()
+
+# Create x509 type
 create_x509_type() {
 	case "$1" in
 	COMMON)
