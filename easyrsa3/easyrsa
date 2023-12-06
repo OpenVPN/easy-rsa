@@ -1713,21 +1713,30 @@ Raw CA mode
  {print}
 }'
 
+	# Find or create x509 CA file
+	if [ -f "$EASYRSA_EXT_DIR/ca" ]; then
+		# Use the x509-types/ca file
+		x509_ca_file="$EASYRSA_EXT_DIR/ca"
+	else
+		# Use a temp file
+		write_x509_type_tmp ca
+		x509_ca_file="$x509_tmp"
+	fi
+
+	# Find or create x509 COMMON file
+	if [ -f "$EASYRSA_EXT_DIR/COMMON" ]; then
+		# Use the x509-types/COMMON file
+		x509_COMMON_file="$EASYRSA_EXT_DIR/COMMON"
+	else
+		# Use a temp file
+		write_x509_type_tmp COMMON
+		x509_COMMON_file="$x509_tmp"
+	fi
+
 	# Insert x509-types COMMON and 'ca' and EASYRSA_EXTRA_EXTS
 	{
-		# 'ca' file
-		if [ -f "$EASYRSA_EXT_DIR/ca" ]; then
-			cat "$EASYRSA_EXT_DIR/ca"
-		else
-			create_x509_type ca
-		fi
-
-		# COMMON file
-		if [ -f "$EASYRSA_EXT_DIR/COMMON" ]; then
-			cat "$EASYRSA_EXT_DIR/COMMON"
-		else
-			create_x509_type COMMON
-		fi
+		# X509 files
+		cat "$x509_ca_file" "$x509_COMMON_file"
 
 		# User extentions
 		[ "$EASYRSA_EXTRA_EXTS" ] && \
