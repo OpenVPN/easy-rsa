@@ -1434,7 +1434,7 @@ install_data_to_pki: $context - create_openssl_easyrsa_cnf OK"
 	[ -d "$EASYRSA_EXT_DIR" ] || verbose "\
 install_data_to_pki: $context - Missing: '$x509_types_dir'"
 	verbose "install_data_to_pki: $context - COMPLETED"
-} # => install_data_to_pki ()
+} # => install_data_to_pki()
 
 # Disable terminal echo, if possible, otherwise warn
 hide_read_pass() {
@@ -2457,7 +2457,7 @@ INCOMPLETE Inline file created:
 } # => build_full()
 
 # Print inline data for file_name_base
-inline_creds () {
+inline_creds() {
 	[ "$1" ] || die "inline_creds - Missing file_name_base"
 
 	# Source files
@@ -2524,7 +2524,7 @@ $ca_data
 "
 	# If inline file is incomplete then return error
 	return "$incomplete"
-} # => inline_creds ()
+} # => inline_creds()
 
 # revoke backend
 revoke() {
@@ -2796,6 +2796,7 @@ Missing request file:
 	fi
 
 	# get the serial number of the certificate
+	cert_serial=
 	ssl_cert_serial "$crt_in" cert_serial || \
 		die "$cmd: Failed to get cert serial number!"
 
@@ -2821,6 +2822,7 @@ Cannot renew this certificate, a conflicting file exists:
 			die "Failed to create inline directoy."
 
 	# Extract certificate usage from old cert
+	cert_type=
 	ssl_cert_x509v3_eku "$crt_in" cert_type || \
 		die "Unknown EKU: $cert_type"
 
@@ -6587,7 +6589,7 @@ SSL Lib:     ${ssl_version:-undefined}
 Git Commit:  ~GITHEAD~
 Source Repo: https://github.com/OpenVPN/easy-rsa
 VERSION_TEXT
-} # => print_version ()
+} # => print_version()
 
 
 ########################################
