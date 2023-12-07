@@ -3459,81 +3459,6 @@ Successful export of $pkcs_type file. Your exported file is at:
 	return 0
 } # => export_pkcs()
 
-# set-pass backend legacy
-set_pass_legacy() {
-	# key type, supplied internally
-	# from frontend command call (rsa/ec)
-	key_type="$1"
-	shift
-
-	[ "$1" ] || user_error "\
-Unable to set password: incorrect command syntax.
-Run easyrsa without commands for usage and command help."
-
-	# values supplied by the user:
-	raw_file="$1"
-	shift
-
-	file="$EASYRSA_PKI/private/${raw_file}.key"
-
-	# parse command options
-	cipher="-aes256"
-	unset -v nopass
-	while [ "$1" ]; do
-		case "$1" in
-			nopass)
-				[ "$prohibit_no_pass" ] || EASYRSA_NO_PASS=1
-			;;
-			file)
-				file="$raw_file"
-			;;
-			*) warn "Ignoring unknown command option: '$1'"
-		esac
-		shift
-	done
-
-	# If nopass then do not encrypt else encrypt with password.
-	if [ "$EASYRSA_NO_PASS" ]; then
-		unset -v cipher
-	fi
-
-	[ -e "$file" ] || user_error "\
-Missing private key: expected to find the private key file at:
-* $file"
-
-	notice "\
-If the key is encrypted then you must supply the current password.
-${cipher:+You will then enter a new password for this key.$NL}"
-
-	# Set password
-	out_key_tmp=""
-	easyrsa_mktemp out_key_tmp || \
-		die "set_pass_legacy - easyrsa_mktemp out_key_tmp"
-
-	easyrsa_openssl "$key_type" -in "$file" -out "$out_key_tmp" \
-		${cipher:+ "$cipher"} \
-		${EASYRSA_PASSIN:+ -passin "$EASYRSA_PASSIN"} \
-		${EASYRSA_PASSOUT:+ -passout "$EASYRSA_PASSOUT"} || die "\
-Failed to change the private key passphrase.
-See above for possible openssl error messages."
-
-	# Move old key-file out of the way
-	mv "$file" "${file}.tmp" || \
-		die "Failed to move the old-key file."
-
-	# Move new key-file into place
-	if mv "$out_key_tmp" "$file"; then
-		rm -f "${file}.tmp"
-	else
-		mv -f "${file}.tmp" "$file"
-		die "Failed to update the private key file."
-	fi
-
-	notice "Key passphrase successfully changed"
-
-	return 0
-} # => set_pass_legacy()
-
 # set-pass backend
 set_pass() {
 	# values supplied by the user:
@@ -6267,15 +6192,7 @@ case "$cmd" in
 		verify_working_env
 		export_pkcs p1 "$@"
 		;;
-	set-rsa-pass)
-		verify_working_env
-		set_pass_legacy rsa "$@"
-		;;
-	set-ec-pass)
-		verify_working_env
-		set_pass_legacy ec "$@"
-		;;
-	set-pass|set-ed-pass)
+	set-pass|set-rsa-pass|set-ec-pass|set-ed-pass)
 		verify_working_env
 		set_pass "$@"
 		;;
