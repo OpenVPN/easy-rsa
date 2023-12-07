@@ -41,7 +41,6 @@ A list of commands is shown below:
   renew <file_name_base>
   revoke-renewed <file_name_base> [ cmd-opts ]
   rewind-renew <certificate_serial_number>
-  rebuild <file_name_base> [ cmd-opts ]
   gen-crl
   update-db
   show-req <file_name_base> [ cmd-opts ]
@@ -217,16 +216,6 @@ cmd_help() {
         superseded
         cessationOfOperation
         certificateHold"
-	;;
-	rebuild)
-		text="
-* rebuild <file_name_base> [ cmd-opts ]
-
-      Rebuild a certificate and key specified by <file_name_base>"
-
-		opts="
-      * nopass  - Do not encrypt the private key (Default: encrypted)
-                  (Equivalent to global option '--nopass|--no-pass')"
 	;;
 	renew)
 		text="
@@ -856,8 +845,6 @@ cleanup() {
 		rm -f "$crt_out" "$req_out" "$key_out"
 	# Restore files when renew is interrupted
 	[ "$error_undo_renew_move" ] && renew_restore_move
-	# Restore files when rebuild is interrupted
-	[ "$error_undo_rebuild_move" ] && rebuild_restore_move
 
 	if [ "${secured_session%/*}" ] && \
 		[ -d "$secured_session" ]
@@ -3293,302 +3280,6 @@ Serial number: $cert_serial
 To revoke use: 'revoke-renewed $crt_cn'"
 } # => rewind_renew()
 
-# rebuild backend
-rebuild() {
-	# pull filename base:
-	[ "$1" ] || user_error "\
-Error: didn't find a file base name as the first argument.
-Run easyrsa without commands for usage and command help."
-
-	# Assign file_name_base and dust off!
-	file_name_base="$1"
-	shift
-
-	in_dir="$EASYRSA_PKI"
-	crt_in="$in_dir/issued/${file_name_base}.crt"
-	key_in="$in_dir/private/${file_name_base}.key"
-	req_in="$in_dir/reqs/${file_name_base}.req"
-	creds_in="$in_dir/${file_name_base}.creds"
-	inline_in="$in_dir/inline/${file_name_base}.inline"
-
-	# Upgrade CA index.txt.attr - unique_subject = no
-	up23_upgrade_ca || \
-		die "Failed to upgrade CA to support renewal."
-
-	# Set 'nopass'
-	while [ "$1" ]; do
-		case "$1" in
-			nopass)
-				[ "$prohibit_no_pass" ] || EASYRSA_NO_PASS=1
-			;;
-			*) user_error "Unknown option: $1"
-		esac
-		shift
-	done
-
-	# referenced cert must exist:
-	[ -f "$crt_in" ] || user_error "\
-Unable to rebuild as no certificate was found.
-Certificate was expected at:
-* $crt_in"
-
-	# Verify certificate
-	verify_file x509 "$crt_in" || user_error "\
-Unable to rebuild as the input file is not a valid certificate.
-Certificate was expected at:
-* $crt_in"
-
-	# Verify request
-	if [ -e "$req_in" ]; then
-		verify_file req "$req_in" || user_error "\
-Unable to verify request. The file is not a valid request.
-Request was expected at:
-* $req_in"
-	fi
-
-	# get the serial number of the certificate
-	ssl_cert_serial "$crt_in" cert_serial || \
-		die "$cmd: Failed to get cert serial number!"
-
-	# Duplicate cert by serial file
-	dup_dir="$EASYRSA_PKI/certs_by_serial"
-	dup_crt_by_serial="$dup_dir/${cert_serial}.pem"
-
-	# Set out_dir
-	out_dir="$EASYRSA_PKI/renewed"
-	crt_out="$out_dir/issued/${file_name_base}.crt"
-	key_out="$out_dir/private/${file_name_base}.key"
-	req_out="$out_dir/reqs/${file_name_base}.req"
-
-	# NEVER over-write a renewed cert, revoke it first
-	deny_msg="\
-Cannot rebuild this certificate, a conflicting file exists.
-*"
-	[ -e "$crt_out" ] && \
-		user_error "$deny_msg certificate: $crt_out"
-	[ -e "$key_out" ] && \
-		user_error "$deny_msg private key: $key_out"
-	[ -e "$req_out" ] && \
-		user_error "$deny_msg request    : $req_out"
-	unset -v deny_msg
-
-	# Extract certificate usage from old cert
-	cert_ext_key_usage="$(
-		easyrsa_openssl x509 -in "$crt_in" -noout -text |
-		sed -n "/X509v3 Extended Key Usage:/{n;s/^ *//g;p;}"
-		)"
-
-	case "$cert_ext_key_usage" in
-		"TLS Web Client Authentication")
-			cert_type=client
-			;;
-		"TLS Web Server Authentication")
-			cert_type=server
-			;;
-		"TLS Web Server Auth"*", TLS Web Client Auth"*)
-			cert_type=serverClient
-			;;
-		*) die "Unknown key usage: $cert_ext_key_usage"
-	esac
-
-	# Use SAN from --subject-alt-name, if set
-	# else use SAN from old cert
-	if echo "$EASYRSA_EXTRA_EXTS" | grep -q subjectAltName
-	then
-		: # ok - Use current subjectAltName
-	else
-		san="$(
-		easyrsa_openssl x509 -in "$crt_in" -noout -text | sed -n \
-		"/X509v3 Subject Alternative Name:/{n;s/IP Address:/IP:/g;s/ //g;p;}"
-			)"
-
-		[ "$san" ] && export EASYRSA_EXTRA_EXTS="\
-$EASYRSA_EXTRA_EXTS
-subjectAltName = $san"
-	fi
-
-	# confirm operation by displaying DN:
-	unset -v if_exist_key_in if_exist_req_in
-	[ -e "$key_in" ] && if_exist_key_in="
-* $key_in"
-	[ -e "$req_in" ] && if_exist_req_in="
-* $req_in"
-	warn "\
-This process is destructive!
-
-These files will be MOVED to the 'renewed' sub-directory:
-* $crt_in${if_exist_key_in}${if_exist_req_in}
-
-These files will be DELETED:
-All PKCS files for commonName : $file_name_base
-
-The inline credentials files:
-* $creds_in
-* $inline_in
-
-The duplicate certificate:
-* $dup_crt_by_serial
-
-IMPORTANT: The new key will${EASYRSA_NO_PASS:+ NOT} \
-be password protected."
-
-	confirm "  Continue with rebuild: " "yes" "
-Please confirm you wish to renew the certificate
-with the following subject:
-
-  $(display_dn x509 "$crt_in")
-
-  serial-number: $cert_serial"
-
-	# move renewed files so we can reissue
-	# certificate with the same name
-	rebuild_move
-	error_undo_rebuild_move=1
-
-	# rebuild certificate
-	if EASYRSA_BATCH=1 build_full "$cert_type" "$file_name_base"
-	then
-		unset -v error_undo_rebuild_move
-	else
-		# If rebuild failed then restore cert, key and req.
-		# Otherwise, issue a warning. If *restore* fails
-		# then at least the file-names are not serial-numbers
-		rebuild_restore_move
-		die "\
-Rebuild has failed to build a new certificate/key pair."
-	fi
-
-	# Success messages
-	notice "Rebuild was successful.
-
-                    * IMPORTANT *
-
-Rebuild has created a new certificate and key, to replace
-both old files.
-
-To revoke the old certificate, once the new one has been
-deployed, use command:
-'revoke-renewed $file_name_base reason' ('reason' is optional)"
-
-	return 0
-} # => rebuild()
-
-# Restore files on failure to rebuild
-rebuild_restore_move() {
-	unset -v rrm_err error_undo_renew_move
-	# restore crt, key and req file to PKI folders
-	if mv "$restore_crt_out" "$restore_crt_in"; then
-		: # ok
-	else
-		warn "Failed to restore: $restore_crt_out"
-		rrm_err=1
-	fi
-
-	# only restore the key if we have it
-	if [ -e "$restore_key_out" ]; then
-		if mv "$restore_key_out" "$restore_key_in"; then
-			: # ok
-		else
-			warn "Failed to restore: $restore_key_out"
-			rrm_err=1
-		fi
-	fi
-
-	# only restore the req if we have it
-	if [ -e "$restore_req_out" ]; then
-		if mv "$restore_req_out" "$restore_req_in"; then
-			: # ok
-		else
-			warn "Failed to restore: $restore_req_out"
-			rrm_err=1
-		fi
-	fi
-
-	# messages
-	if [ "$rrm_err" ]; then
-		warn "Failed to restore renewed files."
-	else
-		notice "\
-Rebuild FAILED but files have been successfully restored."
-	fi
-
-	return 0
-} # => rebuild_restore_move()
-
-# rebuild_move
-# moves renewed certificates to the 'renewed' folder
-# allows reissuing certificates with the same name
-rebuild_move() {
-	# make sure renewed dirs exist
-	for target in "$out_dir" \
-		"$out_dir/issued" \
-		"$out_dir/private" \
-		"$out_dir/reqs"
-	do
-		[ -d "$target" ] && continue
-		mkdir -p "$target" ||
-			die "Failed to mkdir: $target"
-	done
-
-	# move crt, key and req file to renewed folders
-	restore_crt_in="$crt_in"
-	restore_crt_out="$crt_out"
-	mv "$crt_in" "$crt_out" || die "Failed to move: $crt_in"
-
-	# only move the key if we have it
-	restore_key_in="$key_in"
-	restore_key_out="$key_out"
-	if [ -e "$key_in" ]; then
-		mv "$key_in" "$key_out" || warn "Failed to move: $key_in"
-	fi
-
-	# only move the req if we have it
-	restore_req_in="$req_in"
-	restore_req_out="$req_out"
-	if [ -e "$req_in" ]; then
-		mv "$req_in" "$req_out" || warn "Failed to move: $req_in"
-	fi
-
-	# remove any pkcs files
-	for pkcs in p12 p7b p8 p1; do
-		if [ -e "$in_dir/issued/$file_name_base.$pkcs" ]; then
-			# issued
-			rm "$in_dir/issued/$file_name_base.$pkcs" ||
-				warn "Failed to remove: $file_name_base.$pkcs"
-
-		elif [ -e "$in_dir/private/$file_name_base.$pkcs" ]; then
-			# private
-			rm "$in_dir/private/$file_name_base.$pkcs" ||
-				warn "Failed to remove: $file_name_base.$pkcs"
-		else
-			: # ok
-		fi
-	done
-
-	# remove the duplicate certificate
-	if [ -e "$dup_crt_by_serial" ]; then
-		rm "$dup_crt_by_serial" || warn "\
-Failed to remove the duplicate certificate:
-* $dup_crt_by_serial"
-	fi
-
-	# remove credentials file
-	if [ -e "$creds_in" ]; then
-		rm "$creds_in" || warn "\
-Failed to remove credentials file:
-* $creds_in"
-	fi
-
-	# remove inline file
-	if [ -e "$inline_in" ]; then
-		rm "$inline_in" || warn "\
-Failed to remove inline file:
-* $inline_in"
-	fi
-
-	return 0
-} # => rebuild_move()
-
 # gen-crl backend
 gen_crl() {
 	out_file="$EASYRSA_PKI/crl.pem"
@@ -5510,7 +5201,7 @@ Use of --startdate requires use of --enddate."
 	# --enddate may over-rule EASYRSA_CERT_EXPIRE
 	if [ "$EASYRSA_END_DATE" ]; then
 		case "$cmd" in
-			sign-req|build-*-full|renew|rebuild)
+			sign-req|build-*-full|renew)
 				# User specified alias_days IS over-ruled
 				if [ "$alias_days" ]; then
 					warn "\
@@ -7253,12 +6944,6 @@ case "$cmd" in
 	rewind-renew)
 		verify_working_env
 		rewind_renew "$@"
-		;;
-	rebuild)
-		verify_working_env
-		[ -z "$alias_days" ] || \
-			export EASYRSA_CERT_EXPIRE="$alias_days"
-		rebuild "$@"
 		;;
 	import-req)
 		verify_working_env
