@@ -57,8 +57,7 @@ A list of commands is shown below:
   export-p7 <file_name_base> [ cmd-opts ]
   export-p8 <file_name_base> [ cmd-opts ]
   export-p12 <file_name_base> [ cmd-opts ]
-  set-pass <file_name_base> [ cmd-opts ]
-  upgrade <type>"
+  set-pass <file_name_base> [ cmd-opts ]"
 
 	# collect/show dir status:
 	text_only=1
@@ -404,17 +403,6 @@ cmd_help() {
       * nopass  - Do not encrypt the private key (Default: encrypted)
                   (Equivalent to global option '--nopass|--no-pass')
       * file    - (Advanced) Treat the file as a raw path, not a short-name"
-	;;
-	upgrade)
-		text="
-* upgrade <type>
-
-      Upgrade EasyRSA PKI and/or CA.
-
-      Upgrade <type> must be one of:
-
-      * pki - Upgrade EasyRSA v2.x PKI to v3.x PKI (includes CA below)
-      * ca  - Upgrade EasyRSA v3.0.5 CA or older to v3.0.6 CA or later."
 	;;
 	altname|subjectaltname|san)
 		text_only=1
@@ -7153,7 +7141,7 @@ cmd="$1"
 # Establish PKI and CA initialisation requirements
 # This avoids unnecessary warnings and notices
 case "$cmd" in
-	''|help|-h|--help|--usage|version|upgrade|show-host)
+	''|help|-h|--help|--usage|version|show-host)
 		unset -v require_pki require_ca
 		ignore_vars=1
 	;;
@@ -7387,10 +7375,6 @@ case "$cmd" in
 		verify_working_env
 		ssl_cert_x509v3_eku "$@" || \
 			easyrsa_exit_with_error=1
-		;;
-	upgrade)
-		verify_working_env
-		up23_manage_upgrade_23 "$@"
 		;;
 	""|help|-h|--help|--usage)
 		verify_working_env
