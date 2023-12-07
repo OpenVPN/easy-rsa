@@ -40,7 +40,6 @@ A list of commands is shown below:
   revoke <file_name_base> [ cmd-opts ]
   renew <file_name_base>
   revoke-renewed <file_name_base> [ cmd-opts ]
-  rewind-renew <certificate_serial_number>
   gen-crl
   update-db
   show-req <file_name_base> [ cmd-opts ]
@@ -222,17 +221,6 @@ cmd_help() {
 * renew <file_name_base>
 
       Renew a certificate specified by <file_name_base>"
-	;;
-	rewind|rewind-renew)
-		text="
-* rewind-renew <certificate_serial_number>
-
-      Rewind an EasyRSA version 3.0 'style' renewed certificate.
-      Once 'rewind' has completed the certificate can be revoked
-      by using: 'revoke-renewed <file_name_base> [reason]'
-
-  * NOTE: This does NOT 'unrenew' or 'unrevoke' a certificate.
-    Ref : https://github.com/OpenVPN/easy-rsa/issues/578"
 	;;
 	gen-crl)
 		text="
@@ -6940,10 +6928,6 @@ case "$cmd" in
 		[ -z "$alias_days" ] || \
 			export EASYRSA_CERT_EXPIRE="$alias_days"
 		renew "$@"
-		;;
-	rewind-renew)
-		verify_working_env
-		rewind_renew "$@"
 		;;
 	import-req)
 		verify_working_env
