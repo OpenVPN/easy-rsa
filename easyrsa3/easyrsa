@@ -5288,13 +5288,6 @@ verify_working_env - secure-session failed"
 		# Verify selected algorithm and parameters
 		verify_algo_params
 
-		# Check $working_safe_ssl_conf, to build
-		# a fully configured safe ssl conf, on the
-		# next invocation of easyrsa_openssl()
-		if [ "$working_safe_ssl_conf" ]; then
-			die "working_safe_ssl_conf must not be set!"
-		fi
-
 		# Verify CA is initialised
 		if [ "$require_ca" ]; then
 			verify_ca_init
@@ -6030,8 +6023,16 @@ locate_support_files
 # Verify SSL Lib - One time ONLY
 verify_ssl_lib
 
+# Check $working_safe_ssl_conf, to build
+# a fully configured safe ssl conf, on the
+# next invocation of easyrsa_openssl()
+if [ "$working_safe_ssl_conf" ]; then
+	die "working_safe_ssl_conf must not be set!"
+fi
+
 # Establish PKI and CA initialisation requirements
 # This avoids unnecessary warnings and notices
+# Used by verify_working_env()
 unset -v require_pki require_ca ignore_vars
 case "$cmd" in
 	''|help|-h|--help|--usage| \
