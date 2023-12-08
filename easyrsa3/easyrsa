@@ -1425,17 +1425,6 @@ install_data_to_pki: $context - COMPLETED"
 		return
 	fi
 
-	# Check PKI is updated - Omit unnecessary checks
-	if [ -e "${EASYRSA_PKI}/${ssl_cnf_file}" ]; then
-		: # ok
-	else
-		create_openssl_easyrsa_cnf > \
-			"${EASYRSA_PKI}/${ssl_cnf_file}" || die "\
-install_data_to_pki - Missing: '$ssl_cnf_file'"
-		verbose "\
-install_data_to_pki: $context - create_openssl_easyrsa_cnf OK"
-	fi
-
 	[ -d "$EASYRSA_EXT_DIR" ] || verbose "\
 install_data_to_pki: $context - Missing: '$x509_types_dir'"
 	verbose "install_data_to_pki: $context - COMPLETED"
@@ -5121,6 +5110,7 @@ select_vars() {
 		[ "$require_pki" ] && information "\
 No Easy-RSA 'vars' configuration file exists!"
 		# select_vars failed to find a vars file
+		verbose "select_vars: No vars"
 		return 1
 	fi
 } # => select_vars()
@@ -5346,6 +5336,9 @@ verify_working_env() {
 		# Temp dir session
 		secure_session || die "\
 verify_working_env - secure-session failed"
+
+		# Verify or create: EASYRSA_SSL_CONF
+		write_easyrsa_ssl_cnf_tmp
 
 		# Install data-files into ALL PKIs
 		# This will find x509-types
@@ -5640,6 +5633,26 @@ fi
 #set_var EASYRSA_TEMP_DIR	"$EASYRSA_PKI"
 VARS_EXAMPLE
 } # => create_vars_example()
+
+# Verify: $EASYRSA_SSL_CONF pki/openssl-easyrsa.cnf
+# or create temp-file
+write_easyrsa_ssl_cnf_tmp() {
+	[ -f "$EASYRSA_SSL_CONF" ] && return
+
+	# Create temp-file
+	ssl_cnf_tmp=
+	easyrsa_mktemp ssl_cnf_tmp || die "\
+write_easyrsa_ssl_cnf_tmp - easyrsa_mktemp"
+
+	# Write SSL cnf to temp-file
+	create_openssl_easyrsa_cnf > "$ssl_cnf_tmp" || die "\
+write_easyrsa_ssl_cnf_tmp - create_openssl_easyrsa_cnf"
+
+	# export SSL cnf tmp
+	export EASYRSA_SSL_CONF="$ssl_cnf_tmp"
+	verbose "\
+write_easyrsa_ssl_cnf_tmp: create_openssl_easyrsa_cnf OK"
+} # => write_easyrsa_ssl_cnf_tmp()
 
 # Create openssl-easyrsa.cnf
 create_openssl_easyrsa_cnf() {
