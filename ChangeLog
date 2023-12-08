@@ -1,6 +1,10 @@
 Easy-RSA 3 ChangeLog
 
 3.2.0 (TBD)
+   * Remove function 'set_pass_legacy()' (#1045)
+   * Remove command 'rewind-renew' (#1045)
+   * Remove command 'rebuild' (#1045)
+   * Remove command 'upgrade' (#1045)
    * Remove EASYRSA_NO_VARS; Allow graceful use without a vars file (#1043)
    * New diagnostic command 'display-cn' (#1040)
    * Expand renewable certificate types to include code-signing (#1039)
