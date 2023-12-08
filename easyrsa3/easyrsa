@@ -717,6 +717,10 @@ secure_session() {
 				OPENSSL_CONF safe_ssl_cnf_tmp \
 				working_safe_ssl_conf
 			easyrsa_err_log="$secured_session/error.log"
+
+			# Verify or create: EASYRSA_SSL_CONF
+			write_easyrsa_ssl_cnf_tmp
+
 			verbose "\
 secure_session: CREATED: $secured_session"
 			return
@@ -5280,9 +5284,6 @@ verify_working_env() {
 		# Temp dir session
 		secure_session || die "\
 verify_working_env - secure-session failed"
-
-		# Verify or create: EASYRSA_SSL_CONF
-		write_easyrsa_ssl_cnf_tmp
 
 		# Verify selected algorithm and parameters
 		verify_algo_params
