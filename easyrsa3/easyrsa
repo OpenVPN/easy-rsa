@@ -1325,11 +1325,7 @@ and initialize a fresh PKI here."
 Failed to create PKI file structure (permissions?)"
 	done
 
-	# Install data-files into ALL new PKIs
-	install_data_to_pki init-pki || \
-		warn "\
-Failed to install required data-files to PKI. (init)"
-
+	# User notice
 	notice "\
 'init-pki' complete; you may now create a CA or requests.
 
@@ -1342,25 +1338,14 @@ Your newly created PKI dir is:
 	information "
 Using Easy-RSA configuration:
 * ${EASYRSA_VARS_FILE:-undefined}"
-
-	verbose "\
-init_pki: x509-types dir ${EASYRSA_EXT_DIR:-Not found}"
 } # => init_pki()
 
-# Copy data-files from various sources
-install_data_to_pki() {
-#
-# Explicitly find and optionally copy data-files to the PKI.
-# During 'init-pki' this is the new default.
-# During all other functions these requirements are tested for
-# and files will be copied to the PKI, if they do not already
-# exist there.
-#
-# One reason for this is to make packaging work.
-
-	context="$1"
-	shift
-
+# Find support files from various sources
+# Declare in preferred order, first wins
+# beaten by command line.
+# If these files are not found here then they
+# will be built on-demand by the selected command.
+locate_support_files() {
 	# Set required sources
 	ssl_cnf_file='openssl-easyrsa.cnf'
 	x509_types_dir='x509-types'
@@ -1374,7 +1359,7 @@ install_data_to_pki() {
 	# Room for more..
 	# '/etc/easy-rsa' - Last resort
 
-	# Find and optionally copy data-files, in specific order
+	# Find data-files
 	for area in \
 		"$EASYRSA_PKI" \
 		"$EASYRSA" \
@@ -1385,50 +1370,16 @@ install_data_to_pki() {
 		'/etc/easy-rsa' \
 		# EOL
 	do
-		if [ "$context" = x509-types-only ]; then
-			# Find x509-types ONLY
-			# Declare in preferred order, first wins
-			# beaten by command line.
-			[ -e "${area}/${x509_types_dir}" ] && set_var \
-				EASYRSA_EXT_DIR "${area}/${x509_types_dir}"
-		else
-			# Find x509-types ALSO
-			# Declare in preferred order, first wins
-			# beaten by command line.
+			# Find x509-types
 			[ -e "${area}/${x509_types_dir}" ] && set_var \
 				EASYRSA_EXT_DIR "${area}/${x509_types_dir}"
 
-			# Find other files - Omitting "$vars_file"
-			# shellcheck disable=2066 # Loop will only run once
-			for source in \
-				"$ssl_cnf_file" \
-				# EOL
-			do
-				# Find each item
-				[ -e "${area}/${source}" ] || continue
-
-				# If source does not exist in PKI then copy it
-				if [ -e "${EASYRSA_PKI}/${source}" ]; then
-					continue
-				else
-					cp "${area}/${source}" "$EASYRSA_PKI" || warn \
-						"Failed to copy to PKI: ${area}/${source}"
-				fi
-			done
-		fi
+			# Find openssl-easyrsa.cnf
+			[ -e "${area}/${ssl_cnf_file}" ] && set_var \
+				EASYRSA_SSL_CONF "${area}/${ssl_cnf_file}"
 	done
-
-	# Short circuit for x509-types-only
-	if [ "$context" = x509-types-only ]; then
-		verbose "\
-install_data_to_pki: $context - COMPLETED"
-		return
-	fi
-
-	[ -d "$EASYRSA_EXT_DIR" ] || verbose "\
-install_data_to_pki: $context - Missing: '$x509_types_dir'"
-	verbose "install_data_to_pki: $context - COMPLETED"
-} # => install_data_to_pki()
+	verbose "locate_support_files: COMPLETED"
+} # => locate_support_files()
 
 # Disable terminal echo, if possible, otherwise warn
 hide_read_pass() {
@@ -5324,9 +5275,9 @@ verify_working_env() {
 	# Verify SSL Lib - One time ONLY
 	verify_ssl_lib
 
-	# Find x509-types but do not fail
-	# Not fatal here, used by 'help'
-	install_data_to_pki x509-types-only
+	# Find x509-types and openssl_easyrsa.cnf
+	# used by 'help'
+	locate_support_files
 
 	# For commands which 'require a PKI' and PKI exists
 	if  [ "$require_pki" ]; then
@@ -5339,13 +5290,6 @@ verify_working_env - secure-session failed"
 
 		# Verify or create: EASYRSA_SSL_CONF
 		write_easyrsa_ssl_cnf_tmp
-
-		# Install data-files into ALL PKIs
-		# This will find x509-types
-		# and export EASYRSA_EXT_DIR or die.
-		# Other errors only require warning.
-		install_data_to_pki vars-setup || warn "\
-verify_working_env - install_data_to_pki vars-setup failed"
 
 		# Verify selected algorithm and parameters
 		verify_algo_params
