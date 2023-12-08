@@ -6055,6 +6055,23 @@ done
 cmd="$1"
 [ "$1" ] && shift # scrape off command
 
+# Intelligent env-var detection and auto-loading:
+# Select vars file as EASYRSA_VARS_FILE
+# then source the vars file, if found
+# otherwise, ignore no vars file
+select_vars && source_vars "$EASYRSA_VARS_FILE"
+
+# then set defaults
+default_vars
+
+# Check for unexpected changes to EASYRSA or EASYRSA_PKI
+# This will be resolved in v3.2.0
+# https://github.com/OpenVPN/easy-rsa/issues/1006
+validate_default_vars
+
+# Check for conflicting input options
+mutual_exclusions
+
 # Establish PKI and CA initialisation requirements
 # This avoids unnecessary warnings and notices
 unset -v require_pki require_ca ignore_vars
@@ -6077,31 +6094,6 @@ case "$cmd" in
 				require_ca=1
 		esac
 esac
-
-# Run these commands with NO setup
-case "$cmd" in
-	make-vars)
-		create_vars_example
-		cleanup ok
-	;;
-esac
-
-# Intelligent env-var detection and auto-loading:
-# Select vars file as EASYRSA_VARS_FILE
-# then source the vars file, if found
-# otherwise, ignore no vars file
-select_vars && source_vars "$EASYRSA_VARS_FILE"
-
-# then set defaults
-default_vars
-
-# Check for unexpected changes to EASYRSA or EASYRSA_PKI
-# This will be resolved in v3.2.0
-# https://github.com/OpenVPN/easy-rsa/issues/1006
-validate_default_vars
-
-# Check for conflicting input options
-mutual_exclusions
 
 # Hand off to the function responsible
 # ONLY verify_working_env() for valid commands
@@ -6246,6 +6238,10 @@ case "$cmd" in
 	mss|make-safe-ssl)
 		verify_working_env
 		make_safe_ssl "$@"
+		;;
+	make-vars)
+		# verify_working_env - Not required
+		create_vars_example
 		;;
 	serial|check-serial)
 		verify_working_env
