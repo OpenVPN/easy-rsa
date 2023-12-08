@@ -6019,11 +6019,6 @@ subjectAltName = $val"
 		set -- "$@" "version"
 		break
 		;;
-	# Unsupported options
-	--fix-offset)
-		user_error "Option $opt is not supported.
-Use options --startdate and --enddate for fixed dates."
-		;;
 	-*)
 		user_error "\
 Unknown option '$opt'.
