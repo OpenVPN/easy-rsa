@@ -5828,7 +5828,7 @@ trap "exit 1" 1
 trap "exit 2" 2
 trap "exit 3" 3
 trap "exit 6" 6
-trap "exit 14" 15
+trap "exit 15" 15
 
 # Get host details - No configurable input allowed
 detect_host
