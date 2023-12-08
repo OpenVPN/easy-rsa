@@ -5286,9 +5286,8 @@ verify_working_env() {
 		# Verify PKI is initialised
 		verify_pki_init
 
-		# Temp dir session
-		secure_session || die "\
-verify_working_env - secure-session failed"
+		# Temp dir session and default SSL conf file
+		secure_session
 
 		# Verify selected algorithm and parameters
 		verify_algo_params
@@ -5297,7 +5296,6 @@ verify_working_env - secure-session failed"
 		if [ "$require_ca" ]; then
 			verify_ca_init
 		fi
-
 	fi
 	verbose "verify_working_env: COMPLETED Handover-to: $cmd"
 } # => verify_working_env()
