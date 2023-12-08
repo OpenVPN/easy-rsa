@@ -1,6 +1,7 @@
 Easy-RSA 3 ChangeLog
 
 3.2.0 (TBD)
+   * New Command 'rand': 'Expose easyrsa_random() to the command line (#1046)
    * Remove function 'set_pass_legacy()' (#1045)
    * Remove command 'rewind-renew' (#1045)
    * Remove command 'rebuild' (#1045)

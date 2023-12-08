@@ -453,7 +453,10 @@ cmd_help() {
     default-san <file_name_base>
 
   Display EKU of certificate:
-    show-eku <file_name_base>"
+    show-eku <file_name_base>
+
+  Generate random hex:
+    rand <decimal_number>"
 	;;
 	opts|options)
 		opt_usage
@@ -669,7 +672,6 @@ easyrsa_random() {
 		die "easyrsa_random - input"
 	esac
 
-	unset -v rand_hex
 	if rand_hex="$(
 			OPENSSL_CONF=/dev/null \
 				"$EASYRSA_OPENSSL" rand -hex "$1"
@@ -677,8 +679,11 @@ easyrsa_random() {
 	then
 		if [ "$2" ]; then
 			force_set_var "$2" "$rand_hex"
+		else
+			print "$rand_hex"
 		fi
-		return
+		unset -v rand_hex
+		return 0
 	fi
 
 	die "easyrsa_random failed"
@@ -6057,20 +6062,21 @@ cmd="$1"
 
 # Establish PKI and CA initialisation requirements
 # This avoids unnecessary warnings and notices
+unset -v require_pki require_ca ignore_vars
 case "$cmd" in
-	''|help|-h|--help|--usage|version|show-host)
-		unset -v require_pki require_ca
+	''|help|-h|--help|--usage| \
+	version|show-host|rand|random)
 		ignore_vars=1
 	;;
 	init-pki|clean-all)
-		unset -v require_pki require_ca
+		: # No change
 	;;
 	*)
 		require_pki=1
 		case "$cmd" in
 			gen-req|gen-dh|build-ca|show-req| \
 			make-safe-ssl|export-p*|inline)
-				unset -v require_ca
+				: # No change
 			;;
 			*)
 				require_ca=1
@@ -6274,6 +6280,10 @@ case "$cmd" in
 		verify_working_env
 		ssl_cert_x509v3_eku "$@" || \
 			easyrsa_exit_with_error=1
+		;;
+	rand|random)
+		easyrsa_random "$1"
+		cleanup ok
 		;;
 	""|help|-h|--help|--usage)
 		verify_working_env
