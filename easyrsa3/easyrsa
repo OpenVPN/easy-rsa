@@ -1188,6 +1188,11 @@ $error_msg"
 	;;
 	*) die "Unexpected SSL version: $osslv_major"
 	esac
+
+	# Message
+	verbose "
+Using SSL:
+* $EASYRSA_OPENSSL $ssl_version"
 } # => verify_ssl_lib()
 
 # Basic sanity-check of PKI init and complain if missing
@@ -5292,11 +5297,6 @@ verify_working_env - secure-session failed"
 		if [ "$require_ca" ]; then
 			verify_ca_init
 		fi
-
-		# Last setup msg
-		information "
-Using SSL:
-* $EASYRSA_OPENSSL $ssl_version"
 
 	fi
 	verbose "verify_working_env: COMPLETED Handover-to: $cmd"
