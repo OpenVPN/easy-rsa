@@ -5272,9 +5272,6 @@ ${unexpected_error}"
 
 # Verify working environment
 verify_working_env() {
-	# Verify SSL Lib - One time ONLY
-	verify_ssl_lib
-
 	# For commands which 'require a PKI' and PKI exists
 	if  [ "$require_pki" ]; then
 		# Verify PKI is initialised
@@ -6028,6 +6025,9 @@ mutual_exclusions
 # Find x509-types and openssl_easyrsa.cnf
 # used by 'help'
 locate_support_files
+
+# Verify SSL Lib - One time ONLY
+verify_ssl_lib
 
 # Establish PKI and CA initialisation requirements
 # This avoids unnecessary warnings and notices
