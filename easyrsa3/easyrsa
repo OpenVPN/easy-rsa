@@ -573,7 +573,7 @@ Deprecated features:
 
 # Wrapper around printf - clobber print since it's not POSIX anyway
 # print() is used internally, so MUST NOT be silenced.
-# shellcheck disable=SC1117
+# shellcheck disable=SC1117 # printf format - print()
 print() {
 	printf '%s\n' "$*"
 } # => print()
@@ -653,7 +653,7 @@ $msg
 
 Type the word '$value' to continue, or any other input to abort."
 	printf %s "  $prompt"
-	# shellcheck disable=SC2162 # read without -r will mangle ..
+	# shellcheck disable=SC2162 # read without -r - confirm()
 	read input
 	printf '\n'
 	[ "$input" = "$value" ] && return
@@ -870,8 +870,7 @@ Temporary session not preserved."
 			warn "cleanup - remove_secure_session failed"
 	fi
 
-	# shellcheck disable=SC3040
-	# In POSIX sh, set option [name] is undefined
+	# shellcheck disable=SC3040 # POSIX set - cleanup()
 	case "$prompt_restore" in
 		0) : ;; # Not required
 		1) [ -t 1 ] && stty echo ;;
@@ -1010,7 +1009,7 @@ expand_ssl_config - \
 easyrsa_mktemp safe_ssl_cnf_tmp"
 
 	# Rewrite
-	# shellcheck disable=SC2016 # No expansion inside ''
+	# shellcheck disable=SC2016 # No expand '' - expand_ssl_config()
 	if sed \
 \
 -e s\`'$dir'\`\
@@ -1394,7 +1393,7 @@ locate_support_files() {
 hide_read_pass() {
 	# 3040 - In POSIX sh, set option [name] is undefined
 	# 3045 - In POSIX sh, some-command-with-flag is undefined
-	# shellcheck disable=SC3040,SC3045
+	# shellcheck disable=SC3040,SC3045 # POSIX - hide_read_pass()
 	if stty -echo 2>/dev/null; then
 		prompt_restore=1
 		read -r "$@"
@@ -1627,7 +1626,7 @@ Raw CA mode
 		die "build_ca - easyrsa_mktemp adjusted_ssl_cnf_tmp"
 
 	# Assign awkscript to insert EASYRSA_EXTRA_EXTS
-	# shellcheck disable=SC2016 # vars don't expand in ''
+	# shellcheck disable=SC2016 # No expand '' - build_ca()
 	awkscript='\
 {if ( match($0, "^#%CA_X509_TYPES_EXTRA_EXTS%") )
 	{ while ( getline<"/dev/stdin" ) {print} next }
@@ -1895,8 +1894,7 @@ to the latest Easy-RSA release."
 req_extensions = req_extra
 [ req_extra ]
 $EASYRSA_EXTRA_EXTS"
-		# vars don't expand in single quote
-		# shellcheck disable=SC2016
+		# shellcheck disable=SC2016 # No expand '' - gen_req()
 		awkscript='
 {if ( match($0, "^#%EXTRA_EXTS%") )
 	{ while ( getline<"/dev/stdin" ) {print} next }
@@ -2064,7 +2062,7 @@ to the latest Easy-RSA release."
 		# Setup & insert the copy_extensions data
 		# keyed by a magic line
 		copy_exts="copy_extensions = copy"
-		# shellcheck disable=SC2016 # vars don't expand ''
+		# shellcheck disable=SC2016 # No expand '' - sign_req()
 		awkscript='
 {if ( match($0, "^#%COPY_EXTS%") )
 	{ while ( getline<"/dev/stdin" ) {print} next }
@@ -2112,7 +2110,7 @@ Writing 'copy_exts' to SSL config temp-file failed"
 		# Print the last occurence of basicContraints in
 		# x509-types/ca
 		# If basicContraints is not defined then bail
-		# shellcheck disable=SC2016 # vars don't expand ''
+		# shellcheck disable=SC2016 # No expand '' - sign_req()
 		awkscript='\
 /^[[:blank:]]*basicConstraints[[:blank:]]*=/ { bC=$0 }
 END { if (length(bC) == 0 ) exit 1; print bC }'
@@ -3933,7 +3931,7 @@ ssl_cert_serial() {
 } # => ssl_cert_serial()
 
 # Get certificate start date
-# shellcheck disable=2317 # Unreachable code ..
+# shellcheck disable=2317 # Unreach - ssl_cert_not_before_date()
 ssl_cert_not_before_date() {
 	verbose "DEPRECATED: ssl_cert_not_before_date()"
 	[ "$#" = 2 ] || die "\
@@ -3976,7 +3974,7 @@ ssl_cert_not_after_date - failed to set var '$*'"
 } # => ssl_cert_not_after_date()
 
 # SSL -- v3 -- startdate iso_8601
-# shellcheck disable=2317 # Unreachable code ..
+# shellcheck disable=2317 # Unreach - iso_8601_cert_startdate()
 iso_8601_cert_startdate() {
 	verbose "NEW: iso_8601_cert_startdate"
 	[ "$#" = 2 ] || die "\
@@ -4326,7 +4324,7 @@ db_date_to_iso_8601_date: force_set_var - $2 - $out_date"
 # Convert default SSL date to iso_8601 date
 # This may not be feasible, due to different languages
 # Alow the caller to assess those errors (eg. Fall-back)
-# shellcheck disable=2317 # Unreachable code ..
+# shellcheck disable=2317 # Unreach - cert_date_to_iso_8601_date()
 cert_date_to_iso_8601_date() {
 	verbose "iso_8601-WIP: cert_date_to_iso_8601_date"
 	die "BLOCKED: cert_date_to_iso_8601_date"
@@ -4400,7 +4398,7 @@ cert_date_to_iso_8601: force_set_var - $2 - $out_date"
 # Try in sh.exe: t='   '; s="a${t}b${t}c"; echo "${s%%"${t}"*}"
 
 # Read db
-# shellcheck disable=SC2295
+# shellcheck disable=SC2295 # nested expand - read_db()
 read_db() {
 	TCT='	' # tab character
 	db_in="$EASYRSA_PKI/index.txt"
@@ -4850,7 +4848,7 @@ detect_host() {
 	# Detect Windows
 	[ "${OS}" ] && easyrsa_host_test="${OS}"
 
-	# shellcheck disable=SC2016 # expansion inside '' blah
+	# shellcheck disable=SC2016 # No expand '' - detect_host()
 	easyrsa_ksh=\
 '@(#)MIRBSD KSH R39-w32-beta14 $Date: 2013/06/28 21:28:57 $'
 
@@ -5156,17 +5154,17 @@ Please, correct these errors and try again."
 	fi
 
 	# Enable sourcing 'vars'
-	# shellcheck disable=SC2034 # appears unused
+	# shellcheck disable=SC2034 # appears unused - source_vars()
 	EASYRSA_CALLER=1
 	easyrsa_path="$PATH"
-	# shellcheck disable=SC2123 # PATH is the shell ..
+	# shellcheck disable=SC2123 # PATH is - source_vars()
 	PATH=./
 
 	# Test sourcing 'vars' in a subshell
-	# shellcheck disable=1090 # can't follow .. vars
+	# shellcheck disable=1090 # can't follow - source_vars()
 	if ( . "$target_file" ); then
 		# Source 'vars' now
-		# shellcheck disable=1090 # can't follow .. vars
+		# shellcheck disable=1090 # can't follow - source_vars()
 		. "$target_file" || \
 			die "Failed to source the '$target_file' file."
 	else
@@ -6246,7 +6244,7 @@ Unknown command '$cmd'. Run without commands for usage help."
 esac
 
 # Check for untrapped errors
-# shellcheck disable=SC2181
+# shellcheck disable=SC2181 # Quote expand - pre-cleanup $?
 if [ $? = 0 ]; then
 	# Do 'cleanup ok' on successful completion
 	#print "mktemp_counter: $mktemp_counter uses"
