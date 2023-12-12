@@ -1,7 +1,12 @@
 Easy-RSA 3 ChangeLog
 
 3.2.0 (TBD)
-   * New Command 'rand': 'Expose easyrsa_random() to the command line (#1046)
+   * New command 'write': Write 'legacy' files to stdout or files (#1046) c814e0a
+     EasyRSA is now capable of running without openssl-easyrsa.cnf and x509-types.
+     Necessary files are created on demand as temp-files and removed on completion.
+     These files will be retained for downstream packaging compatibility.
+     Also, files vars.example and safessl-easyrsa.cnf can be generated.
+   * New Command 'rand': Expose easyrsa_random() to the command line (#1046) 6131cbf
    * Remove function 'set_pass_legacy()' (#1045)
    * Remove command 'rewind-renew' (#1045)
    * Remove command 'rebuild' (#1045)
