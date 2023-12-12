@@ -24,8 +24,8 @@ To get detailed usage and help for a command, use:
 For a list of global-options, use:
   ./easyrsa help options
 
-For a list of extra test commands, use:
-  ./easyrsa help more
+For a list of utility commands, use:
+  ./easyrsa help util
 
 A list of commands is shown below:
   init-pki [ cmd-opts ]
@@ -55,7 +55,8 @@ A list of commands is shown below:
   export-p7 <file_name_base> [ cmd-opts ]
   export-p8 <file_name_base> [ cmd-opts ]
   export-p12 <file_name_base> [ cmd-opts ]
-  set-pass <file_name_base> [ cmd-opts ]"
+  set-pass <file_name_base> [ cmd-opts ]
+  write <type> [ cmd-opts ]"
 
 	# collect/show dir status:
 	text_only=1
@@ -381,6 +382,26 @@ cmd_help() {
                   (Equivalent to global option '--nopass|--no-pass')
       * file    - (Advanced) Treat the file as a raw path, not a short-name"
 	;;
+	write)
+		text="
+* write <type> <DIR>
+
+      Write <type> data to stdout or <DIR>
+
+      Types:
+      * ssl-cnf  - Write openssl-easyrsa.cnf file.
+      * COMMON|ca|server|serverClient|client|codeSigning|email|kdc
+                   Write x509-type <type> file.
+      * legacy   - Write ALL support files (above) to <DIR>.
+                   Will create <DIR>/x509-types directory.
+                   Default <DIR> is EASYRSA_PKI or EASYRSA.
+      * safe-ssl - Expand EasyRSA SSL config file for LibreSSL.
+      * vars     - Write vars.example file."
+		opts="
+      * <DIR>    - If <DIR> is specified then files are created.
+                   Otherwise, the data is sent to stdout, except
+                   for 'legacy', which always creates files."
+	;;
 	altname|subjectaltname|san)
 		text_only=1
 		text="
@@ -427,15 +448,12 @@ cmd_help() {
       * To generate a certificate signing request:
         eg: '--batch --req-cn=NAME gen-req <file_name_base>'"
 	;;
-	more|test|xtra|extra|ext)
+	util|more)
 		# Test features
 		text_only=1
 		text="
-  Print vars.example here-doc to stdout:
-    make-vars
-
-  Make safessl-easyrsa.cnf file:
-    mss|make-safe-ssl
+NOTE:
+These commands are safe to test and will NOT effect your PKI.
 
   Check <SERIAL> number is unique:
     serial|check-serial <SERIAL>
@@ -1189,7 +1207,7 @@ $error_msg"
 	esac
 
 	# Message
-	verbose "
+	verbose "verify_ssl_lib():
 Using SSL:
 * $EASYRSA_OPENSSL $ssl_version"
 } # => verify_ssl_lib()
@@ -4672,7 +4690,7 @@ expire_status: Verify cert expire date EXCESS mismatch!"
 expire_status: cert_date_to_timestamp_s: comparison complete"
 
 		else
-			verbose  "\
+			verbose "\
 expire_status: ACCEPTED ERROR-2: \
 iso_8601_timestamp_to_seconds"
 			verbose "\
@@ -5224,8 +5242,10 @@ Algorithm '$EASYRSA_ALGO' is invalid: Must be 'rsa', 'ec' or 'ed'"
 	set_var EASYRSA_REQ_CN			ChangeMe
 	set_var EASYRSA_DIGEST			sha256
 
+	# verified or created by secure_session()
 	set_var EASYRSA_SSL_CONF		\
 		"$EASYRSA_PKI/openssl-easyrsa.cnf"
+	# created as required
 	set_var EASYRSA_SAFE_CONF		\
 		"$EASYRSA_PKI/safessl-easyrsa.cnf"
 
@@ -5333,9 +5353,25 @@ force_set_var() {
 
 
 
-############################################################################
-#
-# Create X509-type files
+# Verify: $EASYRSA_SSL_CONF pki/openssl-easyrsa.cnf
+# or create temp-file
+write_easyrsa_ssl_cnf_tmp() {
+	[ -f "$EASYRSA_SSL_CONF" ] && return
+
+	# Create temp-file
+	ssl_cnf_tmp=
+	easyrsa_mktemp ssl_cnf_tmp || die "\
+write_easyrsa_ssl_cnf_tmp - easyrsa_mktemp"
+
+	# Write SSL cnf to temp-file
+	write ssl-cnf > "$ssl_cnf_tmp" || die "\
+write_easyrsa_ssl_cnf_tmp - write ssl-cnf"
+
+	# export SSL cnf tmp
+	export EASYRSA_SSL_CONF="$ssl_cnf_tmp"
+	verbose "\
+write_easyrsa_ssl_cnf_tmp: create_openssl_easyrsa_cnf OK"
+} # => write_easyrsa_ssl_cnf_tmp()
 
 # Write x509 type file to a temp file
 write_x509_type_tmp() {
@@ -5347,65 +5383,175 @@ write_x509_type_tmp() {
 		easyrsa_mktemp x509_tmp || \
 			die "write_x509_type_tmp - easyrsa_mktemp x509_tmp"
 
-		create_x509_type "$type" > "$x509_tmp" || \
-			die "write_x509_type_tmp - create_x509_type $type"
+		write "$type" > "$x509_tmp" || \
+			die "write_x509_type_tmp - write $type"
 
 		verbose "write_x509_type_tmp: $type COMPLETE"
 } # => write_x509_type_tmp()
 
+############################################################################
+#
+# Create legacy files
+#
+# Directories are user configurable, File names are fixed
+
+# Write ALL legacy files to $1 or default
+legacy_files() {
+	legacy_out_d="${1:-$EASYRSA_PKI}"
+	legacy_out_d="${legacy_out_d:-$EASYRSA}"
+	[ -d "$legacy_out_d" ] || \
+		user_error "Missing directory '$legacy_out_d'"
+
+	EASYRSA_LEGACY_OVERWRITE=1
+	if write ssl-cnf "$legacy_out_d"
+	then
+		x509_d="$legacy_out_d"/x509-types
+		mkdir -p "$x509_d" || die "legacy_files - x509_d"
+
+		write COMMON "$x509_d"
+		write ca "$x509_d"
+		write server "$x509_d"
+		write serverClient "$x509_d"
+		write client "$x509_d"
+		write codeSigning "$x509_d"
+		write email "$x509_d"
+		write kdc "$x509_d"
+	else
+		user_error "legacy_files - write ssl-cnf"
+	fi
+
+	unset -v legacy_out_d x509_dir
+	verbose "legacy_files: OK $x509_d"
+} # => legacy_files()
+
+# write legacy files to stdout or to $folder
+write() {
+	write_type="$1"
+	write_dir="$2"
+	write_file=
+
+	case "$write_type" in
+	safe-ssl)
+		# Only write to EASYRSA_PKI
+		[ -z "$write_dir" ] || \
+			user_error "Unsupported option: '$write_dir'"
+		verify_working_env
+		make_safe_ssl || die "write failed"
+		return
+	;;
+	ssl-cnf)
+		# write to stdout or $write_dir/openssl-easyrsa.cnf
+		if [ "$write_dir" ]; then
+			write_file="$write_dir"/openssl-easyrsa.cnf
+		fi
+	;;
+	vars)
+		# write to stdout or $write_dir/vars.example
+		if [ "$write_dir" ]; then
+			write_file="$write_dir"/vars.example
+		fi
+	;;
+	# This correctly renames 'code-signing' to 'codeSigning'
+	COMMON|ca|server|serverClient|client|codeSigning|email|kdc)
+		# write to stdout or $write_dir/$write_type [x509-type]
+		if [ "$write_dir" ]; then
+			write_file="$write_dir/$write_type"
+		fi
+	;;
+	*)
+		user_error "write - unknown type '$type'"
+	esac
+
+	# Check for output directory and file-name
+	if [ "$write_dir" ]; then
+		[ -d "$write_dir" ] || \
+			user_error "Missing directory '$write_dir'"
+
+		if [ -f "$write_file" ]; then
+			[ "$EASYRSA_LEGACY_OVERWRITE" ] || \
+				user_error "File exists: $write_file"
+		fi
+	fi
+
+	# write legacy data stream to stdout or $write_file
+	if [ "$write_file" ]; then
+		create_legacy_stream "$write_type" >"$write_file" || \
+			die "write failed"
+	else
+		create_legacy_stream "$write_type"
+	fi
+} #= write()
+
 # Create x509 type
-create_x509_type() {
+create_legacy_stream() {
 	case "$1" in
 	COMMON)
-		cat <<- "X509_TYPE_COMMON"
-		X509_TYPE_COMMON
+	# COMMON is not very useful
+		cat <<- "CREATE_X509_TYPE_COMMON"
+		CREATE_X509_TYPE_COMMON
+	;;
+	easyrsa)
+	# This could be COMMON but not is not suitable for a CA
+		cat <<- "CREATE_X509_TYPE_EASYRSA"
+		basicConstraints = CA:FALSE
+		subjectKeyIdentifier = hash
+		authorityKeyIdentifier = keyid,issuer:always
+		keyUsage = digitalSignature,keyEncipherment
+		CREATE_X509_TYPE_EASYRSA
 	;;
 	serverClient)
-		create_x509_type_easyrsa
-		cat <<- "X509_TYPE_SERV_CLI"
+	# serverClient
+		create_legacy_stream easyrsa
+		cat <<- "CREATE_X509_TYPE_SERV_CLI"
 		extendedKeyUsage = serverAuth,clientAuth
-		X509_TYPE_SERV_CLI
+		CREATE_X509_TYPE_SERV_CLI
 	;;
 	server)
-		create_x509_type_easyrsa
-		cat <<- "X509_TYPE_SERV"
+	# server
+		create_legacy_stream easyrsa
+		cat <<- "CREATE_X509_TYPE_SERV"
 		extendedKeyUsage = serverAuth
-		X509_TYPE_SERV
+		CREATE_X509_TYPE_SERV
 	;;
 	client)
-		create_x509_type_easyrsa
-		cat <<- "X509_TYPE_CLI"
+	# client
+		create_legacy_stream easyrsa
+		cat <<- "CREATE_X509_TYPE_CLI"
 		extendedKeyUsage = clientAuth
-		X509_TYPE_CLI
+		CREATE_X509_TYPE_CLI
 	;;
 	ca)
-		cat <<- "X509_TYPE_CA"
+	# ca
+		cat <<- "CREATE_X509_TYPE_CA"
 		basicConstraints = CA:TRUE
 		subjectKeyIdentifier = hash
 		authorityKeyIdentifier = keyid:always,issuer:always
 		keyUsage = cRLSign, keyCertSign
-		X509_TYPE_CA
+		CREATE_X509_TYPE_CA
 	;;
-	codeSign)
-		cat <<- "X509_CODE_SIGNING"
+	codeSigning)
+	# codeSigning
+		cat <<- "CREATE_X509_CODE_SIGNING"
 		basicConstraints = CA:FALSE
 		subjectKeyIdentifier = hash
 		authorityKeyIdentifier = keyid,issuer:always
 		extendedKeyUsage = codeSigning
 		keyUsage = digitalSignature
-		X509_CODE_SIGNING
+		CREATE_X509_CODE_SIGNING
 	;;
 	email)
-		cat <<- "X509_EMAIL"
+	# email
+		cat <<- "CREATE_X509_TYPE_EMAIL"
 		basicConstraints = CA:FALSE
 		subjectKeyIdentifier = hash
 		authorityKeyIdentifier = keyid,issuer:always
 		extendedKeyUsage = emailProtection
 		keyUsage = digitalSignature,keyEncipherment,nonRepudiation
-		X509_EMAIL
+		CREATE_X509_TYPE_EMAIL
 	;;
 	kdc)
-		cat <<- "X509_KDC"
+	# kdc
+		cat <<- "CREATE_X509_TYPE_KDC"
 basicConstraints = CA:FALSE
 subjectKeyIdentifier = hash
 authorityKeyIdentifier = keyid,issuer:always
@@ -5425,27 +5571,11 @@ name_string = EXP:1,SEQUENCE:kdc_principals
 [kdc_principals]
 princ1 = GeneralString:krbtgt
 princ2 = GeneralString:${ENV::EASYRSA_KDC_REALM}
-		X509_KDC
+CREATE_X509_TYPE_KDC
 	;;
-	*)
-		return 1
-	esac
-} # => create_x509_type()
-
-# Create x509-type/easyrsa
-# This could be COMMON but not is not suitable for a CA
-create_x509_type_easyrsa() {
-	cat <<- "X509_TYPE_EASYRSA"
-		basicConstraints = CA:FALSE
-		subjectKeyIdentifier = hash
-		authorityKeyIdentifier = keyid,issuer:always
-		keyUsage = digitalSignature,keyEncipherment
-		X509_TYPE_EASYRSA
-} # => create_x509_type_easyrsa()
-
-# Create vars.example - Minimum settings only
-create_vars_example() {
-	cat << "VARS_EXAMPLE"
+	vars)
+	# vars
+		cat << "CREATE_VARS_EXAMPLE"
 # Easy-RSA 3 parameter settings
 
 # NOTE: If you installed Easy-RSA from your package manager, do not edit
@@ -5590,32 +5720,11 @@ fi
 # Define directory for temporary subdirectories.
 #
 #set_var EASYRSA_TEMP_DIR	"$EASYRSA_PKI"
-VARS_EXAMPLE
-} # => create_vars_example()
-
-# Verify: $EASYRSA_SSL_CONF pki/openssl-easyrsa.cnf
-# or create temp-file
-write_easyrsa_ssl_cnf_tmp() {
-	[ -f "$EASYRSA_SSL_CONF" ] && return
-
-	# Create temp-file
-	ssl_cnf_tmp=
-	easyrsa_mktemp ssl_cnf_tmp || die "\
-write_easyrsa_ssl_cnf_tmp - easyrsa_mktemp"
-
-	# Write SSL cnf to temp-file
-	create_openssl_easyrsa_cnf > "$ssl_cnf_tmp" || die "\
-write_easyrsa_ssl_cnf_tmp - create_openssl_easyrsa_cnf"
-
-	# export SSL cnf tmp
-	export EASYRSA_SSL_CONF="$ssl_cnf_tmp"
-	verbose "\
-write_easyrsa_ssl_cnf_tmp: create_openssl_easyrsa_cnf OK"
-} # => write_easyrsa_ssl_cnf_tmp()
-
-# Create openssl-easyrsa.cnf
-create_openssl_easyrsa_cnf() {
-	cat << "SSL_CONFIG"
+CREATE_VARS_EXAMPLE
+	;;
+	ssl-cnf)
+	# SSL config
+	cat << "CREATE_SSL_CONFIG"
 # For use with Easy-RSA 3.0+ and OpenSSL or LibreSSL
 
 ####################################################################
@@ -5762,8 +5871,12 @@ keyUsage = cRLSign, keyCertSign
 
 # issuerAltName=issuer:copy
 authorityKeyIdentifier=keyid:always,issuer:always
-SSL_CONFIG
-} # => create_openssl_easyrsa_cnf()
+CREATE_SSL_CONFIG
+	;;
+	*)
+		die "create_legacy_stream: unknown type '$1'"
+	esac
+} # => create_legacy_stream()
 
 # Version information
 print_version() {
@@ -6222,13 +6335,18 @@ case "$cmd" in
 		verify_cert "$@" || \
 			easyrsa_exit_with_error=1
 		;;
-	mss|make-safe-ssl)
-		verify_working_env
-		make_safe_ssl "$@"
-		;;
-	make-vars)
+	write)
 		# verify_working_env - Not required
-		create_vars_example
+		case "$1" in
+		legacy)
+			# Write legacy files to write_dir
+			# or EASYRSA_PKI or EASYRSA
+			shift
+			legacy_files "$@"
+			;;
+		*)
+			write "$@"
+		esac
 		;;
 	serial|check-serial)
 		verify_working_env
