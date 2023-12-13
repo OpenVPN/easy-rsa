@@ -6350,6 +6350,9 @@ case "$cmd" in
 			;;
 		legacy-hard)
 			# over-write YES
+			confirm "${NL}  Confirm OVER-WRITE files ? " yes "
+'legacy-hard' will OVER-WRITE all legacy files to default settings.
+Legacy files: openssl-easyrsa.cnf and x509-types/ directory."
 			shift
 			legacy_file_over_write=1
 			legacy_files "$@"
