@@ -395,6 +395,8 @@ cmd_help() {
       * legacy   - Write ALL support files (above) to <DIR>.
                    Will create <DIR>/x509-types directory.
                    Default <DIR> is EASYRSA_PKI or EASYRSA.
+      * legacy-hard
+                   Same as 'legacy' plus OVER-WRITE files.
       * safe-ssl - Expand EasyRSA SSL config file for LibreSSL.
       * vars     - Write vars.example file."
 		opts="
@@ -5402,7 +5404,6 @@ legacy_files() {
 	[ -d "$legacy_out_d" ] || \
 		user_error "Missing directory '$legacy_out_d'"
 
-	EASYRSA_LEGACY_OVERWRITE=1
 	if write ssl-cnf "$legacy_out_d"
 	then
 		x509_d="$legacy_out_d"/x509-types
@@ -5468,8 +5469,9 @@ write() {
 			user_error "Missing directory '$write_dir'"
 
 		if [ -f "$write_file" ]; then
-			[ "$EASYRSA_LEGACY_OVERWRITE" ] || \
-				user_error "File exists: $write_file"
+			# If the file exists then do not over write
+			# unless explicitly instructed
+			[ "$legacy_file_over_write" ] || return 0
 		fi
 	fi
 
@@ -5929,7 +5931,8 @@ unset -v \
 	invalid_vars \
 	do_build_full error_build_full_cleanup \
 	internal_batch mv_temp_error \
-	easyrsa_exit_with_error error_info
+	easyrsa_exit_with_error error_info \
+	legacy_file_over_write
 
 	# Used by build-ca->cleanup to restore prompt
 	# after user interrupt when using manual password
@@ -6337,11 +6340,18 @@ case "$cmd" in
 		;;
 	write)
 		# verify_working_env - Not required
+		# Write legacy files to write_dir
+		# or EASYRSA_PKI or EASYRSA
 		case "$1" in
 		legacy)
-			# Write legacy files to write_dir
-			# or EASYRSA_PKI or EASYRSA
+			# over-write NO
 			shift
+			legacy_files "$@"
+			;;
+		legacy-hard)
+			# over-write YES
+			shift
+			legacy_file_over_write=1
 			legacy_files "$@"
 			;;
 		*)
