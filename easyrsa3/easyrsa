@@ -6197,7 +6197,7 @@ case "$cmd" in
 		require_pki=1
 		case "$cmd" in
 			gen-req|gen-dh|build-ca|show-req| \
-			make-safe-ssl|export-p*|inline)
+			make-safe-ssl|export-p*|inline|write)
 				: # No change
 			;;
 			*)
@@ -6353,6 +6353,7 @@ case "$cmd" in
 		legacy)
 			# over-write NO
 			shift
+			verify_working_env
 			legacy_files "$@"
 			;;
 		legacy-hard)
@@ -6361,6 +6362,7 @@ case "$cmd" in
 'legacy-hard' will OVER-WRITE all legacy files to default settings.
 Legacy files: openssl-easyrsa.cnf and x509-types/ directory."
 			shift
+			verify_working_env
 			legacy_file_over_write=1
 			legacy_files "$@"
 			;;
