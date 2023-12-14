@@ -893,13 +893,16 @@ Temporary session not preserved."
 	# shellcheck disable=SC3040 # POSIX set - cleanup()
 	case "$prompt_restore" in
 		0) : ;; # Not required
-		1) [ -t 1 ] && stty echo ;;
-		2) set -o echo ;;
+		1)
+			[ -t 1 ] && stty echo
+			[ "$EASYRSA_SILENT" ] || print
+		;;
+		2)
+			set -o echo
+			[ "$EASYRSA_SILENT" ] || print
+		;;
 		*) warn "prompt_restore: '$prompt_restore'"
 	esac
-
-	# Get a clean line
-	[ "$EASYRSA_SILENT" ] || print
 
 	# Clear traps
 	trap - 0 1 2 3 6 15
