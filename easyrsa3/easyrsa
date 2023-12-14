@@ -1353,6 +1353,9 @@ and initialize a fresh PKI here."
 Failed to create PKI file structure (permissions?)"
 	done
 
+	# pki/vars.example
+	write vars "$EASYRSA_PKI" || die "init-pki - write vars"
+
 	# User notice
 	notice "\
 'init-pki' complete; you may now create a CA or requests.
