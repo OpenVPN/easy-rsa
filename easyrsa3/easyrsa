@@ -1126,7 +1126,8 @@ easyrsa_openssl() {
 	fi
 
 	# Execute command - Return on success
-	verbose "> easyrsa_openssl - EXEC $openssl_command $*"
+	[ -z "$EASYRSA_DEBUG" ] || \
+		verbose "> easyrsa_openssl - EXEC $openssl_command $*"
 
 	case "$openssl_command" in
 	makesafeconf)
@@ -1449,7 +1450,10 @@ get_passphrase() {
 			printf '\n%s\n' \
 				"Passphrase must be at least 4 characters!"
 		else
-			force_set_var "$t" "$r" || die "Passphrase error!"
+			read -r "$t" <<- SECRET
+				$r
+				SECRET
+
 			unset -v r t
 			print
 			return 0
