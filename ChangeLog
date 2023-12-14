@@ -1,6 +1,10 @@
 Easy-RSA 3 ChangeLog
 
 3.2.0 (TBD)
+   * Rename X509-type file `code-signing` to `codeSigning` (Part of #1046)
+     The original file will be retained as `code-signing`, however, the automatic
+     X509-types creation will name the file `codeSigning`. This effectively means
+     that both are valid X509-types, until `code-signing` is dropped.
    * Important note: As of Easy-RSA version 3.2.0-beta1, the configuration files
      `vars.example`, `openssl-eayrsa.cnf` and all files in `x509-types` directory
      are no longer required. Package maintainers can omit these files in the future.
