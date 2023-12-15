@@ -85,6 +85,40 @@ Additionally, the contents of the env-var `EASYRSA_EXTRA_EXTS` is appended with
 its raw text added to the OpenSSL extensions. The contents are appended as-is to
 the cert extensions; invalid OpenSSL configs will usually result in failure.
 
+Advanced configuration files
+----------------------------
+
+The following files are used by Easy-RSA to configure the SSL library:
+* openssl-easyrsa.cnf - Configuration for Certificate Authority [CA]
+* x509-types: COMMON, ca, server, serverClient, client, codeSigning, email, kdc.
+  Each type is used to define an X509 purpose.
+
+Since Easy-RSA version 3.2.0, these files are created on-demand by each command
+that requires them.  However, if these files are found in one of the supported
+locations then those files are used instead, no temporary files are created.
+
+The supported locations are listed, in order of preference, as follows:
+* `EASYRSA_PKI` - Always preferred.
+* `EASYRSA` - For Windows.
+* `PWD` - For Windows.
+* `easyrsa` script directory - DEPRECATED, will be removed. Only for Windows.
+* `/usr/local/share/easy-rsa`
+* `/usr/share/easy-rsa`
+* `/etc/easy-rsa`
+
+The files above can all be created by using command: `easyrsa write legacy <DIR>`
+To OVER-WRITE any existing files use command: `eaysrsa write legacy-hard <DIR>`
+`<DIR>` is optional, the default is `EASYRSA_PKI`. This will create the files in
+the current PKI or `<DIR>`.  If created then these new files may take priority
+over system wide versions of the same files.  See `help write` for further details.
+
+Note, Over-writing files:
+Only command `write legacy-hard` will over-write files. All other uses of `write`
+will leave an existing file intact, without error. If you want to over-write an
+existing file using `write` then you must redirect `>foo` the output manually.
+
+Example command: `easyrsa write vars >vars` - This will over-write `./vars`.
+
 Environmental Variables Reference
 ---------------------------------
 

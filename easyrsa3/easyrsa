@@ -24,8 +24,8 @@ To get detailed usage and help for a command, use:
 For a list of global-options, use:
   ./easyrsa help options
 
-For a list of extra test commands, use:
-  ./easyrsa help more
+For a list of utility commands, use:
+  ./easyrsa help util
 
 A list of commands is shown below:
   init-pki [ cmd-opts ]
@@ -55,7 +55,8 @@ A list of commands is shown below:
   export-p7 <file_name_base> [ cmd-opts ]
   export-p8 <file_name_base> [ cmd-opts ]
   export-p12 <file_name_base> [ cmd-opts ]
-  set-pass <file_name_base> [ cmd-opts ]"
+  set-pass <file_name_base> [ cmd-opts ]
+  write <type> [ cmd-opts ]"
 
 	# collect/show dir status:
 	text_only=1
@@ -381,6 +382,28 @@ cmd_help() {
                   (Equivalent to global option '--nopass|--no-pass')
       * file    - (Advanced) Treat the file as a raw path, not a short-name"
 	;;
+	write)
+		text="
+* write <type> <DIR>
+
+      Write <type> data to stdout or <DIR>
+
+      Types:
+      * ssl-cnf  - Write openssl-easyrsa.cnf file.
+      * COMMON|ca|server|serverClient|client|codeSigning|email|kdc
+                   Write x509-type <type> file.
+      * legacy   - Write ALL support files (above) to <DIR>.
+                   Will create <DIR>/x509-types directory.
+                   Default <DIR> is EASYRSA_PKI or EASYRSA.
+      * legacy-hard
+                   Same as 'legacy' plus OVER-WRITE files.
+      * safe-ssl - Expand EasyRSA SSL config file for LibreSSL.
+      * vars     - Write vars.example file."
+		opts="
+      * <DIR>    - If <DIR> is specified then files are created.
+                   Otherwise, the data is sent to stdout, except
+                   for 'legacy', which always creates files."
+	;;
 	altname|subjectaltname|san)
 		text_only=1
 		text="
@@ -427,15 +450,12 @@ cmd_help() {
       * To generate a certificate signing request:
         eg: '--batch --req-cn=NAME gen-req <file_name_base>'"
 	;;
-	more|test|xtra|extra|ext)
+	util|more)
 		# Test features
 		text_only=1
 		text="
-  Print vars.example here-doc to stdout:
-    make-vars
-
-  Make safessl-easyrsa.cnf file:
-    mss|make-safe-ssl
+NOTE:
+These commands are safe to test and will NOT effect your PKI.
 
   Check <SERIAL> number is unique:
     serial|check-serial <SERIAL>
@@ -453,7 +473,10 @@ cmd_help() {
     default-san <file_name_base>
 
   Display EKU of certificate:
-    show-eku <file_name_base>"
+    show-eku <file_name_base>
+
+  Generate random hex:
+    rand <decimal_number>"
 	;;
 	opts|options)
 		opt_usage
@@ -570,7 +593,7 @@ Deprecated features:
 
 # Wrapper around printf - clobber print since it's not POSIX anyway
 # print() is used internally, so MUST NOT be silenced.
-# shellcheck disable=SC1117
+# shellcheck disable=SC1117 # printf format - print()
 print() {
 	printf '%s\n' "$*"
 } # => print()
@@ -650,7 +673,7 @@ $msg
 
 Type the word '$value' to continue, or any other input to abort."
 	printf %s "  $prompt"
-	# shellcheck disable=SC2162 # read without -r will mangle ..
+	# shellcheck disable=SC2162 # read without -r - confirm()
 	read input
 	printf '\n'
 	[ "$input" = "$value" ] && return
@@ -669,7 +692,6 @@ easyrsa_random() {
 		die "easyrsa_random - input"
 	esac
 
-	unset -v rand_hex
 	if rand_hex="$(
 			OPENSSL_CONF=/dev/null \
 				"$EASYRSA_OPENSSL" rand -hex "$1"
@@ -677,8 +699,11 @@ easyrsa_random() {
 	then
 		if [ "$2" ]; then
 			force_set_var "$2" "$rand_hex"
+		else
+			print "$rand_hex"
 		fi
-		return
+		unset -v rand_hex
+		return 0
 	fi
 
 	die "easyrsa_random failed"
@@ -712,6 +737,10 @@ secure_session() {
 				OPENSSL_CONF safe_ssl_cnf_tmp \
 				working_safe_ssl_conf
 			easyrsa_err_log="$secured_session/error.log"
+
+			# Verify or create: EASYRSA_SSL_CONF
+			write_easyrsa_ssl_cnf_tmp
+
 			verbose "\
 secure_session: CREATED: $secured_session"
 			return
@@ -861,17 +890,19 @@ Temporary session not preserved."
 			warn "cleanup - remove_secure_session failed"
 	fi
 
-	# shellcheck disable=SC3040
-	# In POSIX sh, set option [name] is undefined
+	# shellcheck disable=SC3040 # POSIX set - cleanup()
 	case "$prompt_restore" in
 		0) : ;; # Not required
-		1) [ -t 1 ] && stty echo ;;
-		2) set -o echo ;;
+		1)
+			[ -t 1 ] && stty echo
+			[ "$EASYRSA_SILENT" ] || print
+		;;
+		2)
+			set -o echo
+			[ "$EASYRSA_SILENT" ] || print
+		;;
 		*) warn "prompt_restore: '$prompt_restore'"
 	esac
-
-	# Get a clean line
-	[ "$EASYRSA_SILENT" ] || print
 
 	# Clear traps
 	trap - 0 1 2 3 6 15
@@ -1001,7 +1032,7 @@ expand_ssl_config - \
 easyrsa_mktemp safe_ssl_cnf_tmp"
 
 	# Rewrite
-	# shellcheck disable=SC2016 # No expansion inside ''
+	# shellcheck disable=SC2016 # No expand '' - expand_ssl_config()
 	if sed \
 \
 -e s\`'$dir'\`\
@@ -1098,7 +1129,8 @@ easyrsa_openssl() {
 	fi
 
 	# Execute command - Return on success
-	verbose "> easyrsa_openssl - EXEC $openssl_command $*"
+	[ -z "$EASYRSA_DEBUG" ] || \
+		verbose "> easyrsa_openssl - EXEC $openssl_command $*"
 
 	case "$openssl_command" in
 	makesafeconf)
@@ -1179,6 +1211,11 @@ $error_msg"
 	;;
 	*) die "Unexpected SSL version: $osslv_major"
 	esac
+
+	# Message
+	verbose "verify_ssl_lib():
+Using SSL:
+* $EASYRSA_OPENSSL $ssl_version"
 } # => verify_ssl_lib()
 
 # Basic sanity-check of PKI init and complain if missing
@@ -1320,11 +1357,10 @@ and initialize a fresh PKI here."
 Failed to create PKI file structure (permissions?)"
 	done
 
-	# Install data-files into ALL new PKIs
-	install_data_to_pki init-pki || \
-		warn "\
-Failed to install required data-files to PKI. (init)"
+	# pki/vars.example
+	write vars "$EASYRSA_PKI" || die "init-pki - write vars"
 
+	# User notice
 	notice "\
 'init-pki' complete; you may now create a CA or requests.
 
@@ -1337,25 +1373,14 @@ Your newly created PKI dir is:
 	information "
 Using Easy-RSA configuration:
 * ${EASYRSA_VARS_FILE:-undefined}"
-
-	verbose "\
-init_pki: x509-types dir ${EASYRSA_EXT_DIR:-Not found}"
 } # => init_pki()
 
-# Copy data-files from various sources
-install_data_to_pki() {
-#
-# Explicitly find and optionally copy data-files to the PKI.
-# During 'init-pki' this is the new default.
-# During all other functions these requirements are tested for
-# and files will be copied to the PKI, if they do not already
-# exist there.
-#
-# One reason for this is to make packaging work.
-
-	context="$1"
-	shift
-
+# Find support files from various sources
+# Declare in preferred order, first wins
+# beaten by command line.
+# If these files are not found here then they
+# will be built on-demand by the selected command.
+locate_support_files() {
 	# Set required sources
 	ssl_cnf_file='openssl-easyrsa.cnf'
 	x509_types_dir='x509-types'
@@ -1369,7 +1394,7 @@ install_data_to_pki() {
 	# Room for more..
 	# '/etc/easy-rsa' - Last resort
 
-	# Find and optionally copy data-files, in specific order
+	# Find data-files
 	for area in \
 		"$EASYRSA_PKI" \
 		"$EASYRSA" \
@@ -1380,67 +1405,22 @@ install_data_to_pki() {
 		'/etc/easy-rsa' \
 		# EOL
 	do
-		if [ "$context" = x509-types-only ]; then
-			# Find x509-types ONLY
-			# Declare in preferred order, first wins
-			# beaten by command line.
-			[ -e "${area}/${x509_types_dir}" ] && set_var \
-				EASYRSA_EXT_DIR "${area}/${x509_types_dir}"
-		else
-			# Find x509-types ALSO
-			# Declare in preferred order, first wins
-			# beaten by command line.
+			# Find x509-types
 			[ -e "${area}/${x509_types_dir}" ] && set_var \
 				EASYRSA_EXT_DIR "${area}/${x509_types_dir}"
 
-			# Find other files - Omitting "$vars_file"
-			# shellcheck disable=2066 # Loop will only run once
-			for source in \
-				"$ssl_cnf_file" \
-				# EOL
-			do
-				# Find each item
-				[ -e "${area}/${source}" ] || continue
-
-				# If source does not exist in PKI then copy it
-				if [ -e "${EASYRSA_PKI}/${source}" ]; then
-					continue
-				else
-					cp "${area}/${source}" "$EASYRSA_PKI" || warn \
-						"Failed to copy to PKI: ${area}/${source}"
-				fi
-			done
-		fi
+			# Find openssl-easyrsa.cnf
+			[ -e "${area}/${ssl_cnf_file}" ] && set_var \
+				EASYRSA_SSL_CONF "${area}/${ssl_cnf_file}"
 	done
-
-	# Short circuit for x509-types-only
-	if [ "$context" = x509-types-only ]; then
-		verbose "\
-install_data_to_pki: $context - COMPLETED"
-		return
-	fi
-
-	# Check PKI is updated - Omit unnecessary checks
-	if [ -e "${EASYRSA_PKI}/${ssl_cnf_file}" ]; then
-		: # ok
-	else
-		create_openssl_easyrsa_cnf > \
-			"${EASYRSA_PKI}/${ssl_cnf_file}" || die "\
-install_data_to_pki - Missing: '$ssl_cnf_file'"
-		verbose "\
-install_data_to_pki: $context - create_openssl_easyrsa_cnf OK"
-	fi
-
-	[ -d "$EASYRSA_EXT_DIR" ] || verbose "\
-install_data_to_pki: $context - Missing: '$x509_types_dir'"
-	verbose "install_data_to_pki: $context - COMPLETED"
-} # => install_data_to_pki()
+	verbose "locate_support_files: COMPLETED"
+} # => locate_support_files()
 
 # Disable terminal echo, if possible, otherwise warn
 hide_read_pass() {
 	# 3040 - In POSIX sh, set option [name] is undefined
 	# 3045 - In POSIX sh, some-command-with-flag is undefined
-	# shellcheck disable=SC3040,SC3045
+	# shellcheck disable=SC3040,SC3045 # POSIX - hide_read_pass()
 	if stty -echo 2>/dev/null; then
 		prompt_restore=1
 		read -r "$@"
@@ -1473,7 +1453,10 @@ get_passphrase() {
 			printf '\n%s\n' \
 				"Passphrase must be at least 4 characters!"
 		else
-			force_set_var "$t" "$r" || die "Passphrase error!"
+			read -r "$t" <<- SECRET
+				$r
+				SECRET
+
 			unset -v r t
 			print
 			return 0
@@ -1673,7 +1656,7 @@ Raw CA mode
 		die "build_ca - easyrsa_mktemp adjusted_ssl_cnf_tmp"
 
 	# Assign awkscript to insert EASYRSA_EXTRA_EXTS
-	# shellcheck disable=SC2016 # vars don't expand in ''
+	# shellcheck disable=SC2016 # No expand '' - build_ca()
 	awkscript='\
 {if ( match($0, "^#%CA_X509_TYPES_EXTRA_EXTS%") )
 	{ while ( getline<"/dev/stdin" ) {print} next }
@@ -1941,8 +1924,7 @@ to the latest Easy-RSA release."
 req_extensions = req_extra
 [ req_extra ]
 $EASYRSA_EXTRA_EXTS"
-		# vars don't expand in single quote
-		# shellcheck disable=SC2016
+		# shellcheck disable=SC2016 # No expand '' - gen_req()
 		awkscript='
 {if ( match($0, "^#%EXTRA_EXTS%") )
 	{ while ( getline<"/dev/stdin" ) {print} next }
@@ -2110,7 +2092,7 @@ to the latest Easy-RSA release."
 		# Setup & insert the copy_extensions data
 		# keyed by a magic line
 		copy_exts="copy_extensions = copy"
-		# shellcheck disable=SC2016 # vars don't expand ''
+		# shellcheck disable=SC2016 # No expand '' - sign_req()
 		awkscript='
 {if ( match($0, "^#%COPY_EXTS%") )
 	{ while ( getline<"/dev/stdin" ) {print} next }
@@ -2158,7 +2140,7 @@ Writing 'copy_exts' to SSL config temp-file failed"
 		# Print the last occurence of basicContraints in
 		# x509-types/ca
 		# If basicContraints is not defined then bail
-		# shellcheck disable=SC2016 # vars don't expand ''
+		# shellcheck disable=SC2016 # No expand '' - sign_req()
 		awkscript='\
 /^[[:blank:]]*basicConstraints[[:blank:]]*=/ { bC=$0 }
 END { if (length(bC) == 0 ) exit 1; print bC }'
@@ -3979,7 +3961,7 @@ ssl_cert_serial() {
 } # => ssl_cert_serial()
 
 # Get certificate start date
-# shellcheck disable=2317 # Unreachable code ..
+# shellcheck disable=2317 # Unreach - ssl_cert_not_before_date()
 ssl_cert_not_before_date() {
 	verbose "DEPRECATED: ssl_cert_not_before_date()"
 	[ "$#" = 2 ] || die "\
@@ -4022,7 +4004,7 @@ ssl_cert_not_after_date - failed to set var '$*'"
 } # => ssl_cert_not_after_date()
 
 # SSL -- v3 -- startdate iso_8601
-# shellcheck disable=2317 # Unreachable code ..
+# shellcheck disable=2317 # Unreach - iso_8601_cert_startdate()
 iso_8601_cert_startdate() {
 	verbose "NEW: iso_8601_cert_startdate"
 	[ "$#" = 2 ] || die "\
@@ -4372,7 +4354,7 @@ db_date_to_iso_8601_date: force_set_var - $2 - $out_date"
 # Convert default SSL date to iso_8601 date
 # This may not be feasible, due to different languages
 # Alow the caller to assess those errors (eg. Fall-back)
-# shellcheck disable=2317 # Unreachable code ..
+# shellcheck disable=2317 # Unreach - cert_date_to_iso_8601_date()
 cert_date_to_iso_8601_date() {
 	verbose "iso_8601-WIP: cert_date_to_iso_8601_date"
 	die "BLOCKED: cert_date_to_iso_8601_date"
@@ -4446,7 +4428,7 @@ cert_date_to_iso_8601: force_set_var - $2 - $out_date"
 # Try in sh.exe: t='   '; s="a${t}b${t}c"; echo "${s%%"${t}"*}"
 
 # Read db
-# shellcheck disable=SC2295
+# shellcheck disable=SC2295 # nested expand - read_db()
 read_db() {
 	TCT='	' # tab character
 	db_in="$EASYRSA_PKI/index.txt"
@@ -4720,7 +4702,7 @@ expire_status: Verify cert expire date EXCESS mismatch!"
 expire_status: cert_date_to_timestamp_s: comparison complete"
 
 		else
-			verbose  "\
+			verbose "\
 expire_status: ACCEPTED ERROR-2: \
 iso_8601_timestamp_to_seconds"
 			verbose "\
@@ -4896,7 +4878,7 @@ detect_host() {
 	# Detect Windows
 	[ "${OS}" ] && easyrsa_host_test="${OS}"
 
-	# shellcheck disable=SC2016 # expansion inside '' blah
+	# shellcheck disable=SC2016 # No expand '' - detect_host()
 	easyrsa_ksh=\
 '@(#)MIRBSD KSH R39-w32-beta14 $Date: 2013/06/28 21:28:57 $'
 
@@ -5116,6 +5098,7 @@ select_vars() {
 		[ "$require_pki" ] && information "\
 No Easy-RSA 'vars' configuration file exists!"
 		# select_vars failed to find a vars file
+		verbose "select_vars: No vars"
 		return 1
 	fi
 } # => select_vars()
@@ -5201,17 +5184,17 @@ Please, correct these errors and try again."
 	fi
 
 	# Enable sourcing 'vars'
-	# shellcheck disable=SC2034 # appears unused
+	# shellcheck disable=SC2034 # appears unused - source_vars()
 	EASYRSA_CALLER=1
 	easyrsa_path="$PATH"
-	# shellcheck disable=SC2123 # PATH is the shell ..
+	# shellcheck disable=SC2123 # PATH is - source_vars()
 	PATH=./
 
 	# Test sourcing 'vars' in a subshell
-	# shellcheck disable=1090 # can't follow .. vars
+	# shellcheck disable=1090 # can't follow - source_vars()
 	if ( . "$target_file" ); then
 		# Source 'vars' now
-		# shellcheck disable=1090 # can't follow .. vars
+		# shellcheck disable=1090 # can't follow - source_vars()
 		. "$target_file" || \
 			die "Failed to source the '$target_file' file."
 	else
@@ -5271,8 +5254,10 @@ Algorithm '$EASYRSA_ALGO' is invalid: Must be 'rsa', 'ec' or 'ed'"
 	set_var EASYRSA_REQ_CN			ChangeMe
 	set_var EASYRSA_DIGEST			sha256
 
+	# verified or created by secure_session()
 	set_var EASYRSA_SSL_CONF		\
 		"$EASYRSA_PKI/openssl-easyrsa.cnf"
+	# created as required
 	set_var EASYRSA_SAFE_CONF		\
 		"$EASYRSA_PKI/safessl-easyrsa.cnf"
 
@@ -5326,49 +5311,21 @@ ${unexpected_error}"
 
 # Verify working environment
 verify_working_env() {
-	# Verify SSL Lib - One time ONLY
-	verify_ssl_lib
-
-	# Find x509-types but do not fail
-	# Not fatal here, used by 'help'
-	install_data_to_pki x509-types-only
-
 	# For commands which 'require a PKI' and PKI exists
 	if  [ "$require_pki" ]; then
 		# Verify PKI is initialised
 		verify_pki_init
 
-		# Temp dir session
-		secure_session || die "\
-verify_working_env - secure-session failed"
-
-		# Install data-files into ALL PKIs
-		# This will find x509-types
-		# and export EASYRSA_EXT_DIR or die.
-		# Other errors only require warning.
-		install_data_to_pki vars-setup || warn "\
-verify_working_env - install_data_to_pki vars-setup failed"
+		# Temp dir session and default SSL conf file
+		secure_session
 
 		# Verify selected algorithm and parameters
 		verify_algo_params
-
-		# Check $working_safe_ssl_conf, to build
-		# a fully configured safe ssl conf, on the
-		# next invocation of easyrsa_openssl()
-		if [ "$working_safe_ssl_conf" ]; then
-			die "working_safe_ssl_conf must not be set!"
-		fi
 
 		# Verify CA is initialised
 		if [ "$require_ca" ]; then
 			verify_ca_init
 		fi
-
-		# Last setup msg
-		information "
-Using SSL:
-* $EASYRSA_OPENSSL $ssl_version"
-
 	fi
 	verbose "verify_working_env: COMPLETED Handover-to: $cmd"
 } # => verify_working_env()
@@ -5408,9 +5365,25 @@ force_set_var() {
 
 
 
-############################################################################
-#
-# Create X509-type files
+# Verify: $EASYRSA_SSL_CONF pki/openssl-easyrsa.cnf
+# or create temp-file
+write_easyrsa_ssl_cnf_tmp() {
+	[ -f "$EASYRSA_SSL_CONF" ] && return
+
+	# Create temp-file
+	ssl_cnf_tmp=
+	easyrsa_mktemp ssl_cnf_tmp || die "\
+write_easyrsa_ssl_cnf_tmp - easyrsa_mktemp"
+
+	# Write SSL cnf to temp-file
+	write ssl-cnf > "$ssl_cnf_tmp" || die "\
+write_easyrsa_ssl_cnf_tmp - write ssl-cnf"
+
+	# export SSL cnf tmp
+	export EASYRSA_SSL_CONF="$ssl_cnf_tmp"
+	verbose "\
+write_easyrsa_ssl_cnf_tmp: create_openssl_easyrsa_cnf OK"
+} # => write_easyrsa_ssl_cnf_tmp()
 
 # Write x509 type file to a temp file
 write_x509_type_tmp() {
@@ -5422,73 +5395,199 @@ write_x509_type_tmp() {
 		easyrsa_mktemp x509_tmp || \
 			die "write_x509_type_tmp - easyrsa_mktemp x509_tmp"
 
-		create_x509_type "$type" > "$x509_tmp" || \
-			die "write_x509_type_tmp - create_x509_type $type"
+		write "$type" > "$x509_tmp" || \
+			die "write_x509_type_tmp - write $type"
 
 		verbose "write_x509_type_tmp: $type COMPLETE"
 } # => write_x509_type_tmp()
 
+############################################################################
+#
+# Create legacy files
+#
+# Directories are user configurable, File names are fixed
+
+# Write ALL legacy files to $1 or default
+legacy_files() {
+	legacy_out_d="${1:-$EASYRSA_PKI}"
+	legacy_out_d="${legacy_out_d:-$EASYRSA}"
+	[ -d "$legacy_out_d" ] || \
+		user_error "Missing directory '$legacy_out_d'"
+
+	if write ssl-cnf "$legacy_out_d"
+	then
+		x509_d="$legacy_out_d"/x509-types
+		mkdir -p "$x509_d" || die "legacy_files - x509_d"
+
+		write COMMON "$x509_d"
+		write ca "$x509_d"
+		write server "$x509_d"
+		write serverClient "$x509_d"
+		write client "$x509_d"
+		write codeSigning "$x509_d"
+		write email "$x509_d"
+		write kdc "$x509_d"
+	else
+		user_error "legacy_files - write ssl-cnf"
+	fi
+
+	unset -v legacy_out_d x509_dir
+	verbose "legacy_files: OK $x509_d"
+} # => legacy_files()
+
+# write legacy files to stdout or to $folder
+write() {
+	write_type="$1"
+	write_dir="$2"
+	write_file=
+
+	case "$write_type" in
+	safe-ssl)
+		# Only write to EASYRSA_PKI
+		[ -z "$write_dir" ] || \
+			user_error "Unsupported option: '$write_dir'"
+		verify_working_env
+		make_safe_ssl || die "write failed"
+		return
+	;;
+	ssl-cnf)
+		# write to stdout or $write_dir/openssl-easyrsa.cnf
+		if [ "$write_dir" ]; then
+			write_file="$write_dir"/openssl-easyrsa.cnf
+		fi
+	;;
+	vars)
+		# write to stdout or $write_dir/vars.example
+		if [ "$write_dir" ]; then
+			write_file="$write_dir"/vars.example
+		fi
+	;;
+	# This correctly renames 'code-signing' to 'codeSigning'
+	COMMON|ca|server|serverClient|client|codeSigning|email|kdc)
+		# write to stdout or $write_dir/$write_type [x509-type]
+		if [ "$write_dir" ]; then
+			write_file="$write_dir/$write_type"
+		fi
+	;;
+	*)
+		user_error "write - unknown type '$type'"
+	esac
+
+	# Check for output directory and file-name
+	if [ "$write_dir" ]; then
+		[ -d "$write_dir" ] || \
+			user_error "Missing directory '$write_dir'"
+
+		if [ -f "$write_file" ]; then
+			# If the file exists then do not over write
+			# unless explicitly instructed
+			[ "$legacy_file_over_write" ] || return 0
+		fi
+	fi
+
+	# write legacy data stream to stdout or $write_file
+	if [ "$write_file" ]; then
+		create_legacy_stream "$write_type" >"$write_file" || \
+			die "write failed"
+	else
+		create_legacy_stream "$write_type"
+	fi
+} #= write()
+
 # Create x509 type
-create_x509_type() {
+create_legacy_stream() {
 	case "$1" in
 	COMMON)
-		cat <<- "X509_TYPE_COMMON"
-		X509_TYPE_COMMON
+	# COMMON is not very useful
+		cat <<- "CREATE_X509_TYPE_COMMON"
+		CREATE_X509_TYPE_COMMON
+	;;
+	easyrsa)
+	# This could be COMMON but not is not suitable for a CA
+		cat <<- "CREATE_X509_TYPE_EASYRSA"
+		basicConstraints = CA:FALSE
+		subjectKeyIdentifier = hash
+		authorityKeyIdentifier = keyid,issuer:always
+		keyUsage = digitalSignature,keyEncipherment
+		CREATE_X509_TYPE_EASYRSA
 	;;
 	serverClient)
-		create_x509_type_easyrsa
-		cat <<- "X509_TYPE_SERV_CLI"
+	# serverClient
+		create_legacy_stream easyrsa
+		cat <<- "CREATE_X509_TYPE_SERV_CLI"
 		extendedKeyUsage = serverAuth,clientAuth
-		X509_TYPE_SERV_CLI
+		CREATE_X509_TYPE_SERV_CLI
 	;;
 	server)
-		create_x509_type_easyrsa
-		cat <<- "X509_TYPE_SERV"
+	# server
+		create_legacy_stream easyrsa
+		cat <<- "CREATE_X509_TYPE_SERV"
 		extendedKeyUsage = serverAuth
-		X509_TYPE_SERV
+		CREATE_X509_TYPE_SERV
 	;;
 	client)
-		create_x509_type_easyrsa
-		cat <<- "X509_TYPE_CLI"
+	# client
+		create_legacy_stream easyrsa
+		cat <<- "CREATE_X509_TYPE_CLI"
 		extendedKeyUsage = clientAuth
-		X509_TYPE_CLI
+		CREATE_X509_TYPE_CLI
 	;;
 	ca)
-		cat <<- "X509_TYPE_CA"
+	# ca
+		cat <<- "CREATE_X509_TYPE_CA"
 		basicConstraints = CA:TRUE
 		subjectKeyIdentifier = hash
 		authorityKeyIdentifier = keyid:always,issuer:always
 		keyUsage = cRLSign, keyCertSign
-		X509_TYPE_CA
+		CREATE_X509_TYPE_CA
 	;;
-	codeSign)
-		cat <<- "X509_CODE_SIGNING"
+	codeSigning)
+	# codeSigning
+		cat <<- "CREATE_X509_CODE_SIGNING"
 		basicConstraints = CA:FALSE
 		subjectKeyIdentifier = hash
 		authorityKeyIdentifier = keyid,issuer:always
 		extendedKeyUsage = codeSigning
 		keyUsage = digitalSignature
-		X509_CODE_SIGNING
+		CREATE_X509_CODE_SIGNING
 	;;
-	*)
-		return 1
-	esac
-} # => create_x509_type()
-
-# Create x509-type/easyrsa
-# This could be COMMON but not is not suitable for a CA
-create_x509_type_easyrsa() {
-	cat <<- "X509_TYPE_EASYRSA"
+	email)
+	# email
+		cat <<- "CREATE_X509_TYPE_EMAIL"
 		basicConstraints = CA:FALSE
 		subjectKeyIdentifier = hash
 		authorityKeyIdentifier = keyid,issuer:always
-		keyUsage = digitalSignature,keyEncipherment
-		X509_TYPE_EASYRSA
-} # => create_x509_type_easyrsa()
+		extendedKeyUsage = emailProtection
+		keyUsage = digitalSignature,keyEncipherment,nonRepudiation
+		CREATE_X509_TYPE_EMAIL
+	;;
+	kdc)
+	# kdc
+		cat <<- "CREATE_X509_TYPE_KDC"
+basicConstraints = CA:FALSE
+subjectKeyIdentifier = hash
+authorityKeyIdentifier = keyid,issuer:always
+extendedKeyUsage = 1.3.6.1.5.2.3.5
+keyUsage = nonRepudiation,digitalSignature,keyEncipherment,keyAgreement
+issuerAltName = issuer:copy
+subjectAltName = otherName:1.3.6.1.5.2.2;SEQUENCE:kdc_princ_name
 
-# Create vars.example - Minimum settings only
-create_vars_example() {
-	cat << "VARS_EXAMPLE"
+[kdc_princ_name]
+realm = EXP:0,GeneralString:${ENV::EASYRSA_KDC_REALM}
+principal_name = EXP:1,SEQUENCE:kdc_principal_seq
+
+[kdc_principal_seq]
+name_type = EXP:0,INTEGER:1
+name_string = EXP:1,SEQUENCE:kdc_principals
+
+[kdc_principals]
+princ1 = GeneralString:krbtgt
+princ2 = GeneralString:${ENV::EASYRSA_KDC_REALM}
+CREATE_X509_TYPE_KDC
+	;;
+	vars)
+	# vars
+		cat << "CREATE_VARS_EXAMPLE"
 # Easy-RSA 3 parameter settings
 
 # NOTE: If you installed Easy-RSA from your package manager, do not edit
@@ -5633,12 +5732,11 @@ fi
 # Define directory for temporary subdirectories.
 #
 #set_var EASYRSA_TEMP_DIR	"$EASYRSA_PKI"
-VARS_EXAMPLE
-} # => create_vars_example()
-
-# Create openssl-easyrsa.cnf
-create_openssl_easyrsa_cnf() {
-	cat << "SSL_CONFIG"
+CREATE_VARS_EXAMPLE
+	;;
+	ssl-cnf)
+	# SSL config
+	cat << "CREATE_SSL_CONFIG"
 # For use with Easy-RSA 3.0+ and OpenSSL or LibreSSL
 
 ####################################################################
@@ -5785,8 +5883,12 @@ keyUsage = cRLSign, keyCertSign
 
 # issuerAltName=issuer:copy
 authorityKeyIdentifier=keyid:always,issuer:always
-SSL_CONFIG
-} # => create_openssl_easyrsa_cnf()
+CREATE_SSL_CONFIG
+	;;
+	*)
+		die "create_legacy_stream: unknown type '$1'"
+	esac
+} # => create_legacy_stream()
 
 # Version information
 print_version() {
@@ -5823,7 +5925,7 @@ trap "exit 1" 1
 trap "exit 2" 2
 trap "exit 3" 3
 trap "exit 6" 6
-trap "exit 14" 15
+trap "exit 15" 15
 
 # Get host details - No configurable input allowed
 detect_host
@@ -5839,7 +5941,8 @@ unset -v \
 	invalid_vars \
 	do_build_full error_build_full_cleanup \
 	internal_batch mv_temp_error \
-	easyrsa_exit_with_error error_info
+	easyrsa_exit_with_error error_info \
+	legacy_file_over_write
 
 	# Used by build-ca->cleanup to restore prompt
 	# after user interrupt when using manual password
@@ -6014,11 +6117,6 @@ subjectAltName = $val"
 		set -- "$@" "version"
 		break
 		;;
-	# Unsupported options
-	--fix-offset)
-		user_error "Option $opt is not supported.
-Use options --startdate and --enddate for fixed dates."
-		;;
 	-*)
 		user_error "\
 Unknown option '$opt'.
@@ -6055,36 +6153,6 @@ done
 cmd="$1"
 [ "$1" ] && shift # scrape off command
 
-# Establish PKI and CA initialisation requirements
-# This avoids unnecessary warnings and notices
-case "$cmd" in
-	''|help|-h|--help|--usage|version|show-host)
-		unset -v require_pki require_ca
-		ignore_vars=1
-	;;
-	init-pki|clean-all)
-		unset -v require_pki require_ca
-	;;
-	*)
-		require_pki=1
-		case "$cmd" in
-			gen-req|gen-dh|build-ca|show-req| \
-			make-safe-ssl|export-p*|inline)
-				unset -v require_ca
-			;;
-			*)
-				require_ca=1
-		esac
-esac
-
-# Run these commands with NO setup
-case "$cmd" in
-	make-vars)
-		create_vars_example
-		cleanup ok
-	;;
-esac
-
 # Intelligent env-var detection and auto-loading:
 # Select vars file as EASYRSA_VARS_FILE
 # then source the vars file, if found
@@ -6101,6 +6169,44 @@ validate_default_vars
 
 # Check for conflicting input options
 mutual_exclusions
+
+# Find x509-types and openssl_easyrsa.cnf
+# used by 'help'
+locate_support_files
+
+# Verify SSL Lib - One time ONLY
+verify_ssl_lib
+
+# Check $working_safe_ssl_conf, to build
+# a fully configured safe ssl conf, on the
+# next invocation of easyrsa_openssl()
+if [ "$working_safe_ssl_conf" ]; then
+	die "working_safe_ssl_conf must not be set!"
+fi
+
+# Establish PKI and CA initialisation requirements
+# This avoids unnecessary warnings and notices
+# Used by verify_working_env()
+unset -v require_pki require_ca ignore_vars
+case "$cmd" in
+	''|help|-h|--help|--usage| \
+	version|show-host|rand|random)
+		ignore_vars=1
+	;;
+	init-pki|clean-all)
+		: # No change
+	;;
+	*)
+		require_pki=1
+		case "$cmd" in
+			gen-req|gen-dh|build-ca|show-req| \
+			make-safe-ssl|export-p*|inline|write)
+				: # No change
+			;;
+			*)
+				require_ca=1
+		esac
+esac
 
 # Hand off to the function responsible
 # ONLY verify_working_env() for valid commands
@@ -6242,9 +6348,30 @@ case "$cmd" in
 		verify_cert "$@" || \
 			easyrsa_exit_with_error=1
 		;;
-	mss|make-safe-ssl)
-		verify_working_env
-		make_safe_ssl "$@"
+	write)
+		# verify_working_env - Not required
+		# Write legacy files to write_dir
+		# or EASYRSA_PKI or EASYRSA
+		case "$1" in
+		legacy)
+			# over-write NO
+			shift
+			verify_working_env
+			legacy_files "$@"
+			;;
+		legacy-hard)
+			# over-write YES
+			confirm "${NL}  Confirm OVER-WRITE files ? " yes "
+'legacy-hard' will OVER-WRITE all legacy files to default settings.
+Legacy files: openssl-easyrsa.cnf and x509-types/ directory."
+			shift
+			verify_working_env
+			legacy_file_over_write=1
+			legacy_files "$@"
+			;;
+		*)
+			write "$@"
+		esac
 		;;
 	serial|check-serial)
 		verify_working_env
@@ -6275,6 +6402,10 @@ case "$cmd" in
 		ssl_cert_x509v3_eku "$@" || \
 			easyrsa_exit_with_error=1
 		;;
+	rand|random)
+		easyrsa_random "$1"
+		cleanup ok
+		;;
 	""|help|-h|--help|--usage)
 		verify_working_env
 		cmd_help "$1"
@@ -6288,7 +6419,7 @@ Unknown command '$cmd'. Run without commands for usage help."
 esac
 
 # Check for untrapped errors
-# shellcheck disable=SC2181
+# shellcheck disable=SC2181 # Quote expand - pre-cleanup $?
 if [ $? = 0 ]; then
 	# Do 'cleanup ok' on successful completion
 	#print "mktemp_counter: $mktemp_counter uses"
