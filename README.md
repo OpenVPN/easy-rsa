@@ -39,11 +39,17 @@ the most recent release.
 The prior 2.x and 1.x versions are available as release branches for
 tracking and possible back-porting of relevant fixes. Branch layout is:
 
-    master         <- 3.1, at present
-    v3.x.x            pre-release branches, used for staging branches
-    release/3.0       v3.0.x bugfix/security/openssl updates
-    release/2.x
-    release/1.x
+    master         <- v3.2.x - Rolling
+    v3.n.n-<NAME>     Pre-release branches, used for staging.
+    3.1.8             Present: bugfix/security/openssl updates for v3.1.7
+    3.0.10            Absent: bugfix/security/openssl updates for v3.0.9
+    v3.0.6            Archived: Has known bugs, OpenSSL v3 incompatible.
+    v3.0.5            Archived: Has known bugs, OpenSSL v3 incompatible.
+    v3.0.4            Archived: Has known bugs, OpenSSL v3 incompatible.
+    release/3.0       Archived: Pending deprecation to unmaintained.
+    release/2.x       Archived: Unmaintained.
+    release/1.x       Archived: Unmaintained.
+    testing           Sandbox only; Subject to change, without warning.
 
 LICENSING info for 3.x is in the [COPYING.md](COPYING.md) file
 
