@@ -335,7 +335,8 @@ cmd_help() {
                   (Equivalent to global option '--nopass|--no-pass')
       * noca    - Do not include the ca.crt file in the PKCS12 output
       * nokey   - Do not include the private key in the PKCS12 output
-      * usefn   - Use <file_name_base> as friendly name"
+      * usefn   - Use <file_name_base> as friendly name
+      * legacy  - Use legacy mode of operation"
 	;;
 	export-p7)
 		text="
@@ -3242,7 +3243,7 @@ Run easyrsa without commands for usage and command help."
 	cipher=-aes256
 	want_ca=1
 	want_key=1
-	unset -v nokeys friendly_name
+	unset -v nokeys friendly_name legacy
 	while [ "$1" ]; do
 		case "$1" in
 			noca)
@@ -3260,6 +3261,9 @@ Run easyrsa without commands for usage and command help."
 			;;
 			usefn)
 				friendly_name="$file_name_base"
+			;;
+			legacy)
+				legacy=-legacy
 			;;
 			*) warn "Ignoring unknown command option: '$1'"
 		esac
@@ -3378,6 +3382,7 @@ Missing User Certificate, expected at:
 		easyrsa_openssl pkcs12 -export \
 			-in "$crt_in" \
 			-out "$pkcs_out" \
+			${legacy} \
 			${nokeys} \
 			-inkey "$key_in" \
 			${want_ca:+ -certfile "$crt_ca"} \
