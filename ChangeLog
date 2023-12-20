@@ -21,6 +21,7 @@ Easy-RSA 3 ChangeLog
    * New diagnostic command 'display-cn' (#1040)
    * Expand renewable certificate types to include code-signing (#1039)
    * Update OpenSSL to 3.2.0
+   * Add command option 'legacy' to command 'export-p12'
 
 3.1.7 (2023-10-13)
    * Rewrite vars-auto-detect, adhere to EasyRSA-Advanced.md (#1029)
