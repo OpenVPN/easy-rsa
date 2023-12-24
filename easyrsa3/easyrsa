@@ -41,6 +41,7 @@ Here is the list of commands available with a short syntax reminder. Use the
   show-req <filename_base> [ cmd-opts ]
   show-cert <filename_base> [ cmd-opts ]
   show-ca [ cmd-opts ]
+  show-crl [ cmd-opts ]
   import-req <request_file_path> <short_basename>
   export-p7 <filename_base> [ cmd-opts ]
   export-p12 <filename_base> [ cmd-opts ]
@@ -141,6 +142,13 @@ cmd_help() {
       Human-readable output is shown."
 			opts="
           full   - show full cert info, including pubkey/sig data" ;;
+		show-crl) text="
+  show-crl [ cmd-opts ]
+      Shows details of the CRL cert
+
+      Human-readable output is shown."
+			opts="
+          full   - show full CRL info" ;;
 		import-req) text="
   import-req <request_file_path> <short_basename>
       Import a certificate request from a file
@@ -1561,6 +1569,42 @@ $in_file
 OpenSSL failure to process the input"
 } # => show_ca()
 
+# show-crl command backend
+# Prints CA cert details in a readable format
+show_crl() {
+	# opts support
+	opts=""
+	while [ -n "$1" ]; do
+		case "$1" in
+			full) opts= ;;
+			*) warn "Ignoring unknown command option: '$1'" ;;
+		esac
+		shift
+	done
+
+	verify_ca_init
+	in_file="$EASYRSA_PKI/crl.pem"
+	format="crl"
+
+	# Verify file exists and is of the correct type
+	[ -f "$in_file" ] || die "\
+No such $type file with a basename of '$name' is present.
+Expected to find this file at:
+$in_file"
+	verify_file $format "$in_file" || die "\
+This file is not a valid $type file:
+$in_file"
+
+	notice "\
+Showing $type details for 'crl'.
+This file is stored at:
+$in_file
+"
+	easyrsa_openssl $format -in "$in_file" -noout -text\
+		-nameopt multiline $opts || die "\
+OpenSSL failure to process the input"
+} # => show_crl()
+
 set_var_srv() {
   EASYRSA_BATCH="$EASYRSA_BATCH_SRV"
   EASYRSA_CERT_EXPIRE="$EASYRSA_CERT_SRV_EXPIRE"
@@ -1911,6 +1955,9 @@ case "$cmd" in
 		;;
 	show-ca)
 		show_ca "$@"
+		;;
+	show-crl)
+		show_crl "$@"
 		;;
 	""|help|-h|--help|--usage)
 		cmd_help "$1"
