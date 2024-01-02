@@ -3238,11 +3238,15 @@ Run easyrsa without commands for usage and command help."
 	key_in="$EASYRSA_PKI/private/$file_name_base.key"
 	crt_ca="$EASYRSA_PKI/ca.crt"
 
+	# Always set a friendly_name
+	set_var EASYRSA_P12_FR_NAME "$file_name_base"
+	friendly_name="$EASYRSA_P12_FR_NAME"
+
 	# opts support
 	cipher=-aes256
 	want_ca=1
 	want_key=1
-	unset -v nokeys friendly_name
+	unset -v nokeys
 	while [ "$1" ]; do
 		case "$1" in
 			noca)
@@ -3258,10 +3262,11 @@ Run easyrsa without commands for usage and command help."
 			nopass)
 				[ "$prohibit_no_pass" ] || EASYRSA_NO_PASS=1
 			;;
-			usefn)
-				friendly_name="$file_name_base"
+			nofn)
+				unset friendly_name
 			;;
-			*) warn "Ignoring unknown command option: '$1'"
+			*)
+				warn "Ignoring unknown option: '$1'"
 		esac
 		shift
 	done
@@ -3378,10 +3383,10 @@ Missing User Certificate, expected at:
 		easyrsa_openssl pkcs12 -export \
 			-in "$crt_in" \
 			-out "$pkcs_out" \
-			${nokeys} \
 			-inkey "$key_in" \
-			${want_ca:+ -certfile "$crt_ca"} \
+			${nokeys} \
 			${friendly_name:+ -name "$friendly_name"} \
+			${want_ca:+ -certfile "$crt_ca"} \
 			${EASYRSA_PASSIN:+ -passin "$EASYRSA_PASSIN"} \
 			${EASYRSA_PASSOUT:+ -passout "$EASYRSA_PASSOUT"} \
 				|| die "Failed to export PKCS#12"
@@ -6111,6 +6116,9 @@ while :; do
 		export EASYRSA_EXTRA_EXTS="\
 $EASYRSA_EXTRA_EXTS
 subjectAltName = $val"
+		;;
+	--usefn)
+		export EASYRSA_P12_FR_NAME="$val"
 		;;
 	--version)
 		shift "$#"
