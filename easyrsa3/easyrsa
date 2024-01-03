@@ -335,7 +335,21 @@ cmd_help() {
                   (Equivalent to global option '--nopass|--no-pass')
       * noca    - Do not include the ca.crt file in the PKCS12 output
       * nokey   - Do not include the private key in the PKCS12 output
-      * usefn   - Use <file_name_base> as friendly name"
+      * nofn    - Do not set 'freindlyName'
+                  For more, see: 'easyrsa help friendly'"
+	;;
+	friendly)
+		text_only=1
+		text="
+* export-p12: Internal file label 'friendlyName'
+
+      The 'friendlyname' is always set to the file-name-base.
+
+      An alternate friendlyName can be configured by using:
+      * Global option '--usefn=<friendlyName>'
+
+      Fallback to previous behavior can be configured by using:
+      * Command option 'nofn' ('friendlyname' will not be set)"
 	;;
 	export-p7)
 		text="
@@ -566,9 +580,13 @@ Certificate & Request options: (these impact cert/req field values)
 
 --subca-len=#   : Path length of signed intermediate CA certificates
 --copy-ext      : Copy included request X509 extensions (namely subjAltName)
+
 --san|--subject-alt-name=<subjectAltName>
                 : Add a subjectAltName.
                   For more info and syntax, see: 'easyrsa help altname'
+
+--usefn=NAME    : export-p12, set 'friendlyName' to NAME
+                  For more, see: 'easyrsa help friendly'
 
 Distinguished Name mode:
 
