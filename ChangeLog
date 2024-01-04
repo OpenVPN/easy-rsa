@@ -3,6 +3,7 @@ Easy-RSA 3 ChangeLog
 3.2.0 (TBD)
 
    PENDING: Branch-merge: v3.2.0-beta2 (#1055)
+   * export-p12: New command option 'legacy'
    * export-p12: Always set 'friendlyName' to file-name-base (da9e594)
    * Update OpenSSL to 3.2.0
 
