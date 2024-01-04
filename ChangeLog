@@ -3,9 +3,10 @@ Easy-RSA 3 ChangeLog
 3.2.0 (TBD)
 
    PENDING: Branch-merge: v3.2.0-beta2 (#1055)
-   * export-p12: New command option 'legacy'
+   * export-p12: New command option 'legacy'. OpenSSL V3 Only (f8514de)
+     Fallback to encryption algorithm RC2_CBC or 3DES_CBC
    * export-p12: Always set 'friendlyName' to file-name-base (da9e594)
-   * Update OpenSSL to 3.2.0
+   * Update OpenSSL to 3.2.0 (03e4829)
 
    Branch-merge: v3.2.0-beta1 (#1046) 2023/12/15 Commit: 7120876
 

@@ -337,7 +337,8 @@ cmd_help() {
       * nokey   - Do not include the private key in the PKCS12 output
       * nofn    - Do not set 'freindlyName'
                   For more, see: 'easyrsa help friendly'
-      * legacy  - Use legacy mode of operation"
+      * legacy  - Use legacy encryption algorithm RC2_CBC or 3DES_CBC
+                  OpenSSL V3 ONLY: Default algorithm is AES-256-CBC"
 	;;
 	friendly)
 		text_only=1
@@ -3285,6 +3286,8 @@ Run easyrsa without commands for usage and command help."
 				unset friendly_name
 			;;
 			legacy)
+				[ "$openssl_v3" ] || \
+					user_error "Option 'legacy' requires SSL version 3"
 				legacy=-legacy
 			;;
 			*)
@@ -3400,6 +3403,9 @@ Missing User Certificate, expected at:
 	case "$pkcs_type" in
 	p12)
 		pkcs_out="$EASYRSA_PKI/private/$file_name_base.p12"
+
+		[ "$legacy" ] && \
+			error_info="SSL library may not support -legacy mode"
 
 		# export the p12:
 		easyrsa_openssl pkcs12 -export \
