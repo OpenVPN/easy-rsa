@@ -38,7 +38,7 @@ A list of commands is shown below:
   build-serverClient-full <file_name_base> [ cmd-opts ]
   inline <file_name_base>
   revoke <file_name_base> [ cmd-opts ]
-  renew <file_name_base>
+  renew <file_name_base> [ cmd-opts ]
   revoke-renewed <file_name_base> [ cmd-opts ]
   gen-crl
   update-db
@@ -219,9 +219,13 @@ cmd_help() {
 	;;
 	renew)
 		text="
-* renew <file_name_base>
+* renew <file_name_base> [ cmd-opts ]
 
       Renew a certificate specified by <file_name_base>"
+		opts="
+      * type    - must be a known type. (Default: detect from certificate)
+                  eg: 'client', 'server', 'serverClient', 'ca' or a user-added type.
+                  All supported types are listed in the x509-types directory."
 	;;
 	gen-crl)
 		text="
@@ -2728,6 +2732,10 @@ Run easyrsa without commands for usage and command help."
 	# Assign file_name_base and dust off!
 	file_name_base="$1"
 	shift
+	if [ -n "$1" ]; then
+		crt_type="$1"
+		shift
+	fi
 
 	# Assign input files
 	in_dir="$EASYRSA_PKI"
@@ -2804,10 +2812,13 @@ Cannot renew this certificate, a conflicting file exists:
 			die "Failed to create inline directoy."
 
 	# Extract certificate usage from old cert
-	cert_type=
-	ssl_cert_x509v3_eku "$crt_in" cert_type || \
-		die "Unknown EKU: $cert_type"
-
+	if [ -z "$crt_type" ]; then
+		cert_type=
+		ssl_cert_x509v3_eku "$crt_in" cert_type || \
+			die "Unknown EKU: $cert_type"
+	else
+		cert_type="$crt_type"
+	fi
 	# Use SAN from --san if set else use SAN from old cert
 	if echo "$EASYRSA_EXTRA_EXTS" | grep -q subjectAltName
 	then
