@@ -5397,13 +5397,46 @@ force_set_var() {
 	die "force_set_var - set_var '$*'"
 } # => force_set_var()
 
-
-
 # Verify: $EASYRSA_SSL_CONF pki/openssl-easyrsa.cnf
 # or create temp-file
 write_easyrsa_ssl_cnf_tmp() {
-	[ -f "$EASYRSA_SSL_CONF" ] && return
+	if [ -f "$EASYRSA_SSL_CONF" ]; then
+		# Set known hashes
+		# openssl-easyrsa.cnf sha256 hash - v3.2.x
+		known_hash_file="\
+13ca05f031d58c5e2912652b33099ce9\
+ac05f49595e5d5fe96367229e3ce070c"
 
+		# Built-in here-doc v3.2.0-1
+		known_hash_heredoc_1="\
+82439f1860838e28f6270d5d06b17717\
+56db777861e19bf9edc21222f86a310d"
+
+		# Get file hash
+		file_hash="$(
+			"$EASYRSA_OPENSSL" dgst -sha256 -r "$EASYRSA_SSL_CONF"
+		)"
+
+		# Strip excess SSL info
+		file_hash="${file_hash%% *}"
+
+		# Check file hash against known hash
+		if [ "$file_hash" = "$known_hash_file" ] || \
+			[ "$file_hash" = "$known_hash_heredoc_1" ]
+		then
+			# Permanently remove file and use temp-files
+			unset -v file_hash known_hash_file known_hash_heredoc_1
+			rm "$EASYRSA_SSL_CONF" || : # Ignore failure
+			verbose "write_easyrsa_ssl_cnf_tmp: Removed SSL Conf!"
+		else
+			# File has been changed, leave in place
+			unset -v file_hash known_hash_file known_hash_heredoc_1
+			verbose "write_easyrsa_ssl_cnf_tmp: NO CHANGE!"
+			return 0
+		fi
+	fi
+
+	# SET and USE temp-file from here-doc Now
 	# Create temp-file
 	ssl_cnf_tmp=
 	easyrsa_mktemp ssl_cnf_tmp || die "\
@@ -5769,7 +5802,7 @@ fi
 CREATE_VARS_EXAMPLE
 	;;
 	ssl-cnf)
-	# SSL config
+	# SSL config v3.2.0-1
 	cat << "CREATE_SSL_CONFIG"
 # For use with Easy-RSA 3.0+ and OpenSSL or LibreSSL
 
@@ -5805,7 +5838,7 @@ crl_extensions	= crl_ext
 # These fields are removed from this here-doc but retained
 # in 'openssl-easyrsa.cnf' file, in case something breaks.
 # default_days is no longer required by Easy-RSA
-default_days	= $ENV::EASYRSA_CERT_EXPIRE	# how long to certify for
+#default_days	= $ENV::EASYRSA_CERT_EXPIRE	# how long to certify for
 # default_crl_days is no longer required by Easy-RSA
 #default_crl_days	= $ENV::EASYRSA_CRL_DAYS	# how long before next CRL
 
