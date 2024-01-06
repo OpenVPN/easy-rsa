@@ -521,6 +521,7 @@ ${opts:-
       * No supported command options}"
 		fi
 	fi
+	print
 } # => cmd_help()
 
 # Options usage
@@ -624,8 +625,8 @@ die() {
 	print "
 Easy-RSA error:
 
-$1
-"
+$1${NL}"
+
 	# error_info is for hard-to-spot errors!
 	if [ "$error_info" ]; then
 		print "  * $cmd: ${error_info}${NL}"
@@ -645,7 +646,8 @@ EasyRSA version $EASYRSA_version
 
 Error
 -----
-$1"
+$1${NL}"
+
 	easyrsa_exit_with_error=1
 	cleanup
 } # => user_error()
@@ -662,7 +664,7 @@ warn() {
 	print "
 WARNING
 =======
-$1"
+$1${NL}"
 } # => warn()
 
 # informational notices to stdout
@@ -671,7 +673,7 @@ notice() {
 	print "
 Notice
 ------
-$1"
+$1${NL}"
 } # => notice()
 
 # Helpful information
