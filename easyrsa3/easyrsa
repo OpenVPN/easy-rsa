@@ -1476,6 +1476,7 @@ get_passphrase() {
 			printf '\n%s\n' \
 				"Passphrase must be at least 4 characters!"
 		else
+			# shellcheck disable=SC2229 # does not read 't'
 			read -r "$t" <<- SECRET
 				$r
 				SECRET
