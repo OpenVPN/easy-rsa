@@ -902,12 +902,15 @@ Temporary session not preserved."
 				rm -rf "$keep_tmp"
 				mv -f "$secured_session" "$keep_tmp"
 				print "Temp session preserved: $keep_tmp"
+				unset -v secured_session
 			fi
 		fi
 
 		# remove temp-session
-		remove_secure_session || \
-			warn "cleanup - remove_secure_session failed"
+		if [ "$secured_session" ]; then
+			remove_secure_session || \
+				warn "cleanup - remove_secure_session failed"
+		fi
 	fi
 
 	# shellcheck disable=SC3040 # POSIX set - cleanup()
