@@ -2766,8 +2766,15 @@ Run easyrsa without commands for usage and command help."
 	inline_in="$in_dir/inline/${file_name_base}.inline"
 
 	# Upgrade CA index.txt.attr - unique_subject = no
-	ca_unique_subject_no || \
-		die "Failed to upgrade CA to support renewal."
+	if grep -q 'unique_subject = no' \
+		"$EASYRSA_PKI/index.txt.attr"
+	then
+		: # ok
+	else
+		printf '%s\n' 'unique_subject = no' \
+			> "$EASYRSA_PKI/index.txt.attr" || \
+				die "Incompatible CA configuration"
+	fi
 
 	# deprecate ALL options
 	while [ "$1" ]; do
@@ -2996,29 +3003,6 @@ Failed to remove inline file:
 
 	return 0
 } # => renew_move()
-
-# Set unique_subject = no in index.txt.attr
-ca_unique_subject_no() {
-	[ -d "$EASYRSA_PKI" ] || return 0
-	attr_file="$EASYRSA_PKI/index.txt.attr"
-	verbose "\
-Confirm: index.txt.attr exists and 'unique_subject = no'"
-
-	if [ -f "$attr_file" ]; then
-		if grep -q '^[[:blank:]]*unique_subject = no' \
-			"$attr_file"
-		then
-			return 0
-		fi
-	else
-		return 0
-	fi
-
-	# Otherwise this is required for all easyrsa v3
-	printf '%s\n' 'unique_subject = no' > "$attr_file" || \
-		die "ca_unique_subject_no - Failed write"
-	verbose "Set unique_subject = no in index.txt.attr"
-} #=> ca_unique_subject_no()
 
 # revoke-renewed backend
 revoke_renewed() {
