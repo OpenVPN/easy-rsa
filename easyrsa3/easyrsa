@@ -5117,11 +5117,8 @@ select_vars() {
 		fi
 	fi
 
-	# User info
+	# if select_vars failed to find a vars file
 	if [ -z "$EASYRSA_VARS_FILE" ]; then
-		[ "$require_pki" ] && information "\
-No Easy-RSA 'vars' configuration file exists!"
-		# select_vars failed to find a vars file
 		verbose "select_vars: No vars"
 		return 1
 	fi
@@ -5140,11 +5137,6 @@ Missing vars file:
 	# 'vars' now MUST exist
 	[ -e "$target_file" ] || user_error "\
 Missing vars file:
-* $target_file"
-
-	# Installation information
-	[ "$require_pki" ] && information "\
-Using Easy-RSA 'vars' configuration:
 * $target_file"
 
 	# Sanitize vars
@@ -6219,11 +6211,41 @@ done
 cmd="$1"
 [ "$1" ] && shift # scrape off command
 
+# Establish PKI and CA initialisation requirements
+unset -v require_pki require_ca ignore_vars
+case "$cmd" in
+	''|help|-h|--help|--usage| \
+	version|show-host|rand|random)
+		ignore_vars=1
+	;;
+	init-pki|clean-all)
+		: # No change
+	;;
+	*)
+		require_pki=1
+		case "$cmd" in
+			gen-req|gen-dh|build-ca|show-req| \
+			make-safe-ssl|export-p*|inline|write)
+				: # No change
+			;;
+			*)
+				require_ca=1
+		esac
+esac
+
 # Intelligent env-var detection and auto-loading:
 # Select vars file as EASYRSA_VARS_FILE
 # then source the vars file, if found
 # otherwise, ignore no vars file
-select_vars && source_vars "$EASYRSA_VARS_FILE"
+if select_vars; then
+	information "\
+Using Easy-RSA 'vars' configuration:
+* $target_file"
+	source_vars "$EASYRSA_VARS_FILE"
+else
+	verbose "\
+No Easy-RSA 'vars' configuration file exists!"
+fi
 
 # then set defaults
 default_vars
@@ -6249,30 +6271,6 @@ verify_ssl_lib
 if [ "$working_safe_ssl_conf" ]; then
 	die "working_safe_ssl_conf must not be set!"
 fi
-
-# Establish PKI and CA initialisation requirements
-# This avoids unnecessary warnings and notices
-# Used by verify_working_env()
-unset -v require_pki require_ca ignore_vars
-case "$cmd" in
-	''|help|-h|--help|--usage| \
-	version|show-host|rand|random)
-		ignore_vars=1
-	;;
-	init-pki|clean-all)
-		: # No change
-	;;
-	*)
-		require_pki=1
-		case "$cmd" in
-			gen-req|gen-dh|build-ca|show-req| \
-			make-safe-ssl|export-p*|inline|write)
-				: # No change
-			;;
-			*)
-				require_ca=1
-		esac
-esac
 
 # Hand off to the function responsible
 # ONLY verify_working_env() for valid commands
