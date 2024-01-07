@@ -16,7 +16,7 @@ usage() {
 	print "
 Easy-RSA 3 usage and overview
 
-USAGE: easyrsa [global-options] COMMAND [command-options]
+$easyrsa_help_title
 
 To get detailed usage and help for a command, use:
   ./easyrsa help COMMAND
@@ -93,7 +93,7 @@ DIRECTORY STATUS (commands would take effect on these locations)
          PKI: $pki_dir
    vars-file: ${EASYRSA_VARS_FILE:-Missing or undefined}${ivmsg}
   x509-types: ${EASYRSA_EXT_DIR:-Missing or undefined}
-$CA_status"
+$CA_status${NL}"
 } # => usage()
 
 # Detailed command help
@@ -103,7 +103,10 @@ $CA_status"
 # Commands are TAB indented, while text is SPACE indented.
 # 'case' indentation is minimalistic.
 cmd_help() {
+	easyrsa_help_title="\
+Usage: easyrsa [ OPTIONS.. ] <COMMAND> <TARGET> [ cmd-opts.. ]"
 	unset -v text err_text opts text_only
+
 	case "$1" in
 	init-pki|clean-all)
 		text="
@@ -407,12 +410,12 @@ cmd_help() {
       Types:
       * ssl-cnf  - Write openssl-easyrsa.cnf file.
       * COMMON|ca|server|serverClient|client|codeSigning|email|kdc
-                   Write x509-type <type> file.
+                 - Write x509-type <type> file.
       * legacy   - Write ALL support files (above) to <DIR>.
                    Will create <DIR>/x509-types directory.
                    Default <DIR> is EASYRSA_PKI or EASYRSA.
       * legacy-hard
-                   Same as 'legacy' plus OVER-WRITE files.
+                 - Same as 'legacy' plus OVER-WRITE files.
       * safe-ssl - Expand EasyRSA SSL config file for LibreSSL.
       * vars     - Write vars.example file."
 		opts="
@@ -496,9 +499,12 @@ These commands are safe to test and will NOT effect your PKI.
 	;;
 	opts|options)
 		opt_usage
+		cleanup ok
 	;;
 	"")
-		usage ;;
+		usage
+		cleanup ok
+	;;
 	*)
 		err_text="
   Unknown command: '$1' \
@@ -508,8 +514,10 @@ These commands are safe to test and will NOT effect your PKI.
 
 	if [ "$err_text" ]; then
 		print "${err_text}"
+		print "$easyrsa_help_title"
 	else
 		# display the help text
+		print "$easyrsa_help_title"
 		[ "$text" ] && print "$text"
 
 		if [ "$text_only" ]; then
@@ -6238,10 +6246,14 @@ case "$cmd" in
 			gen-req|gen-dh|build-ca|show-req| \
 			make-safe-ssl|export-p*|inline|write)
 				# write is not compatible with diagnostics
-				if [ "$cmd" = write ]; then
-					unset -v EASYRSA_VERBOSE
-					EASYRSA_SILENT=1
-				fi
+				case "$cmd" in
+					write)
+						unset -v EASYRSA_VERBOSE
+						EASYRSA_SILENT=1
+					;;
+					*)
+						: # ok
+				esac
 			;;
 			*)
 				require_ca=1
@@ -6253,9 +6265,9 @@ esac
 # then source the vars file, if found
 # otherwise, ignore no vars file
 if select_vars; then
-	information "\
+	[ "$ignore_vars" ] || information "\
 Using Easy-RSA 'vars' configuration:
-* $target_file"
+* $EASYRSA_VARS_FILE"
 	source_vars "$EASYRSA_VARS_FILE"
 else
 	verbose "\
