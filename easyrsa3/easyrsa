@@ -5145,6 +5145,7 @@ Missing vars file:
 		-e '[^(]`[^)]' \
 		-e '[[:blank:]]export[[:blank:]]*' \
 		-e '[[:blank:]]unset[[:blank:]]*' \
+		-e '^  > ' \
 		"$target_file"
 	then
 		# here we go ..
@@ -5189,6 +5190,16 @@ These problems have been found in your 'vars' settings:${NL}"
 			err_msg="${err_msg}
   Use of 'unset':
   Remove 'unset' ('force_set_var' may also work)."
+		fi
+
+		# No redirection - caused by --verbose output
+		if grep -q \
+			-e '^  > ' \
+			"$target_file"
+		then
+			err_msg="${err_msg}
+  Use of unsupported characters:
+  These characters are not supported: '>' redirection"
 		fi
 
 		# Fatal error
@@ -6226,7 +6237,11 @@ case "$cmd" in
 		case "$cmd" in
 			gen-req|gen-dh|build-ca|show-req| \
 			make-safe-ssl|export-p*|inline|write)
-				: # No change
+				# write is not compatible with diagnostics
+				if [ "$cmd" = write ]; then
+					unset -v EASYRSA_VERBOSE
+					EASYRSA_SILENT=1
+				fi
 			;;
 			*)
 				require_ca=1
