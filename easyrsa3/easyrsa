@@ -417,7 +417,7 @@ Usage: easyrsa [ OPTIONS.. ] <COMMAND> <TARGET> [ cmd-opts.. ]"
                    Default <DIR> is EASYRSA_PKI or EASYRSA.
       * legacy-hard
                  - Same as 'legacy' plus OVER-WRITE files.
-      * safe-ssl - Expand EasyRSA SSL config file for LibreSSL.
+      * safe-cnf - Expand EasyRSA SSL config file for LibreSSL.
       * vars     - Write vars.example file."
 		opts="
       * <DIR>    - If <DIR> is specified then files are created.
@@ -5528,7 +5528,7 @@ write() {
 	write_file=
 
 	case "$write_type" in
-	safe-ssl)
+	safe-cnf)
 		# write to stdout or $write_dir/safessl-easyrsa.cnf
 		if [ "$write_dir" ]; then
 			[ -d "$write_dir" ] || \
