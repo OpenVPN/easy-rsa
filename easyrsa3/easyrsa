@@ -5346,6 +5346,7 @@ ${unexpected_error}"
 
 # Verify working environment
 verify_working_env() {
+	verbose "verify_working_env: BEGIN"
 	# For commands which 'require a PKI' and PKI exists
 	if  [ "$require_pki" ]; then
 		# Verify PKI is initialised
@@ -5354,6 +5355,7 @@ verify_working_env() {
 		# Temp dir session and default SSL conf file
 		if [ -z "$secured_session" ]; then
 			secure_session
+
 			# Verify or create temp EASYRSA_SSL_CONF
 			write_easyrsa_ssl_cnf_tmp
 		fi
@@ -5364,6 +5366,20 @@ verify_working_env() {
 		# Verify CA is initialised
 		if [ "$require_ca" ]; then
 			verify_ca_init
+		fi
+	else
+		# For commands that do not require a PKI
+		# but do require a temp-dir, eg. 'write'
+		# If there is a valid temp-dir:
+		# Create temp-session and openssl-easyrsa.cnf (Temp) now
+		if [ -d "$EASYRSA_TEMP_DIR" ]; then
+			# Temp dir session and default SSL conf file
+			if [ -z "$secured_session" ]; then
+				secure_session
+
+				# Verify or create: EASYRSA_SSL_CONF
+				write_easyrsa_ssl_cnf_tmp
+			fi
 		fi
 	fi
 	verbose "verify_working_env: COMPLETED Handover-to: $cmd"
@@ -5559,7 +5575,7 @@ write() {
 		fi
 	;;
 	*)
-		user_error "write - unknown type '$type'"
+		user_error "write - unknown type '$write_type'"
 	esac
 
 	# Check for output directory and file-name
@@ -6313,21 +6329,6 @@ locate_support_files
 # Verify SSL Lib - One time ONLY
 verify_ssl_lib
 
-# If there is a valid temp-dir:
-if [ "$require_pki" ]; then
-	# taken care of later by verify_working_env()
-	:
-else
-	# Create temp-session and openssl-easyrsa.cnf (Temp) now
-	if [ -d "$EASYRSA_TEMP_DIR" ]; then
-		# Temp dir session and default SSL conf file
-		secure_session
-
-		# Verify or create: EASYRSA_SSL_CONF
-		write_easyrsa_ssl_cnf_tmp
-	fi
-fi
-
 # Check $working_safe_ssl_conf, to build
 # a fully configured safe ssl conf, on the
 # next invocation of easyrsa_openssl()
@@ -6476,7 +6477,7 @@ case "$cmd" in
 			easyrsa_exit_with_error=1
 		;;
 	write)
-		# verify_working_env - Not required
+		verify_working_env
 		# Write legacy files to write_dir
 		# or EASYRSA_PKI or EASYRSA
 		case "$1" in
