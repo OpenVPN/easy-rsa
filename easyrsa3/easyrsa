@@ -5449,8 +5449,15 @@ ac05f49595e5d5fe96367229e3ce070c"
 		then
 			# Permanently remove file and use temp-files
 			unset -v file_hash known_hash_file known_hash_heredoc_1
-			rm "$EASYRSA_SSL_CONF" || : # Ignore failure
-			verbose "write_easyrsa_ssl_cnf_tmp: Removed SSL Conf!"
+
+			if rm "$EASYRSA_SSL_CONF" 2>/dev/null; then
+				verbose "\
+write_easyrsa_ssl_cnf_tmp: Removed SSL Conf!"
+			else
+				# Ignore failure
+				verbose "\
+write_easyrsa_ssl_cnf_tmp: Removed SSL Conf failed!"
+			fi
 		else
 			# File has been changed, leave in place
 			unset -v file_hash known_hash_file known_hash_heredoc_1

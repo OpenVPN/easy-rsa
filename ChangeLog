@@ -5,6 +5,7 @@ Easy-RSA 3 ChangeLog
    PENDING: Branch-merge: v3.2.0-beta2 (#1055)
    * Always use here-doc version of openssl-easyrsa.cnf (2a8c0de)
      Only use here-doc if the current version is recognised by sha256 hash.
+     This will DELETE any default version of openssl-easyrsa.cnf
    * export-p12: New command option 'legacy'. OpenSSL V3 Only (f8514de)
      Fallback to encryption algorithm RC2_CBC or 3DES_CBC
    * export-p12: Always set 'friendlyName' to file-name-base (da9e594)
