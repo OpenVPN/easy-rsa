@@ -242,12 +242,6 @@ Usage: easyrsa [ OPTIONS.. ] <COMMAND> <TARGET> [ cmd-opts.. ]"
       This command will use the system time to update the status of
       issued certificates."
 	;;
-	make-safe-ssl)
-		text="
-* make-safe-ssl
-
-      Generate a safe SSL config file"
-	;;
 	show-req|show-cert)
 		text="
 * show-req  <file_name_base> [ cmd-opts ]
