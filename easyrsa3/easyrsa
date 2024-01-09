@@ -4475,6 +4475,8 @@ read_db() {
 			die "read_db - remove_secure_session"
 		secure_session || \
 			die "read_db - secure_session"
+		# Recreate openssl-easyrsa.cnf (Temp)
+		write_easyrsa_ssl_cnf_tmp
 
 		# Interpret the db/certificate record
 		unset -v db_serial db_cn db_revoke_date db_reason
