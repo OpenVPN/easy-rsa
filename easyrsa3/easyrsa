@@ -799,7 +799,7 @@ easyrsa_mktemp - input error"
 
 	# session directory must exist
 	[ "$secured_session" ] || die "\
-easyrsa_mktemp - Temporary session undefined"
+easyrsa_mktemp - Temporary session undefined (--tmp-dir)"
 
 	# Update counter
 	mktemp_counter="$(( mktemp_counter + 1 ))"
@@ -5401,7 +5401,8 @@ force_set_var() {
 } # => force_set_var()
 
 # Verify: $EASYRSA_SSL_CONF pki/openssl-easyrsa.cnf
-# or create temp-file
+# If the existing file is default then delete it
+# and create temp-file. Otherwise, leave in place.
 write_easyrsa_ssl_cnf_tmp() {
 	if [ -f "$EASYRSA_SSL_CONF" ]; then
 		# Set known hashes
@@ -5436,6 +5437,8 @@ ac05f49595e5d5fe96367229e3ce070c"
 			# File has been changed, leave in place
 			unset -v file_hash known_hash_file known_hash_heredoc_1
 			verbose "write_easyrsa_ssl_cnf_tmp: NO CHANGE!"
+
+			# Do NOT replace the existing file
 			return 0
 		fi
 	fi
