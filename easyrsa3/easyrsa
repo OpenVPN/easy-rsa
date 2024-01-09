@@ -769,9 +769,6 @@ secure_session() {
 				working_safe_ssl_conf
 			easyrsa_err_log="$secured_session/error.log"
 
-			# Verify or create: EASYRSA_SSL_CONF
-			write_easyrsa_ssl_cnf_tmp
-
 			verbose "\
 secure_session: CREATED: $secured_session"
 			return
@@ -912,7 +909,7 @@ Temporary session not preserved."
 				mkdir -p "$keep_tmp"
 				rm -rf "$keep_tmp"
 				mv -f "$secured_session" "$keep_tmp"
-				print "Temp session preserved: $keep_tmp"
+				information "Temp session preserved: $keep_tmp"
 				unset -v secured_session
 			fi
 		fi
@@ -974,7 +971,7 @@ Temporary session not preserved."
 
 # Make a copy safe SSL config file
 make_safe_ssl() {
-	easyrsa_openssl makesafeconf
+	easyrsa_openssl makesafeconf "$@"
 	notice "\
 Safe SSL config file created at:
 * $EASYRSA_SAFE_CONF"
@@ -1139,7 +1136,10 @@ easyrsa_openssl() {
 		rand)
 			die "easyrsa_openssl: Illegal SSL command: rand"
 		;;
-		makesafeconf) makesafeconf=1 ;;
+		makesafeconf)
+			safe_target_file="$1"
+			makesafeconf=1
+		;;
 		*) :
 	esac
 
@@ -1170,8 +1170,11 @@ easyrsa_openssl() {
 	makesafeconf)
 		# COPY temp-file to safessl-easyrsa.cnf
 		unset -v makesafeconf
-		cp -f "$safe_ssl_cnf_tmp" "$EASYRSA_SAFE_CONF" && \
-			return
+		if [ "$safe_target_file" ]; then
+			cp -f "$safe_ssl_cnf_tmp" "$safe_target_file" && return
+		else
+			cat "$safe_ssl_cnf_tmp" && return
+		fi
 	;;
 	*)
 		# Exec SSL
@@ -5353,7 +5356,11 @@ verify_working_env() {
 		verify_pki_init
 
 		# Temp dir session and default SSL conf file
-		secure_session
+		if [ -z "$secured_session" ]; then
+			secure_session
+			# Verify or create temp EASYRSA_SSL_CONF
+			write_easyrsa_ssl_cnf_tmp
+		fi
 
 		# Verify selected algorithm and parameters
 		verify_algo_params
@@ -5416,6 +5423,7 @@ ac05f49595e5d5fe96367229e3ce070c"
 
 		# Get file hash
 		file_hash="$(
+			OPENSSL_CONF=/dev/null
 			"$EASYRSA_OPENSSL" dgst -sha256 -r "$EASYRSA_SSL_CONF"
 		)"
 
@@ -5478,6 +5486,15 @@ write_x509_type_tmp() {
 
 # Write ALL legacy files to $1 or default
 legacy_files() {
+	require_pki=1
+	verify_working_env
+
+	if [ "$legacy_file_over_write" ]; then
+		confirm "${NL}  Confirm OVER-WRITE files ? " yes "
+'legacy-hard' will OVER-WRITE all legacy files to default settings.
+Legacy files: openssl-easyrsa.cnf and x509-types/ directory."
+	fi
+
 	legacy_out_d="${1:-$EASYRSA_PKI}"
 	legacy_out_d="${legacy_out_d:-$EASYRSA}"
 	[ -d "$legacy_out_d" ] || \
@@ -5512,11 +5529,15 @@ write() {
 
 	case "$write_type" in
 	safe-ssl)
-		# Only write to EASYRSA_PKI
-		[ -z "$write_dir" ] || \
-			user_error "Unsupported option: '$write_dir'"
-		verify_working_env
-		make_safe_ssl || die "write failed"
+		# write to stdout or $write_dir/safessl-easyrsa.cnf
+		if [ "$write_dir" ]; then
+			[ -d "$write_dir" ] || \
+				user_error "Missing directory '$write_dir'"
+			write_file="$write_dir"/safessl-easyrsa.cnf
+			make_safe_ssl "$write_file" || die "write failed"
+		else
+			make_safe_ssl || die "write failed"
+		fi
 		return
 	;;
 	ssl-cnf)
@@ -6235,27 +6256,26 @@ cmd="$1"
 unset -v require_pki require_ca quiet_vars
 case "$cmd" in
 	''|help|-h|--help|--usage| \
-	version|show-host|rand|random)
+	version|show-host|rand|random|write)
 		quiet_vars=1
+		# write is not compatible with diagnostics
+		case "$cmd" in
+			write)
+				unset -v EASYRSA_VERBOSE
+				EASYRSA_SILENT=1
+			;;
+			*)
+				: # ok
+		esac
 	;;
 	init-pki|clean-all)
-		: # No change
+		: # ok
 	;;
 	*)
 		require_pki=1
 		case "$cmd" in
-			gen-req|gen-dh|build-ca|show-req| \
-			make-safe-ssl|export-p*|inline|write)
-				# write is not compatible with diagnostics
-				case "$cmd" in
-					write)
-						unset -v EASYRSA_VERBOSE
-						EASYRSA_SILENT=1
-						quiet_vars=1
-					;;
-					*)
-						: # ok
-				esac
+			gen-req|gen-dh|build-ca|show-req|export-p*|inline)
+				: # ok
 			;;
 			*)
 				require_ca=1
@@ -6293,6 +6313,21 @@ locate_support_files
 
 # Verify SSL Lib - One time ONLY
 verify_ssl_lib
+
+# If there is a valid temp-dir:
+if [ "$require_pki" ]; then
+	# taken care of later by verify_working_env()
+	:
+else
+	# Create temp-session and openssl-easyrsa.cnf (Temp) now
+	if [ -d "$EASYRSA_TEMP_DIR" ]; then
+		# Temp dir session and default SSL conf file
+		secure_session
+
+		# Verify or create: EASYRSA_SSL_CONF
+		write_easyrsa_ssl_cnf_tmp
+	fi
+fi
 
 # Check $working_safe_ssl_conf, to build
 # a fully configured safe ssl conf, on the
@@ -6449,16 +6484,11 @@ case "$cmd" in
 		legacy)
 			# over-write NO
 			shift
-			verify_working_env
 			legacy_files "$@"
 			;;
 		legacy-hard)
 			# over-write YES
-			confirm "${NL}  Confirm OVER-WRITE files ? " yes "
-'legacy-hard' will OVER-WRITE all legacy files to default settings.
-Legacy files: openssl-easyrsa.cnf and x509-types/ directory."
 			shift
-			verify_working_env
 			legacy_file_over_write=1
 			legacy_files "$@"
 			;;
