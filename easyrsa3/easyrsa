@@ -6278,17 +6278,13 @@ cmd="$1"
 unset -v require_pki require_ca quiet_vars
 case "$cmd" in
 	''|help|-h|--help|--usage| \
-	version|show-host|rand|random|write)
+	version|show-host|rand|random)
 		quiet_vars=1
+	;;
+	write)
 		# write is not compatible with diagnostics
-		case "$cmd" in
-			write)
-				unset -v EASYRSA_VERBOSE
-				EASYRSA_SILENT=1
-			;;
-			*)
-				: # ok
-		esac
+		unset -v EASYRSA_VERBOSE
+		EASYRSA_SILENT=1
 	;;
 	init-pki|clean-all)
 		: # ok
