@@ -5445,13 +5445,28 @@ write_easyrsa_ssl_cnf_tmp() {
 		verbose "write_easyrsa_ssl_cnf_tmp: SSL config EXISTS"
 
 		# Set known hashes
-		# openssl-easyrsa.cnf sha256 hash - v3.2.x
-		known_hash_file="\
+		# 3.1.7 -> Current
+		known_file_317="\
 13ca05f031d58c5e2912652b33099ce9\
 ac05f49595e5d5fe96367229e3ce070c"
 
-		# Built-in here-doc v3.2.0-1
-		known_hash_heredoc_1="\
+		# 3.1.5 -> 3.1.6
+		known_file_315="\
+87d51ca0db1cc0ac3cc2634792fc5576\
+e0034ebf9d546de11674b897514f3afb"
+
+		# 3.1.0 -> 3.1.4
+		known_file_310="\
+5455947df40f01f845bf79c1e89f102c\
+628faaa65d71a6512d0e17bdd183feb0"
+
+		# 3.0.8 -> 3.0.9
+		known_file_308="\
+1cc6a1de93ca357b5c364aa0fa2c4bea\
+f97425686fa1976d436fa31f550641aa"
+
+		# Built-in here-doc 3.2.0
+		known_heredoc_320="\
 82439f1860838e28f6270d5d06b17717\
 56db777861e19bf9edc21222f86a310d"
 
@@ -5459,32 +5474,47 @@ ac05f49595e5d5fe96367229e3ce070c"
 		file_hash="$(
 			OPENSSL_CONF=/dev/null
 			"$EASYRSA_OPENSSL" dgst -sha256 -r "$EASYRSA_SSL_CONF"
-		)" || die "hash malfunction!"
+		)" || warn "hash malfunction!"
 
 		# Strip excess SSL info
 		file_hash="${file_hash%% *}"
 
 		# Compare SSL output
 		case "$file_hash" in
-		*[!1234567890abcdef]*)
-			die "hash failure: $file_hash"
+		*[!1234567890abcdef]*|'')
+			warn "hash failure: $file_hash"
 		esac
 
 		# Check file hash against known hash
-		case "$file_hash" in
-		"$known_hash_file") ;;
-		"$known_hash_heredoc_1") ;;
-		*)
-			# File has been changed, leave in place
-			unset -v file_hash known_hash_file known_hash_heredoc_1
-			verbose "write_easyrsa_ssl_cnf_tmp: SSL config NO CHANGE!"
+		hash_is_unknown=""
 
-			# Use the existing and changed file ONLY
-			return 0
+		case "$file_hash" in
+		"$known_file_317") ;;
+		"$known_file_315") ;;
+		"$known_file_310") ;;
+		"$known_file_308") ;;
+		"$known_heredoc_320") ;;
+
+		*)
+			# File is unknown or has been changed, leave in place
+			hash_is_unknown=1
 		esac
 
-		# Ignore this file, prefer to use a temp-file
-		unset -v file_hash known_hash_file known_hash_heredoc_1
+		# Cleanup
+		unset -v file_hash  known_heredoc_320 \
+				known_file_317 \
+				known_file_315 \
+				known_file_310 \
+				known_file_308
+
+		# Use the existing file ONLY
+		if [ "$hash_is_unknown" ]; then
+			unset -v hash_is_unknown
+			verbose "write_easyrsa_ssl_cnf_tmp: SSL config NO CHANGE!"
+			return 0
+		fi
+
+		# Ignore existing file, prefer to use a temp-file
 		verbose "write_easyrsa_ssl_cnf_tmp: SSL config IGNORED"
 	fi
 
