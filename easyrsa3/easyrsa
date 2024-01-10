@@ -5423,6 +5423,8 @@ force_set_var() {
 # and create temp-file. Otherwise, leave in place.
 write_easyrsa_ssl_cnf_tmp() {
 	if [ -f "$EASYRSA_SSL_CONF" ]; then
+		verbose "write_easyrsa_ssl_cnf_tmp: SSL config EXISTS"
+
 		# Set known hashes
 		# openssl-easyrsa.cnf sha256 hash - v3.2.x
 		known_hash_file="\
@@ -5438,34 +5440,33 @@ ac05f49595e5d5fe96367229e3ce070c"
 		file_hash="$(
 			OPENSSL_CONF=/dev/null
 			"$EASYRSA_OPENSSL" dgst -sha256 -r "$EASYRSA_SSL_CONF"
-		)"
+		)" || die "hash malfunction!"
 
 		# Strip excess SSL info
 		file_hash="${file_hash%% *}"
 
-		# Check file hash against known hash
-		if [ "$file_hash" = "$known_hash_file" ] || \
-			[ "$file_hash" = "$known_hash_heredoc_1" ]
-		then
-			# Permanently remove file and use temp-files
-			unset -v file_hash known_hash_file known_hash_heredoc_1
+		# Compare SSL output
+		case "$file_hash" in
+		*[!1234567890abcdef]*)
+			die "hash failure: $file_hash"
+		esac
 
-			if rm "$EASYRSA_SSL_CONF" 2>/dev/null; then
-				verbose "\
-write_easyrsa_ssl_cnf_tmp: Removed SSL Conf!"
-			else
-				# Ignore failure
-				verbose "\
-write_easyrsa_ssl_cnf_tmp: Removed SSL Conf failed!"
-			fi
-		else
+		# Check file hash against known hash
+		case "$file_hash" in
+		"$known_hash_file") ;;
+		"$known_hash_heredoc_1") ;;
+		*)
 			# File has been changed, leave in place
 			unset -v file_hash known_hash_file known_hash_heredoc_1
-			verbose "write_easyrsa_ssl_cnf_tmp: NO CHANGE!"
+			verbose "write_easyrsa_ssl_cnf_tmp: SSL config NO CHANGE!"
 
-			# Do NOT replace the existing file
+			# Use the existing and changed file ONLY
 			return 0
-		fi
+		esac
+
+		# Ignore this file, prefer to use a temp-file
+		unset -v file_hash known_hash_file known_hash_heredoc_1
+		verbose "write_easyrsa_ssl_cnf_tmp: SSL config IGNORED"
 	fi
 
 	# SET and USE temp-file from here-doc Now
@@ -5481,7 +5482,7 @@ write_easyrsa_ssl_cnf_tmp - write ssl-cnf"
 	# export SSL cnf tmp
 	export EASYRSA_SSL_CONF="$ssl_cnf_tmp"
 	verbose "\
-write_easyrsa_ssl_cnf_tmp: create_openssl_easyrsa_cnf OK"
+write_easyrsa_ssl_cnf_tmp: SSL config using temp-file"
 } # => write_easyrsa_ssl_cnf_tmp()
 
 # Write x509 type file to a temp file
