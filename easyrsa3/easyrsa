@@ -1425,6 +1425,12 @@ locate_support_files() {
 	# Room for more..
 	# '/etc/easy-rsa' - Last resort
 
+	# Not currently used:
+	# Set EASYRSA_PKI only flag
+	#is_in_pki=1
+	#x509_dir_in_pki=""
+	#ssl_cnf_in_pki=""
+
 	# Find data-files
 	for area in \
 		"$EASYRSA_PKI" \
@@ -1436,14 +1442,26 @@ locate_support_files() {
 		'/etc/easy-rsa' \
 		# EOL
 	do
-			# Find x509-types
-			[ -e "${area}/${x509_types_dir}" ] && set_var \
-				EASYRSA_EXT_DIR "${area}/${x509_types_dir}"
+		# Find x509-types
+		if [ -e "${area}/${x509_types_dir}" ]; then
+			set_var EASYRSA_EXT_DIR "${area}/${x509_types_dir}"
+			#[ "$is_in_pki" ] && x509_dir_in_pki=1
+			verbose "> Found x509 dir: ${area}/${x509_types_dir}"
+		fi
 
-			# Find openssl-easyrsa.cnf
-			[ -e "${area}/${ssl_cnf_file}" ] && set_var \
-				EASYRSA_SSL_CONF "${area}/${ssl_cnf_file}"
+		# Find openssl-easyrsa.cnf
+		if [ -e "${area}/${ssl_cnf_file}" ]; then
+			set_var EASYRSA_SSL_CONF "${area}/${ssl_cnf_file}"
+			#[ "$is_in_pki" ] && ssl_cnf_in_pki=1
+			verbose "> Found SSL cnf: ${area}/${ssl_cnf_file}"
+		fi
+
+		# Clear EASYRSA_PKI only flag
+		#unset -v is_in_pki
 	done
+
+	verbose "> EASYRSA_EXT_DIR: $EASYRSA_EXT_DIR"
+	verbose "> EASYRSA_SSL_CONF: $EASYRSA_SSL_CONF"
 	verbose "locate_support_files: COMPLETED"
 } # => locate_support_files()
 
@@ -5289,9 +5307,10 @@ Algorithm '$EASYRSA_ALGO' is invalid: Must be 'rsa', 'ec' or 'ed'"
 	set_var EASYRSA_REQ_CN			ChangeMe
 	set_var EASYRSA_DIGEST			sha256
 
-	# verified or created by secure_session()
-	set_var EASYRSA_SSL_CONF		\
-		"$EASYRSA_PKI/openssl-easyrsa.cnf"
+	# Now set by locate_support_files()
+	#set_var EASYRSA_SSL_CONF		\
+	#	"$EASYRSA_PKI/openssl-easyrsa.cnf"
+
 	# created as required
 	set_var EASYRSA_SAFE_CONF		\
 		"$EASYRSA_PKI/safessl-easyrsa.cnf"
