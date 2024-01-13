@@ -16,7 +16,7 @@ usage() {
 	print "
 Easy-RSA 3 usage and overview
 
-USAGE: easyrsa [global-options] COMMAND [command-options]
+$easyrsa_help_title
 
 To get detailed usage and help for a command, use:
   ./easyrsa help COMMAND
@@ -78,6 +78,7 @@ A list of commands is shown below:
 		CA_status="   CA status: CA has not been built"
 	fi
 
+	# check for vars changing PKI unexpectedly!
 	if [ "$invalid_vars" ]; then
 		ivmsg="
    *WARNING*: \
@@ -93,7 +94,7 @@ DIRECTORY STATUS (commands would take effect on these locations)
          PKI: $pki_dir
    vars-file: ${EASYRSA_VARS_FILE:-Missing or undefined}${ivmsg}
   x509-types: ${EASYRSA_EXT_DIR:-Missing or undefined}
-$CA_status"
+$CA_status${NL}"
 } # => usage()
 
 # Detailed command help
@@ -103,7 +104,10 @@ $CA_status"
 # Commands are TAB indented, while text is SPACE indented.
 # 'case' indentation is minimalistic.
 cmd_help() {
+	easyrsa_help_title="\
+Usage: easyrsa [ OPTIONS.. ] <COMMAND> <TARGET> [ cmd-opts.. ]"
 	unset -v text err_text opts text_only
+
 	case "$1" in
 	init-pki|clean-all)
 		text="
@@ -238,12 +242,6 @@ cmd_help() {
       This command will use the system time to update the status of
       issued certificates."
 	;;
-	make-safe-ssl)
-		text="
-* make-safe-ssl
-
-      Generate a safe SSL config file"
-	;;
 	show-req|show-cert)
 		text="
 * show-req  <file_name_base> [ cmd-opts ]
@@ -335,7 +333,23 @@ cmd_help() {
                   (Equivalent to global option '--nopass|--no-pass')
       * noca    - Do not include the ca.crt file in the PKCS12 output
       * nokey   - Do not include the private key in the PKCS12 output
-      * usefn   - Use <file_name_base> as friendly name"
+      * nofn    - Do not set 'freindlyName'
+                  For more, see: 'easyrsa help friendly'
+      * legacy  - Use legacy encryption algorithm RC2_CBC or 3DES_CBC
+                  OpenSSL V3 ONLY: Default algorithm is AES-256-CBC"
+	;;
+	friendly)
+		text_only=1
+		text="
+* export-p12: Internal file label 'friendlyName'
+
+      The 'friendlyname' is always set to the file-name-base.
+
+      An alternate friendlyName can be configured by using:
+      * Global option '--usefn=<friendlyName>'
+
+      Fallback to previous behavior can be configured by using:
+      * Command option 'nofn' ('friendlyname' will not be set)"
 	;;
 	export-p7)
 		text="
@@ -391,13 +405,13 @@ cmd_help() {
       Types:
       * ssl-cnf  - Write openssl-easyrsa.cnf file.
       * COMMON|ca|server|serverClient|client|codeSigning|email|kdc
-                   Write x509-type <type> file.
+                 - Write x509-type <type> file.
       * legacy   - Write ALL support files (above) to <DIR>.
                    Will create <DIR>/x509-types directory.
                    Default <DIR> is EASYRSA_PKI or EASYRSA.
       * legacy-hard
-                   Same as 'legacy' plus OVER-WRITE files.
-      * safe-ssl - Expand EasyRSA SSL config file for LibreSSL.
+                 - Same as 'legacy' plus OVER-WRITE files.
+      * safe-cnf - Expand EasyRSA SSL config file for LibreSSL.
       * vars     - Write vars.example file."
 		opts="
       * <DIR>    - If <DIR> is specified then files are created.
@@ -480,9 +494,12 @@ These commands are safe to test and will NOT effect your PKI.
 	;;
 	opts|options)
 		opt_usage
+		cleanup ok
 	;;
 	"")
-		usage ;;
+		usage
+		cleanup ok
+	;;
 	*)
 		err_text="
   Unknown command: '$1' \
@@ -492,8 +509,10 @@ These commands are safe to test and will NOT effect your PKI.
 
 	if [ "$err_text" ]; then
 		print "${err_text}"
+		print "$easyrsa_help_title"
 	else
 		# display the help text
+		print "$easyrsa_help_title"
 		[ "$text" ] && print "$text"
 
 		if [ "$text_only" ]; then
@@ -505,6 +524,7 @@ ${opts:-
       * No supported command options}"
 		fi
 	fi
+	print
 } # => cmd_help()
 
 # Options usage
@@ -566,9 +586,13 @@ Certificate & Request options: (these impact cert/req field values)
 
 --subca-len=#   : Path length of signed intermediate CA certificates
 --copy-ext      : Copy included request X509 extensions (namely subjAltName)
+
 --san|--subject-alt-name=<subjectAltName>
                 : Add a subjectAltName.
                   For more info and syntax, see: 'easyrsa help altname'
+
+--usefn=NAME    : export-p12, set 'friendlyName' to NAME
+                  For more, see: 'easyrsa help friendly'
 
 Distinguished Name mode:
 
@@ -604,8 +628,8 @@ die() {
 	print "
 Easy-RSA error:
 
-$1
-"
+$1${NL}"
+
 	# error_info is for hard-to-spot errors!
 	if [ "$error_info" ]; then
 		print "  * $cmd: ${error_info}${NL}"
@@ -625,7 +649,8 @@ EasyRSA version $EASYRSA_version
 
 Error
 -----
-$1"
+$1${NL}"
+
 	easyrsa_exit_with_error=1
 	cleanup
 } # => user_error()
@@ -642,7 +667,7 @@ warn() {
 	print "
 WARNING
 =======
-$1"
+$1${NL}"
 } # => warn()
 
 # informational notices to stdout
@@ -651,7 +676,7 @@ notice() {
 	print "
 Notice
 ------
-$1"
+$1${NL}"
 } # => notice()
 
 # Helpful information
@@ -738,9 +763,6 @@ secure_session() {
 				working_safe_ssl_conf
 			easyrsa_err_log="$secured_session/error.log"
 
-			# Verify or create: EASYRSA_SSL_CONF
-			write_easyrsa_ssl_cnf_tmp
-
 			verbose "\
 secure_session: CREATED: $secured_session"
 			return
@@ -777,7 +799,7 @@ easyrsa_mktemp - input error"
 
 	# session directory must exist
 	[ "$secured_session" ] || die "\
-easyrsa_mktemp - Temporary session undefined"
+easyrsa_mktemp - Temporary session undefined (--tmp-dir)"
 
 	# Update counter
 	mktemp_counter="$(( mktemp_counter + 1 ))"
@@ -881,13 +903,16 @@ Temporary session not preserved."
 				mkdir -p "$keep_tmp"
 				rm -rf "$keep_tmp"
 				mv -f "$secured_session" "$keep_tmp"
-				print "Temp session preserved: $keep_tmp"
+				information "Temp session preserved: $keep_tmp"
+				unset -v secured_session
 			fi
 		fi
 
 		# remove temp-session
-		remove_secure_session || \
-			warn "cleanup - remove_secure_session failed"
+		if [ "$secured_session" ]; then
+			remove_secure_session || \
+				warn "cleanup - remove_secure_session failed"
+		fi
 	fi
 
 	# shellcheck disable=SC3040 # POSIX set - cleanup()
@@ -940,14 +965,14 @@ Temporary session not preserved."
 
 # Make a copy safe SSL config file
 make_safe_ssl() {
-	easyrsa_openssl makesafeconf
-
+	easyrsa_openssl makesafeconf "$@"
 	notice "\
 Safe SSL config file created at:
 * $EASYRSA_SAFE_CONF"
+
 	verbose "\
 make_safe_ssl: NEW SSL cnf file: $safe_ssl_cnf_tmp"
-} # => make_safe_ssl_copy()
+} # => make_safe_ssl()
 
 # Escape hazardous characters
 # Auto-escape hazardous characters:
@@ -1105,7 +1130,10 @@ easyrsa_openssl() {
 		rand)
 			die "easyrsa_openssl: Illegal SSL command: rand"
 		;;
-		makesafeconf) makesafeconf=1 ;;
+		makesafeconf)
+			safe_target_file="$1"
+			makesafeconf=1
+		;;
 		*) :
 	esac
 
@@ -1136,8 +1164,11 @@ easyrsa_openssl() {
 	makesafeconf)
 		# COPY temp-file to safessl-easyrsa.cnf
 		unset -v makesafeconf
-		cp -f "$safe_ssl_cnf_tmp" "$EASYRSA_SAFE_CONF" && \
-			return
+		if [ "$safe_target_file" ]; then
+			cp -f "$safe_ssl_cnf_tmp" "$safe_target_file" && return
+		else
+			cat "$safe_ssl_cnf_tmp" && return
+		fi
 	;;
 	*)
 		# Exec SSL
@@ -1351,7 +1382,7 @@ and initialize a fresh PKI here."
 	fi
 
 	# new dirs:
-	for i in private reqs inline; do
+	for i in issued private reqs inline; do
 		mkdir -p "$EASYRSA_PKI/$i" || \
 			die "\
 Failed to create PKI file structure (permissions?)"
@@ -1394,6 +1425,12 @@ locate_support_files() {
 	# Room for more..
 	# '/etc/easy-rsa' - Last resort
 
+	# Not currently used:
+	# Set EASYRSA_PKI only flag
+	#is_in_pki=1
+	#x509_dir_in_pki=""
+	#ssl_cnf_in_pki=""
+
 	# Find data-files
 	for area in \
 		"$EASYRSA_PKI" \
@@ -1405,14 +1442,26 @@ locate_support_files() {
 		'/etc/easy-rsa' \
 		# EOL
 	do
-			# Find x509-types
-			[ -e "${area}/${x509_types_dir}" ] && set_var \
-				EASYRSA_EXT_DIR "${area}/${x509_types_dir}"
+		# Find x509-types
+		if [ -e "${area}/${x509_types_dir}" ]; then
+			set_var EASYRSA_EXT_DIR "${area}/${x509_types_dir}"
+			#[ "$is_in_pki" ] && x509_dir_in_pki=1
+			verbose "> Found x509 dir: ${area}/${x509_types_dir}"
+		fi
 
-			# Find openssl-easyrsa.cnf
-			[ -e "${area}/${ssl_cnf_file}" ] && set_var \
-				EASYRSA_SSL_CONF "${area}/${ssl_cnf_file}"
+		# Find openssl-easyrsa.cnf
+		if [ -e "${area}/${ssl_cnf_file}" ]; then
+			set_var EASYRSA_SSL_CONF "${area}/${ssl_cnf_file}"
+			#[ "$is_in_pki" ] && ssl_cnf_in_pki=1
+			verbose "> Found SSL cnf: ${area}/${ssl_cnf_file}"
+		fi
+
+		# Clear EASYRSA_PKI only flag
+		#unset -v is_in_pki
 	done
+
+	verbose "> EASYRSA_EXT_DIR: $EASYRSA_EXT_DIR"
+	verbose "> EASYRSA_SSL_CONF: $EASYRSA_SSL_CONF"
 	verbose "locate_support_files: COMPLETED"
 } # => locate_support_files()
 
@@ -1453,6 +1502,7 @@ get_passphrase() {
 			printf '\n%s\n' \
 				"Passphrase must be at least 4 characters!"
 		else
+			# shellcheck disable=SC2229 # does not read 't'
 			read -r "$t" <<- SECRET
 				$r
 				SECRET
@@ -1533,7 +1583,7 @@ current CA. To start a new CA, run init-pki first."
 	# create necessary dirs:
 	err_msg="\
 Unable to create necessary PKI files (permissions?)"
-	for i in issued certs_by_serial \
+	for i in certs_by_serial \
 		revoked/certs_by_serial revoked/private_by_serial \
 		revoked/reqs_by_serial
 	do
@@ -2740,8 +2790,15 @@ Run easyrsa without commands for usage and command help."
 	inline_in="$in_dir/inline/${file_name_base}.inline"
 
 	# Upgrade CA index.txt.attr - unique_subject = no
-	ca_unique_subject_no || \
-		die "Failed to upgrade CA to support renewal."
+	if grep -q 'unique_subject = no' \
+		"$EASYRSA_PKI/index.txt.attr"
+	then
+		: # ok
+	else
+		printf '%s\n' 'unique_subject = no' \
+			> "$EASYRSA_PKI/index.txt.attr" || \
+				die "Incompatible CA configuration"
+	fi
 
 	# deprecate ALL options
 	while [ "$1" ]; do
@@ -2971,29 +3028,6 @@ Failed to remove inline file:
 	return 0
 } # => renew_move()
 
-# Set unique_subject = no in index.txt.attr
-ca_unique_subject_no() {
-	[ -d "$EASYRSA_PKI" ] || return 0
-	attr_file="$EASYRSA_PKI/index.txt.attr"
-	verbose "\
-Confirm: index.txt.attr exists and 'unique_subject = no'"
-
-	if [ -f "$attr_file" ]; then
-		if grep -q '^[[:blank:]]*unique_subject = no' \
-			"$attr_file"
-		then
-			return 0
-		fi
-	else
-		return 0
-	fi
-
-	# Otherwise this is required for all easyrsa v3
-	printf '%s\n' 'unique_subject = no' > "$attr_file" || \
-		die "ca_unique_subject_no - Failed write"
-	verbose "Set unique_subject = no in index.txt.attr"
-} #=> ca_unique_subject_no()
-
 # revoke-renewed backend
 revoke_renewed() {
 	# pull filename base:
@@ -3167,7 +3201,7 @@ gen_crl() {
 	fi
 
 	easyrsa_openssl ca -utf8 -gencrl -out "$out_file_tmp" \
-		${EASYRSA_CRL_DAYS:+ -days "$EASYRSA_CRL_DAYS"} \
+		${EASYRSA_CRL_DAYS:+ -crldays "$EASYRSA_CRL_DAYS"} \
 		${EASYRSA_PASSIN:+ -passin "$EASYRSA_PASSIN"} || \
 			die "CRL Generation failed."
 
@@ -3238,11 +3272,15 @@ Run easyrsa without commands for usage and command help."
 	key_in="$EASYRSA_PKI/private/$file_name_base.key"
 	crt_ca="$EASYRSA_PKI/ca.crt"
 
+	# Always set a friendly_name
+	set_var EASYRSA_P12_FR_NAME "$file_name_base"
+	friendly_name="$EASYRSA_P12_FR_NAME"
+
 	# opts support
 	cipher=-aes256
 	want_ca=1
 	want_key=1
-	unset -v nokeys friendly_name
+	unset -v nokeys legacy
 	while [ "$1" ]; do
 		case "$1" in
 			noca)
@@ -3258,10 +3296,16 @@ Run easyrsa without commands for usage and command help."
 			nopass)
 				[ "$prohibit_no_pass" ] || EASYRSA_NO_PASS=1
 			;;
-			usefn)
-				friendly_name="$file_name_base"
+			nofn)
+				unset friendly_name
 			;;
-			*) warn "Ignoring unknown command option: '$1'"
+			legacy)
+				[ "$openssl_v3" ] || \
+					user_error "Option 'legacy' requires SSL version 3"
+				legacy=-legacy
+			;;
+			*)
+				warn "Ignoring unknown option: '$1'"
 		esac
 		shift
 	done
@@ -3374,14 +3418,18 @@ Missing User Certificate, expected at:
 	p12)
 		pkcs_out="$EASYRSA_PKI/private/$file_name_base.p12"
 
+		[ "$legacy" ] && \
+			error_info="SSL library may not support -legacy mode"
+
 		# export the p12:
 		easyrsa_openssl pkcs12 -export \
 			-in "$crt_in" \
 			-out "$pkcs_out" \
-			${nokeys} \
 			-inkey "$key_in" \
-			${want_ca:+ -certfile "$crt_ca"} \
+			${nokeys} \
+			${legacy} \
 			${friendly_name:+ -name "$friendly_name"} \
+			${want_ca:+ -certfile "$crt_ca"} \
 			${EASYRSA_PASSIN:+ -passin "$EASYRSA_PASSIN"} \
 			${EASYRSA_PASSOUT:+ -passout "$EASYRSA_PASSOUT"} \
 				|| die "Failed to export PKCS#12"
@@ -4445,6 +4493,8 @@ read_db() {
 			die "read_db - remove_secure_session"
 		secure_session || \
 			die "read_db - secure_session"
+		# Recreate openssl-easyrsa.cnf (Temp)
+		write_easyrsa_ssl_cnf_tmp
 
 		# Interpret the db/certificate record
 		unset -v db_serial db_cn db_revoke_date db_reason
@@ -5093,11 +5143,8 @@ select_vars() {
 		fi
 	fi
 
-	# User info
+	# if select_vars failed to find a vars file
 	if [ -z "$EASYRSA_VARS_FILE" ]; then
-		[ "$require_pki" ] && information "\
-No Easy-RSA 'vars' configuration file exists!"
-		# select_vars failed to find a vars file
 		verbose "select_vars: No vars"
 		return 1
 	fi
@@ -5118,17 +5165,13 @@ Missing vars file:
 Missing vars file:
 * $target_file"
 
-	# Installation information
-	[ "$require_pki" ] && information "\
-Using Easy-RSA 'vars' configuration:
-* $target_file"
-
 	# Sanitize vars
 	if grep -q \
 		-e 'EASYRSA_PASSIN' -e 'EASYRSA_PASSOUT' \
 		-e '[^(]`[^)]' \
 		-e '[[:blank:]]export[[:blank:]]*' \
 		-e '[[:blank:]]unset[[:blank:]]*' \
+		-e '^  > ' \
 		"$target_file"
 	then
 		# here we go ..
@@ -5173,6 +5216,16 @@ These problems have been found in your 'vars' settings:${NL}"
 			err_msg="${err_msg}
   Use of 'unset':
   Remove 'unset' ('force_set_var' may also work)."
+		fi
+
+		# No redirection - caused by --verbose output
+		if grep -q \
+			-e '^  > ' \
+			"$target_file"
+		then
+			err_msg="${err_msg}
+  Use of unsupported characters:
+  These characters are not supported: '>' redirection"
 		fi
 
 		# Fatal error
@@ -5254,9 +5307,10 @@ Algorithm '$EASYRSA_ALGO' is invalid: Must be 'rsa', 'ec' or 'ed'"
 	set_var EASYRSA_REQ_CN			ChangeMe
 	set_var EASYRSA_DIGEST			sha256
 
-	# verified or created by secure_session()
-	set_var EASYRSA_SSL_CONF		\
-		"$EASYRSA_PKI/openssl-easyrsa.cnf"
+	# Now set by locate_support_files()
+	#set_var EASYRSA_SSL_CONF		\
+	#	"$EASYRSA_PKI/openssl-easyrsa.cnf"
+
 	# created as required
 	set_var EASYRSA_SAFE_CONF		\
 		"$EASYRSA_PKI/safessl-easyrsa.cnf"
@@ -5299,7 +5353,7 @@ validate_default_vars() {
 
 	# This is an almost unacceptable error
 	invalid_vars=1
-	[ "$ignore_vars" ] || user_error "\
+	[ "$quiet_vars" ] || user_error "\
 The values in the vars file have unexpectedly changed the values for
 EASYRSA and/or EASYRSA_PKI. The default pki/vars file is forbidden to
 change these values.
@@ -5311,13 +5365,19 @@ ${unexpected_error}"
 
 # Verify working environment
 verify_working_env() {
+	verbose "verify_working_env: BEGIN"
 	# For commands which 'require a PKI' and PKI exists
 	if  [ "$require_pki" ]; then
 		# Verify PKI is initialised
 		verify_pki_init
 
 		# Temp dir session and default SSL conf file
-		secure_session
+		if [ -z "$secured_session" ]; then
+			secure_session
+
+			# Verify or create temp EASYRSA_SSL_CONF
+			write_easyrsa_ssl_cnf_tmp
+		fi
 
 		# Verify selected algorithm and parameters
 		verify_algo_params
@@ -5325,6 +5385,20 @@ verify_working_env() {
 		# Verify CA is initialised
 		if [ "$require_ca" ]; then
 			verify_ca_init
+		fi
+	else
+		# For commands that do not require a PKI
+		# but do require a temp-dir, eg. 'write'
+		# If there is a valid temp-dir:
+		# Create temp-session and openssl-easyrsa.cnf (Temp) now
+		if [ -d "$EASYRSA_TEMP_DIR" ]; then
+			# Temp dir session and default SSL conf file
+			if [ -z "$secured_session" ]; then
+				secure_session
+
+				# Verify or create: EASYRSA_SSL_CONF
+				write_easyrsa_ssl_cnf_tmp
+			fi
 		fi
 	fi
 	verbose "verify_working_env: COMPLETED Handover-to: $cmd"
@@ -5363,13 +5437,88 @@ force_set_var() {
 	die "force_set_var - set_var '$*'"
 } # => force_set_var()
 
-
-
 # Verify: $EASYRSA_SSL_CONF pki/openssl-easyrsa.cnf
-# or create temp-file
+# If the existing file is default then delete it
+# and create temp-file. Otherwise, leave in place.
 write_easyrsa_ssl_cnf_tmp() {
-	[ -f "$EASYRSA_SSL_CONF" ] && return
+	if [ -f "$EASYRSA_SSL_CONF" ]; then
+		verbose "write_easyrsa_ssl_cnf_tmp: SSL config EXISTS"
 
+		# Set known hashes
+		# 3.1.7 -> Current
+		known_file_317="\
+13ca05f031d58c5e2912652b33099ce9\
+ac05f49595e5d5fe96367229e3ce070c"
+
+		# 3.1.5 -> 3.1.6
+		known_file_315="\
+87d51ca0db1cc0ac3cc2634792fc5576\
+e0034ebf9d546de11674b897514f3afb"
+
+		# 3.1.0 -> 3.1.4
+		known_file_310="\
+5455947df40f01f845bf79c1e89f102c\
+628faaa65d71a6512d0e17bdd183feb0"
+
+		# 3.0.8 -> 3.0.9
+		known_file_308="\
+1cc6a1de93ca357b5c364aa0fa2c4bea\
+f97425686fa1976d436fa31f550641aa"
+
+		# Built-in here-doc 3.2.0
+		known_heredoc_320="\
+82439f1860838e28f6270d5d06b17717\
+56db777861e19bf9edc21222f86a310d"
+
+		# Get file hash
+		file_hash="$(
+			OPENSSL_CONF=/dev/null
+			"$EASYRSA_OPENSSL" dgst -sha256 -r "$EASYRSA_SSL_CONF"
+		)" || warn "hash malfunction!"
+
+		# Strip excess SSL info
+		file_hash="${file_hash%% *}"
+
+		# Compare SSL output
+		case "$file_hash" in
+		*[!1234567890abcdef]*|'')
+			warn "hash failure: $file_hash"
+		esac
+
+		# Check file hash against known hash
+		hash_is_unknown=""
+
+		case "$file_hash" in
+		"$known_file_317") ;;
+		"$known_file_315") ;;
+		"$known_file_310") ;;
+		"$known_file_308") ;;
+		"$known_heredoc_320") ;;
+
+		*)
+			# File is unknown or has been changed, leave in place
+			hash_is_unknown=1
+		esac
+
+		# Cleanup
+		unset -v file_hash  known_heredoc_320 \
+				known_file_317 \
+				known_file_315 \
+				known_file_310 \
+				known_file_308
+
+		# Use the existing file ONLY
+		if [ "$hash_is_unknown" ]; then
+			unset -v hash_is_unknown
+			verbose "write_easyrsa_ssl_cnf_tmp: SSL config NO CHANGE!"
+			return 0
+		fi
+
+		# Ignore existing file, prefer to use a temp-file
+		verbose "write_easyrsa_ssl_cnf_tmp: SSL config IGNORED"
+	fi
+
+	# SET and USE temp-file from here-doc Now
 	# Create temp-file
 	ssl_cnf_tmp=
 	easyrsa_mktemp ssl_cnf_tmp || die "\
@@ -5382,7 +5531,7 @@ write_easyrsa_ssl_cnf_tmp - write ssl-cnf"
 	# export SSL cnf tmp
 	export EASYRSA_SSL_CONF="$ssl_cnf_tmp"
 	verbose "\
-write_easyrsa_ssl_cnf_tmp: create_openssl_easyrsa_cnf OK"
+write_easyrsa_ssl_cnf_tmp: SSL config using temp-file"
 } # => write_easyrsa_ssl_cnf_tmp()
 
 # Write x509 type file to a temp file
@@ -5409,6 +5558,15 @@ write_x509_type_tmp() {
 
 # Write ALL legacy files to $1 or default
 legacy_files() {
+	require_pki=1
+	verify_working_env
+
+	if [ "$legacy_file_over_write" ]; then
+		confirm "${NL}  Confirm OVER-WRITE files ? " yes "
+'legacy-hard' will OVER-WRITE all legacy files to default settings.
+Legacy files: openssl-easyrsa.cnf and x509-types/ directory."
+	fi
+
 	legacy_out_d="${1:-$EASYRSA_PKI}"
 	legacy_out_d="${legacy_out_d:-$EASYRSA}"
 	[ -d "$legacy_out_d" ] || \
@@ -5442,12 +5600,16 @@ write() {
 	write_file=
 
 	case "$write_type" in
-	safe-ssl)
-		# Only write to EASYRSA_PKI
-		[ -z "$write_dir" ] || \
-			user_error "Unsupported option: '$write_dir'"
-		verify_working_env
-		make_safe_ssl || die "write failed"
+	safe-cnf)
+		# write to stdout or $write_dir/safessl-easyrsa.cnf
+		if [ "$write_dir" ]; then
+			[ -d "$write_dir" ] || \
+				user_error "Missing directory '$write_dir'"
+			write_file="$write_dir"/safessl-easyrsa.cnf
+			make_safe_ssl "$write_file" || die "write failed"
+		else
+			make_safe_ssl || die "write failed"
+		fi
 		return
 	;;
 	ssl-cnf)
@@ -5470,7 +5632,7 @@ write() {
 		fi
 	;;
 	*)
-		user_error "write - unknown type '$type'"
+		user_error "write - unknown type '$write_type'"
 	esac
 
 	# Check for output directory and file-name
@@ -5735,7 +5897,7 @@ fi
 CREATE_VARS_EXAMPLE
 	;;
 	ssl-cnf)
-	# SSL config
+	# SSL config v3.2.0-1
 	cat << "CREATE_SSL_CONFIG"
 # For use with Easy-RSA 3.0+ and OpenSSL or LibreSSL
 
@@ -5767,8 +5929,14 @@ x509_extensions	= basic_exts		# The extensions to add to the cert
 # is designed for will. In return, we get the Issuer attached to CRLs.
 crl_extensions	= crl_ext
 
-default_days	= $ENV::EASYRSA_CERT_EXPIRE	# how long to certify for
-default_crl_days	= $ENV::EASYRSA_CRL_DAYS	# how long before next CRL
+# These fields are always configured via the command line.
+# These fields are removed from this here-doc but retained
+# in 'openssl-easyrsa.cnf' file, in case something breaks.
+# default_days is no longer required by Easy-RSA
+#default_days	= $ENV::EASYRSA_CERT_EXPIRE	# how long to certify for
+# default_crl_days is no longer required by Easy-RSA
+#default_crl_days	= $ENV::EASYRSA_CRL_DAYS	# how long before next CRL
+
 default_md	= $ENV::EASYRSA_DIGEST		# use public key default MD
 preserve	= no			# keep passed DN ordering
 
@@ -6112,6 +6280,9 @@ while :; do
 $EASYRSA_EXTRA_EXTS
 subjectAltName = $val"
 		;;
+	--usefn)
+		export EASYRSA_P12_FR_NAME="$val"
+		;;
 	--version)
 		shift "$#"
 		set -- "$@" "version"
@@ -6153,11 +6324,45 @@ done
 cmd="$1"
 [ "$1" ] && shift # scrape off command
 
+# Establish PKI and CA initialisation requirements
+unset -v require_pki require_ca quiet_vars
+case "$cmd" in
+	''|help|-h|--help|--usage| \
+	version|show-host|rand|random)
+		quiet_vars=1
+	;;
+	write)
+		# write is not compatible with diagnostics
+		unset -v EASYRSA_VERBOSE
+		EASYRSA_SILENT=1
+	;;
+	init-pki|clean-all)
+		: # ok
+	;;
+	*)
+		require_pki=1
+		case "$cmd" in
+			gen-req|gen-dh|build-ca|show-req|export-p*|inline)
+				: # ok
+			;;
+			*)
+				require_ca=1
+		esac
+esac
+
 # Intelligent env-var detection and auto-loading:
 # Select vars file as EASYRSA_VARS_FILE
 # then source the vars file, if found
 # otherwise, ignore no vars file
-select_vars && source_vars "$EASYRSA_VARS_FILE"
+if select_vars; then
+	[ "$quiet_vars" ] || information "\
+Using Easy-RSA 'vars' configuration:
+* $EASYRSA_VARS_FILE"
+	source_vars "$EASYRSA_VARS_FILE"
+else
+	verbose "\
+No Easy-RSA 'vars' configuration file exists!"
+fi
 
 # then set defaults
 default_vars
@@ -6183,30 +6388,6 @@ verify_ssl_lib
 if [ "$working_safe_ssl_conf" ]; then
 	die "working_safe_ssl_conf must not be set!"
 fi
-
-# Establish PKI and CA initialisation requirements
-# This avoids unnecessary warnings and notices
-# Used by verify_working_env()
-unset -v require_pki require_ca ignore_vars
-case "$cmd" in
-	''|help|-h|--help|--usage| \
-	version|show-host|rand|random)
-		ignore_vars=1
-	;;
-	init-pki|clean-all)
-		: # No change
-	;;
-	*)
-		require_pki=1
-		case "$cmd" in
-			gen-req|gen-dh|build-ca|show-req| \
-			make-safe-ssl|export-p*|inline|write)
-				: # No change
-			;;
-			*)
-				require_ca=1
-		esac
-esac
 
 # Hand off to the function responsible
 # ONLY verify_working_env() for valid commands
@@ -6349,23 +6530,18 @@ case "$cmd" in
 			easyrsa_exit_with_error=1
 		;;
 	write)
-		# verify_working_env - Not required
+		verify_working_env
 		# Write legacy files to write_dir
 		# or EASYRSA_PKI or EASYRSA
 		case "$1" in
 		legacy)
 			# over-write NO
 			shift
-			verify_working_env
 			legacy_files "$@"
 			;;
 		legacy-hard)
 			# over-write YES
-			confirm "${NL}  Confirm OVER-WRITE files ? " yes "
-'legacy-hard' will OVER-WRITE all legacy files to default settings.
-Legacy files: openssl-easyrsa.cnf and x509-types/ directory."
 			shift
-			verify_working_env
 			legacy_file_over_write=1
 			legacy_files "$@"
 			;;

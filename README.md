@@ -37,21 +37,29 @@ is recommended to use a release, and priority will be given to bugs identified i
 the most recent release.
 
 The prior 2.x and 1.x versions are available as release branches for
-tracking and possible back-porting of relevant fixes. Branch layout is:
+tracking and possible back-porting of relevant fixes.
 
-    master         <- v3.2.x - Rolling
-    v3.n.n-<NAME>     Pre-release branches, used for staging.
-    3.1.8             Present: bugfix/security/openssl updates for v3.1.7
-    3.0.10            Absent: bugfix/security/openssl updates for v3.0.9
-    v3.0.6            Archived: Has known bugs, OpenSSL v3 incompatible.
-    v3.0.5            Archived: Has known bugs, OpenSSL v3 incompatible.
-    v3.0.4            Archived: Has known bugs, OpenSSL v3 incompatible.
-    release/3.0       Archived: Pending deprecation to unmaintained.
-    release/2.x       Archived: Unmaintained.
-    release/1.x       Archived: Unmaintained.
-    testing           Sandbox only; Subject to change, without warning.
+Branch layout is:
+
+    master             <- Active: v3.2.x - Rolling.
+    v3.<N>.<N>-<LABEL>    Active: Development branches.
+    testing               Sandbox: Subject to change without notice.
+    v3.1.8                Sunset: Bugfix only for v3.1.7
+
+    The following are NOT compatible with OpenSSL version 3:
+
+    v3.0.6                Inactive: Archived.
+    v3.0.5                Inactive: Archived.
+    v3.0.4                Inactive: Archived.
+    release/3.0           Inactive: Archived.
+    release/2.x           Inactive: Archived.
+    release/1.x           Inactive: Unmaintained.
 
 LICENSING info for 3.x is in the [COPYING.md](COPYING.md) file
+
+## Contributing
+
+Please refer to: [doc/EasyRSA-Contributing.md](doc/EasyRSA-Contributing.md)
 
 # Code style, standards
 

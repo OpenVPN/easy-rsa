@@ -1,26 +1,44 @@
 Easy-RSA 3 ChangeLog
 
 3.2.0 (TBD)
-   * Rename X509-type file `code-signing` to `codeSigning` (Part of #1046)
-     The original file will be retained as `code-signing`, however, the automatic
-     X509-types creation will name the file `codeSigning`. This effectively means
-     that both are valid X509-types, until `code-signing` is dropped.
+
+   PENDING: Branch-merge: v3.2.0-beta2 (#1055)
+   * Always use here-doc version of openssl-easyrsa.cnf (2a8c0de)
+     Only use here-doc if the current version is recognised by sha256 hash.
+     The current file is NEVER deleted (60216d5). Partially revert: 2a8c0de
+   * export-p12: New command option 'legacy'. OpenSSL V3 Only (f8514de)
+     Fallback to encryption algorithm RC2_CBC or 3DES_CBC
+   * export-p12: Always set 'friendlyName' to file-name-base (da9e594)
+   * Update OpenSSL to 3.2.0 (03e4829)
+
+   Branch-merge: v3.2.0-beta1 (#1046) 2023/12/15 Commit: 7120876
+
    * Important note: As of Easy-RSA version 3.2.0-beta1, the configuration files
      `vars.example`, `openssl-eayrsa.cnf` and all files in `x509-types` directory
      are no longer required. Package maintainers can omit these files in the future.
      All files are created as required and deleted upon command completion.
-     `vars.example` is created during `init-pki` and placed in the fresh PKI. 66a8f3e
+     `vars.example` is created during `init-pki` and placed in the fresh PKI.
      These files will be retained for downstream packaging compatibility.
-   * New command 'write': Write 'legacy' files to stdout or files (#1046) c814e0a
-   * New Command 'rand': Expose easyrsa_random() to the command line (#1046) 6131cbf
-   * Remove function 'set_pass_legacy()' (#1045)
-   * Remove command 'rewind-renew' (#1045)
-   * Remove command 'rebuild' (#1045)
-   * Remove command 'upgrade' (#1045)
-   * Remove EASYRSA_NO_VARS; Allow graceful use without a vars file (#1043)
+
+   * Rename X509-type file `code-signing` to `codeSigning` (1c6b31a)
+     The original file will be retained as `code-signing`, however, the automatic
+     X509-types creation will name the file `codeSigning`. This effectively means
+     that both are valid X509-types, until `code-signing` is dropped.
+   * init-pki: Always write vars.example file to fresh PKI (66a8f3e)
+   * New command 'write': Write 'legacy' files to stdout or files (c814e0a)
+   * Remove command 'make-safe-ssl': Replaced by command 'write safe-cnf' (c814e0a)
+   * New Command 'rand': Expose easyrsa_random() to the command line (6131cbf)
+   * Remove function 'set_pass_legacy()' (7470c2a)
+   * Remove command 'rewind-renew' (72b4079)
+   * Remove command 'rebuild' (d6953cc)
+   * Remove command 'upgrade' (6a88edd)
+
+   Branch-merge: v3.2.0-alpha2 (#1043) 2023/12/7 Commit: ed0dc46
+   * Remove EASYRSA_NO_VARS; Allow graceful use without a vars file (3c0ca17)
+
+   Branch-merge: v3.2.0-alpha1 (#1041) 2023/12/2 Commit: 42c2e95
    * New diagnostic command 'display-cn' (#1040)
    * Expand renewable certificate types to include code-signing (#1039)
-   * Update OpenSSL to 3.2.0
 
 3.1.7 (2023-10-13)
    * Rewrite vars-auto-detect, adhere to EasyRSA-Advanced.md (#1029)
