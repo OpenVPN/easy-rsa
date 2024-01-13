@@ -26,6 +26,7 @@ Easy-RSA 3 ChangeLog
      that both are valid X509-types, until `code-signing` is dropped.
    * init-pki: Always write vars.example file to fresh PKI (66a8f3e)
    * New command 'write': Write 'legacy' files to stdout or files (c814e0a)
+   * Remove command 'make-safe-ssl': Replaced by command 'write safe-cnf' (c814e0a)
    * New Command 'rand': Expose easyrsa_random() to the command line (6131cbf)
    * Remove function 'set_pass_legacy()' (7470c2a)
    * Remove command 'rewind-renew' (72b4079)
