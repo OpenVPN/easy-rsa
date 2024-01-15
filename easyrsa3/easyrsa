@@ -5598,6 +5598,13 @@ Legacy files: openssl-easyrsa.cnf and x509-types/ directory."
 
 # write legacy files to stdout or to $folder
 write() {
+	# recursion check
+	write_recursion="$(( write_recursion + 1 ))"
+	if [ "$write_recursion" -gt 2 ]; then
+		print "write recursion" > "$easyrsa_err_log"
+		die "write recursion"
+	fi
+
 	write_type="$1"
 	write_dir="$2"
 	write_file=
@@ -5620,6 +5627,7 @@ write() {
 			#make_safe_ssl || die "write failed"
 			create_legacy_stream "$write_type"
 		fi
+		write_recursion="$(( write_recursion - 1 ))"
 		return
 	;;
 	ssl-cnf)
@@ -5656,7 +5664,12 @@ write() {
 		if [ -f "$write_file" ]; then
 			# If the file exists then do not over write
 			# unless explicitly instructed
-			[ "$legacy_file_over_write" ] || return 0
+			if [ "$legacy_file_over_write" ]; then
+				: # ok
+			else
+				write_recursion="$(( write_recursion - 1 ))"
+				return 0
+			fi
 		fi
 	fi
 
@@ -5667,7 +5680,8 @@ write() {
 	else
 		create_legacy_stream "$write_type"
 	fi
-} #= write()
+	write_recursion="$(( write_recursion - 1 ))"
+} # => write()
 
 # set heredoc variables
 # shellcheck disable=SC2016 # (info): $ don't expand in '
