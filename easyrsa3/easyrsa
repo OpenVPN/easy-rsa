@@ -998,6 +998,14 @@ escape_hazard() {
 		verbose "escape_hazard: RUN-ONCE"
 	fi
 
+	# Only use if old 'sed' version is requested
+	if [ "$EASYRSA_SAFE_CNF_SED" ]; then
+		: # ok
+	else
+		verbose "escape_hazard: REPLACED by heredoc expansion"
+		return
+	fi
+
 	# Set run once
 	working_safe_org_conf=1
 
@@ -1060,8 +1068,10 @@ expand_ssl_config - \
 easyrsa_mktemp safe_ssl_cnf_tmp"
 
 	# Rewrite
+	# Only use if old 'sed' version is requested
 	# shellcheck disable=SC2016 # No expand '' - expand_ssl_config()
-	if sed \
+	if [ "$EASYRSA_SAFE_CNF_SED" ]; then
+		if sed \
 \
 -e s\`'$dir'\`\
 \""$EASYRSA_PKI"\"\`g \
@@ -1108,11 +1118,17 @@ easyrsa_mktemp safe_ssl_cnf_tmp"
 -e s\`'$ENV::EASYRSA_REQ_SERIAL'\`\
 \""$EASYRSA_REQ_SERIAL"\"\`g \
 \
-	"$EASYRSA_SSL_CONF" > "$safe_ssl_cnf_tmp"
-	then
-		verbose "expand_ssl_config: COMPLETED"
+			"$EASYRSA_SSL_CONF" > "$safe_ssl_cnf_tmp"
+		then
+			verbose "expand_ssl_config: via 'sed' COMPLETED"
+		else
+			return 1
+		fi
+
 	else
-		return 1
+		write safe-cnf > "$safe_ssl_cnf_tmp" || \
+			die "expand_ssl_config - write safe-cnf temp-file"
+		verbose "expand_ssl_config: via 'write' COMPLETED"
 	fi
 } # => expand_ssl_config()
 
