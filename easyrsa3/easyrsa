@@ -965,7 +965,10 @@ Temporary session not preserved."
 
 # Make a copy safe SSL config file
 make_safe_ssl() {
-	easyrsa_openssl makesafeconf "$@"
+
+	write safe-cnf "$@"
+	#easyrsa_openssl makesafeconf "$@"
+
 	notice "\
 Safe SSL config file created at:
 * $EASYRSA_SAFE_CONF"
@@ -5609,9 +5612,13 @@ write() {
 			[ -d "$write_dir" ] || \
 				user_error "Missing directory '$write_dir'"
 			write_file="$write_dir"/safessl-easyrsa.cnf
-			make_safe_ssl "$write_file" || die "write failed"
+			#make_safe_ssl "$write_file" || die "write failed"
+			set_openssl_easyrsa_cnf_vars expanded
+			create_legacy_stream "$write_type" >"$write_file" || \
+				die "write failed"
 		else
-			make_safe_ssl || die "write failed"
+			#make_safe_ssl || die "write failed"
+			create_legacy_stream "$write_type"
 		fi
 		return
 	;;
@@ -5941,7 +5948,7 @@ fi
 #set_var EASYRSA_TEMP_DIR	"$EASYRSA_PKI"
 CREATE_VARS_EXAMPLE
 	;;
-	ssl-cnf)
+	ssl-cnf|safe-cnf)
 	# SSL config v3.2.0-1
 	cat << CREATE_SSL_CONFIG
 # For use with Easy-RSA 3.0+ and OpenSSL or LibreSSL
