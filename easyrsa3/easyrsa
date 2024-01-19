@@ -1003,6 +1003,7 @@ escape_hazard() {
 		: # ok
 	else
 		verbose "escape_hazard: REPLACED by heredoc expansion"
+		verbose "escape_hazard: ABANDONED"
 		return
 	fi
 
@@ -5648,7 +5649,7 @@ write() {
 	;;
 	ssl-cnf)
 		# Set expansion to use '$ENV::EASYRSA_PKI' style
-		set_openssl_easyrsa_cnf_vars
+		set_openssl_easyrsa_cnf_vars unexpanded
 
 		# write to stdout or $write_dir/openssl-easyrsa.cnf
 		if [ "$write_dir" ]; then
@@ -5699,11 +5700,11 @@ write() {
 	write_recursion="$(( write_recursion - 1 ))"
 } # => write()
 
-# set heredoc variables
-# shellcheck disable=SC2016 # (info): $ don't expand in '
-# shellcheck disable=SC2034 # (warning): appears unused
+# set heredoc variables for openssl-esyrsa.cnf
+# shellcheck disable=SC2016 # (info): $ don't expand in ''
 set_openssl_easyrsa_cnf_vars(){
-	if [ "$1" ]; then
+	case "$1" in
+	expanded)
 		# fully expand ssl-cnf for safe-cnf
 		conf_dir="$EASYRSA_PKI"
 		conf_EASYRSA_PKI="$EASYRSA_PKI"
@@ -5719,7 +5720,8 @@ set_openssl_easyrsa_cnf_vars(){
 		conf_EASYRSA_REQ_OU="$EASYRSA_REQ_OU"
 		conf_EASYRSA_REQ_EMAIL="$EASYRSA_REQ_EMAIL"
 		conf_EASYRSA_REQ_SERIAL="$EASYRSA_REQ_SERIAL"
-	else
+	;;
+	unexpanded)
 		# write standard ssl-cnf
 		conf_dir='$dir'
 		conf_EASYRSA_PKI='$ENV::EASYRSA_PKI'
@@ -5735,7 +5737,10 @@ set_openssl_easyrsa_cnf_vars(){
 		conf_EASYRSA_REQ_OU='$ENV::EASYRSA_REQ_OU'
 		conf_EASYRSA_REQ_EMAIL='$ENV::EASYRSA_REQ_EMAIL'
 		conf_EASYRSA_REQ_SERIAL='$ENV::EASYRSA_REQ_SERIAL'
-	fi
+	;;
+	*)
+		die "set_openssl_easyrsa_cnf_vars - input"
+	esac
 } # => set_openssl_easyrsa_cnf_vars()
 
 # Create x509 type
