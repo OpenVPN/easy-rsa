@@ -5706,7 +5706,7 @@ set_openssl_easyrsa_cnf_vars(){
 	case "$1" in
 	expanded)
 		# fully expand ssl-cnf for safe-cnf
-		conf_dir="$EASYRSA_PKI"
+		conf_EASYRSA_dir="$EASYRSA_PKI"
 		conf_EASYRSA_PKI="$EASYRSA_PKI"
 		conf_EASYRSA_DIGEST="$EASYRSA_DIGEST"
 		conf_EASYRSA_KEY_SIZE="$EASYRSA_KEY_SIZE"
@@ -5723,7 +5723,7 @@ set_openssl_easyrsa_cnf_vars(){
 	;;
 	unexpanded)
 		# write standard ssl-cnf
-		conf_dir='$dir'
+		conf_EASYRSA_dir='$dir'
 		conf_EASYRSA_PKI='$ENV::EASYRSA_PKI'
 		conf_EASYRSA_DIGEST='$ENV::EASYRSA_DIGEST'
 		conf_EASYRSA_KEY_SIZE='$ENV::EASYRSA_KEY_SIZE'
@@ -5996,16 +5996,16 @@ default_ca	= CA_default		# The default ca section
 [ CA_default ]
 
 dir		= $conf_EASYRSA_PKI	# Where everything is kept
-certs		= $conf_dir			# Where the issued certs are kept
-crl_dir		= $conf_dir			# Where the issued crl are kept
-database	= $conf_dir/index.txt	# database index file.
-new_certs_dir	= $conf_dir/certs_by_serial	# default place for new certs.
+certs		= $conf_EASYRSA_dir			# Where the issued certs are kept
+crl_dir		= $conf_EASYRSA_dir			# Where the issued crl are kept
+database	= $conf_EASYRSA_dir/index.txt	# database index file.
+new_certs_dir	= $conf_EASYRSA_dir/certs_by_serial	# default place for new certs.
 
-certificate	= $conf_dir/ca.crt		# The CA certificate
-serial		= $conf_dir/serial		# The current serial number
-crl		= $conf_dir/crl.pem		# The current CRL
-private_key	= $conf_dir/private/ca.key	# The private key
-RANDFILE	= $conf_dir/.rand		# private random number file
+certificate	= $conf_EASYRSA_dir/ca.crt		# The CA certificate
+serial		= $conf_EASYRSA_dir/serial		# The current serial number
+crl		= $conf_EASYRSA_dir/crl.pem		# The current CRL
+private_key	= $conf_EASYRSA_dir/private/ca.key	# The private key
+RANDFILE	= $conf_EASYRSA_dir/.rand		# private random number file
 
 x509_extensions	= basic_exts		# The extensions to add to the cert
 
