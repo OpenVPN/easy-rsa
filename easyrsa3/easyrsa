@@ -563,6 +563,8 @@ General options:
                   (Default config file is in the EasyRSA PKI directory)
 --force-safe-ssl: Always generate a safe SSL config file
                   (Default: Generate Safe SSL config once per instance)
+--old-safe-ssl:   Always generate a safe SSL config file
+                  As --force-safe-ssl but use 'sed' expansion.
 
 --tmp-dir=DIR   : Declare the temporary directory
                   (Default temporary directory is the EasyRSA PKI directory)
@@ -985,7 +987,7 @@ escape_hazard() {
 	fi
 
 	# Only use if old 'sed' version is requested
-	if [ "$EASYRSA_SAFE_CNF_SED" ]; then
+	if [ "$EASYRSA_LEGACY_SAFE_SSL" ]; then
 		: # ok
 	else
 		verbose "escape_hazard: REPLACED by heredoc expansion"
@@ -1057,7 +1059,7 @@ easyrsa_mktemp safe_ssl_cnf_tmp"
 	# Rewrite
 	# Only use if old 'sed' version is requested
 	# shellcheck disable=SC2016 # No expand '' - expand_ssl_config()
-	if [ "$EASYRSA_SAFE_CNF_SED" ]; then
+	if [ "$EASYRSA_LEGACY_SAFE_SSL" ]; then
 		if sed \
 \
 -e s\`'$dir'\`\
@@ -6315,6 +6317,11 @@ while :; do
 	--force-safe-ssl)
 		empty_ok=1
 		export EASYRSA_FORCE_SAFE_SSL=1
+		;;
+	--old-safe-ssl)
+		empty_ok=1
+		export EASYRSA_FORCE_SAFE_SSL=1
+		export EASYRSA_LEGACY_SAFE_SSL=1
 		;;
 	--nopass|--no-pass)
 		empty_ok=1
