@@ -963,20 +963,6 @@ Temporary session not preserved."
 	exit 1
 } # => cleanup()
 
-# Make a copy safe SSL config file
-make_safe_ssl() {
-
-	write safe-cnf "$@"
-	#easyrsa_openssl makesafeconf "$@"
-
-	notice "\
-Safe SSL config file created at:
-* $EASYRSA_SAFE_CONF"
-
-	verbose "\
-make_safe_ssl: NEW SSL cnf file: $safe_ssl_cnf_tmp"
-} # => make_safe_ssl()
-
 # Escape hazardous characters
 # Auto-escape hazardous characters:
 # '&' - Workaround 'sed' behavior
@@ -5636,14 +5622,12 @@ write() {
 			[ -d "$write_dir" ] || \
 				user_error "Missing directory '$write_dir'"
 			write_file="$write_dir"/safessl-easyrsa.cnf
-			#make_safe_ssl "$write_file" || die "write failed"
-			set_openssl_easyrsa_cnf_vars expanded
 			create_legacy_stream "$write_type" >"$write_file" || \
 				die "write failed"
 		else
-			#make_safe_ssl || die "write failed"
 			create_legacy_stream "$write_type"
 		fi
+
 		write_recursion="$(( write_recursion - 1 ))"
 		return
 	;;
