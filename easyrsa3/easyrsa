@@ -563,6 +563,8 @@ General options:
                   (Default config file is in the EasyRSA PKI directory)
 --force-safe-ssl: Always generate a safe SSL config file
                   (Default: Generate Safe SSL config once per instance)
+--old-safe-ssl:   Always generate a safe SSL config file
+                  As --force-safe-ssl but use 'sed' expansion.
 
 --tmp-dir=DIR   : Declare the temporary directory
                   (Default temporary directory is the EasyRSA PKI directory)
@@ -963,17 +965,6 @@ Temporary session not preserved."
 	exit 1
 } # => cleanup()
 
-# Make a copy safe SSL config file
-make_safe_ssl() {
-	easyrsa_openssl makesafeconf "$@"
-	notice "\
-Safe SSL config file created at:
-* $EASYRSA_SAFE_CONF"
-
-	verbose "\
-make_safe_ssl: NEW SSL cnf file: $safe_ssl_cnf_tmp"
-} # => make_safe_ssl()
-
 # Escape hazardous characters
 # Auto-escape hazardous characters:
 # '&' - Workaround 'sed' behavior
@@ -993,6 +984,15 @@ escape_hazard() {
 	else
 		# Run once
 		verbose "escape_hazard: RUN-ONCE"
+	fi
+
+	# Only use if old 'sed' version is requested
+	if [ "$EASYRSA_LEGACY_SAFE_SSL" ]; then
+		: # ok
+	else
+		verbose "escape_hazard: REPLACED by heredoc expansion"
+		verbose "escape_hazard: ABANDONED"
+		return
 	fi
 
 	# Set run once
@@ -1057,8 +1057,10 @@ expand_ssl_config - \
 easyrsa_mktemp safe_ssl_cnf_tmp"
 
 	# Rewrite
+	# Only use if old 'sed' version is requested
 	# shellcheck disable=SC2016 # No expand '' - expand_ssl_config()
-	if sed \
+	if [ "$EASYRSA_LEGACY_SAFE_SSL" ]; then
+		if sed \
 \
 -e s\`'$dir'\`\
 \""$EASYRSA_PKI"\"\`g \
@@ -1105,11 +1107,17 @@ easyrsa_mktemp safe_ssl_cnf_tmp"
 -e s\`'$ENV::EASYRSA_REQ_SERIAL'\`\
 \""$EASYRSA_REQ_SERIAL"\"\`g \
 \
-	"$EASYRSA_SSL_CONF" > "$safe_ssl_cnf_tmp"
-	then
-		verbose "expand_ssl_config: COMPLETED"
+			"$EASYRSA_SSL_CONF" > "$safe_ssl_cnf_tmp"
+		then
+			verbose "expand_ssl_config: via 'sed' COMPLETED"
+		else
+			return 1
+		fi
+
 	else
-		return 1
+		write safe-cnf > "$safe_ssl_cnf_tmp" || \
+			die "expand_ssl_config - write safe-cnf temp-file"
+		verbose "expand_ssl_config: via 'write' COMPLETED"
 	fi
 } # => expand_ssl_config()
 
@@ -1129,12 +1137,6 @@ easyrsa_openssl() {
 	case "$openssl_command" in
 		rand)
 			die "easyrsa_openssl: Illegal SSL command: rand"
-		;;
-		makesafeconf)
-			safe_target_file="$1"
-			makesafeconf=1
-		;;
-		*) :
 	esac
 
 	# Auto-escape hazardous characters
@@ -1161,15 +1163,6 @@ easyrsa_openssl() {
 		verbose "> easyrsa_openssl - EXEC $openssl_command $*"
 
 	case "$openssl_command" in
-	makesafeconf)
-		# COPY temp-file to safessl-easyrsa.cnf
-		unset -v makesafeconf
-		if [ "$safe_target_file" ]; then
-			cp -f "$safe_ssl_cnf_tmp" "$safe_target_file" && return
-		else
-			cat "$safe_ssl_cnf_tmp" && return
-		fi
-	;;
 	*)
 		# Exec SSL
 		if [ "$EASYRSA_SILENT_SSL" ] && [ "$EASYRSA_BATCH" ]
@@ -5595,24 +5588,40 @@ Legacy files: openssl-easyrsa.cnf and x509-types/ directory."
 
 # write legacy files to stdout or to $folder
 write() {
+	# recursion check
+	write_recursion="$(( write_recursion + 1 ))"
+	if [ "$write_recursion" -gt 2 ]; then
+		print "write recursion" > "$easyrsa_err_log"
+		die "write recursion"
+	fi
+
 	write_type="$1"
 	write_dir="$2"
 	write_file=
 
 	case "$write_type" in
 	safe-cnf)
+		# Set expansion to use full-expansion style
+		set_openssl_easyrsa_cnf_vars expanded
+
 		# write to stdout or $write_dir/safessl-easyrsa.cnf
 		if [ "$write_dir" ]; then
 			[ -d "$write_dir" ] || \
 				user_error "Missing directory '$write_dir'"
 			write_file="$write_dir"/safessl-easyrsa.cnf
-			make_safe_ssl "$write_file" || die "write failed"
+			create_legacy_stream "$write_type" >"$write_file" || \
+				die "write failed"
 		else
-			make_safe_ssl || die "write failed"
+			create_legacy_stream "$write_type"
 		fi
+
+		write_recursion="$(( write_recursion - 1 ))"
 		return
 	;;
 	ssl-cnf)
+		# Set expansion to use '$ENV::EASYRSA_PKI' style
+		set_openssl_easyrsa_cnf_vars unexpanded
+
 		# write to stdout or $write_dir/openssl-easyrsa.cnf
 		if [ "$write_dir" ]; then
 			write_file="$write_dir"/openssl-easyrsa.cnf
@@ -5643,7 +5652,12 @@ write() {
 		if [ -f "$write_file" ]; then
 			# If the file exists then do not over write
 			# unless explicitly instructed
-			[ "$legacy_file_over_write" ] || return 0
+			if [ "$legacy_file_over_write" ]; then
+				: # ok
+			else
+				write_recursion="$(( write_recursion - 1 ))"
+				return 0
+			fi
 		fi
 	fi
 
@@ -5654,7 +5668,51 @@ write() {
 	else
 		create_legacy_stream "$write_type"
 	fi
-} #= write()
+	write_recursion="$(( write_recursion - 1 ))"
+} # => write()
+
+# set heredoc variables for openssl-esyrsa.cnf
+# shellcheck disable=SC2016 # (info): $ don't expand in ''
+set_openssl_easyrsa_cnf_vars(){
+	case "$1" in
+	expanded)
+		# fully expand ssl-cnf for safe-cnf
+		conf_EASYRSA_dir="$EASYRSA_PKI"
+		conf_EASYRSA_PKI="$EASYRSA_PKI"
+		conf_EASYRSA_DIGEST="$EASYRSA_DIGEST"
+		conf_EASYRSA_KEY_SIZE="$EASYRSA_KEY_SIZE"
+		conf_EASYRSA_DIGEST="$EASYRSA_DIGEST"
+		conf_EASYRSA_DN="$EASYRSA_DN"
+		conf_EASYRSA_REQ_CN="$EASYRSA_REQ_CN"
+		conf_EASYRSA_REQ_COUNTRY="$EASYRSA_REQ_COUNTRY"
+		conf_EASYRSA_REQ_PROVINCE="$EASYRSA_REQ_PROVINCE"
+		conf_EASYRSA_REQ_CITY="$EASYRSA_REQ_CITY"
+		conf_EASYRSA_REQ_ORG="$EASYRSA_REQ_ORG"
+		conf_EASYRSA_REQ_OU="$EASYRSA_REQ_OU"
+		conf_EASYRSA_REQ_EMAIL="$EASYRSA_REQ_EMAIL"
+		conf_EASYRSA_REQ_SERIAL="$EASYRSA_REQ_SERIAL"
+	;;
+	unexpanded)
+		# write standard ssl-cnf
+		conf_EASYRSA_dir='$dir'
+		conf_EASYRSA_PKI='$ENV::EASYRSA_PKI'
+		conf_EASYRSA_DIGEST='$ENV::EASYRSA_DIGEST'
+		conf_EASYRSA_KEY_SIZE='$ENV::EASYRSA_KEY_SIZE'
+		conf_EASYRSA_DIGEST='$ENV::EASYRSA_DIGEST'
+		conf_EASYRSA_DN='$ENV::EASYRSA_DN'
+		conf_EASYRSA_REQ_CN='$ENV::EASYRSA_REQ_CN'
+		conf_EASYRSA_REQ_COUNTRY='$ENV::EASYRSA_REQ_COUNTRY'
+		conf_EASYRSA_REQ_PROVINCE='$ENV::EASYRSA_REQ_PROVINCE'
+		conf_EASYRSA_REQ_CITY='$ENV::EASYRSA_REQ_CITY'
+		conf_EASYRSA_REQ_ORG='$ENV::EASYRSA_REQ_ORG'
+		conf_EASYRSA_REQ_OU='$ENV::EASYRSA_REQ_OU'
+		conf_EASYRSA_REQ_EMAIL='$ENV::EASYRSA_REQ_EMAIL'
+		conf_EASYRSA_REQ_SERIAL='$ENV::EASYRSA_REQ_SERIAL'
+	;;
+	*)
+		die "set_openssl_easyrsa_cnf_vars - input"
+	esac
+} # => set_openssl_easyrsa_cnf_vars()
 
 # Create x509 type
 create_legacy_stream() {
@@ -5896,9 +5954,9 @@ fi
 #set_var EASYRSA_TEMP_DIR	"$EASYRSA_PKI"
 CREATE_VARS_EXAMPLE
 	;;
-	ssl-cnf)
+	ssl-cnf|safe-cnf)
 	# SSL config v3.2.0-1
-	cat << "CREATE_SSL_CONFIG"
+	cat << CREATE_SSL_CONFIG
 # For use with Easy-RSA 3.0+ and OpenSSL or LibreSSL
 
 ####################################################################
@@ -5908,17 +5966,17 @@ default_ca	= CA_default		# The default ca section
 ####################################################################
 [ CA_default ]
 
-dir		= $ENV::EASYRSA_PKI	# Where everything is kept
-certs		= $dir			# Where the issued certs are kept
-crl_dir		= $dir			# Where the issued crl are kept
-database	= $dir/index.txt	# database index file.
-new_certs_dir	= $dir/certs_by_serial	# default place for new certs.
+dir		= $conf_EASYRSA_PKI	# Where everything is kept
+certs		= $conf_EASYRSA_dir			# Where the issued certs are kept
+crl_dir		= $conf_EASYRSA_dir			# Where the issued crl are kept
+database	= $conf_EASYRSA_dir/index.txt	# database index file.
+new_certs_dir	= $conf_EASYRSA_dir/certs_by_serial	# default place for new certs.
 
-certificate	= $dir/ca.crt		# The CA certificate
-serial		= $dir/serial		# The current serial number
-crl		= $dir/crl.pem		# The current CRL
-private_key	= $dir/private/ca.key	# The private key
-RANDFILE	= $dir/.rand		# private random number file
+certificate	= $conf_EASYRSA_dir/ca.crt		# The CA certificate
+serial		= $conf_EASYRSA_dir/serial		# The current serial number
+crl		= $conf_EASYRSA_dir/crl.pem		# The current CRL
+private_key	= $conf_EASYRSA_dir/private/ca.key	# The private key
+RANDFILE	= $conf_EASYRSA_dir/.rand		# private random number file
 
 x509_extensions	= basic_exts		# The extensions to add to the cert
 
@@ -5933,11 +5991,11 @@ crl_extensions	= crl_ext
 # These fields are removed from this here-doc but retained
 # in 'openssl-easyrsa.cnf' file, in case something breaks.
 # default_days is no longer required by Easy-RSA
-#default_days	= $ENV::EASYRSA_CERT_EXPIRE	# how long to certify for
+#default_days	= \$ENV::EASYRSA_CERT_EXPIRE	# how long to certify for
 # default_crl_days is no longer required by Easy-RSA
-#default_crl_days	= $ENV::EASYRSA_CRL_DAYS	# how long before next CRL
+#default_crl_days	= \$ENV::EASYRSA_CRL_DAYS	# how long before next CRL
 
-default_md	= $ENV::EASYRSA_DIGEST		# use public key default MD
+default_md	= $conf_EASYRSA_DIGEST		# use public key default MD
 preserve	= no			# keep passed DN ordering
 
 # This allows to renew certificates which have not been revoked
@@ -5961,16 +6019,16 @@ serialNumber	= optional
 
 ####################################################################
 # Easy-RSA request handling
-# We key off $DN_MODE to determine how to format the DN
+# We key off \$DN_MODE to determine how to format the DN
 [ req ]
-default_bits		= $ENV::EASYRSA_KEY_SIZE
+default_bits		= $conf_EASYRSA_KEY_SIZE
 default_keyfile	= privkey.pem
-default_md		= $ENV::EASYRSA_DIGEST
-distinguished_name	= $ENV::EASYRSA_DN
+default_md		= $conf_EASYRSA_DIGEST
+distinguished_name	= $conf_EASYRSA_DN
 x509_extensions		= easyrsa_ca	# The extensions to add to the self signed cert
 
-# A placeholder to handle the $EXTRA_EXTS feature:
-#%EXTRA_EXTS%	# Do NOT remove or change this line as $EXTRA_EXTS support requires it
+# A placeholder to handle the \$EXTRA_EXTS feature:
+#%EXTRA_EXTS%	# Do NOT remove or change this line as \$EXTRA_EXTS support requires it
 
 ####################################################################
 # Easy-RSA DN (Subject) handling
@@ -5979,37 +6037,37 @@ x509_extensions		= easyrsa_ca	# The extensions to add to the self signed cert
 [ cn_only ]
 commonName		= Common Name (eg: your user, host, or server name)
 commonName_max		= 64
-commonName_default	= $ENV::EASYRSA_REQ_CN
+commonName_default	= $conf_EASYRSA_REQ_CN
 
 # Easy-RSA DN for org support:
 [ org ]
 countryName			= Country Name (2 letter code)
-countryName_default		= $ENV::EASYRSA_REQ_COUNTRY
+countryName_default		= $conf_EASYRSA_REQ_COUNTRY
 countryName_min			= 2
 countryName_max			= 2
 
 stateOrProvinceName		= State or Province Name (full name)
-stateOrProvinceName_default	= $ENV::EASYRSA_REQ_PROVINCE
+stateOrProvinceName_default	= $conf_EASYRSA_REQ_PROVINCE
 
 localityName			= Locality Name (eg, city)
-localityName_default		= $ENV::EASYRSA_REQ_CITY
+localityName_default		= $conf_EASYRSA_REQ_CITY
 
 0.organizationName		= Organization Name (eg, company)
-0.organizationName_default	= $ENV::EASYRSA_REQ_ORG
+0.organizationName_default	= $conf_EASYRSA_REQ_ORG
 
 organizationalUnitName		= Organizational Unit Name (eg, section)
-organizationalUnitName_default	= $ENV::EASYRSA_REQ_OU
+organizationalUnitName_default	= $conf_EASYRSA_REQ_OU
 
 commonName			= Common Name (eg: your user, host, or server name)
 commonName_max			= 64
-commonName_default		= $ENV::EASYRSA_REQ_CN
+commonName_default		= $conf_EASYRSA_REQ_CN
 
 emailAddress			= Email Address
-emailAddress_default		= $ENV::EASYRSA_REQ_EMAIL
+emailAddress_default		= $conf_EASYRSA_REQ_EMAIL
 emailAddress_max		= 64
 
 serialNumber		= Serial-number (eg, device serial-number)
-serialNumber_default	= $ENV::EASYRSA_REQ_SERIAL
+serialNumber_default	= $conf_EASYRSA_REQ_SERIAL
 
 ####################################################################
 # Easy-RSA cert extension handling
@@ -6041,8 +6099,8 @@ keyUsage = cRLSign, keyCertSign
 # nsCertType omitted by default. Let's try to let the deprecated stuff die.
 # nsCertType = sslCA
 
-# A placeholder to handle the $X509_TYPES and CA extra extensions $EXTRA_EXTS:
-#%CA_X509_TYPES_EXTRA_EXTS%	# Do NOT remove or change this line as $X509_TYPES and EXTRA_EXTS demands it
+# A placeholder to handle the \$X509_TYPES and CA extra extensions \$EXTRA_EXTS:
+#%CA_X509_TYPES_EXTRA_EXTS%	# Do NOT remove or change this line as \$X509_TYPES and EXTRA_EXTS demands it
 
 # CRL extensions.
 [ crl_ext ]
@@ -6244,6 +6302,11 @@ while :; do
 	--force-safe-ssl)
 		empty_ok=1
 		export EASYRSA_FORCE_SAFE_SSL=1
+		;;
+	--old-safe-ssl)
+		empty_ok=1
+		export EASYRSA_FORCE_SAFE_SSL=1
+		export EASYRSA_LEGACY_SAFE_SSL=1
 		;;
 	--nopass|--no-pass)
 		empty_ok=1
