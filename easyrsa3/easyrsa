@@ -1137,12 +1137,6 @@ easyrsa_openssl() {
 	case "$openssl_command" in
 		rand)
 			die "easyrsa_openssl: Illegal SSL command: rand"
-		;;
-		makesafeconf)
-			safe_target_file="$1"
-			makesafeconf=1
-		;;
-		*) :
 	esac
 
 	# Auto-escape hazardous characters
@@ -1169,15 +1163,6 @@ easyrsa_openssl() {
 		verbose "> easyrsa_openssl - EXEC $openssl_command $*"
 
 	case "$openssl_command" in
-	makesafeconf)
-		# COPY temp-file to safessl-easyrsa.cnf
-		unset -v makesafeconf
-		if [ "$safe_target_file" ]; then
-			cp -f "$safe_ssl_cnf_tmp" "$safe_target_file" && return
-		else
-			cat "$safe_ssl_cnf_tmp" && return
-		fi
-	;;
 	*)
 		# Exec SSL
 		if [ "$EASYRSA_SILENT_SSL" ] && [ "$EASYRSA_BATCH" ]
