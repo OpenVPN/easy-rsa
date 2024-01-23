@@ -2095,7 +2095,7 @@ The certificate request file is not in a valid X509 format:
 		check_serial=""
 		unset -v serial_is_unique
 		for i in 1 2 3 4 5; do
-			easyrsa_random 4 serial
+			easyrsa_random 16 serial
 
 			# Check for duplicate serial in CA db
 			if check_serial_unique "$serial" batch; then
