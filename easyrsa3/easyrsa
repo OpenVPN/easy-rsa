@@ -3929,12 +3929,19 @@ ssl_cert_x509v3_eku() {
 	unset -v __known
 
 	# Extract certificate Extended Key Usage
-	__eku="$(
-		OPENSSL_CONF=/dev/null
-		"$EASYRSA_OPENSSL" x509 -in "${__crt}" -noout \
-			-ext extendedKeyUsage | \
-				sed -e /"${__pattern}"/d -e s/^\ *//
-		)"
+	if [ "$ssl_lib" = libressl ]; then
+		__eku="$(
+			easyrsa_openssl x509 -in "${__crt}" -noout -text | \
+				sed -n "/${__pattern}/{n;s/^ *//g;p;}"
+			)"
+	else
+		__eku="$(
+			OPENSSL_CONF=/dev/null
+			"$EASYRSA_OPENSSL" x509 -in "${__crt}" -noout \
+				-ext extendedKeyUsage | \
+					sed -e /"${__pattern}"/d -e s/^\ *//
+			)"
+	fi
 
 	# Match EKU with supported usage
 	case "$__eku" in
