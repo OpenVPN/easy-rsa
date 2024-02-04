@@ -35,7 +35,7 @@ done
 non_admin=""
 while [ "$1" ]; do
 	case "$1" in
-		/[Nn][Aa]|--no-adm*)
+		/[Nn][Aa]|/no-adm*|--no-adm*)
 			non_admin=1
 			echo "Using no-admin mode"
 		;;
@@ -48,7 +48,8 @@ done
 # Access denied
 access_denied() {
 	echo "Access error: $1"
-	echo "
+	cat << "ACCESS_DENIED_MSG"
+
 To use Easy-RSA in a protected system directory, you must have
 elevated privileges via 'Windows User Access Control'.
 You can try 'run-as admin' but that may also fail.
@@ -65,6 +66,7 @@ Please try using one of the following solutions:
 These will start EasyRSA in your user's 'home directory/easy-rsa'
 
 Press enter to exit."
+ACCESS_DENIED_MSG
 
 	#shellcheck disable=SC2162
 	read
@@ -102,6 +104,7 @@ if [ "$non_admin" ]; then
 		access_denied "Access: easy-rsa"
 
 	export HOME="$PWD"
+	export PATH="$HOME;$PATH"
 	unset -v user_home_drv user_home_dir user_home
 fi
 
@@ -113,7 +116,7 @@ win_tst_d="$HOME"/easyrsa-write-test
 # Required tests
 mkdir "$win_tst_d" 2>/dev/null || access_denied "mkdir"
 [ -d "$win_tst_d" ] || access_denied "-d"
-echo 1 > "$win_tst_d"/1 2>/dev/null || access_denied "write"
+echo 1 >"$win_tst_d"/1 2>/dev/null || access_denied "write"
 [ -f "$win_tst_d"/1 ] || access_denied "-f"
 rm -rf "$win_tst_d" 2>/dev/null || access_denied "rm"
 [ ! -d "$win_tst_d" ] || access_denied "! -d"
@@ -150,7 +153,7 @@ echo ""
 echo "Welcome to the EasyRSA 3 Shell for Windows."
 echo "Easy-RSA 3 is available under a GNU GPLv2 license."
 echo ""
-echo "Invoke './easyrsa' to call the program. Without commands, help is displayed."
+echo "Invoke 'easyrsa' to call the program. Without commands, help is displayed."
 echo ""
 echo "Using directory: $HOME"
 echo ""
