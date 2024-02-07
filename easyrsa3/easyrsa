@@ -10,6 +10,8 @@
 # and the Licensing/ directory of this project for full licensing
 # details.
 
+set -x
+
 # Help/usage output to stdout
 usage() {
 	# command help:
@@ -1375,8 +1377,14 @@ and initialize a fresh PKI here."
 	fi
 
 	# new dirs:
+	mkdir "$EASYRSA_PKI"
+	[ -d "$EASYRSA_PKI" ] || \
+		die "\
+Failed to create PKI directory (permissions?)"
+
 	for i in issued private reqs inline; do
-		mkdir -p "$EASYRSA_PKI/$i" || \
+		mkdir "$EASYRSA_PKI/$i"
+		[ -d "$EASYRSA_PKI/$i" ] || \
 			die "\
 Failed to create PKI file structure (permissions?)"
 	done
@@ -1576,11 +1584,16 @@ current CA. To start a new CA, run init-pki first."
 	# create necessary dirs:
 	err_msg="\
 Unable to create necessary PKI files (permissions?)"
+
+	mkdir "$EASYRSA_PKI"/revoked
+	[ -d "$EASYRSA_PKI"/revoked ] || die "$err_msg (1)"
+
 	for i in certs_by_serial \
 		revoked/certs_by_serial revoked/private_by_serial \
 		revoked/reqs_by_serial
 	do
-		mkdir -p "$EASYRSA_PKI/$i" || die "$err_msg"
+		mkdir "$EASYRSA_PKI/$i"
+		[ -d "$EASYRSA_PKI/$i" ] || die "$err_msg (2)"
 	done
 
 	# create necessary files:
@@ -6146,6 +6159,9 @@ VERSION_TEXT
 EASYRSA_version="~VER~"
 NL='
 '
+
+print "DEBUG: EasyRSA: Windows protected write access"
+
 
 # Be secure with a restrictive umask
 [ "$EASYRSA_NO_UMASK" ] || umask "${EASYRSA_UMASK:=077}"
