@@ -1,2 +1,2 @@
 @echo OFF
-bin\sh.exe bin\easyrsa-shell-init.sh %*
+bin\busybox.exe sh bin\easyrsa-busybox-init.sh %*
