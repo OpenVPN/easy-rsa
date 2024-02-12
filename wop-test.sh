@@ -9,29 +9,12 @@
 cd easyrsa3 || { echo "ERROR: Cannot find easyrsa3 directory"; exit 1; }
 
 setup_path="${EASYRSA:-$PWD}"
-export PATH="$setup_path;$setup_path/bin;$PATH"
+export PATH="$setup_path;$PATH"
 export HOME="$setup_path"
 
 # This prevents reading from a user's .mkshrc if they have one.
 # A user who runs mksh for other purposes might have it
 export ENV="/disable-env"
-
-# Verify required externals are present
-extern_list="which awk cat cp mkdir printf rm"
-for f in $extern_list; do
-	if ! which "${f}.exe" >/dev/null 2>&1; then
-		echo ""
-		echo "FATAL: EasyRSA Shell init is missing a required external file:"
-		echo "  ${f}.exe"
-		echo "  Your installation is incomplete and cannot function without the required"
-		echo "  files."
-		echo ""
-		echo "  Press enter to exit."
-		#shellcheck disable=SC2162
-		read
-		exit 1
-	fi
-done
 
 # set_var is defined as any vars file needs it.
 # This is the same as in easyrsa, but we _don't_ export
