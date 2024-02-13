@@ -142,4 +142,4 @@ echo "Using directory: $HOME"
 echo ""
 
 # Drop to a shell and await input
-busybox.exe sh
+"$setup_path"/bin/busybox.exe sh
