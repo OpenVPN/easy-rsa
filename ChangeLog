@@ -2,7 +2,12 @@ Easy-RSA 3 ChangeLog
 
 3.2.0 (TBD)
 
-   PENDING: Branch-merge: v3.2.0-beta2 (#1055)
+   * Windows: Introduce 'Non-Admin' mode (c2823c4) (#1073)
+   * LibreSSL: Add fix for missing 'x509' option '-ext' (96dd959) (#1068)
+   * Variable heredoc expansion for SSL/Safe Config file (9c5d423) (#1064)
+
+   Branch-merge: v3.2.0-beta2 (#1055) 2024/01/13 Commit: d51d79b
+
    * Always use here-doc version of openssl-easyrsa.cnf (2a8c0de)
      Only use here-doc if the current version is recognised by sha256 hash.
      The current file is NEVER deleted (60216d5). Partially revert: 2a8c0de
