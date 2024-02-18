@@ -465,7 +465,13 @@ These commands are safe to test and will NOT effect your PKI.
     show-eku <file_name_base>
 
   Generate random hex:
-    rand <decimal_number>"
+    rand <decimal_number>
+
+These commands require easyrsa-tools.lib to be installed:
+
+  show-expire <file_name_base> (Optional)
+  show-revoke <file_name_base> (Optional)
+  show-renew <file_name_base> (Optional)"
 	;;
 	opts|options)
 		opt_usage
@@ -538,9 +544,10 @@ General options:
                   (Default config file is in the EasyRSA PKI directory)
 --force-safe-ssl: Always generate a safe SSL config file
                   (Default: Generate Safe SSL config once per instance)
---old-safe-ssl:   Always generate a safe SSL config file
+--old-safe-ssl  : Always generate a safe SSL config file
                   As --force-safe-ssl but use 'sed' expansion.
 
+--tools=FILE    : Declare the full easyrsa-tools.lib file-name
 --tmp-dir=DIR   : Declare the temporary directory
                   (Default temporary directory is the EasyRSA PKI directory)
 --keep-tmp=NAME : Keep the original temporary session by name: NAME
@@ -1383,6 +1390,7 @@ locate_support_files() {
 	# Set required sources
 	ssl_cnf_file='openssl-easyrsa.cnf'
 	x509_types_dir='x509-types'
+	easyrsa_tools='easyrsa-tools.lib'
 
 	# "$EASYRSA_PKI" - Preferred
 	# "$EASYRSA" - Old default and Windows
@@ -1422,6 +1430,12 @@ locate_support_files() {
 			set_var EASYRSA_SSL_CONF "${area}/${ssl_cnf_file}"
 			#[ "$is_in_pki" ] && ssl_cnf_in_pki=1
 			verbose "> Found SSL cnf: ${area}/${ssl_cnf_file}"
+		fi
+
+		# Find easyrsa-tools.lib
+		if [ -e "${area}/${easyrsa_tools}" ]; then
+			set_var EASYRSA_TOOLS_LIB "${area}/${easyrsa_tools}"
+			verbose "> Found tools.lib: ${area}/${easyrsa_tools}"
 		fi
 
 		# Clear EASYRSA_PKI only flag
@@ -4379,6 +4393,10 @@ Algorithm '$EASYRSA_ALGO' is invalid: Must be 'rsa', 'ec' or 'ed'"
 	set_var EASYRSA_SAFE_CONF		\
 		"$EASYRSA_PKI/safessl-easyrsa.cnf"
 
+	# Now set by locate_support_files()
+	#set_var EASYRSA_TOOLS_LIB		\
+	#	"$EASYRSA/dev/easyrsa-tools.lib"
+
 	set_var EASYRSA_KDC_REALM		"CHANGEME.EXAMPLE.COM"
 
 	set_var EASYRSA_MAX_TEMP		4
@@ -5417,6 +5435,9 @@ subjectAltName = $val"
 	--usefn)
 		export EASYRSA_P12_FR_NAME="$val"
 		;;
+	--tools)
+		export EASYRSA_TOOLS_LIB="$val"
+		;;
 	--version)
 		shift "$#"
 		set -- "$@" "version"
@@ -5460,6 +5481,7 @@ cmd="$1"
 
 # Establish PKI and CA initialisation requirements
 unset -v require_pki require_ca quiet_vars
+
 case "$cmd" in
 	''|help|-h|--help|--usage| \
 	version|show-host|rand|random)
@@ -5640,6 +5662,40 @@ case "$cmd" in
 	show-host)
 		verify_working_env
 		show_host "$@"
+		;;
+	show-expire|show-revoke|show-renew)
+		verify_working_env
+
+		# easyrsa-tools.lib is required
+		if [ -e "$EASYRSA_TOOLS_LIB" ]; then
+			export EASYRSA_TOOLS_CALLER=1
+			. "$EASYRSA_TOOLS_LIB" || \
+				die "Source failed: $EASYRSA_TOOLS_LIB"
+			unset -v EASYRSA_TOOLS_CALLER
+		else
+			user_error "Missing: easyrsa-tools.lib
+
+Use of Status Reports requires Easy-RSA tools library, source:
+* https://github.com/OpenVPN/easy-rsa/dev/easyrsa-tools.lib
+
+Place a copy of easyrsa-tools.lib in a standard system location."
+		fi
+
+		case "$cmd" in
+			show-expire)
+				[ -z "$alias_days" ] || \
+					   export EASYRSA_PRE_EXPIRY_WINDOW="$alias_days"
+				status expire "$@"
+				;;
+			show-revoke)
+				status revoke "$@"
+				;;
+			show-renew)
+				status renew "$@"
+				;;
+			*)
+				die "Unknown command: '$cmd'"
+		esac
 		;;
 	verify|verify-cert)
 		verify_working_env
