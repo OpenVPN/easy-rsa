@@ -5,6 +5,8 @@ Easy-RSA 3 ChangeLog
    * Windows: Introduce 'Non-Admin' mode (c2823c4) (#1073)
    * LibreSSL: Add fix for missing 'x509' option '-ext' (96dd959) (#1068)
    * Variable heredoc expansion for SSL/Safe Config file (9c5d423) (#1064)
+   * export-p12: Use OpenSSL V3-compatible ciphers under 1.1 when 'legacy'
+     is not used (#nnn)
 
    Branch-merge: v3.2.0-beta2 (#1055) 2024/01/13 Commit: d51d79b
 
