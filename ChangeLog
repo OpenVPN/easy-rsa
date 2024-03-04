@@ -2,6 +2,8 @@ Easy-RSA 3 ChangeLog
 
 3.2.0 (TBD)
 
+   * export-p12, OpenSSL v1.x: Upgrade PBE and MAC options (dd64668)
+     (#1083 - Based on #1081)
    * Windows: Introduce 'Non-Admin' mode (c2823c4) (#1073)
    * LibreSSL: Add fix for missing 'x509' option '-ext' (96dd959) (#1068)
    * Variable heredoc expansion for SSL/Safe Config file (9c5d423) (#1064)
