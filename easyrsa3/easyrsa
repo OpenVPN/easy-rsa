@@ -333,10 +333,10 @@ Usage: easyrsa [ OPTIONS.. ] <COMMAND> <TARGET> [ cmd-opts.. ]"
                   (Equivalent to global option '--nopass|--no-pass')
       * noca    - Do not include the ca.crt file in the PKCS12 output
       * nokey   - Do not include the private key in the PKCS12 output
-      * nofn    - Do not set 'freindlyName'
+      * nofn    - Do not set 'friendlyName'
                   For more, see: 'easyrsa help friendly'
       * legacy  - Use legacy encryption algorithm RC2_CBC or 3DES_CBC
-                  OpenSSL V3 ONLY: Default algorithm is AES-256-CBC"
+                  (Default algorithm is AES-256-CBC)"
 	;;
 	friendly)
 		text_only=1
@@ -3274,6 +3274,19 @@ Run easyrsa without commands for usage and command help."
 	want_ca=1
 	want_key=1
 	unset -v nokeys legacy
+
+	# Under OpenSSL 1.1, use the PBE/MAC algorithms OpenSSL 3.0 uses,
+	# unless "legacy" is set.  This makes the .p12 files readable by
+	# OpenSSL 3.0 without needing '-legacy'.
+	if [ "$openssl_v3" ]; then
+		# No cipher opts required
+		p12_cipher_opts=""
+	else
+		# Upgrade PBE & MAC opts - Reset by option 'legacy'
+		p12_cipher_opts="-keypbe AES-256-CBC -certpbe AES-256-CBC"
+		p12_cipher_opts="${p12_cipher_opts} -macalg sha256"
+	fi
+
 	while [ "$1" ]; do
 		case "$1" in
 			noca)
@@ -3290,12 +3303,15 @@ Run easyrsa without commands for usage and command help."
 				[ "$prohibit_no_pass" ] || EASYRSA_NO_PASS=1
 			;;
 			nofn)
-				unset friendly_name
+				friendly_name=""
 			;;
 			legacy)
-				[ "$openssl_v3" ] || \
-					user_error "Option 'legacy' requires SSL version 3"
-				legacy=-legacy
+				if [ "$openssl_v3" ]; then
+					legacy=-legacy
+				else
+					# Downgrade PBE & MAC opts
+					p12_cipher_opts=""
+				fi
 			;;
 			*)
 				warn "Ignoring unknown option: '$1'"
@@ -3421,6 +3437,7 @@ Missing User Certificate, expected at:
 			-inkey "$key_in" \
 			${nokeys} \
 			${legacy} \
+			${p12_cipher_opts} \
 			${friendly_name:+ -name "$friendly_name"} \
 			${want_ca:+ -certfile "$crt_ca"} \
 			${EASYRSA_PASSIN:+ -passin "$EASYRSA_PASSIN"} \
