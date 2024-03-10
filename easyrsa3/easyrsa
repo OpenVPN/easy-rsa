@@ -5445,9 +5445,12 @@ while :; do
 		export EASYRSA_CP_EXT=1
 		;;
 	--subject-alt-name|--san)
-		export EASYRSA_EXTRA_EXTS="\
-$EASYRSA_EXTRA_EXTS
-subjectAltName = $val"
+		if [ "$EASYRSA_EXTRA_EXTS" ]; then
+			# Append: ",$val"
+			export EASYRSA_EXTRA_EXTS="$EASYRSA_EXTRA_EXTS,$val"
+		else
+			export EASYRSA_EXTRA_EXTS="subjectAltName = $val"
+		fi
 		;;
 	--usefn)
 		export EASYRSA_P12_FR_NAME="$val"
