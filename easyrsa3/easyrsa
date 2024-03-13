@@ -458,9 +458,6 @@ These commands are safe to test and will NOT effect your PKI.
   Display SAN of certificate:
     display-san <file_name_base>
 
-  Generate default SAN of request:
-    default-san <file_name_base>
-
   Display EKU of certificate:
     show-eku <file_name_base>
 
@@ -5742,10 +5739,6 @@ Place a copy of easyrsa-tools.lib in a standard system location."
 	display-san)
 		verify_working_env
 		display_san "$@"
-		;;
-	default-san)
-		verify_working_env
-		default_server_san "$@"
 		;;
 	x509-eku|show-eku)
 		verify_working_env
