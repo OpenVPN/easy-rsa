@@ -3670,41 +3670,6 @@ display_san - input error"
 	fi
 } # => display_san()
 
-# generate default SAN from req/X509, passed by full pathname
-default_server_san() {
-	[ "$#" = 1 ] || die "\
-default_server_san - input error"
-
-	path="$1"
-	shift
-
-	# Command line support for <file_name_base>
-	if [ -e "$path" ]; then
-		: # ok
-	else
-		path="${EASYRSA_PKI}/reqs/${path}.req"
-		[ -e "$path" ] || \
-			user_error "Missing file: $path"
-	fi
-
-	# Extract CN from DN
-	cn="$(
-		easyrsa_openssl req -in "$path" -noout -subject \
-			-nameopt sep_multiline |
-				awk -F'=' '/^  *CN=/{print $2}'
-		)"
-
-	# See: https://github.com/OpenVPN/easy-rsa/issues/576
-	# Select default SAN
-	if echo "$cn" | grep -q \
-		-E '^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$'
-	then
-		print "subjectAltName = IP:$cn"
-	else
-		print "subjectAltName = DNS:$cn"
-	fi
-} # => default_server_san()
-
 # Verify certificate against CA
 verify_cert() {
 	# pull filename base:
