@@ -2210,25 +2210,6 @@ basicConstraints is not defined, cannot use 'pathlen'"
 		unset -v ns_cert_type
 	esac
 
-	# If type is server and no subjectAltName was
-	# requested then add one to the extensions file
-	if [ -z "$EASYRSA_EXTRA_EXTS" ]; then
-		# default server SAN
-		case "$crt_type" in
-		server|serverClient)
-			# req san or default server SAN
-			__san="$(display_san req "$req_in")"
-			if [ "$__san" ]; then
-				__san="subjectAltName = $__san"
-			else
-				__san="$(default_server_san "$req_in")"
-			fi
-			[ "$__san" ] || die "No default server SAN!"
-			export EASYRSA_EXTRA_EXTS="$__san"
-			unset -v __san
-		esac
-	fi
-
 	# Generate the extensions file for this cert:
 	ext_tmp=""
 	easyrsa_mktemp ext_tmp || \
