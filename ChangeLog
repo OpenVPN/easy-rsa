@@ -2,6 +2,7 @@ Easy-RSA 3 ChangeLog
 
 3.2.0 (TBD)
 
+   * Remove default server subject alternative name (0b85a5d) (#576)
    * Move Status Reports to 'easyrsa-tools.lib' (214b909) (#1080)
    * export-p12, OpenSSL v1.x: Upgrade PBE and MAC options (60a508a)
      (#1084 - Based on #1081)
