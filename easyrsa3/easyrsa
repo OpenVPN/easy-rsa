@@ -458,9 +458,6 @@ These commands are safe to test and will NOT effect your PKI.
   Display SAN of certificate:
     display-san <file_name_base>
 
-  Generate default SAN of request:
-    default-san <file_name_base>
-
   Display EKU of certificate:
     show-eku <file_name_base>
 
@@ -2210,25 +2207,6 @@ basicConstraints is not defined, cannot use 'pathlen'"
 		unset -v ns_cert_type
 	esac
 
-	# If type is server and no subjectAltName was
-	# requested then add one to the extensions file
-	if [ -z "$EASYRSA_EXTRA_EXTS" ]; then
-		# default server SAN
-		case "$crt_type" in
-		server|serverClient)
-			# req san or default server SAN
-			__san="$(display_san req "$req_in")"
-			if [ "$__san" ]; then
-				__san="subjectAltName = $__san"
-			else
-				__san="$(default_server_san "$req_in")"
-			fi
-			[ "$__san" ] || die "No default server SAN!"
-			export EASYRSA_EXTRA_EXTS="$__san"
-			unset -v __san
-		esac
-	fi
-
 	# Generate the extensions file for this cert:
 	ext_tmp=""
 	easyrsa_mktemp ext_tmp || \
@@ -3691,41 +3669,6 @@ display_san - input error"
 		fi
 	fi
 } # => display_san()
-
-# generate default SAN from req/X509, passed by full pathname
-default_server_san() {
-	[ "$#" = 1 ] || die "\
-default_server_san - input error"
-
-	path="$1"
-	shift
-
-	# Command line support for <file_name_base>
-	if [ -e "$path" ]; then
-		: # ok
-	else
-		path="${EASYRSA_PKI}/reqs/${path}.req"
-		[ -e "$path" ] || \
-			user_error "Missing file: $path"
-	fi
-
-	# Extract CN from DN
-	cn="$(
-		easyrsa_openssl req -in "$path" -noout -subject \
-			-nameopt sep_multiline |
-				awk -F'=' '/^  *CN=/{print $2}'
-		)"
-
-	# See: https://github.com/OpenVPN/easy-rsa/issues/576
-	# Select default SAN
-	if echo "$cn" | grep -q \
-		-E '^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$'
-	then
-		print "subjectAltName = IP:$cn"
-	else
-		print "subjectAltName = DNS:$cn"
-	fi
-} # => default_server_san()
 
 # Verify certificate against CA
 verify_cert() {
@@ -5761,10 +5704,6 @@ Place a copy of easyrsa-tools.lib in a standard system location."
 	display-san)
 		verify_working_env
 		display_san "$@"
-		;;
-	default-san)
-		verify_working_env
-		default_server_san "$@"
 		;;
 	x509-eku|show-eku)
 		verify_working_env
