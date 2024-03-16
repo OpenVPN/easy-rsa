@@ -2,6 +2,7 @@ Easy-RSA 3 ChangeLog
 
 3.2.0 (TBD)
 
+   * Subject-Alt-Name: Allow multiple --san instances (4893c1f) (#103)
    * Remove default server subject alternative name (0b85a5d) (#576)
    * Move Status Reports to 'easyrsa-tools.lib' (214b909) (#1080)
    * export-p12, OpenSSL v1.x: Upgrade PBE and MAC options (60a508a)
