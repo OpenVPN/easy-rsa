@@ -2258,8 +2258,7 @@ for '$EASYRSA_CERT_EXPIRE' days"
 	if [ "$EASYRSA_CP_EXT" ]; then
 		# cature complete CSR
 		req_text="$(
-			OPENSSL_CONF=/dev/null \
-				"$EASYRSA_OPENSSL" req -in "$req_in" -noout -text
+			easyrsa_openssl req -in "$req_in" -noout -text
 			)" || die "sign-req: openssl: req_text"
 
 		# Check CSR for any requested SAN
@@ -2890,8 +2889,7 @@ Cannot renew this certificate, a conflicting file exists:
 	if [ "$EASYRSA_CP_EXT" ]; then
 		# cature complete CSR
 		req_text="$(
-			OPENSSL_CONF=/dev/null \
-				"$EASYRSA_OPENSSL" req -in "$req_in" -noout -text
+			easyrsa_openssl req -in "$req_in" -noout -text
 			)" || die "renew: openssl: req_text"
 
 		# Check CSR for any requested SAN
