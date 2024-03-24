@@ -2472,6 +2472,9 @@ Option conflict:
 	do_build_full=1
 	gen_req "$name" batch
 
+	# Require --copy-ext
+	export EASYRSA_CP_EXT=1
+
 	# Sign it
 	error_build_full_cleanup=1
 	if sign_req "$crt_type" "$name"; then
