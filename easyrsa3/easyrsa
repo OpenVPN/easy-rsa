@@ -2249,6 +2249,54 @@ until date '$EASYRSA_END_DATE'"
 for '$EASYRSA_CERT_EXPIRE' days"
 	fi
 
+	# Set confirm DN
+	confirm_dn="$(display_dn req "$req_in")" || \
+		die "sign-req: display_dn"
+
+	# Set confirm SAN
+	# SAN from .req
+	if [ "$EASYRSA_CP_EXT" ]; then
+		# cature complete CSR
+		req_text="$(
+			OPENSSL_CONF=/dev/null \
+				"$EASYRSA_OPENSSL" req -in "$req_in" -noout -text
+			)" || die "sign-req: openssl: req_text"
+
+		# Check CSR for any requested SAN
+		if echo "$req_text" | \
+			grep -s 'X509v3 Subject Alternative Name'
+		then
+			# extract requested SAN
+			req_x509_san="$(
+				echo "$req_text" | \
+					grep -A 1 'X509v3 Subject Alternative Name'
+			)" || die "sign-req: req_x509_san: grep -A 1 "
+		else
+			# No requested SAN
+			req_x509_san=
+		fi
+	fi
+
+	# --san takes priority over req SAN and --copy-ext
+	if [ "$EASYRSA_SAN" ]; then
+		confirm_san="\
+            X509v3 Subject Alternative Name:
+                $EASYRSA_SAN"
+	else
+		confirm_san="$req_x509_san"
+	fi
+
+	# Set confirm text for DN and SAN
+	if [ "$EASYRSA_SAN" ] || [ "$req_x509_san" ]; then
+		confirm_details="\
+$confirm_dn
+
+$confirm_san"
+	else
+		confirm_details="\
+$confirm_dn"
+	fi
+
 	# Display the request subject in an easy-to-read format
 	# Confirm the user wishes to sign this request
 	# The foriegn_request confirmation is not required
@@ -2270,7 +2318,7 @@ You are about to sign the following certificate:
 ${foriegn_request}Request subject, to be signed as a \
 $crt_type certificate ${valid_period}:
 
-$(display_dn req "$req_in")" # => confirm end
+$confirm_details" # => confirm end
 
 	# Assign temp cert file
 	crt_out_tmp=""
@@ -2613,6 +2661,11 @@ Cannot revoke this certificate, a conflicting file exists.
 	[ -e "$req_in" ] && if_exist_req_in="
 * $req_in"
 
+	# Set confirm DN and serial
+	confirm_dn="$(display_dn x509 "$crt_in")" || \
+		die "revoke: display_dn"
+	confirm_sn="    serial-number             = $cert_serial"
+
 	# confirm operation by displaying DN:
 	warn "\
 This process is destructive!
@@ -2634,11 +2687,10 @@ The duplicate certificate:
 Please confirm that you wish to revoke the certificate
 with the following subject:
 
-  $(display_dn x509 "$crt_in")
+$confirm_dn
+$confirm_sn
 
-  serial-number: $cert_serial
-
-  Reason: ${crl_reason:-None given}"
+    Reason: ${crl_reason:-None given}"
 
 	# Revoke certificate
 	easyrsa_openssl ca -utf8 -revoke "$crt_in" \
@@ -2816,7 +2868,7 @@ Cannot renew this certificate, a conflicting file exists:
 	unset -v deny_msg
 
 	# Make inline directory
-	[ -d "$EASYRSA_PKI/inline" ] ||	\
+	[ -d "$EASYRSA_PKI/inline" ] || \
 		mkdir -p "$EASYRSA_PKI/inline" || \
 			die "Failed to create inline directoy."
 
@@ -2825,20 +2877,55 @@ Cannot renew this certificate, a conflicting file exists:
 	ssl_cert_x509v3_eku "$crt_in" cert_type || \
 		die "Unknown EKU: $cert_type"
 
-	# Use SAN from --san if set else use SAN from old cert
-	if echo "$EASYRSA_EXTRA_EXTS" | grep -q subjectAltName
-	then
-		: # ok - Use current subjectAltName
-	else
-		san="$(
-easyrsa_openssl x509 -in "$crt_in" -noout -text | sed -n \
-"/X509v3 Subject Alternative Name:\
-/{n;s/IP Address:/IP:/g;s/ //g;p;}"
-		)" || die "renew - san: easyrsa_openssl subshell"
+	# Set confirm DN and serial
+	confirm_dn="$(display_dn x509 "$crt_in")" || \
+		die "renew: display_dn"
+	confirm_sn="    serial-number             = $cert_serial"
 
-		[ "$san" ] && export EASYRSA_EXTRA_EXTS="\
-$EASYRSA_EXTRA_EXTS
-subjectAltName = $san"
+	# Set confirm SAN
+	# SAN from .req
+	if [ "$EASYRSA_CP_EXT" ]; then
+		# cature complete CSR
+		req_text="$(
+			OPENSSL_CONF=/dev/null \
+				"$EASYRSA_OPENSSL" req -in "$req_in" -noout -text
+			)" || die "renew: openssl: req_text"
+
+		# Check CSR for any requested SAN
+		if echo "$req_text" | \
+			grep -s 'X509v3 Subject Alternative Name'
+		then
+			# extract requested SAN
+			req_x509_san="$(
+				echo "$req_text" | \
+					grep -A 1 'X509v3 Subject Alternative Name'
+			)" || die "renew: req_x509_san: grep -A 1 "
+		else
+			# No requested SAN
+			req_x509_san=
+		fi
+	fi
+
+	# --san takes priority over req SAN and --copy-ext
+	if [ "$EASYRSA_SAN" ]; then
+		confirm_san="\
+            X509v3 Subject Alternative Name:
+                $EASYRSA_SAN"
+	else
+		confirm_san="$req_x509_san"
+	fi
+
+	# Format confirm text for DN and SAN
+	if [ "$EASYRSA_SAN" ] || [ "$req_x509_san" ]; then
+		confirm_details="\
+$confirm_dn
+$confirm_sn
+
+$confirm_san"
+	else
+		confirm_details="\
+$confirm_dn
+$confirm_sn"
 	fi
 
 	# confirm operation by displaying DN:
@@ -2862,9 +2949,7 @@ The duplicate certificate:
 Please confirm you wish to renew the certificate
 with the following subject:
 
-  $(display_dn x509 "$crt_in")
-
-  serial-number: $cert_serial"
+$confirm_details"
 
 	# move renewed files
 	# so we can reissue certificate with the same name
@@ -3075,12 +3160,23 @@ Cannot revoke this certificate, a conflicting file exists.
 		user_error "$deny_msg request    : $req_out"
 	unset -v deny_msg
 
+	# Set confirm details
+	confirm_dn="$(display_dn x509 "$crt_in")" || \
+		die "revoke: display_dn"
+	confirm_sn="    serial-number             = $cert_serial"
+	confirm_details="\
+$confirm_dn
+$confirm_sn
+
+    Reason: ${crl_reason:-None given}"
+
 	# confirm operation by displaying DN:
 	unset -v if_exist_key_in if_exist_req_in
 	[ -e "$key_in" ] && if_exist_key_in="
 * $key_in"
 	[ -e "$req_in" ] && if_exist_req_in="
 * $req_in"
+
 	warn "\
 This process is destructive!
 
@@ -3091,11 +3187,7 @@ These files will be MOVED to the 'revoked' sub-directory:
   Please confirm you wish to revoke the renewed certificate
   with the following subject:
 
-  $(display_dn x509 "$crt_in")
-
-  serial-number: $cert_serial
-
-  Reason: ${crl_reason:-None given}"
+$confirm_details"
 
 	# Revoke the old (already renewed) certificate
 	easyrsa_openssl ca -utf8 -revoke "$crt_in" \
@@ -3625,50 +3717,11 @@ display_dn - input error"
 	shift 2
 
 	# Display DN
-	print "$(
-		easyrsa_openssl "$format" -in "$path" -noout -subject \
-			-nameopt utf8,sep_multiline,space_eq,lname,align
-		)"
-
-	# Display SAN, if present
-	san="$(display_san "$format" "$path")"
-	if [ "$san" ]; then
-		print ""
-		print "X509v3 Subject Alternative Name:"
-		print "    $san"
-	fi
+	print "$(OPENSSL_CONF=/dev/null \
+		"$EASYRSA_OPENSSL" "$format" -in "$path" -noout -subject \
+		-nameopt utf8,sep_multiline,space_eq,lname,align)" || \
+			die "display_dn: SSL command '$format'"
 } # => display_dn()
-
-# Display subjectAltName
-display_san() {
-	[ "$#" = 2 ] || die "\
-display_san - input error"
-
-	format="$1"
-	path="$2"
-	shift 2
-
-	if echo "$EASYRSA_EXTRA_EXTS" | grep -q subjectAltName; then
-		# Print user defined SAN
-			print "$(\
-		echo "$EASYRSA_EXTRA_EXTS" | grep subjectAltName | \
-		sed 's/^[[:space:]]*subjectAltName[[:space:]]*=[[:space:]]*//'
-		)"
-
-	else
-		# Generate a SAN
-			san="$(
-		x509v3san='X509v3 Subject Alternative Name:'
-		easyrsa_openssl "$format" -in "$path" -noout -text | sed -n \
-		"/${x509v3san}/{n;s/ //g;s/IPAddress:/IP:/g;s/RegisteredID/RID/;p;}"
-		)"
-
-		# Print auto SAN
-		if [ "$san" ]; then
-			print "$san"
-		fi
-	fi
-} # => display_san()
 
 # Verify certificate against CA
 verify_cert() {
@@ -5388,9 +5441,12 @@ while :; do
 		export EASYRSA_CP_EXT=1
 		;;
 	--subject-alt-name|--san)
-		export EASYRSA_EXTRA_EXTS="\
-$EASYRSA_EXTRA_EXTS
-subjectAltName = $val"
+		# This allows --san to be used multiple times
+		if [ "$EASYRSA_SAN" ]; then
+			EASYRSA_SAN="$EASYRSA_SAN, $val"
+		else
+			EASYRSA_SAN="$val"
+		fi
 		;;
 	--usefn)
 		export EASYRSA_P12_FR_NAME="$val"
@@ -5433,6 +5489,14 @@ Run 'easyrsa help options' for option help."
 
 	shift
 done
+
+# option dependencies
+# Add full --san to extra extensions
+if [ "$EASYRSA_SAN" ]; then
+	EASYRSA_EXTRA_EXTS="\
+$EASYRSA_EXTRA_EXTS
+subjectAltName = $EASYRSA_SAN"
+fi
 
 # Set cmd now
 # vars_setup needs to know if this is init-pki
