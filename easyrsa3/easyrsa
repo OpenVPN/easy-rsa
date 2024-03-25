@@ -2879,53 +2879,77 @@ Cannot renew this certificate, a conflicting file exists:
 	ssl_cert_x509v3_eku "$crt_in" cert_type || \
 		die "Unknown EKU: $cert_type"
 
+	# Check cert subject against request subject
+	crt_subj_hash="$(
+		"$EASYRSA_OPENSSL" x509 -in "$crt_in" -noout \
+			-subject | "$EASYRSA_OPENSSL" dgst -sha1
+		)"
+	req_subj_hash="$(
+		"$EASYRSA_OPENSSL" req -in "$req_in" -noout \
+			-subject | "$EASYRSA_OPENSSL" dgst -sha1
+		)"
+
+	if [ "$crt_subj_hash" = "$req_subj_hash" ]; then
+		: # ok
+	else
+		die "\
+This certificate cannot be renewed due to inconsistent Subject."
+	fi
+
+	# Prohibit --copy-ext - renew only supports SAN extention
+	if [ "$EASYRSA_CP_EXT" ]; then
+		user_error "Command '$cmd' does not support --copy-ext"
+	fi
+
+	# Prohibit --san - renew uses SAN from old cert only
+	if [ "$EASYRSA_SAN" ]; then
+		user_error "Command '$cmd' does not support --san"
+	fi
+
 	# Set confirm DN and serial
-	confirm_dn="$(display_dn x509 "$crt_in")" || \
+	confirm_dn="$(display_dn req "$req_in")" || \
 		die "renew: display_dn"
 	confirm_sn="    serial-number             = $cert_serial"
 
-	# Set confirm SAN
-	# SAN from .req
-	if [ "$EASYRSA_CP_EXT" ]; then
-		# cature complete CSR
-		req_text="$(
-			easyrsa_openssl req -in "$req_in" -noout -text
-			)" || die "renew: openssl: req_text"
+	# Get SAN from cert
+	# capture complete cert
+	crt_text="$(
+		easyrsa_openssl x509 -in "$crt_in" -noout -text
+		)" || die "renew: openssl: crt_text"
 
-		# Check CSR for any requested SAN
-		if echo "$req_text" | \
-			grep -s 'X509v3 Subject Alternative Name'
-		then
-			# extract requested SAN
-			req_x509_san="$(
-				echo "$req_text" | \
-					grep -A 1 'X509v3 Subject Alternative Name'
-			)" || die "renew: req_x509_san: grep -A 1 "
-		else
-			# No requested SAN
-			req_x509_san=
-		fi
-	fi
+	# Check cert for SAN
+	if echo "$crt_text" | \
+		grep -s 'X509v3 Subject Alternative Name'
+	then
+		# extract cert SAN
+		crt_x509_san_full="$(
+			echo "$crt_text" | \
+				grep -A 1 'X509v3 Subject Alternative Name'
+		)" || die "renew: crt_x509_san_full: grep -A 1"
 
-	# --san takes priority over req SAN and --copy-ext
-	if [ "$EASYRSA_SAN" ]; then
-		confirm_san="\
-            X509v3 Subject Alternative Name:
-                $EASYRSA_SAN"
+		# Strip x509 header
+		crt_x509_san="$(
+			echo "$crt_x509_san_full" | \
+				grep -v 'X509v3 Subject Alternative Name'
+		)" || die "renew: crt_x509_san: grep -v"
 	else
-		confirm_san="$req_x509_san"
+		# No cert SAN
+		crt_x509_san_full=
+		crt_x509_san=
 	fi
 
-	# Format confirm text for DN and SAN
-	if [ "$EASYRSA_SAN" ] || [ "$req_x509_san" ]; then
+	# Format confirmation text
+	if [ "$crt_x509_san" ]; then
 		confirm_details="\
 $confirm_dn
+
 $confirm_sn
 
-$confirm_san"
+$crt_x509_san_full"
 	else
 		confirm_details="\
 $confirm_dn
+
 $confirm_sn"
 	fi
 
