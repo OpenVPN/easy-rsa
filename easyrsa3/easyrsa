@@ -411,6 +411,26 @@ Usage: easyrsa [ OPTIONS.. ] <COMMAND> <TARGET> [ cmd-opts.. ]"
       * IP:203.0.113.29
       * email:alternate@example.net"
 	;;
+	copyext|copy-ext)
+		text_only=1
+		text="
+* How to use --copy-ext and --san=<SAN>
+
+    These are the only commands that support --copy-ext and/or --san.
+
+    Command 'gen-req':
+      --san: Add SAN extention to the request file.
+
+    Command 'sign-req':
+      --copy-ext: Copy all request extentions to the signed certificate.
+      --san: Over write the request SAN with option SAN.
+
+    Command 'build-*-full':
+      --copy-ext: Always enabled.
+      --san: Add SAN extention to the request and signed certificate.
+
+    See 'help san' for option --san full syntax."
+	;;
 	--days|days)
 		text_only=1
 		text="
@@ -567,6 +587,7 @@ Certificate & Request options: (these impact cert/req field values)
 
 --subca-len=#   : Path length of signed intermediate CA certificates
 --copy-ext      : Copy included request X509 extensions (namely subjAltName)
+                  For more info, see: 'easyrsa help copyext'
 
 --san|--subject-alt-name=<subjectAltName>
                 : Add a subjectAltName.
