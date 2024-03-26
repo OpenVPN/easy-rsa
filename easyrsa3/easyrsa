@@ -464,13 +464,12 @@ Usage: easyrsa [ OPTIONS.. ] <COMMAND> <TARGET> [ cmd-opts.. ]"
 		text="
 * Option: --req-cn=NAME
 
-      This specific option can set the CSR commonName.
+      This global option can be used to set the CA commonName.
 
-      Can only be used in BATCH mode for the following commands:
       * To build a new CA [or Sub-CA]:
         eg: '--batch --req-cn=NAME build-ca [subca]'
-      * To generate a certificate signing request:
-        eg: '--batch --req-cn=NAME gen-req <file_name_base>'"
+
+      Can only be used in BATCH mode."
 	;;
 	tool*|util*|more)
 		# Test features
@@ -610,7 +609,7 @@ Distinguished Name mode:
 
 --dn-mode=MODE  : Distinguished Name mode to use 'cn_only' (Default) or 'org'
 
---req-cn=NAME   : Set CSR commonName to NAME. For details, see: 'help req-cn'
+--req-cn=NAME   : Set CA commonName. For details, see: 'help req-cn'
 
   Distinguished Name Organizational options: (only used with '--dn-mode=org')
   --req-c=CC           : Country code (2-letters)
@@ -1918,19 +1917,13 @@ Run easyrsa without commands for usage and commands."
 	# Initialisation
 	unset -v text ssl_batch
 
-	# Set ssl batch mode and Default commonName, as required
+	# Set ssl batch mode as required
 	if [ "$EASYRSA_BATCH" ]; then
 		ssl_batch=1
-		# If EASYRSA_REQ_CN is set to something other than
-		# 'ChangeMe' then keep user defined value
-		if [ "$EASYRSA_REQ_CN" = ChangeMe ]; then
-			export EASYRSA_REQ_CN="$file_name_base"
-		fi
-	else
-		# --req-cn must be used with --batch
-		# otherwise use file-name
-		export EASYRSA_REQ_CN="$file_name_base"
 	fi
+
+	# Enforce commonName
+	export EASYRSA_REQ_CN="$file_name_base"
 
 	# Output files
 	key_out="$EASYRSA_PKI/private/${file_name_base}.key"
