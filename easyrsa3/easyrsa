@@ -462,7 +462,7 @@ Usage: easyrsa [ OPTIONS.. ] <COMMAND> <TARGET> [ cmd-opts.. ]"
       * To generate a certificate signing request:
         eg: '--batch --req-cn=NAME gen-req <file_name_base>'"
 	;;
-	tool|tools|util|utils|more)
+	tool*|util*|more)
 		# Test features
 		text_only=1
 		text="
