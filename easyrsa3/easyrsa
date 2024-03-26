@@ -400,9 +400,12 @@ Usage: easyrsa [ OPTIONS.. ] <COMMAND> <TARGET> [ cmd-opts.. ]"
 
       This global option adds a subjectAltName to the request or issued
       certificate. It MUST be in a valid format accepted by openssl or
-      req/cert generation will fail. Note that including multiple such
-      names requires them to be comma-separated; further invocations of
-      this option will REPLACE the value.
+      req/cert generation will fail. NOTE: --san can be specified more
+      than once on the command line.
+
+      The following two command line examples are equivalent:
+      1. --san=DNS:server1,DNS:serverA,IP:10.0.0.1
+      2. --san=DNS:server1 --san=DNS:serverA --san=IP:10.0.0.1
 
       Examples of the SAN_FORMAT_STRING shown below:
 
