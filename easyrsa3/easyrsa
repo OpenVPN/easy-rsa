@@ -475,9 +475,6 @@ These commands are safe to test and will NOT effect your PKI.
   Display DN of certificate:
     display-dn <file_name_base>
 
-  Display SAN of certificate:
-    display-san <file_name_base>
-
   Display EKU of certificate:
     show-eku <file_name_base>
 
@@ -5810,10 +5807,6 @@ Place a copy of easyrsa-tools.lib in a standard system location."
 	display-dn)
 		verify_working_env
 		display_dn "$@"
-		;;
-	display-san)
-		verify_working_env
-		display_san "$@"
 		;;
 	x509-eku|show-eku)
 		verify_working_env
