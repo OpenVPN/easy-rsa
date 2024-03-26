@@ -459,7 +459,7 @@ Usage: easyrsa [ OPTIONS.. ] <COMMAND> <TARGET> [ cmd-opts.. ]"
       * To generate a certificate signing request:
         eg: '--batch --req-cn=NAME gen-req <file_name_base>'"
 	;;
-	util|more)
+	tool|tools|util|utils|more)
 		# Test features
 		text_only=1
 		text="
@@ -469,14 +469,14 @@ These commands are safe to test and will NOT effect your PKI.
   Check <SERIAL> number is unique:
     serial|check-serial <SERIAL>
 
-  Display CN of certificate: <form> = req|x509
-    display-cn <form> <file_name_base>
+  Display CN of request or certificate: <form> = req|x509
+    display-cn <form> <DIR/FILE_NAME>
 
-  Display DN of certificate:
-    display-dn <file_name_base>
+  Display DN of request or certificate: <form> = req|x509
+    display-dn <form> <DIR/FILE_NAME>
 
   Display EKU of certificate:
-    show-eku <file_name_base>
+    show-eku <file_name_base>|<DIR/FILE_NAME>
 
   Generate random hex:
     rand <decimal_number>
