@@ -90,8 +90,18 @@ DIRECTORY STATUS (commands would take effect on these locations)
      EASYRSA: $work_dir
          PKI: $pki_dir
    vars-file: ${EASYRSA_VARS_FILE:-Missing or undefined}${ivmsg}
-  x509-types: ${EASYRSA_EXT_DIR:-Missing or undefined}
 $CA_status${NL}"
+
+	# verbose info
+	verbose "ssl-cnf: ${EASYRSA_SSL_CONF:-built-in}"
+	verbose "x509-types: ${EASYRSA_EXT_DIR:-built-in}"
+	if [ -d "$EASYRSA_TEMP_DIR" ]; then
+		verbose "temp-dir: Found: $EASYRSA_TEMP_DIR"
+	elif [ "$EASYRSA_TEMP_DIR" ]; then
+		verbose "temp-dir: Missing: $EASYRSA_TEMP_DIR"
+	else
+		verbose "temp-dir: undefined"
+	fi
 } # => usage()
 
 # Detailed command help
