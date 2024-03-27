@@ -1922,6 +1922,11 @@ Run easyrsa without commands for usage and commands."
 		ssl_batch=1
 	fi
 
+	# Prohibit --req-cn
+	[ "$EASYRSA_REQ_CN" = ChangeMe ] || user_error "\
+Option conflict --req-cn:
+* '$cmd' does not support setting an external commonName"
+
 	# Enforce commonName
 	export EASYRSA_REQ_CN="$file_name_base"
 
@@ -2066,6 +2071,14 @@ expected 2, got $# (see command help for usage)"
 	req_in="$EASYRSA_PKI/reqs/$file_name_base.req"
 	crt_out="$EASYRSA_PKI/issued/$file_name_base.crt"
 	shift 2
+
+	# Prohibit --req-cn
+	[ "$EASYRSA_REQ_CN" = ChangeMe ] || user_error "\
+Option conflict --req-cn:
+* '$cmd' does not support setting an external commonName"
+
+	# Enforce commonName
+	export EASYRSA_REQ_CN="$file_name_base"
 
 	# Check for preserve-dn
 	while [ "$1" ]; do
@@ -2487,16 +2500,20 @@ An inline file for name '$name' already exists:
 
 	# Set commonName
 	[ "$EASYRSA_REQ_CN" = ChangeMe ] || user_error "\
-Option conflict:
+Option conflict --req-cn:
 * '$cmd' does not support setting an external commonName"
-	EASYRSA_REQ_CN="$name"
+
+	# Set to modify sign-req confirmation message
+	do_build_full=1
 
 	# create request
-	do_build_full=1
 	gen_req "$name" batch
 
 	# Require --copy-ext
 	export EASYRSA_CP_EXT=1
+
+	# Must be reset for nested commmands
+	export EASYRSA_REQ_CN=ChangeMe
 
 	# Sign it
 	error_build_full_cleanup=1
