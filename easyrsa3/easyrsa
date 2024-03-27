@@ -2952,19 +2952,13 @@ This certificate cannot be renewed due to inconsistent Subject."
 		die "renew: display_dn"
 	confirm_sn="    serial-number             = $cert_serial"
 
-	# Get SAN from cert
-	# capture complete cert
-	crt_text="$(
-		easyrsa_openssl x509 -in "$crt_in" -noout -text
-		)" || die "renew: openssl: crt_text"
-
 	# Check cert for SAN
-	if echo "$crt_text" | \
-		grep -s 'X509v3 Subject Alternative Name'
+	if easyrsa_openssl x509 -in "$crt_in" -noout -text | \
+		grep -q '^[[:blank:]]*X509v3 Subject Alternative Name:'
 	then
 		# extract cert SAN
 		crt_x509_san_full="$(
-			echo "$crt_text" | \
+			easyrsa_openssl x509 -in "$crt_in" -noout -text | \
 				grep -A 1 'X509v3 Subject Alternative Name'
 		)" || die "renew: crt_x509_san_full: grep -A 1"
 
