@@ -464,13 +464,12 @@ Usage: easyrsa [ OPTIONS.. ] <COMMAND> <TARGET> [ cmd-opts.. ]"
 		text="
 * Option: --req-cn=NAME
 
-      This specific option can set the CSR commonName.
+      This global option can be used to set the CA commonName.
 
-      Can only be used in BATCH mode for the following commands:
       * To build a new CA [or Sub-CA]:
         eg: '--batch --req-cn=NAME build-ca [subca]'
-      * To generate a certificate signing request:
-        eg: '--batch --req-cn=NAME gen-req <file_name_base>'"
+
+      Can only be used in BATCH mode."
 	;;
 	tool*|util*|more)
 		# Test features
@@ -610,7 +609,7 @@ Distinguished Name mode:
 
 --dn-mode=MODE  : Distinguished Name mode to use 'cn_only' (Default) or 'org'
 
---req-cn=NAME   : Set CSR commonName to NAME. For details, see: 'help req-cn'
+--req-cn=NAME   : Set CA commonName. For details, see: 'help req-cn'
 
   Distinguished Name Organizational options: (only used with '--dn-mode=org')
   --req-c=CC           : Country code (2-letters)
@@ -1918,19 +1917,18 @@ Run easyrsa without commands for usage and commands."
 	# Initialisation
 	unset -v text ssl_batch
 
-	# Set ssl batch mode and Default commonName, as required
+	# Set ssl batch mode as required
 	if [ "$EASYRSA_BATCH" ]; then
 		ssl_batch=1
-		# If EASYRSA_REQ_CN is set to something other than
-		# 'ChangeMe' then keep user defined value
-		if [ "$EASYRSA_REQ_CN" = ChangeMe ]; then
-			export EASYRSA_REQ_CN="$file_name_base"
-		fi
-	else
-		# --req-cn must be used with --batch
-		# otherwise use file-name
-		export EASYRSA_REQ_CN="$file_name_base"
 	fi
+
+	# Prohibit --req-cn
+	[ "$EASYRSA_REQ_CN" = ChangeMe ] || user_error "\
+Option conflict --req-cn:
+* '$cmd' does not support setting an external commonName"
+
+	# Enforce commonName
+	export EASYRSA_REQ_CN="$file_name_base"
 
 	# Output files
 	key_out="$EASYRSA_PKI/private/${file_name_base}.key"
@@ -2073,6 +2071,14 @@ expected 2, got $# (see command help for usage)"
 	req_in="$EASYRSA_PKI/reqs/$file_name_base.req"
 	crt_out="$EASYRSA_PKI/issued/$file_name_base.crt"
 	shift 2
+
+	# Prohibit --req-cn
+	[ "$EASYRSA_REQ_CN" = ChangeMe ] || user_error "\
+Option conflict --req-cn:
+* '$cmd' does not support setting an external commonName"
+
+	# Enforce commonName
+	export EASYRSA_REQ_CN="$file_name_base"
 
 	# Check for preserve-dn
 	while [ "$1" ]; do
@@ -2494,16 +2500,20 @@ An inline file for name '$name' already exists:
 
 	# Set commonName
 	[ "$EASYRSA_REQ_CN" = ChangeMe ] || user_error "\
-Option conflict:
+Option conflict --req-cn:
 * '$cmd' does not support setting an external commonName"
-	EASYRSA_REQ_CN="$name"
+
+	# Set to modify sign-req confirmation message
+	do_build_full=1
 
 	# create request
-	do_build_full=1
 	gen_req "$name" batch
 
 	# Require --copy-ext
 	export EASYRSA_CP_EXT=1
+
+	# Must be reset for nested commmands
+	export EASYRSA_REQ_CN=ChangeMe
 
 	# Sign it
 	error_build_full_cleanup=1
@@ -2942,19 +2952,13 @@ This certificate cannot be renewed due to inconsistent Subject."
 		die "renew: display_dn"
 	confirm_sn="    serial-number             = $cert_serial"
 
-	# Get SAN from cert
-	# capture complete cert
-	crt_text="$(
-		easyrsa_openssl x509 -in "$crt_in" -noout -text
-		)" || die "renew: openssl: crt_text"
-
 	# Check cert for SAN
-	if echo "$crt_text" | \
-		grep -s 'X509v3 Subject Alternative Name'
+	if easyrsa_openssl x509 -in "$crt_in" -noout -text | \
+		grep -q '^[[:blank:]]*X509v3 Subject Alternative Name:'
 	then
 		# extract cert SAN
 		crt_x509_san_full="$(
-			echo "$crt_text" | \
+			easyrsa_openssl x509 -in "$crt_in" -noout -text | \
 				grep -A 1 'X509v3 Subject Alternative Name'
 		)" || die "renew: crt_x509_san_full: grep -A 1"
 
