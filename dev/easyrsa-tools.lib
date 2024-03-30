@@ -1,4 +1,7 @@
+#!/bin/sh
+
 # Easy-RSA tools library v1.0
+# Requires Easy-RSA version 3.2
 
 # Easy-RSA 3.x does not source into the environment directly.
 # Complain if a user tries to do this:
@@ -1384,3 +1387,5 @@ revoke_renewed_move() {
 
 	return 0
 } # => revoke_renewed_move()
+
+# vim: ft=sh nu ai sw=8 ts=8 noet
