@@ -2,6 +2,7 @@ Easy-RSA 3 ChangeLog
 
 3.2.0 (TBD)
 
+   * Move all renew code to easyrsa-tools.lib (2156e8c) (#1103)
    * Restrict use of --req-cn to build-ca (0a46164) (#1098)
    * Remove command 'display-san' (Code removed in 5a06f94) (50e6002) (#1096)
    * help: Add 'copyext'; How to use --copy-ext and --san (5a06f94) (#1096)
