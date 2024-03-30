@@ -5289,10 +5289,11 @@ case "$cmd" in
 		else
 			user_error "Missing: easyrsa-tools.lib
 
-Use of Status Reports requires Easy-RSA tools library, source:
+Command '$cmd' requires Easy-RSA tools library, source:
 * https://github.com/OpenVPN/easy-rsa/dev/easyrsa-tools.lib
 
-Place a copy of easyrsa-tools.lib in a standard system location."
+Place a copy of easyrsa-tools.lib in a standard system location
+or the current working directory."
 		fi
 
 		case "$cmd" in
