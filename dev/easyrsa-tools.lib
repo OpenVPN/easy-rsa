@@ -989,7 +989,7 @@ Missing request file:
 	# get the serial number of the certificate
 	cert_serial=
 	ssl_cert_serial "$crt_in" cert_serial || \
-		die "$cmd: Failed to get cert serial number!"
+		die "renew: Failed to get cert serial number!"
 
 	# Duplicate cert by serial file
 	dup_dir="$EASYRSA_PKI/certs_by_serial"
@@ -1036,12 +1036,12 @@ This certificate cannot be renewed due to inconsistent Subject."
 
 	# Prohibit --copy-ext - renew only supports SAN extention
 	if [ "$EASYRSA_CP_EXT" ]; then
-		user_error "Command '$cmd' does not support --copy-ext"
+		user_error "Command 'renew' does not support --copy-ext"
 	fi
 
 	# Prohibit --san - renew uses SAN from old cert only
 	if [ "$EASYRSA_SAN" ]; then
-		user_error "Command '$cmd' does not support --san"
+		user_error "Command 'renew' does not support --san"
 	fi
 
 	# Set confirm DN and serial
@@ -1111,6 +1111,7 @@ $confirm_details"
 	# move renewed files
 	# so we can reissue certificate with the same name
 	renew_move
+	# shellcheck disable=SC2034 # error_undo_renew_move appears unused
 	error_undo_renew_move=1
 
 	# renew certificate
@@ -1289,7 +1290,7 @@ Request was expected at:
 
 	# get the serial number of the certificate
 	ssl_cert_serial "$crt_in" cert_serial || \
-		die "$cmd: Failed to get cert serial number!"
+		die "revoke_renewed: Failed to get cert serial number!"
 
 	# Duplicate cert by serial file
 	dup_dir="$EASYRSA_PKI/certs_by_serial"
