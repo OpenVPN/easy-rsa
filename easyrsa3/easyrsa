@@ -5296,6 +5296,23 @@ Place a copy of easyrsa-tools.lib in a standard system location
 or the current working directory."
 		fi
 
+		# easyrsa-tools.lib version check
+		case "$EASYRSA_TOOLS_LIB_VERSION" in
+		1.1-3.2.x)
+			# Place holder
+			die "Tools lib version error"
+		;;
+		1.0-3.2.0)
+			verbose "Tools loaded OK: v$EASYRSA_TOOLS_LIB_VERSION"
+			# Place holder
+			# user_error "EasyRSA Tools is too old, please update."
+		;;
+		*)
+			die "\
+Unrecognised easyrsa-tools.lib version:
+* $EASYRSA_TOOLS_LIB_VERSION"
+		esac
+
 		case "$cmd" in
 			renew)
 				verify_working_env
@@ -5309,7 +5326,7 @@ or the current working directory."
 				;;
 			show-expire)
 				[ -z "$alias_days" ] || \
-					   export EASYRSA_PRE_EXPIRY_WINDOW="$alias_days"
+					export EASYRSA_PRE_EXPIRY_WINDOW="$alias_days"
 				status expire "$@"
 				;;
 			show-revoke)
