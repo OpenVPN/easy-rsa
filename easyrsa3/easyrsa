@@ -807,13 +807,15 @@ easyrsa_mkdir_p() {
 	if [ -d "$1" ]; then
 		: # ok
 	else
-		mkdir "$1" || die "(1) easyrsa_mkdir_p: $1"
+		mkdir "$1"
+		[ -d "$1" ] || die "(1) easyrsa_mkdir_p: $1"
 	fi
 
 	if [ -d "$1/$2" ]; then
 		return 0 # Exists ok
 	else
-		mkdir "$1/$2" && return 0 # Exists now
+		mkdir "$1/$2"
+		[ -d "$1/$2" ] && return 0 # Exists now
 	fi
 	die "(2) easyrsa_mkdir_p: $1/$2"
 } # => easyrsa_mkdir_p()
