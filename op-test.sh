@@ -240,6 +240,17 @@ run_shellcheck () {
 			log "easyrsa binary not present, not using shellcheck"
 		fi
 
+		# shell-check dev/easyrsa-tools.lib
+		if [ -e dev/easyrsa-tools.lib ]; then
+			if "${sc_bin}" -s sh -S warning -x dev/easyrsa-tools.lib; then
+				log "shellcheck dev/easyrsa-tools.lib completed - ok"
+			else
+				log "shellcheck dev/easyrsa-tools.lib completed - FAILED"
+			fi
+		else
+			log "dev/easyrsa-tools.lib not present, not using shellcheck"
+		fi
+
 		# shell-check easyrsa-unit-tests.sh
 		if [ -e easyrsa-unit-tests.sh ]; then
 			if "${sc_bin}" -s sh -S warning -x easyrsa-unit-tests.sh; then
