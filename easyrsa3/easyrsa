@@ -714,6 +714,7 @@ Type the word '$value' to continue, or any other input to abort."
 	printf '\n'
 	[ "$input" = "$value" ] && return
 	easyrsa_exit_with_error=1
+	unset -v EASYRSA_SILENT
 	notice "Aborting without confirmation."
 	cleanup
 } # => confirm()
@@ -1496,7 +1497,8 @@ locate_support_files() {
 hide_read_pass() {
 	# 3040 - In POSIX sh, set option [name] is undefined
 	# 3045 - In POSIX sh, some-command-with-flag is undefined
-	# shellcheck disable=SC3040,SC3045 # POSIX - hide_read_pass()
+	# 3061 - In POSIX sh, read without a variable is undefined.
+	# shellcheck disable=SC3040,SC3045,SC3061
 	if stty -echo 2>/dev/null; then
 		prompt_restore=1
 		read -r "$@"
@@ -3557,6 +3559,7 @@ Missing User Certificate, expected at:
 			error_info="SSL library may not support -legacy mode"
 
 		# export the p12:
+		# shellcheck disable=2086 # Double quote p12_cipher_opts
 		easyrsa_openssl pkcs12 -export \
 			-in "$crt_in" \
 			-out "$pkcs_out" \
@@ -5761,6 +5764,7 @@ case "$cmd" in
 		# easyrsa-tools.lib is required
 		if [ -e "$EASYRSA_TOOLS_LIB" ]; then
 			export EASYRSA_TOOLS_CALLER=1
+			# shellcheck disable=SC1090 # can't follow non-constant..
 			. "$EASYRSA_TOOLS_LIB" || \
 				die "Source failed: $EASYRSA_TOOLS_LIB"
 			unset -v EASYRSA_TOOLS_CALLER
