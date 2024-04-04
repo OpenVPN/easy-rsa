@@ -2695,6 +2695,7 @@ Request was expected at:
 	fi
 
 	# get the serial number of the certificate
+	cert_serial=
 	ssl_cert_serial "$crt_in" cert_serial || \
 		die "$cmd: Failed to get cert serial number!"
 
@@ -3210,6 +3211,7 @@ Request was expected at:
 	fi
 
 	# get the serial number of the certificate
+	cert_serial=
 	ssl_cert_serial "$crt_in" cert_serial || \
 		die "$cmd: Failed to get cert serial number!"
 
