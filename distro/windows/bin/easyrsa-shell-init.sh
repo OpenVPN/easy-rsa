@@ -65,7 +65,7 @@ Please try using one of the following solutions:
 
 These will start EasyRSA in your user's 'home directory/easy-rsa'
 
-Press enter to exit."
+Press enter to exit.
 ACCESS_DENIED_MSG
 
 	#shellcheck disable=SC2162
