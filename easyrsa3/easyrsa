@@ -2790,17 +2790,14 @@ revoke_move() {
 			die "Failed to mkdir: $target"
 	done
 
-	# move crt, key and req file to renewed_then_revoked folders
+	# do NOT move the req - can be signed again
+
+	# move crt to renewed_then_revoked folders
 	mv "$crt_in" "$crt_out" || die "Failed to move: $crt_in"
 
 	# only move the key if we have it
 	if [ -e "$key_in" ]; then
 		mv "$key_in" "$key_out" || warn "Failed to move: $key_in"
-	fi
-
-	# only move the req if we have it
-	if [ -e "$req_in" ]; then
-		mv "$req_in" "$req_out" || warn "Failed to move: $req_in"
 	fi
 
 	# remove any pkcs files
@@ -2809,13 +2806,12 @@ revoke_move() {
 			# issued
 			rm "$in_dir/issued/$file_name_base.$pkcs" ||
 				warn "Failed to remove: $file_name_base.$pkcs"
+		fi
 
-		elif [ -e "$in_dir/private/$file_name_base.$pkcs" ]; then
+		if [ -e "$in_dir/private/$file_name_base.$pkcs" ]; then
 			# private
 			rm "$in_dir/private/$file_name_base.$pkcs" ||
 				warn "Failed to remove: $file_name_base.$pkcs"
-		else
-			: # ok
 		fi
 	done
 
@@ -2954,7 +2950,9 @@ Cannot renew this certificate, a conflicting file exists:
 		: # ok
 	else
 		die "\
-This certificate cannot be renewed due to inconsistent Subject."
+This certificate cannot be renewed due to inconsistent Subject.
+
+It must be revoked and a new certificate must be signed."
 	fi
 
 	# Prohibit --copy-ext - renew only supports SAN extention
@@ -3109,7 +3107,7 @@ renew_move() {
 			die "Failed to mkdir: $target"
 	done
 
-	# move crt, key and req file to renewed folders
+	# move crt to renewed folders
 	# After this point, renew is possible!
 	restore_crt_in="$crt_in"
 	restore_crt_out="$crt_out"
@@ -3296,17 +3294,14 @@ revoke_renewed_move() {
 			die "Failed to mkdir: $target"
 	done
 
-	# move crt, key and req file to renewed_then_revoked folders
+	# do NOT move the req - can be signed again
+
+	# move crt to revoked folders
 	mv "$crt_in" "$crt_out" || die "Failed to move: $crt_in"
 
 	# only move the key if we have it
 	if [ -e "$key_in" ]; then
 		mv "$key_in" "$key_out" || warn "Failed to move: $key_in"
-	fi
-
-	# only move the req if we have it
-	if [ -e "$req_in" ]; then
-		mv "$req_in" "$req_out" || warn "Failed to move: $req_in"
 	fi
 
 	return 0
