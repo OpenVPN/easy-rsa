@@ -2644,11 +2644,17 @@ Run easyrsa without commands for usage and command help."
 	shift
 
 	in_dir="$EASYRSA_PKI"
-	crt_in="$in_dir/issued/${file_name_base}.crt"
 	key_in="$in_dir/private/${file_name_base}.key"
 	req_in="$in_dir/reqs/${file_name_base}.req"
 	creds_in="$in_dir/${file_name_base}.creds"
 	inline_in="$in_dir/inline/${file_name_base}.inline"
+
+	# input cert for revocation, either issued/ or expired/
+	if [ "$revoke_expired" ]; then
+		crt_in="$in_dir/expired/${file_name_base}.crt"
+	else
+		crt_in="$in_dir/issued/${file_name_base}.crt"
+	fi
 
 	# Assign possible "crl_reason"
 	if [ "$1" ]; then
@@ -3307,6 +3313,107 @@ revoke_renewed_move() {
 	return 0
 } # => revoke_renewed_move()
 
+# Move expired cert out of pki/issued to pki/expired
+# to allow renewal
+expire_cert() {
+	# pull filename base:
+	[ "$1" ] || user_error "\
+Error: didn't find a file base name as the first argument.
+Run easyrsa without commands for usage and command help."
+
+	# Assign file_name_base and dust off!
+	file_name_base="$1"
+	shift
+
+	# input
+	in_dir="$EASYRSA_PKI/issued"
+	crt_in="$in_dir/$file_name_base.crt"
+	#key_in="$in_dir/private/$file_name_base.key"
+	#req_in="$in_dir/reqs/$file_name_base.req"
+	#creds_in="$EASYRSA_PKI/$file_name_base.creds"
+
+	# output
+	out_dir="$EASYRSA_PKI/expired"
+	crt_out="$out_dir/$file_name_base.crt"
+
+	# make output folder
+	easyrsa_mkdir_p "$EASYRSA_PKI" expired
+
+	# Do not over write existing cert
+	if [ -e "$crt_out" ]; then
+		user_error "\
+Existing file must be revoked:
+* $crt_out"
+	fi
+
+	# deprecate ALL options
+	while [ "$1" ]; do
+		case "$1" in
+			nopass)
+				warn "\
+Option 'nopass' is not supported by command '$cmd'."
+			;;
+			*) user_error "Unknown option: $1"
+		esac
+		shift
+	done
+
+	# Verify certificate
+	if [ -f "$crt_in" ]; then
+		verify_file x509 "$crt_in" || user_error "\
+Input file is not a valid certificate:
+* $crt_in"
+	else
+		user_error "\
+Missing certificate file:
+* $crt_in"
+	fi
+
+	# get the serial number of the certificate
+	cert_serial=
+	ssl_cert_serial "$crt_in" cert_serial || \
+		die "$cmd: Failed to get cert serial number!"
+
+	# Set confirm DN and serial
+	confirm_dn="$(display_dn x509 "$crt_in")" || \
+		die "expire: display_dn"
+	confirm_sn="    serial-number             = $cert_serial"
+
+	# date of expiry
+	# Equal to: easyrsa-tools.lib - ssl_cert_not_after_date()
+	# This is left as a reminder that easyrsa does not handle
+	# dates well and they should be avoided, at all cost.
+	# This is for confirmation purposes ONLY.
+	crt_expire="$(openssl x509 -in "$crt_in" -noout -enddate)" || \
+		die "expire: enddate"
+	confirm_ex="    notAfter date             = ${crt_expire#*=}"
+
+	# confirm
+	confirm "  Continue with expiry: " yes "
+Please confirm you wish to expire the certificate
+with the following subject:
+
+$confirm_dn
+
+$confirm_sn
+
+$confirm_ex" # => End confirm
+
+	# move cert to expired dir
+	mv "$crt_in" "$crt_out" || die "failed to move expired: $crt_in"
+
+	# User message
+	notice "\
+Certificate has been successfully moved to the expire directory.
+* $crt_out
+
+This certificate is still valid, until it expires.
+It can be revoked with command 'revoke-expired'.
+
+It is now possible to sign a new certificate for '$file_name_base'"
+
+} # => expire_cert()
+
 # gen-crl backend
 gen_crl() {
 	out_file="$EASYRSA_PKI/crl.pem"
@@ -3786,10 +3893,11 @@ display_dn - input error"
 	shift 2
 
 	# Display DN
-	print "$(OPENSSL_CONF=/dev/null \
+	ssl_out="$(OPENSSL_CONF=/dev/null \
 		"$EASYRSA_OPENSSL" "$format" -in "$path" -noout -subject \
 		-nameopt utf8,sep_multiline,space_eq,lname,align)" || \
 			die "display_dn: SSL command '$format'"
+	print "$ssl_out"
 } # => display_dn()
 
 # Verify certificate against CA
@@ -5692,6 +5800,12 @@ case "$cmd" in
 		;;
 	revoke)
 		verify_working_env
+		revoke_expired=
+		revoke "$@"
+		;;
+	revoke-expired)
+		verify_working_env
+		revoke_expired=1
 		revoke "$@"
 		;;
 	revoke-renewed)
@@ -5707,6 +5821,10 @@ case "$cmd" in
 	import-req)
 		verify_working_env
 		import_req "$@"
+		;;
+	expire)
+		verify_working_env
+		expire_cert "$@"
 		;;
 	inline)
 		verify_working_env
