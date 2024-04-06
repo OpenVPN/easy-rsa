@@ -4,9 +4,34 @@ Easy-RSA 3 Certificate Renewal and Revocation Documentation
 This document explains how the **differing versions** of Easy-RSA 3 work
 with Renewal and Revocation of Certificates and Private keys.
 
-Thanks to _good luck_, _hard work_ and _co-operation_, these version dependent
-differences have been _smoothed-over_. Since version `3.1.1`, Easy-RSA has the
-tools required to renew and/or revoke all verified and Valid certifiicates.
+Easy-RSA version 3.2.x
+----------------------
+v3.2 no longer supports the `renew` command.
+
+Instead, the process is as follows:
+1. Command `expire <NAME>` - This will move an existing certificate
+   from `pki/issued` to `pki/expired`, so that a new certificate
+   can be signed, using the original request.
+
+   Generally, renewing is required ONLY when a certificate is due to
+   expire. This means that certificates moved to `pki/expired` are
+   expected to be expired or to expire in the near future.
+
+2. Command `sign-req <TYPE> <NAME>` - Sign a new certificate.
+
+   This allows ALL command line cutomisations to be used. eg: SAN.
+   (These customisations do not work correctly with the old `renew`)
+
+3. If required, Command `revoke-expired` can be used to revoke an
+   expired certificate in the `pki/expired` directory.
+
+This approach also allows certificates which have been edited during
+`sign-req` to be edited the same way, without the need for excessive
+and non-standard code. (Note: OpenSSL allows only one way for edits)
+
+
+Easy-RSA version 3.1.x
+----------------------
 
 **UPDATE**:
 The changes noted for Easy-RSA version 3.1.2 have all been included with
