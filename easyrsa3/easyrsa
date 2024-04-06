@@ -38,8 +38,8 @@ A list of commands is shown below:
   build-serverClient-full <file_name_base> [ cmd-opts ]
   inline <file_name_base>
   revoke <file_name_base> [ cmd-opts ]
-  renew <file_name_base>
-  revoke-renewed <file_name_base> [ cmd-opts ]
+  expire <file_name_base>
+  revoke-expired <file_name_base> [ cmd-opts ]
   gen-crl
   update-db
   show-req <file_name_base> [ cmd-opts ]
@@ -214,11 +214,11 @@ Usage: easyrsa [ OPTIONS.. ] <COMMAND> <TARGET> [ cmd-opts.. ]"
         cessationOfOperation
         certificateHold"
 	;;
-	revoke-renewed)
+	revoke-expired)
 		text="
-* revoke-renewed <file_name_base> [reason]
+* revoke-expired <file_name_base> [reason]
 
-      Revoke a *renewed* certificate specified by the <file_name_base>,
+      Revoke an *expired* certificate specified by the <file_name_base>,
       with an optional revocation reason which can be one of:
         unspecified
         keyCompromise
@@ -228,11 +228,14 @@ Usage: easyrsa [ OPTIONS.. ] <COMMAND> <TARGET> [ cmd-opts.. ]"
         cessationOfOperation
         certificateHold"
 	;;
-	renew)
+	expire)
 		text="
-* renew <file_name_base>
+* expire <file_name_base>
 
-      Renew a certificate specified by <file_name_base>"
+      Move a certificate specified by <file_name_base>
+      to the 'pki/expired' directory.
+
+      Allows an existing request to be signed again."
 	;;
 	gen-crl)
 		text="
@@ -515,8 +518,8 @@ These commands require easyrsa-tools.lib to be installed:
 	esac
 
 	if [ "$err_text" ]; then
-		print "${err_text}"
 		print "$easyrsa_help_title"
+		print "${err_text}"
 	else
 		# display the help text
 		print "$easyrsa_help_title"
@@ -2847,12 +2850,12 @@ Failed to remove inline file:
 
 # renew backend
 renew() {
-	print "\
+	print "
 To renew a certificate, please use commands:
 * expire <NAME>
 * sign-req <TYPE> <NAME>
 
-See help for details."
+See help for details.${NL}"
 	cleanup
 } # => renew()
 
