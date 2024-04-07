@@ -2652,12 +2652,8 @@ Run easyrsa without commands for usage and command help."
 	creds_in="$in_dir/${file_name_base}.creds"
 	inline_in="$in_dir/inline/${file_name_base}.inline"
 
-	# input cert for revocation, either issued/ or expired/
-	if [ "$revoke_expired" ]; then
-		crt_in="$in_dir/expired/${file_name_base}.crt"
-	else
-		crt_in="$in_dir/issued/${file_name_base}.crt"
-	fi
+	# input cert for revocation: issued, expired or renewed
+	crt_in="${in_dir}/${cert_dir}/${file_name_base}.crt"
 
 	# Assign possible "crl_reason"
 	if [ "$1" ]; then
@@ -5346,17 +5342,18 @@ case "$cmd" in
 		;;
 	revoke)
 		verify_working_env
-		revoke_expired=
+		cert_dir=issued
 		revoke "$@"
 		;;
 	revoke-expired)
 		verify_working_env
-		revoke_expired=1
+		cert_dir=expired
 		revoke "$@"
 		;;
 	revoke-renewed)
 		verify_working_env
-		revoke_renewed "$@"
+		cert_dir=renewed
+		revoke "$@"
 		;;
 	renew)
 		verify_working_env
