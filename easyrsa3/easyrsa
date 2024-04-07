@@ -40,6 +40,7 @@ A list of commands is shown below:
   revoke <file_name_base> [ cmd-opts ]
   expire <file_name_base>
   revoke-expired <file_name_base> [ cmd-opts ]
+  revoke-renewed <file_name_base> [ cmd-opts ]
   gen-crl
   update-db
   show-req <file_name_base> [ cmd-opts ]
@@ -200,33 +201,28 @@ Usage: easyrsa [ OPTIONS.. ] <COMMAND> <TARGET> [ cmd-opts.. ]"
   * NOTE: To create an inline-file the output must be redirected.
           If the output is incomplete then an error is retruned."
 	;;
-	revoke)
+	revoke*)
 		text="
 * revoke <file_name_base> [reason]
+* revoke-expired <file_name_base> [reason]
+* revoke-renewed <file_name_base> [reason]
 
       Revoke a certificate specified by the <file_name_base>,
-      with an optional revocation reason which can be one of:
+      with an optional revocation [reason] which can be one of:
         unspecified
         keyCompromise
         CACompromise
         affiliationChanged
         superseded
         cessationOfOperation
-        certificateHold"
-	;;
-	revoke-expired)
-		text="
-* revoke-expired <file_name_base> [reason]
+        certificateHold
 
-      Revoke an *expired* certificate specified by the <file_name_base>,
-      with an optional revocation reason which can be one of:
-        unspecified
-        keyCompromise
-        CACompromise
-        affiliationChanged
-        superseded
-        cessationOfOperation
-        certificateHold"
+      revoke-expired and revoke-renewed are functionally equivalent
+      to revoke, however, they are used to revoke certificates which
+      have been either 'expired' or 'renewed' by EasyRSA commands."
+
+		opts="
+      * [reason] - As shown above."
 	;;
 	expire)
 		text="
