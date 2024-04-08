@@ -2,6 +2,10 @@ Easy-RSA 3 ChangeLog
 
 3.2.0 (TBD)
 
+   * docs: Update EasyRSA-Renew-and-Revoke.md (f6c2bf5) (#1109)
+   * Remove all 'renew' code; replaced by 'expire' code (9d94207) (#1109)
+   * Introduce commands: 'expire' and 'revoke-expired' (a1890fa) (#1109)
+   * Keep request files [CSR] when revoking certificates (6d6e8d8) (#1109)
    * Restrict use of --req-cn to build-ca (0a46164) (#1098)
    * Remove command 'display-san' (Code removed in 5a06f94) (50e6002) (#1096)
    * help: Add 'copyext'; How to use --copy-ext and --san (5a06f94) (#1096)
