@@ -2,6 +2,9 @@ Easy-RSA 3 ChangeLog
 
 3.2.0 (TBD)
 
+   * Introduce Options to edit Request Subject during command 'sign-req'
+     Global Option: --new-subject -- Command 'sign-req' option: 'newsubj'
+     First proposed in: (#439) -- Completed: (83b81c7) (#1111)
    * docs: Update EasyRSA-Renew-and-Revoke.md (f6c2bf5) (#1109)
    * Remove all 'renew' code; replaced by 'expire' code (9d94207) (#1109)
    * Introduce commands: 'expire' and 'revoke-expired' (a1890fa) (#1109)
