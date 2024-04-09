@@ -2102,16 +2102,32 @@ Option conflict --req-cn:
 	# Enforce commonName
 	export EASYRSA_REQ_CN="$file_name_base"
 
-	# Check for preserve-dn
+	# Check optional subject
+	force_subj=
 	while [ "$1" ]; do
 		case "$1" in
+			newsubj*)
+				# verify force_subj opts are used correctly
+				[ "$EASYRSA_NEW_SUBJECT" ] || user_error "\
+To force a new certificate subject, global option --new-subject
+must also be specified."
+				force_subj="$EASYRSA_NEW_SUBJECT"
+			;;
 			preserve*)
 				export EASYRSA_PRESERVE_DN=1
 			;;
-			*) warn "Ignoring unknown option '$1'"
+			*)
+				user_error "Unknown option '$1'"
 		esac
 		shift
 	done
+
+	# verify force_subj opts are used correctly
+	if [ "$EASYRSA_NEW_SUBJECT" ]; then
+		[ "$force_subj" ] || user_error "\
+To force a new certificate subject, command option 'newsubj'
+must also be specified."
+	fi
 
 	# Cert type must NOT be COMMON
 	[ "$crt_type" = COMMON ] && user_error "\
@@ -2309,8 +2325,14 @@ for '$EASYRSA_CERT_EXPIRE' days"
 	fi
 
 	# Set confirm DN
-	confirm_dn="$(display_dn req "$req_in")" || \
-		die "sign-req: display_dn"
+	if [ "$force_subj" ]; then
+		confirm_dn="\
+Forced subject=
+    $force_subj"
+	else
+		confirm_dn="$(display_dn req "$req_in")" || \
+			die "sign-req: display_dn"
+	fi
 
 	# Set confirm SAN
 	# SAN from .req
@@ -2388,6 +2410,7 @@ $confirm_details" # => confirm end
 		-in "$req_in" -out "$crt_out_tmp" \
 		-extfile "$ext_tmp" \
 		${EASYRSA_PRESERVE_DN:+ -preserveDN} \
+		${force_subj:+ -subj "$force_subj"} \
 		${EASYRSA_PASSIN:+ -passin "$EASYRSA_PASSIN"} \
 		${EASYRSA_NO_TEXT:+ -notext} \
 		${EASYRSA_CERT_EXPIRE:+ -days "$EASYRSA_CERT_EXPIRE"} \
@@ -5163,6 +5186,9 @@ while :; do
 		else
 			EASYRSA_SAN="$val"
 		fi
+		;;
+	--new-subject)
+		export EASYRSA_NEW_SUBJECT="$val"
 		;;
 	--usefn)
 		export EASYRSA_P12_FR_NAME="$val"
