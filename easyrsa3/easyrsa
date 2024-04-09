@@ -176,6 +176,7 @@ Usage: easyrsa [ OPTIONS.. ] <COMMAND> <TARGET> [ cmd-opts.. ]"
       This request file must exist in the reqs/ dir and have a .req file
       extension. See 'import-req' for importing from other sources."
 		opts="
+      * newsubj  - Replace subject. See 'help subject'.
       * preserve - Use the DN-field order of the CSR not the CA."
 	;;
 	build|build-client-full|build-server-full|build-serverClient-full)
@@ -470,6 +471,24 @@ Usage: easyrsa [ OPTIONS.. ] <COMMAND> <TARGET> [ cmd-opts.. ]"
 
       Can only be used in BATCH mode."
 	;;
+	--new-subject|newsubj*|subject)
+		text_only=1
+		text="
+* Global Option: --new-subject=<SUBJECT>
+
+      This global option is used to set the new certificate subject,
+      when signing a new certificate
+
+* REQUIRES Command option: 'newsubj', for command 'sign-req'
+
+      Using command 'sign-req', add command option 'newsubj',
+      to FORCE the --new-subject to be used.
+
+      Example:
+      --new-subject='/CN=foo' sign-req client bar newsubj
+
+      See OpenSSL command 'ca', option -subj, for full details."
+	;;
 	tool*|util*|more)
 		# Test features
 		text_only=1
@@ -600,6 +619,9 @@ Certificate & Request options: (these impact cert/req field values)
 --san|--subject-alt-name=<subjectAltName>
                 : Add a subjectAltName.
                   For more info and syntax, see: 'easyrsa help altname'
+
+--new-subject   : Specify a new subject field to sign a request with.
+                  For more info and syntax, see: 'easyrsa help subject'
 
 --usefn=NAME    : export-p12, set 'friendlyName' to NAME
                   For more, see: 'easyrsa help friendly'
