@@ -499,9 +499,6 @@ These commands are safe to test and will NOT effect your PKI.
   Check <SERIAL> number is unique:
     serial|check-serial <SERIAL>
 
-  Display CN of request or certificate: <form> = req|x509
-    display-cn <form> <DIR/FILE_NAME>
-
   Display DN of request or certificate: <form> = req|x509
     display-dn <form> <DIR/FILE_NAME>
 
@@ -616,11 +613,12 @@ Certificate & Request options: (these impact cert/req field values)
 --copy-ext      : Copy included request X509 extensions (namely subjAltName)
                   For more info, see: 'easyrsa help copyext'
 
---san|--subject-alt-name=<subjectAltName>
-                : Add a subjectAltName.
+--san|--subject-alt-name=SUBJECT_ALT_NAME
+                : Add a subjectAltName. Can be used multiple times.
                   For more info and syntax, see: 'easyrsa help altname'
 
---new-subject   : Specify a new subject field to sign a request with.
+--new-subject='SUBJECT'
+                : Specify a new subject field to sign a request with.
                   For more info and syntax, see: 'easyrsa help subject'
 
 --usefn=NAME    : export-p12, set 'friendlyName' to NAME
@@ -3393,79 +3391,6 @@ update_db() {
 			die "Failed to perform update-db."
 } # => update_db()
 
-# Display commonName
-display_cn() {
-	format="$1"
-	path="$2"
-	var_name="$3"
-	shift "$#"
-
-	case "$format" in
-	req)
-		def_dir=reqs
-		dot_3=req
-	;;
-	x509)
-		def_dir=issued
-		dot_3=crt
-	;;
-	'')
-		user_error "display_cn - Unspecified format"
-	;;
-	*)
-		user_error "display_cn - Unknown format: '$format'"
-	esac
-
-	# Check for absolute or relative file name
-	if [ -e "$path" ]; then
-		: # ok
-	else
-		in_file="${EASYRSA_PKI}/${def_dir}/${path}.${dot_3}"
-		in_file_1="${EASYRSA_PKI}/${def_dir}/${path}"
-		if [ -e "$in_file" ]; then
-			path="$in_file"
-		elif [ -e "$in_file_1" ]; then
-			path="$in_file_1"
-		else
-			user_error "\
-display_cn - Type '$format', missing: '$path'"
-		fi
-	fi
-
-	# Extract commonName
-	error_info="Certs require form 'x509'; Reqs require form 'req'"
-	if ssl_cn="$(
-		export OPENSSL_CONF=/dev/null
-		"$EASYRSA_OPENSSL" "$format" -in "$path" -noout -subject \
-			-nameopt utf8,sep_multiline,space_eq,lname,align | \
-				grep '^[[:blank:]]*commonName'
-		)"
-	then
-		unset -v error_info
-	else
-		 die "display_cn - ssl_cn: Not found 'commonName'"
-	fi
-
-	# Return commonName
-	if [ "$internal_batch" ] || [ "$EASYRSA_BATCH" ]; then
-		# Remove the label
-		ssl_cn="${ssl_cn#*= }"
-		# if set then return CN via variable
-		if [ "$var_name" ]; then
-			verbose "display_cn - force_set_var '$var_name' '$ssl_cn'"
-			force_set_var "$var_name" "$ssl_cn" || \
-				die "display_cn - force_set_var '$var_name' '$ssl_cn'"
-		else
-			print "$ssl_cn"
-		fi
-	else
-		print "$ssl_cn"
-	fi
-
-	unset -v ssl_cn var_name in_file in_file_1 \
-		def_dir dot_3 path format internal_batch
-} # => display_cn()
-
 # display cert DN info on a req/X509, passed by full pathname
 display_dn() {
 	[ "$#" = 2 ] || die "\
@@ -5532,10 +5457,6 @@ Place a copy of easyrsa-tools.lib in a standard system location."
 		# Therefore, on error, exit with error.
 		check_serial_unique "$@" || \
 			easyrsa_exit_with_error=1
-		;;
-	display-cn)
-		verify_working_env
-		display_cn "$@"
 		;;
 	display-dn)
 		verify_working_env
