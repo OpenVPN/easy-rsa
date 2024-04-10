@@ -2,6 +2,7 @@ Easy-RSA 3 ChangeLog
 
 3.2.0 (TBD)
 
+   * Remove command and function display_cn(), unused (be8f400) (#1114)
    * Introduce Options to edit Request Subject during command 'sign-req'
      Global Option: --new-subject -- Command 'sign-req' option: 'newsubj'
      First proposed in: (#439) -- Completed: (83b81c7) (#1111)
