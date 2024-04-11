@@ -122,11 +122,6 @@ Usage: easyrsa [ OPTIONS.. ] <COMMAND> <TARGET> [ cmd-opts.. ]"
 * init-pki [ cmd-opts ]
 
       Removes & re-initializes the PKI directory for a new PKI"
-
-		opts="
-      * hard    - Recursively delete the PKI directory (default).
-      * soft    - Keep the named PKI directory and PKI 'vars' file
-                  intact."
 	;;
 	build-ca)
 		text="
@@ -1338,24 +1333,6 @@ and initialize a fresh PKI here."
 			# # # shellcheck disable=SC2115 # Use "${var:?}"
 			rm -rf "$EASYRSA_PKI" || \
 				die "init-pki hard reset failed."
-		;;
-		soft)
-		# There is no unit test for a soft reset
-			for i in ca.crt crl.pem \
-				issued private reqs inline revoked renewed \
-				serial serial.old index.txt index.txt.old \
-				index.txt.attr index.txt.attr.old \
-				ecparams certs_by_serial
-			do
-				# # # shellcheck disable=SC2115 # Use "${var:?}"
-				target="$EASYRSA_PKI/$i"
-				if [ "${target%/*}" ]; then
-					rm -rf "$target" || \
-						die "init-pki soft reset(1) failed!"
-				else
-					die "init-pki soft reset(2) failed!"
-				fi
-			done
 		;;
 		*)
 			user_error "Unknown reset type: $reset"
