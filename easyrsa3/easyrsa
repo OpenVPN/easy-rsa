@@ -1048,69 +1048,10 @@ expand_ssl_config() {
 expand_ssl_config - \
 easyrsa_mktemp safe_ssl_cnf_tmp"
 
-	# Rewrite
-	# Only use if old 'sed' version is requested
-	# shellcheck disable=SC2016 # No expand '' - expand_ssl_config()
-	if [ "$EASYRSA_LEGACY_SAFE_SSL" ]; then
-		if sed \
-\
--e s\`'$dir'\`\
-\""$EASYRSA_PKI"\"\`g \
-\
--e s\`'$ENV::EASYRSA_PKI'\`\
-\""$EASYRSA_PKI"\"\`g \
-\
--e s\`'$ENV::EASYRSA_CERT_EXPIRE'\`\
-\""$EASYRSA_CERT_EXPIRE"\"\`g \
-\
--e s\`'$ENV::EASYRSA_CRL_DAYS'\`\
-\""$EASYRSA_CRL_DAYS"\"\`g \
-\
--e s\`'$ENV::EASYRSA_DIGEST'\`\
-\""$EASYRSA_DIGEST"\"\`g \
-\
--e s\`'$ENV::EASYRSA_KEY_SIZE'\`\
-\""$EASYRSA_KEY_SIZE"\"\`g \
-\
--e s\`'$ENV::EASYRSA_DN'\`\
-\""$EASYRSA_DN"\"\`g \
-\
--e s\`'$ENV::EASYRSA_REQ_CN'\`\
-\""$EASYRSA_REQ_CN"\"\`g \
-\
--e s\`'$ENV::EASYRSA_REQ_COUNTRY'\`\
-\""$EASYRSA_REQ_COUNTRY"\"\`g \
-\
--e s\`'$ENV::EASYRSA_REQ_PROVINCE'\`\
-\""$EASYRSA_REQ_PROVINCE"\"\`g \
-\
--e s\`'$ENV::EASYRSA_REQ_CITY'\`\
-\""$EASYRSA_REQ_CITY"\"\`g \
-\
--e s\`'$ENV::EASYRSA_REQ_ORG'\`\
-\""$EASYRSA_REQ_ORG"\"\`g \
-\
--e s\`'$ENV::EASYRSA_REQ_OU'\`\
-\""$EASYRSA_REQ_OU"\"\`g \
-\
--e s\`'$ENV::EASYRSA_REQ_EMAIL'\`\
-\""$EASYRSA_REQ_EMAIL"\"\`g \
-\
--e s\`'$ENV::EASYRSA_REQ_SERIAL'\`\
-\""$EASYRSA_REQ_SERIAL"\"\`g \
-\
-			"$EASYRSA_SSL_CONF" > "$safe_ssl_cnf_tmp"
-		then
-			verbose "expand_ssl_config: via 'sed' COMPLETED"
-		else
-			return 1
-		fi
-
-	else
-		write safe-cnf > "$safe_ssl_cnf_tmp" || \
-			die "expand_ssl_config - write safe-cnf temp-file"
-		verbose "expand_ssl_config: via 'write' COMPLETED"
-	fi
+	# Expand openssl-easyrsa.cnf, for LibreSSL
+	write safe-cnf > "$safe_ssl_cnf_tmp" || \
+		die "expand_ssl_config - write safe-cnf temp-file"
+	verbose "expand_ssl_config: via 'write' COMPLETED"
 } # => expand_ssl_config()
 
 # Easy-RSA meta-wrapper for SSL
@@ -5029,11 +4970,6 @@ while :; do
 	--force-safe-ssl)
 		empty_ok=1
 		export EASYRSA_FORCE_SAFE_SSL=1
-		;;
-	--old-safe-ssl)
-		empty_ok=1
-		export EASYRSA_FORCE_SAFE_SSL=1
-		export EASYRSA_LEGACY_SAFE_SSL=1
 		;;
 	--nopass|--no-pass)
 		empty_ok=1
