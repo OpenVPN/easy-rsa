@@ -2,6 +2,7 @@ Easy-RSA 3 ChangeLog
 
 3.2.0 (TBD)
 
+   * build-ca: Command 'req', remove SSL option '-keyout' (4e02c8a) (#1123)
    * Remove escape_hazard(), obsolete (ca76697)
    * Remove command and function display_cn(), unused (be8f400) (#1114)
    * Introduce Options to edit Request Subject during command 'sign-req'
