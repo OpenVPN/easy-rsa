@@ -1923,7 +1923,7 @@ build_ca: CA certificate password created via RAW"
 
 	else
 		easyrsa_openssl req -utf8 -new \
-			-key "$out_key_tmp" -keyout "$out_key_tmp" \
+			-key "$out_key_tmp" \
 			-out "$out_file_tmp" \
 			${ssl_batch:+ -batch} \
 			${x509:+ -x509} \
