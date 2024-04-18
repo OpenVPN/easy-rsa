@@ -3557,12 +3557,11 @@ ssl_cert_x509v3_eku() {
 	# Extract certificate Extended Key Usage
 	if [ "$ssl_lib" = libressl ]; then
 		__eku="$(
-			easyrsa_openssl x509 -in "${__crt}" -noout -text | \
+			"$EASYRSA_OPENSSL" x509 -in "${__crt}" -noout -text | \
 				sed -n "/${__pattern}/{n;s/^ *//g;p;}"
 			)"
 	else
 		__eku="$(
-			OPENSSL_CONF=/dev/null
 			"$EASYRSA_OPENSSL" x509 -in "${__crt}" -noout \
 				-ext extendedKeyUsage | \
 					sed -e /"${__pattern}"/d -e s/^\ *//
@@ -3614,6 +3613,8 @@ ssl_cert_x509v3_eku() {
 		return
 	fi
 
+	# Also, catch errors from SSL x509 command
+	# for '__eku' subshell+pipe
 	return 1
 } # => ssl_cert_x509v3_eku()
 
