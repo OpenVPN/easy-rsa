@@ -29,6 +29,8 @@ For a list of utility commands, use:
 
 A list of commands is shown below:
   init-pki [ cmd-opts ]
+  self-sign-server [ cmd-opts ]
+  self-sign-client [ cmd-opts ]
   build-ca [ cmd-opts ]
   gen-dh
   gen-req <file_name_base> [ cmd-opts ]
@@ -127,6 +129,16 @@ Usage: easyrsa [ OPTIONS.. ] <COMMAND> <TARGET> [ cmd-opts.. ]"
       * hard    - Recursively delete the PKI directory (default).
       * soft    - Keep the named PKI directory and PKI 'vars' file
                   intact."
+	;;
+	self-sign*)
+		text="
+* self-sign-server|self-sign-client [ cmd-opts ]
+
+      Creates a new self-signed server|client key pair"
+
+		opts="
+      * nopass  - Do not encrypt the private key (Default: encrypted)
+                  (Equivalent to global option '--nopass|--no-pass')"
 	;;
 	build-ca)
 		text="
@@ -1832,6 +1844,100 @@ CA creation complete. Your new CA certificate is at:
 	return 0
 } # => build_ca()
 
+# Build self signed key pair
+build_self_sign() {
+	# Define x509 type
+	case "$1" in
+		server)
+			selfsign_eku=serverAuth
+		;;
+		client)
+			selfsign_eku=clientAuth
+		;;
+		*)
+			die "build_self_sign: Unknown EKU '$1'"
+	esac
+	shift
+
+	file_name_base="$1"
+	shift # scrape off file-name-base
+
+	# Assign output files
+	key_out="$EASYRSA_PKI/private/${file_name_base}.key"
+	crt_out="$EASYRSA_PKI/issued/${file_name_base}.crt"
+	inline_out="$EASYRSA_PKI/inline/${file_name_base}.inline"
+
+	# function opts support
+	while [ "$1" ]; do
+		case "$1" in
+			nopass)
+				[ "$prohibit_no_pass" ] || EASYRSA_NO_PASS=1
+			;;
+			*)
+				user_error "Unknown command option: '$1'"
+		esac
+		shift
+	done
+
+	# key file must NOT exist
+	[ ! -e "$key_out" ] || user_error "\
+Cannot self-sign this request for '$file_name_base'.
+Conflicting key exists at:
+* $key_out"
+
+	# Certificate file must NOT exist
+	[ ! -e "$crt_out" ] || user_error "\
+Cannot self-sign this request for '$file_name_base'.
+Conflicting certificate exists at:
+* $crt_out"
+
+	# temp-file for params-file
+	selfsign_params_file=""
+	easyrsa_mktemp selfsign_params_file || \
+		die "build_self_sign - easyrsa_mktemp selfsign_params_file"
+
+	# params-file
+	if [ "$EASYRSA_CURVE" ]; then
+		user_error "Only EC Curve 'secp384r1' is suported."
+	else
+		export EASYRSA_CURVE=secp384r1
+		"${EASYRSA_OPENSSL}" ecparam \
+			-name "${EASYRSA_CURVE}" \
+			-out "${selfsign_params_file}" || \
+				die "build_self_sign - params-file failed"
+	fi
+
+	# create self-signed key pair
+	easyrsa_openssl req -x509  -utf8 -sha256 -text \
+		-newkey ec:"${selfsign_params_file}" \
+		-keyout "${key_out}" \
+		-out "${crt_out}" \
+		-subj "/CN=${file_name_base}" \
+		-addext extendedKeyUsage="${selfsign_eku}" \
+		${EASYRSA_NO_PASS:+ "$no_password"} \
+		${EASYRSA_PASSIN:+ -passin "$EASYRSA_PASSIN"} \
+		${EASYRSA_CERT_EXPIRE:+ -days "$EASYRSA_CERT_EXPIRE"} \
+		${EASYRSA_START_DATE:+ -startdate "$EASYRSA_START_DATE"} \
+		${EASYRSA_END_DATE:+ -enddate "$EASYRSA_END_DATE"} \
+
+	# User info
+	notice "\
+Self-signed key and certificate created at:
+* $key_out
+* $crt_out"
+
+	# inline it
+	if inline_creds "$file_name_base" > "$inline_out"; then
+		notice "\
+Inline file created:
+* $inline_out"
+	else
+		warn "\
+INCOMPLETE Inline file created:
+* $inline_out"
+	fi
+} # => build_self_sign()
+
 # gen-dh backend:
 gen_dh() {
 	out_file="$EASYRSA_PKI/dh.pem"
@@ -2556,6 +2662,10 @@ inline_creds() {
 		# Get EasyRSA cert type, ignore error
 		ssl_cert_x509v3_eku "$crt_source" type_data || :
 
+		# Add self-signed
+		type_data="${type_data}${selfsign_eku:+
+# SELF-SIGNED}"
+
 		crt_data="\
 <cert>
 $(cat "$crt_source")
@@ -2583,17 +2693,21 @@ $(cat "$key_source")
 </key>"
 	fi
 
-	if [ -e "$ca_source" ]; then
-		ca_data="\
+	if [ "$selfsign_eku" ]; then
+		: # ok
+	else
+		if [ -e "$ca_source" ]; then
+			ca_data="\
 <ca>
 $(cat "$ca_source")
 </ca>"
-	else
-		incomplete=1
-		ca_data="\
+		else
+			incomplete=1
+			ca_data="\
 <ca>
 * Paste your CA certificate here *
 </ca>"
+		fi
 	fi
 
 	# Print data
@@ -4891,6 +5005,7 @@ unset -v \
 	prohibit_no_pass \
 	invalid_vars \
 	do_build_full error_build_full_cleanup \
+	selfsign_eku \
 	internal_batch mv_temp_error \
 	easyrsa_exit_with_error error_info \
 	legacy_file_over_write
@@ -5151,6 +5266,9 @@ case "$cmd" in
 			gen-req|gen-dh|build-ca|show-req|export-p*|inline)
 				: # ok
 			;;
+			self-sign-*)
+				: # ok
+			;;
 			*)
 				require_ca=1
 		esac
@@ -5208,6 +5326,14 @@ case "$cmd" in
 			export EASYRSA_CA_EXPIRE="$alias_days"
 		build_ca "$@"
 		;;
+	self-sign-server)
+		verify_working_env
+		build_self_sign server "$@"
+	;;
+	self-sign-client)
+		verify_working_env
+		build_self_sign client "$@"
+	;;
 	gen-dh)
 		verify_working_env
 		gen_dh
