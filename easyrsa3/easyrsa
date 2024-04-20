@@ -29,8 +29,8 @@ For a list of utility commands, use:
 
 A list of commands is shown below:
   init-pki [ cmd-opts ]
-  self-sign-server [ cmd-opts ]
-  self-sign-client [ cmd-opts ]
+  self-sign-server <file_name_base> [ cmd-opts ]
+  self-sign-client <file_name_base> [ cmd-opts ]
   build-ca [ cmd-opts ]
   gen-dh
   gen-req <file_name_base> [ cmd-opts ]
@@ -132,7 +132,7 @@ Usage: easyrsa [ OPTIONS.. ] <COMMAND> <TARGET> [ cmd-opts.. ]"
 	;;
 	self-sign*)
 		text="
-* self-sign-server|self-sign-client [ cmd-opts ]
+* self-sign-server|self-sign-client <file_name_base> [ cmd-opts ]
 
       Creates a new self-signed server|client key pair"
 
@@ -1859,6 +1859,8 @@ build_self_sign() {
 	esac
 	shift
 
+	# Set file_name_base, a.k.a cmmonName
+	[ "$1" ] || user_error "A <NAME> is required!"
 	file_name_base="$1"
 	shift # scrape off file-name-base
 
