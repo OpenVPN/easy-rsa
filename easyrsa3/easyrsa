@@ -1920,11 +1920,22 @@ Conflicting certificate exists at:
 		${EASYRSA_START_DATE:+ -startdate "$EASYRSA_START_DATE"} \
 		${EASYRSA_END_DATE:+ -enddate "$EASYRSA_END_DATE"} \
 
+	# Generate fingerprint for inline file
+	crt_fingerprint="$(
+		"$EASYRSA_OPENSSL" x509 -in "$crt_out" -noout \
+			-sha256 -fingerprint
+	)" || die "build_self_sign - Failed -fingerprint"
+	# strip prefix
+	crt_fingerprint="${crt_fingerprint#*=}"
+
 	# User info
 	notice "\
-Self-signed key and certificate created at:
+Self-signed key and certificate created:
 * $key_out
-* $crt_out"
+* $crt_out
+
+SHA256 fingerprint (See inline file below):
+* $crt_fingerprint"
 
 	# inline it
 	if inline_creds "$file_name_base" > "$inline_out"; then
@@ -2662,10 +2673,15 @@ inline_creds() {
 		# Get EasyRSA cert type, ignore error
 		ssl_cert_x509v3_eku "$crt_source" type_data || :
 
-		# Add self-signed
-		type_data="${type_data}${selfsign_eku:+
-# SELF-SIGNED}"
+		# self-signed details
+		if [ "$selfsign_eku" ]; then
+			selfsign_details="
+# SELF-SIGNED
+# SHA256 fingerprint:
+# $crt_fingerprint"
+		fi
 
+		# Certificate
 		crt_data="\
 <cert>
 $(cat "$crt_source")
@@ -2680,6 +2696,7 @@ $(cat "$crt_source")
 </cert>"
 	fi
 
+	# Private key
 	if [ -e "$key_source" ]; then
 		key_data="\
 <key>
@@ -2693,6 +2710,7 @@ $(cat "$key_source")
 </key>"
 	fi
 
+	# CA certificate
 	if [ "$selfsign_eku" ]; then
 		: # ok
 	else
@@ -2713,7 +2731,7 @@ $(cat "$ca_source")
 	# Print data
 	print "\
 # Easy-RSA Type: ${type_data}
-# Name: ${1}
+# Name: ${1}${selfsign_details}
 
 $crt_data
 
