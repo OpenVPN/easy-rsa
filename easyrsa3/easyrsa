@@ -2182,6 +2182,9 @@ Option conflict --req-cn:
 	force_subj=
 	while [ "$1" ]; do
 		case "$1" in
+			nopass)
+				warn "Ignoring option '$1'"
+			;;
 			newsubj*)
 				# verify force_subj opts are used correctly
 				[ "$EASYRSA_NEW_SUBJECT" ] || user_error "\
