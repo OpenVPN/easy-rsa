@@ -1898,19 +1898,22 @@ Conflicting certificate exists at:
 	easyrsa_mktemp selfsign_params_file || \
 		die "build_self_sign - easyrsa_mktemp selfsign_params_file"
 
-	# params-file
+	# Allow default EASYRSA_ALGO=rsa to silently use EC
 	if [ "$EASYRSA_CURVE" ]; then
-		user_error "Only EC Curve 'secp384r1' is suported."
+		[ "$EASYRSA_CURVE" = secp384r1 ] || \
+			user_error "Only EC Curve 'secp384r1' is supported."
 	else
 		export EASYRSA_CURVE=secp384r1
-		"${EASYRSA_OPENSSL}" ecparam \
-			-name "${EASYRSA_CURVE}" \
-			-out "${selfsign_params_file}" || \
-				die "build_self_sign - params-file failed"
 	fi
 
+	# params-file
+	"${EASYRSA_OPENSSL}" ecparam \
+		-name "${EASYRSA_CURVE}" \
+		-out "${selfsign_params_file}" || \
+			die "build_self_sign - params-file failed"
+
 	# create self-signed key pair
-	easyrsa_openssl req -x509  -utf8 -sha256 -text \
+	easyrsa_openssl req -x509 -utf8 -sha256 -text \
 		-newkey ec:"${selfsign_params_file}" \
 		-keyout "${key_out}" \
 		-out "${crt_out}" \
@@ -1918,9 +1921,10 @@ Conflicting certificate exists at:
 		-addext extendedKeyUsage="${selfsign_eku}" \
 		${EASYRSA_NO_PASS:+ "$no_password"} \
 		${EASYRSA_PASSIN:+ -passin "$EASYRSA_PASSIN"} \
+		${EASYRSA_PASSOUT:+ -passout "$EASYRSA_PASSOUT"} \
 		${EASYRSA_CERT_EXPIRE:+ -days "$EASYRSA_CERT_EXPIRE"} \
 		${EASYRSA_START_DATE:+ -startdate "$EASYRSA_START_DATE"} \
-		${EASYRSA_END_DATE:+ -enddate "$EASYRSA_END_DATE"} \
+		${EASYRSA_END_DATE:+ -enddate "$EASYRSA_END_DATE"}
 
 	# Generate fingerprint for inline file
 	crt_fingerprint="$(
