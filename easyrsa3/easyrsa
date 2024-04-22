@@ -2681,7 +2681,29 @@ inline_creds() {
 	# Generate data
 	if [ -e "$crt_source" ]; then
 		# Get EasyRSA cert type, ignore error
+		type_data=
 		ssl_cert_x509v3_eku "$crt_source" type_data || :
+
+		# Check for self-signed cert
+		if "$EASYRSA_OPENSSL" x509 -in "$crt_source" \
+			-noout -text | grep -q 'CA:TRUE'
+		then
+			# If called by command 'inline' then generate FP
+			if [ -z "$selfsign_eku" ]; then
+				# build a self-signed inline file
+				selfsign_eku=1
+
+				# Generate fingerprint for inline file
+				crt_fingerprint="$(
+					"$EASYRSA_OPENSSL" x509 -in "$crt_source" \
+						-noout -sha256 -fingerprint
+					)" || die "build_self_sign - Failed -fingerprint"
+				# strip prefix
+				crt_fingerprint="${crt_fingerprint#*=}"
+			fi
+		else
+			selfsign_details=
+		fi
 
 		# self-signed details
 		if [ "$selfsign_eku" ]; then
@@ -2722,7 +2744,7 @@ $(cat "$key_source")
 
 	# CA certificate
 	if [ "$selfsign_eku" ]; then
-		: # ok
+		ca_data="# Self-signed certificate, CA is not required."
 	else
 		if [ -e "$ca_source" ]; then
 			ca_data="\
@@ -5291,8 +5313,12 @@ case "$cmd" in
 	*)
 		require_pki=1
 		case "$cmd" in
-			gen-req|gen-dh|build-ca|show-req|export-p*|inline)
+			gen-req|gen-dh|build-ca|show-req|export-p*)
 				: # ok
+			;;
+			inline)
+				unset -v EASYRSA_VERBOSE
+				EASYRSA_SILENT=1
 			;;
 			self-sign-*)
 				: # ok
