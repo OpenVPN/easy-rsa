@@ -585,7 +585,7 @@ General options:
                   Can NOT be used with --passin or --passout
 --passin=ARG    : Set -passin ARG for openssl (eg: pass:xEasyRSAy)
 --passout=ARG   : Set -passout ARG for openssl (eg: pass:xEasyRSAy)
---raw|raw-ca    : Build CA with password via RAW SSL input
+--raw-ca        : Build CA with password via RAW SSL input
 
 --vars=FILE     : Define a specific 'vars' file to use for Easy-RSA config
                   (Default vars file is in the current working directory)
