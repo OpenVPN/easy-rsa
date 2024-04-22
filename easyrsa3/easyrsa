@@ -212,7 +212,7 @@ Usage: easyrsa [ OPTIONS.. ] <COMMAND> <TARGET> [ cmd-opts.. ]"
       Print inline data for <file_name_base>, with key and CA.
 
   * NOTE: To create an inline-file the output must be redirected.
-          If the output is incomplete then an error is retruned."
+          If the output is incomplete then an error is returned."
 	;;
 	revoke*)
 		text="
@@ -410,12 +410,13 @@ Usage: easyrsa [ OPTIONS.. ] <COMMAND> <TARGET> [ cmd-opts.. ]"
                  - Same as 'legacy' plus OVER-WRITE files.
       * safe-cnf - Expand EasyRSA SSL config file for LibreSSL.
       * vars     - Write vars.example file."
+
 		opts="
       * <DIR>    - If <DIR> is specified then files are created.
                    Otherwise, the data is sent to stdout, except
                    for 'legacy', which always creates files."
 	;;
-	altname|subjectaltname|san)
+	--san|--subject-alt-name|altname|subjectaltname|san)
 		text_only=1
 		text="
 * Option: --subject-alt-name=SAN_FORMAT_STRING
@@ -436,7 +437,7 @@ Usage: easyrsa [ OPTIONS.. ] <COMMAND> <TARGET> [ cmd-opts.. ]"
       * IP:203.0.113.29
       * email:alternate@example.net"
 	;;
-	copyext|copy-ext)
+	--copy-ext|copy-ext|copyext)
 		text_only=1
 		text="
 * How to use --copy-ext and --san=<SAN>
@@ -483,7 +484,7 @@ Usage: easyrsa [ OPTIONS.. ] <COMMAND> <TARGET> [ cmd-opts.. ]"
 
       Can only be used in BATCH mode."
 	;;
-	--new-subject|newsubj*|subject)
+	--new-subj*|new-subj*|newsubj*|subject)
 		text_only=1
 		text="
 * Global Option: --new-subject=<SUBJECT>
