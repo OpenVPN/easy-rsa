@@ -3537,17 +3537,19 @@ Run easyrsa without commands for usage and command help."
 
 	# Cert file must exist
 	[ -e "$crt_in" ] || user_error "\
-No certificate found for the input: '$crt_in'"
+No certificate found for the input:
+* '$crt_in'"
 
 	# Verify file is a valid cert
 	verify_file x509 "$crt_in" || user_error "\
-Input is not a valid certificate: $crt_in"
+Input is not a valid certificate:
+* $crt_in"
 
 	# Silent SSL or not
 	if [ "$EASYRSA_SILENT_SSL" ]; then
 		# Test SSL out
 		# openssl direct call because error is expected
-		if OPENSSL_CONF=/dev/null "$EASYRSA_OPENSSL" verify \
+		if "$EASYRSA_OPENSSL" verify \
 			-CAfile "$ca_crt" "$crt_in" 1>/dev/null
 		then
 			verify_cert_ok=1
@@ -3555,9 +3557,8 @@ Input is not a valid certificate: $crt_in"
 			unset -v verify_cert_ok
 		fi
 	else
-		if OPENSSL_CONF=/dev/null \
-			"$EASYRSA_OPENSSL" verify \
-				-CAfile "$ca_crt" "$crt_in"
+		if "$EASYRSA_OPENSSL" verify \
+			-CAfile "$ca_crt" "$crt_in"
 		then
 			verify_cert_ok=1
 		else
@@ -3568,12 +3569,13 @@ Input is not a valid certificate: $crt_in"
 	# Return cert status
 	if [ "$verify_cert_ok" ]; then
 		notice "\
-  Certificate name:   $file_name_base
-  Verfication status: GOOD"
+  Certificate name:    $file_name_base
+  Verification status: GOOD"
 	else
 		notice "\
-  Certificate name:   $file_name_base
-  Verfication status: FAILED"
+  Certificate name:    $file_name_base
+  Verification status: FAILED"
+
 		# Exit with error (batch mode)
 		if [ "$EASYRSA_BATCH" ]; then
 			# exit with error at cleanup
