@@ -1894,18 +1894,30 @@ Cannot self-sign this request for '$file_name_base'.
 Conflicting certificate exists at:
 * $crt_out"
 
+	# Check algo and curve
+	case "$EASYRSA_ALGO" in
+	rsa)
+		# Silently use ec/secp384r1
+		export EASYRSA_ALGO=ec
+		set_var EASYRSA_CURVE secp384r1
+	;;
+	ec)
+		: # ok
+	;;
+	ed)
+		user_error "self-sign does not support ED Curves."
+	;;
+	*)
+		user_error "Unrecognised algorithm: '$EASYRSA_ALGO'"
+	esac
+
+	verbose "\
+self-sign: Use ALGO/CURVE to $EASYRSA_ALGO/$EASYRSA_CURVE"
+
 	# temp-file for params-file
 	selfsign_params_file=""
 	easyrsa_mktemp selfsign_params_file || \
 		die "build_self_sign - easyrsa_mktemp selfsign_params_file"
-
-	# Allow default EASYRSA_ALGO=rsa to silently use EC
-	if [ "$EASYRSA_CURVE" ]; then
-		[ "$EASYRSA_CURVE" = secp384r1 ] || \
-			user_error "Only EC Curve 'secp384r1' is supported."
-	else
-		export EASYRSA_CURVE=secp384r1
-	fi
 
 	# params-file
 	"${EASYRSA_OPENSSL}" ecparam \
@@ -1937,7 +1949,8 @@ Conflicting certificate exists at:
 
 	# User info
 	notice "\
-Self-signed key and certificate created:
+Self-signed '$EASYRSA_ALGO/$EASYRSA_CURVE' \
+key and certificate created:
 * $key_out
 * $crt_out
 
