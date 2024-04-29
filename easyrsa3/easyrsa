@@ -1860,15 +1860,19 @@ build_self_sign() {
 	esac
 	shift
 
-	# Set file_name_base, a.k.a cmmonName
-	[ "$1" ] || user_error "A <NAME> is required!"
-	file_name_base="$1"
-	shift # scrape off file-name-base
+	# pull $file_name_base
+	[ "$1" ] || user_error "\
+Error: didn't find a file base name as the first argument.
+Run easyrsa without commands for usage and command help."
 
-	# Assign output files
-	key_out="$EASYRSA_PKI/private/${file_name_base}.key"
-	crt_out="$EASYRSA_PKI/issued/${file_name_base}.crt"
-	inline_out="$EASYRSA_PKI/inline/${file_name_base}.inline"
+	file_name_base="$1"
+	shift
+
+	# Refuse option as name
+	case "$file_name_base" in
+		nopass)
+			user_error "Refusing '$file_name_base' as name."
+	esac
 
 	# function opts support
 	while [ "$1" ]; do
@@ -1881,6 +1885,11 @@ build_self_sign() {
 		esac
 		shift
 	done
+
+	# Assign output files
+	key_out="$EASYRSA_PKI/private/${file_name_base}.key"
+	crt_out="$EASYRSA_PKI/issued/${file_name_base}.crt"
+	inline_out="$EASYRSA_PKI/inline/${file_name_base}.inline"
 
 	# key file must NOT exist
 	[ ! -e "$key_out" ] || user_error "\
@@ -1896,19 +1905,20 @@ Conflicting certificate exists at:
 
 	# Check algo and curve
 	case "$EASYRSA_ALGO" in
-	rsa)
-		# Silently use ec/secp384r1
-		export EASYRSA_ALGO=ec
-		set_var EASYRSA_CURVE secp384r1
-	;;
-	ec)
-		: # ok
-	;;
-	ed)
-		user_error "self-sign does not support ED Curves."
-	;;
-	*)
-		user_error "Unrecognised algorithm: '$EASYRSA_ALGO'"
+		rsa)
+			# Silently use ec
+			export EASYRSA_ALGO=ec
+			# Selectively set --curve=secp384r1
+			set_var EASYRSA_CURVE secp384r1
+		;;
+		ec)
+			: # ok
+		;;
+		ed)
+			user_error "self-sign does not support ED Curves."
+		;;
+		*)
+			user_error "Unrecognised algorithm: '$EASYRSA_ALGO'"
 	esac
 
 	verbose "\
@@ -1920,18 +1930,18 @@ self-sign: Use ALGO/CURVE to $EASYRSA_ALGO/$EASYRSA_CURVE"
 		die "build_self_sign - easyrsa_mktemp selfsign_params_file"
 
 	# params-file
-	"${EASYRSA_OPENSSL}" ecparam \
-		-name "${EASYRSA_CURVE}" \
-		-out "${selfsign_params_file}" || \
+	"$EASYRSA_OPENSSL" ecparam \
+		-name "$EASYRSA_CURVE" \
+		-out "$selfsign_params_file" || \
 			die "build_self_sign - params-file failed"
 
 	# create self-signed key pair
 	easyrsa_openssl req -x509 -utf8 -sha256 -text \
-		-newkey ec:"${selfsign_params_file}" \
-		-keyout "${key_out}" \
-		-out "${crt_out}" \
-		-subj "/CN=${file_name_base}" \
-		-addext extendedKeyUsage="${selfsign_eku}" \
+		-newkey "$EASYRSA_ALGO":"$selfsign_params_file" \
+		-keyout "$key_out" \
+		-out "$crt_out" \
+		-subj "/CN=$file_name_base" \
+		-addext extendedKeyUsage="$selfsign_eku" \
 		${EASYRSA_NO_PASS:+ "$no_password"} \
 		${EASYRSA_PASSIN:+ -passin "$EASYRSA_PASSIN"} \
 		${EASYRSA_PASSOUT:+ -passout "$EASYRSA_PASSOUT"} \
@@ -1944,7 +1954,8 @@ self-sign: Use ALGO/CURVE to $EASYRSA_ALGO/$EASYRSA_CURVE"
 		"$EASYRSA_OPENSSL" x509 -in "$crt_out" -noout \
 			-sha256 -fingerprint
 	)" || die "build_self_sign - Failed -fingerprint"
-	# strip prefix
+
+	# strip fingerprint prefix
 	crt_fingerprint="${crt_fingerprint#*=}"
 
 	# User info
@@ -1957,7 +1968,7 @@ key and certificate created:
 SHA256 fingerprint (See inline file below):
 * $crt_fingerprint"
 
-	# inline it
+	# inline key/cert/fingerprint
 	if inline_creds "$file_name_base" > "$inline_out"; then
 		notice "\
 Inline file created:
@@ -2720,7 +2731,7 @@ inline_creds() {
 
 		# self-signed details
 		if [ "$selfsign_eku" ]; then
-			selfsign_details="
+			selfsign_details="\
 # SELF-SIGNED
 # SHA256 fingerprint:
 # $crt_fingerprint"
@@ -2775,8 +2786,9 @@ $(cat "$ca_source")
 
 	# Print data
 	print "\
-# Easy-RSA Type: ${type_data}
-# Name: ${1}${selfsign_details}
+# Easy-RSA Type: $type_data
+# Name: $1
+$selfsign_details
 
 $crt_data
 
