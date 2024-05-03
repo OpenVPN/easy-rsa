@@ -5409,10 +5409,14 @@ case "$cmd" in
 		;;
 	self-sign-server)
 		verify_working_env
+		[ -z "$alias_days" ] || \
+			export EASYRSA_CERT_EXPIRE="$alias_days"
 		build_self_sign server "$@"
 	;;
 	self-sign-client)
 		verify_working_env
+		[ -z "$alias_days" ] || \
+			export EASYRSA_CERT_EXPIRE="$alias_days"
 		build_self_sign client "$@"
 	;;
 	gen-dh)
