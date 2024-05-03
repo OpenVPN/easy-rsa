@@ -1721,7 +1721,7 @@ Raw CA mode
 	else
 		# Use a temp file
 		write_x509_type_tmp ca
-		x509_ca_file="$x509_tmp"
+		x509_ca_file="$write_x509_file_tmp"
 	fi
 
 	# Find or create x509 COMMON file
@@ -1731,7 +1731,7 @@ Raw CA mode
 	else
 		# Use a temp file
 		write_x509_type_tmp COMMON
-		x509_COMMON_file="$x509_tmp"
+		x509_COMMON_file="$write_x509_file_tmp"
 	fi
 
 	# Insert x509-types COMMON and 'ca' and EASYRSA_EXTRA_EXTS
@@ -2332,7 +2332,7 @@ Writing 'copy_exts' to SSL config temp-file failed"
 	else
 		# Use a temp file
 		write_x509_type_tmp "$crt_type"
-		x509_type_file="$x509_tmp"
+		x509_type_file="$write_x509_file_tmp"
 	fi
 
 	# Find or create x509 COMMON file
@@ -2342,7 +2342,7 @@ Writing 'copy_exts' to SSL config temp-file failed"
 	else
 		# Use a temp file
 		write_x509_type_tmp COMMON
-		x509_COMMON_file="$x509_tmp"
+		x509_COMMON_file="$write_x509_file_tmp"
 	fi
 
 	# Support a dynamic CA path length when present:
@@ -4449,11 +4449,11 @@ write_x509_type_tmp() {
 		type="$1"
 		shift
 
-		x509_tmp=""
-		easyrsa_mktemp x509_tmp || \
-			die "write_x509_type_tmp - easyrsa_mktemp x509_tmp"
+		write_x509_file_tmp=""
+		easyrsa_mktemp write_x509_file_tmp || die \
+			"write_x509_type_tmp - easyrsa_mktemp write_x509_file_tmp"
 
-		write "$type" > "$x509_tmp" || \
+		write "$type" > "$write_x509_file_tmp" || \
 			die "write_x509_type_tmp - write $type"
 
 		verbose "write_x509_type_tmp: $type COMPLETE"
