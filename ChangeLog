@@ -2,6 +2,7 @@ Easy-RSA 3 ChangeLog
 
 3.2.0 (TBD)
 
+   * Revert ca76697: Restore escape_hazard() (b1e9d7a) (#1137)
    * New X509 Type: 'selfsign' Internal only (999533e) (#1135)
    * New commands: self-sign-server and self-sign-client (9f8a1d1) (#1127)
    * build-ca: Command 'req', remove SSL option '-keyout' (4e02c8a) (#1123)
