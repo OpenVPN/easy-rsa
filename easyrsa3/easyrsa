@@ -1924,6 +1924,56 @@ Conflicting certificate exists at:
 	verbose "\
 self-sign: Use ALGO/CURVE to $EASYRSA_ALGO/$EASYRSA_CURVE"
 
+	# Assign tmp-file for config
+	adjusted_ssl_cnf_tmp=""
+	easyrsa_mktemp adjusted_ssl_cnf_tmp || \
+		die "build_self_sign - easyrsa_mktemp adjusted_ssl_cnf_tmp"
+
+	# Assign awkscript to insert EASYRSA_EXTRA_EXTS
+	# shellcheck disable=SC2016 # No expand '' - build_ca()
+	awkscript='\
+{if ( match($0, "^#%CA_X509_TYPES_EXTRA_EXTS%") )
+	{ while ( getline<"/dev/stdin" ) {print} next }
+ {print}
+}'
+
+	# Find or create x509 selfsign file
+	if [ -f "$EASYRSA_EXT_DIR/selfsign" ]; then
+		# Use the x509-types/selfsign file
+		x509_selfsign_file="$EASYRSA_EXT_DIR/selfsign"
+	else
+		# Use a temp file
+		write_x509_type_tmp selfsign
+		x509_selfsign_file="$write_x509_file_tmp"
+	fi
+
+	# Find or create x509 COMMON file
+	if [ -f "$EASYRSA_EXT_DIR/COMMON" ]; then
+		# Use the x509-types/COMMON file
+		x509_COMMON_file="$EASYRSA_EXT_DIR/COMMON"
+	else
+		# Use a temp file
+		write_x509_type_tmp COMMON
+		x509_COMMON_file="$write_x509_file_tmp"
+	fi
+
+	# Insert x509-types COMMON and 'selfsign' and EASYRSA_EXTRA_EXTS
+	{
+		# X509 files
+		cat "$x509_selfsign_file" "$x509_COMMON_file"
+
+		# User extentions
+		[ "$EASYRSA_EXTRA_EXTS" ] && \
+			print "$EASYRSA_EXTRA_EXTS"
+
+	} | awk "$awkscript" "$EASYRSA_SSL_CONF" \
+			> "$adjusted_ssl_cnf_tmp" || \
+				die "Copying X509_TYPES to config file failed"
+	verbose "build_self_sign: insert x509 and extensions OK"
+
+	# Use this new SSL config for the rest of this function
+	EASYRSA_SSL_CONF="$adjusted_ssl_cnf_tmp"
+
 	# temp-file for params-file
 	selfsign_params_file=""
 	easyrsa_mktemp selfsign_params_file || \
@@ -1941,7 +1991,6 @@ self-sign: Use ALGO/CURVE to $EASYRSA_ALGO/$EASYRSA_CURVE"
 		-keyout "$key_out" \
 		-out "$crt_out" \
 		-subj "/CN=$file_name_base" \
-		-addext extendedKeyUsage="$selfsign_eku" \
 		${EASYRSA_NO_PASS:+ "$no_password"} \
 		${EASYRSA_PASSIN:+ -passin "$EASYRSA_PASSIN"} \
 		${EASYRSA_PASSOUT:+ -passout "$EASYRSA_PASSOUT"} \
@@ -4557,6 +4606,12 @@ write() {
 			write_file="$write_dir/$write_type"
 		fi
 	;;
+	selfsign)
+		# write to stdout or $write_dir/$write_type [x509-type]
+		if [ "$write_dir" ]; then
+			write_file="$write_dir/$write_type"
+		fi
+	;;
 	*)
 		user_error "write - unknown type '$write_type'"
 	esac
@@ -4677,6 +4732,17 @@ create_legacy_stream() {
 		authorityKeyIdentifier = keyid:always,issuer:always
 		keyUsage = cRLSign, keyCertSign
 		CREATE_X509_TYPE_CA
+	;;
+	selfsign)
+	# selfsign
+		cat <<- "CREATE_X509_TYPE_SELFSIGN"
+		subjectKeyIdentifier = hash
+		authorityKeyIdentifier = keyid:always,issuer:always
+		basicConstraints = CA:TRUE
+		keyUsage = digitalSignature,keyEncipherment
+		CREATE_X509_TYPE_SELFSIGN
+
+		print "extendedKeyUsage = $selfsign_eku"
 	;;
 	codeSigning)
 	# codeSigning
