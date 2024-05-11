@@ -68,9 +68,9 @@ A list of commands is shown below:
 		CA_cert="$EASYRSA_PKI/ca.crt"
 		CA_status="   CA status: OK"
 		CA_subject="$(
-			OPENSSL_CONF=/dev/null \
 				"$EASYRSA_OPENSSL" x509 -in "$CA_cert" \
-					-noout -subject -nameopt multiline
+					-noout -subject -nameopt multiline \
+					2>/dev/null
 			)"
 		CA_subject="  CA subject: ${CA_subject#subject=}"
 		CA_status="${CA_status}${NL}${CA_subject}"
@@ -762,8 +762,7 @@ easyrsa_random() {
 	esac
 
 	if rand_hex="$(
-			OPENSSL_CONF=/dev/null \
-				"$EASYRSA_OPENSSL" rand -hex "$1"
+			"$EASYRSA_OPENSSL" rand -hex "$1" 2>/dev/null
 		)"
 	then
 		if [ "$2" ]; then
@@ -1252,7 +1251,7 @@ verify_ssl_lib() {
 
 	# redirect std-err, ignore missing ssl/openssl.cnf
 	val="$(
-		OPENSSL_CONF=/dev/null "$EASYRSA_OPENSSL" version
+			"$EASYRSA_OPENSSL" version 2>/dev/null
 		)"
 	ssl_version="$val"
 
@@ -2116,14 +2115,12 @@ at: $out_file"
 		die "gen_dh - easyrsa_mktemp tmp_dh_file"
 
 	# Generate dh.pem
-	OPENSSL_CONF=/dev/null \
-		"$EASYRSA_OPENSSL" dhparam -out "$tmp_dh_file" \
+		easyrsa_openssl dhparam -out "$tmp_dh_file" \
 			"$EASYRSA_KEY_SIZE" || \
 				die "Failed to generate DH params"
 
 	# Validate dh.pem
-	OPENSSL_CONF=/dev/null \
-		"$EASYRSA_OPENSSL" dhparam -in "$tmp_dh_file" \
+		easyrsa_openssl dhparam -in "$tmp_dh_file" \
 			-check -noout || \
 				die "Failed to validate DH params"
 
@@ -3685,7 +3682,7 @@ Input is not a valid certificate:
 		# Test SSL out
 		# openssl direct call because error is expected
 		if "$EASYRSA_OPENSSL" verify \
-			-CAfile "$ca_crt" "$crt_in" 1>/dev/null
+			-CAfile "$ca_crt" "$crt_in" >/dev/null
 		then
 			verify_cert_ok=1
 		else
@@ -4013,22 +4010,19 @@ verify_algo_params - easyrsa_mktemp EASYRSA_ALGO_PARAMS"
 
 		# Create the required ecparams file
 		# call openssl directly because error is expected
-		 OPENSSL_CONF=/dev/null \
 			"$EASYRSA_OPENSSL" ecparam \
 				-name "$EASYRSA_CURVE" \
 				-out "$EASYRSA_ALGO_PARAMS" \
-				1>/dev/null || die "\
-Failed to generate ecparam file (permissions?) at:
-* $EASYRSA_ALGO_PARAMS"
+				>/dev/null 2>&1 || user_error "\
+Failed to generate ecparam file for curve '$EASYRSA_CURVE'"
 	;;
 	ed)
 		# Verify Edwards curve
 		# call openssl directly because error is expected
-		 OPENSSL_CONF=/dev/null \
 			"$EASYRSA_OPENSSL" genpkey \
 				-algorithm "$EASYRSA_CURVE" \
-				1>/dev/null || die "\
-Edwards Curve $EASYRSA_CURVE not found."
+				>/dev/null 2>&1 || user_error "\
+Edwards Curve '$EASYRSA_CURVE' not found."
 	;;
 	*) user_error "\
 Unknown algorithm '$EASYRSA_ALGO': Must be 'rsa', 'ec' or 'ed'"
@@ -4491,8 +4485,8 @@ f97425686fa1976d436fa31f550641aa"
 
 		# Get file hash
 		file_hash="$(
-			OPENSSL_CONF=/dev/null
-			"$EASYRSA_OPENSSL" dgst -sha256 -r "$EASYRSA_SSL_CONF"
+			"$EASYRSA_OPENSSL" dgst -sha256 -r \
+				"$EASYRSA_SSL_CONF" 2>/dev/null
 		)" || warn "hash malfunction!"
 
 		# Strip excess SSL info
@@ -5163,8 +5157,7 @@ CREATE_SSL_CONFIG
 # Version information
 print_version() {
 	ssl_version="$(
-		OPENSSL_CONF=/dev/null \
-			"${EASYRSA_OPENSSL:-openssl}" version
+			"${EASYRSA_OPENSSL:-openssl}" version 2>/dev/null
 		)"
 		cat << VERSION_TEXT
 EasyRSA Version Information
