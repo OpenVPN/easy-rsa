@@ -1221,12 +1221,16 @@ easyrsa_openssl() {
 		# Exec SSL
 		if [ "$EASYRSA_SILENT_SSL" ] && [ "$EASYRSA_BATCH" ]
 		then
-			"$EASYRSA_OPENSSL" "$openssl_command" "$@" \
-				2>/dev/null && \
-					return
+			if "$EASYRSA_OPENSSL" "$openssl_command" "$@" \
+				2>/dev/null
+			then
+				return
+			fi
 		else
-			"$EASYRSA_OPENSSL" "$openssl_command" "$@" && \
-					return
+			if "$EASYRSA_OPENSSL" "$openssl_command" "$@"
+			then
+				return
+			fi
 		fi
 	esac
 
