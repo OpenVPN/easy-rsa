@@ -13,7 +13,7 @@
 # Help/usage output to stdout
 usage() {
 	# command help:
-	print "
+	information "
 Easy-RSA 3 usage and overview
 
 $easyrsa_help_title
@@ -63,21 +63,6 @@ A list of commands is shown below:
 	work_dir="${EASYRSA:-undefined}"
 	pki_dir="${EASYRSA_PKI:-undefined}"
 
-	# CA Status
-	if verify_ca_init test; then
-		CA_cert="$EASYRSA_PKI/ca.crt"
-		CA_status="   CA status: OK"
-		CA_subject="$(
-				"$EASYRSA_OPENSSL" x509 -in "$CA_cert" \
-					-noout -subject -nameopt multiline \
-					2>/dev/null
-			)"
-		CA_subject="  CA subject: ${CA_subject#subject=}"
-		CA_status="${CA_status}${NL}${CA_subject}"
-	else
-		CA_status="   CA status: CA has not been built"
-	fi
-
 	# check for vars changing PKI unexpectedly!
 	if [ "$invalid_vars" ]; then
 		ivmsg="
@@ -88,22 +73,32 @@ Invalid vars setting for EASYRSA and/or EASYRSA_PKI${NL}"
 	fi
 
 	# Print details
-	print "
+	information "
 DIRECTORY STATUS (commands would take effect on these locations)
      EASYRSA: $work_dir
          PKI: $pki_dir
-   vars-file: ${EASYRSA_VARS_FILE:-Missing or undefined}${ivmsg}
-$CA_status${NL}"
+   vars-file: ${EASYRSA_VARS_FILE:-Missing or undefined}${ivmsg}"
+
+	# CA Status
+	if verify_ca_init test; then
+		if [ -z "$EASYRSA_SILENT" ]; then
+			# Show SSL output directly, with easyrsa header
+			printf '%s' "   CA status: OK${NL}${NL}    "
+			"$EASYRSA_OPENSSL" x509 -in "$EASYRSA_PKI/ca.crt" \
+				-noout -subject -nameopt utf8,multiline
+			print "" # for a clean line
+		fi
+	else
+		information "   CA status: CA has not been built${NL}"
+	fi
 
 	# verbose info
 	verbose "ssl-cnf: ${EASYRSA_SSL_CONF:-built-in}"
 	verbose "x509-types: ${EASYRSA_EXT_DIR:-built-in}"
 	if [ -d "$EASYRSA_TEMP_DIR" ]; then
 		verbose "temp-dir: Found: $EASYRSA_TEMP_DIR"
-	elif [ "$EASYRSA_TEMP_DIR" ]; then
-		verbose "temp-dir: Missing: $EASYRSA_TEMP_DIR"
 	else
-		verbose "temp-dir: undefined"
+		verbose "temp-dir: Missing: ${EASYRSA_TEMP_DIR:-undefined}"
 	fi
 } # => usage()
 
@@ -565,7 +560,7 @@ ${opts:-
 # Options usage
 opt_usage() {
 	text_only=1
-	print "
+	information "
 Easy-RSA Global Option Flags
 
 The following global-options may be provided before the command.
