@@ -1468,21 +1468,6 @@ locate_support_files() {
 	x509_types_dir='x509-types'
 	easyrsa_tools='easyrsa-tools.lib'
 
-	# "$EASYRSA_PKI" - Preferred
-	# "$EASYRSA" - Old default and Windows
-	# "$PWD" - Usually the same as above, avoid
-	# "${0%/*}" - Usually the same as above, avoid
-	# '/usr/local/share/easy-rsa' - Default user installed
-	# '/usr/share/easy-rsa' - Default system installed
-	# Room for more..
-	# '/etc/easy-rsa' - Last resort
-
-	# Not currently used:
-	# Set EASYRSA_PKI only flag
-	#is_in_pki=1
-	#x509_dir_in_pki=""
-	#ssl_cnf_in_pki=""
-
 	# Find data-files
 	for area in \
 		"$EASYRSA_PKI" \
@@ -1497,29 +1482,22 @@ locate_support_files() {
 		# Find x509-types
 		if [ -e "${area}/${x509_types_dir}" ]; then
 			set_var EASYRSA_EXT_DIR "${area}/${x509_types_dir}"
-			#[ "$is_in_pki" ] && x509_dir_in_pki=1
-			verbose "> Found x509 dir: ${area}/${x509_types_dir}"
 		fi
 
 		# Find openssl-easyrsa.cnf
 		if [ -e "${area}/${ssl_cnf_file}" ]; then
 			set_var EASYRSA_SSL_CONF "${area}/${ssl_cnf_file}"
-			#[ "$is_in_pki" ] && ssl_cnf_in_pki=1
-			verbose "> Found SSL cnf: ${area}/${ssl_cnf_file}"
 		fi
 
 		# Find easyrsa-tools.lib
 		if [ -e "${area}/${easyrsa_tools}" ]; then
 			set_var EASYRSA_TOOLS_LIB "${area}/${easyrsa_tools}"
-			verbose "> Found tools.lib: ${area}/${easyrsa_tools}"
 		fi
-
-		# Clear EASYRSA_PKI only flag
-		#unset -v is_in_pki
 	done
 
-	verbose "> EASYRSA_EXT_DIR: $EASYRSA_EXT_DIR"
-	verbose "> EASYRSA_SSL_CONF: $EASYRSA_SSL_CONF"
+	verbose "> EASYRSA_EXT_DIR: ${EASYRSA_EXT_DIR:-built-in}"
+	verbose "> EASYRSA_SSL_CONF: ${EASYRSA_SSL_CONF:-built-in}"
+	verbose "> EASYRSA_TOOLS_LIB: ${EASYRSA_TOOLS_LIB:-undefined}"
 	verbose "locate_support_files: COMPLETED"
 } # => locate_support_files()
 
