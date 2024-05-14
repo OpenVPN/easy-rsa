@@ -696,7 +696,7 @@ $1${NL}"
 # verbose information
 verbose() {
 	[ "$EASYRSA_VERBOSE" ] || return 0
-	printf '%s\n' "  > $*"
+	printf '%s\n' "  # $*"
 } # => verbose()
 
 # non-fatal warning output
