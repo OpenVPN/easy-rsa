@@ -4445,9 +4445,9 @@ force_set_var() {
 	die "force_set_var - set_var '$*'"
 } # => force_set_var()
 
-# Verify: $EASYRSA_SSL_CONF pki/openssl-easyrsa.cnf
-# If the existing file is default then delete it
-# and create temp-file. Otherwise, leave in place.
+# Create as needed: $EASYRSA_SSL_CONF pki/openssl-easyrsa.cnf
+# If the existing file has a known hash then use temp-file.
+# Otherwise, use the file in place.
 write_easyrsa_ssl_cnf_tmp() {
 	if [ -f "$EASYRSA_SSL_CONF" ]; then
 		verbose "write_easyrsa_ssl_cnf_tmp: SSL config EXISTS"
@@ -4544,7 +4544,6 @@ write_easyrsa_ssl_cnf_tmp: SSL config using temp-file"
 
 # Write x509 type file to a temp file
 write_x509_type_tmp() {
-		# Use a temp file
 		type="$1"
 		shift
 
@@ -5744,11 +5743,12 @@ Place a copy of easyrsa-tools.lib in a standard system location."
 Unknown command '$cmd'. Run without commands for usage help."
 esac
 
+verbose "mktemp_counter: $mktemp_counter uses"
+
 # Check for untrapped errors
 # shellcheck disable=SC2181 # Quote expand - pre-cleanup $?
 if [ $? = 0 ]; then
 	# Do 'cleanup ok' on successful completion
-	#print "mktemp_counter: $mktemp_counter uses"
 	cleanup ok
 fi
 
