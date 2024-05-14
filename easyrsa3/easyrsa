@@ -2539,10 +2539,11 @@ Forced subject=
 			grep -s 'X509v3 Subject Alternative Name'
 		then
 			# extract requested SAN
+			# 'grep -A' may not be strictly POSIX, die on error
 			req_x509_san="$(
 				echo "$req_text" | \
 					grep -A 1 'X509v3 Subject Alternative Name'
-			)" || die "sign-req: req_x509_san: grep -A 1 "
+			)" || die "sign-req: req_x509_san: grep -A 1 (POSIX)"
 		else
 			# No requested SAN
 			req_x509_san=
