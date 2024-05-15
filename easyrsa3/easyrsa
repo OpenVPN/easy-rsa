@@ -968,9 +968,9 @@ Temporary session not preserved."
 
 		# remove temp-session
 		if [ "$secured_session" ]; then
+			verbose "mktemp_counter: $mktemp_counter uses"
 			remove_secure_session || \
 				warn "cleanup - remove_secure_session failed"
-			verbose "mktemp_counter: $mktemp_counter uses"
 		fi
 	fi
 
@@ -5193,6 +5193,9 @@ unset -v \
 	# Used by build-ca->cleanup to restore prompt
 	# after user interrupt when using manual password
 	prompt_restore=0
+
+	# verbose diagnostic for temp-files
+	mktemp_counter=0
 
 # Parse options
 while :; do
