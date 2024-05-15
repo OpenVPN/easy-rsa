@@ -970,6 +970,7 @@ Temporary session not preserved."
 		if [ "$secured_session" ]; then
 			remove_secure_session || \
 				warn "cleanup - remove_secure_session failed"
+			verbose "mktemp_counter: $mktemp_counter uses"
 		fi
 	fi
 
@@ -2507,20 +2508,27 @@ Failed to create temp extension file (bad permissions?) at:
 * $ext_tmp"
 	verbose "sign_req: Generated extensions file OK"
 
-	# Set valid_period message
+	# Set confirm CN
+	confirm_CN="  Requested CN:   '$EASYRSA_REQ_CN'"
+
+	# Set confirm type
+	confirm_type="  Requested type: '$crt_type'"
+
+	# Set confirm valid_period message
 	if [ "$EASYRSA_END_DATE" ]; then
-		valid_period="
-until date '$EASYRSA_END_DATE'"
+		confirm_period="  Valid until:    '$EASYRSA_END_DATE'"
 	else
-		valid_period="
-for '$EASYRSA_CERT_EXPIRE' days"
+		confirm_period="  Valid for:      '$EASYRSA_CERT_EXPIRE' days"
 	fi
+
+	# Set confirm force_subj
+	confirm_force_subj=
+	[ "$force_subj" ] && \
+		confirm_force_subj="${NL}* Forced Subject: '$force_subj'${NL}"
 
 	# Set confirm DN
 	if [ "$force_subj" ]; then
-		confirm_dn="\
-Forced subject=
-    $force_subj"
+		confirm_dn="$force_subj"
 	else
 		confirm_dn="$(display_dn req "$req_in")" || \
 			die "sign-req: display_dn"
@@ -2536,7 +2544,7 @@ Forced subject=
 
 		# Check CSR for any requested SAN
 		if echo "$req_text" | \
-			grep -s 'X509v3 Subject Alternative Name'
+			grep -q 'X509v3 Subject Alternative Name'
 		then
 			# extract requested SAN
 			# 'grep -A' may not be strictly POSIX, die on error
@@ -2550,6 +2558,14 @@ Forced subject=
 		fi
 	fi
 
+	# Set confirm details
+	confirm_details="\
+$confirm_CN
+$confirm_type
+$confirm_period
+$confirm_force_subj
+$confirm_dn"
+
 	# --san takes priority over req SAN and --copy-ext
 	if [ "$EASYRSA_SAN" ]; then
 		confirm_san="\
@@ -2559,15 +2575,9 @@ Forced subject=
 		confirm_san="$req_x509_san"
 	fi
 
-	# Set confirm text for DN and SAN
+	# Set confirm SAN
 	if [ "$EASYRSA_SAN" ] || [ "$req_x509_san" ]; then
-		confirm_details="\
-$confirm_dn
-
-$confirm_san"
-	else
-		confirm_details="\
-$confirm_dn"
+		confirm_details="$confirm_details${NL}${NL}$confirm_san"
 	fi
 
 	# Display the request subject in an easy-to-read format
@@ -2587,9 +2597,7 @@ with the sender.$NL"
 	fi
 
 	confirm "Confirm request details: " "yes" "\
-You are about to sign the following certificate:
-${foriegn_request}Request subject, to be signed as a \
-$crt_type certificate ${valid_period}:
+${foriegn_request}You are about to sign the following certificate:
 
 $confirm_details" # => confirm end
 
@@ -5725,8 +5733,6 @@ Place a copy of easyrsa-tools.lib in a standard system location."
 		user_error "\
 Unknown command '$cmd'. Run without commands for usage help."
 esac
-
-verbose "mktemp_counter: $mktemp_counter uses"
 
 # Check for untrapped errors
 # shellcheck disable=SC2181 # Quote expand - pre-cleanup $?
