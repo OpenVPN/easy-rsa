@@ -796,9 +796,8 @@ secure_session() {
 		# atomic:
 		if mkdir "$secured_session"; then
 			# New session requires safe-ssl conf
-			unset -v mktemp_counter \
-				OPENSSL_CONF safe_ssl_cnf_tmp \
-				working_safe_ssl_conf
+			unset -v OPENSSL_CONF \
+				safe_ssl_cnf_tmp working_safe_ssl_conf
 			easyrsa_err_log="$secured_session/error.log"
 
 			verbose "\
@@ -818,9 +817,8 @@ remove_secure_session() {
 		if rm -rf "$secured_session"; then
 			verbose "\
 remove_secure_session: DELETED: $secured_session"
-			unset -v secured_session mktemp_counter \
-				OPENSSL_CONF safe_ssl_cnf_tmp \
-				working_safe_ssl_conf
+			unset -v secured_session OPENSSL_CONF \
+				safe_ssl_cnf_tmp working_safe_ssl_conf
 			return
 		fi
 	fi
@@ -858,9 +856,6 @@ easyrsa_mktemp - input error"
 	[ "$secured_session" ] || die "\
 easyrsa_mktemp - Temporary session undefined (--tmp-dir)"
 
-	# Update counter
-	mktemp_counter="$(( mktemp_counter + 1 ))"
-
 	# Assign internal temp-file name
 	t="${secured_session}/temp.${mktemp_counter}"
 
@@ -897,6 +892,9 @@ easyrsa_mktemp: temp-file EXISTS: $want_tmp_file"
 					fi
 
 					if mv "$shotfile" "$want_tmp_file"; then
+						# Update counter
+						mktemp_counter="$(( mktemp_counter + 1 ))"
+
 						# Assign external temp-file name
 						if force_set_var "$1" "$want_tmp_file"
 						then
