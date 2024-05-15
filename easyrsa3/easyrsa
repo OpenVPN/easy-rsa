@@ -4967,10 +4967,6 @@ fi
 # Cut-off window for checking expiring certificates.
 #
 #set_var EASYRSA_PRE_EXPIRY_WINDOW	90
-
-# Define directory for temporary subdirectories.
-#
-#set_var EASYRSA_TEMP_DIR	"$EASYRSA_PKI"
 CREATE_VARS_EXAMPLE
 	;;
 	ssl-cnf|safe-cnf)
