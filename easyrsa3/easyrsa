@@ -752,8 +752,8 @@ Type the word '$value' to continue, or any other input to abort."
 # which needs `openssl rand`.
 easyrsa_random() {
 	case "$1" in
-	*[!1234567890]*|0*|"")
-		die "easyrsa_random - input"
+		*[!1234567890]*|0*|"")
+			die "easyrsa_random - input"
 	esac
 
 	if rand_hex="$(
@@ -978,11 +978,11 @@ Temporary session not preserved."
 		1)
 			[ -t 1 ] && stty echo
 			[ "$EASYRSA_SILENT" ] || print
-		;;
+			;;
 		2)
 			set -o echo
 			[ "$EASYRSA_SILENT" ] || print
-		;;
+			;;
 		*) warn "prompt_restore: '$prompt_restore'"
 	esac
 
@@ -1211,27 +1211,24 @@ easyrsa_openssl() {
 		export OPENSSL_CONF="$EASYRSA_SSL_CONF"
 	fi
 
-	# Execute command - Return on success
+	# Debug level
 	[ -z "$EASYRSA_DEBUG" ] || \
 		verbose "> easyrsa_openssl - EXEC $openssl_command $*"
 
-	case "$openssl_command" in
-	*)
-		# Exec SSL
-		if [ "$EASYRSA_SILENT_SSL" ] && [ "$EASYRSA_BATCH" ]
+	# Exec SSL
+	if [ "$EASYRSA_SILENT_SSL" ] && [ "$EASYRSA_BATCH" ]
+	then
+		if "$EASYRSA_OPENSSL" "$openssl_command" "$@" \
+			2>/dev/null
 		then
-			if "$EASYRSA_OPENSSL" "$openssl_command" "$@" \
-				2>/dev/null
-			then
-				return
-			fi
-		else
-			if "$EASYRSA_OPENSSL" "$openssl_command" "$@"
-			then
-				return
-			fi
+			return
 		fi
-	esac
+	else
+		if "$EASYRSA_OPENSSL" "$openssl_command" "$@"
+		then
+			return
+		fi
+	fi
 
 	# Always fail here
 	die "\
@@ -1255,15 +1252,15 @@ verify_ssl_lib() {
 
 	# SSL lib name
 	case "${val%% *}" in
-	OpenSSL)
-		ssl_lib=openssl
-	;;
-	LibreSSL)
-		ssl_lib=libressl
-	;;
-	*)
-		error_msg="$("$EASYRSA_OPENSSL" version 2>&1)"
-		user_error "\
+		OpenSSL)
+			ssl_lib=openssl
+			;;
+		LibreSSL)
+			ssl_lib=libressl
+			;;
+		*)
+			error_msg="$("$EASYRSA_OPENSSL" version 2>&1)"
+			user_error "\
 * OpenSSL must either exist in your PATH
   or be defined in your vars file.
 
@@ -1276,21 +1273,21 @@ $error_msg"
 	osslv_major="${val#* }"
 	osslv_major="${osslv_major%%.*}"
 	case "$osslv_major" in
-	1) no_password='-nodes' ;;
-	2) no_password='-nodes' ;;
-	3)
-		case "$ssl_lib" in
-			openssl)
-				openssl_v3=1
-				no_password='-noenc'
+		1) no_password='-nodes' ;;
+		2) no_password='-nodes' ;;
+		3)
+			case "$ssl_lib" in
+				openssl)
+					openssl_v3=1
+					no_password='-noenc'
+					;;
+				libressl)
+					no_password='-nodes'
+					;;
+				*) die "Unexpected SSL library: $ssl_lib"
+			esac
 			;;
-			libressl)
-				no_password='-nodes'
-			;;
-			*) die "Unexpected SSL library: $ssl_lib"
-		esac
-	;;
-	*) die "Unexpected SSL version: $osslv_major"
+		*) die "Unexpected SSL version: $osslv_major"
 	esac
 
 	# Message
@@ -1407,7 +1404,7 @@ and initialize a fresh PKI here."
 			# # # shellcheck disable=SC2115 # Use "${var:?}"
 			rm -rf "$EASYRSA_PKI" || \
 				die "init-pki hard reset failed."
-		;;
+			;;
 		soft)
 		# There is no unit test for a soft reset
 			for i in ca.crt crl.pem \
@@ -1425,7 +1422,7 @@ and initialize a fresh PKI here."
 					die "init-pki soft reset(2) failed!"
 				fi
 			done
-		;;
+			;;
 		*)
 			user_error "Unknown reset type: $reset"
 		esac
@@ -1560,13 +1557,13 @@ build_ca() {
 		case "$1" in
 			intca|subca)
 				sub_ca=1
-			;;
+				;;
 			nopass)
 				[ "$prohibit_no_pass" ] || EASYRSA_NO_PASS=1
-			;;
+				;;
 			raw-ca|raw)
 				EASYRSA_RAW_CA=1
-			;;
+				;;
 			*) warn "Ignoring unknown command option: '$1'"
 		esac
 		shift
@@ -1887,10 +1884,10 @@ build_self_sign() {
 	case "$1" in
 		server)
 			selfsign_eku=serverAuth
-		;;
+			;;
 		client)
 			selfsign_eku=clientAuth
-		;;
+			;;
 		*)
 			die "build_self_sign: Unknown EKU '$1'"
 	esac
@@ -1915,7 +1912,7 @@ Run easyrsa without commands for usage and command help."
 		case "$1" in
 			nopass)
 				[ "$prohibit_no_pass" ] || EASYRSA_NO_PASS=1
-			;;
+				;;
 			*)
 				user_error "Unknown command option: '$1'"
 		esac
@@ -1946,13 +1943,13 @@ Conflicting certificate exists at:
 			export EASYRSA_ALGO=ec
 			# Selectively set --curve=secp384r1
 			set_var EASYRSA_CURVE secp384r1
-		;;
+			;;
 		ec)
 			: # ok
-		;;
+			;;
 		ed)
 			user_error "self-sign does not support ED Curves."
-		;;
+			;;
 		*)
 			user_error "Unrecognised algorithm: '$EASYRSA_ALGO'"
 	esac
@@ -2149,14 +2146,14 @@ Option conflict --req-cn:
 		case "$1" in
 			text)
 				text=1
-			;;
+				;;
 			nopass)
 				[ "$prohibit_no_pass" ] || EASYRSA_NO_PASS=1
-			;;
+				;;
 			# batch flag supports internal caller build_full()
 			batch)
 				ssl_batch=1
-			;;
+				;;
 			*) warn "Ignoring unknown command option: '$1'"
 		esac
 		shift
@@ -2228,12 +2225,13 @@ $EASYRSA_EXTRA_EXTS"
 			# Set elliptic curve parameters-file
 			# or RSA bit-length
 			algo_opts="$EASYRSA_ALGO:$EASYRSA_ALGO_PARAMS"
-		;;
+			;;
 		ed)
 			# Set Edwards curve name
 			algo_opts="$EASYRSA_CURVE"
-		;;
-		*)	die "gen_req - Unknown algorithm: $EASYRSA_ALGO"
+			;;
+		*)
+			die "gen_req - Unknown algorithm: $EASYRSA_ALGO"
 	esac
 
 	# Generate request
@@ -2296,17 +2294,17 @@ Option conflict --req-cn:
 		case "$1" in
 			nopass)
 				warn "Ignoring option '$1'"
-			;;
+				;;
 			newsubj*)
 				# verify force_subj opts are used correctly
 				[ "$EASYRSA_NEW_SUBJECT" ] || user_error "\
 To force a new certificate subject, global option --new-subject
 must also be specified."
 				force_subj="$EASYRSA_NEW_SUBJECT"
-			;;
+				;;
 			preserve*)
 				export EASYRSA_PRESERVE_DN=1
-			;;
+				;;
 			*)
 				user_error "Unknown option '$1'"
 		esac
@@ -2467,7 +2465,7 @@ basicConstraints is not defined, cannot use 'pathlen'"
 				ns_cert_type="nsCertType = $crt_type"
 		esac
 		verbose "sign_req: Using $ns_cert_type"
-	;;
+		;;
 	*)
 		# ok No NS support required
 		unset -v ns_cert_type
@@ -2638,8 +2636,8 @@ Certificate created at:
 check_serial_unique() {
 	[ "$1" ] || user_error "Serial number required!"
 	case "$1" in
-	(*[!1234567890abcdef]*)
-		user_error "Invalid serial number: '$1'"
+		(*[!1234567890abcdef]*)
+			user_error "Invalid serial number: '$1'"
 	esac
 
 	unset -v unique_serial_true
@@ -2658,7 +2656,7 @@ check_serial_unique() {
 		(*"not present in db"*)
 			unique_serial_true=1
 			verbose "check_serial_unique: unique_serial=true"
-		;;
+			;;
 		*)
 			: # Some other response
 			verbose "check_serial_unique: unique_serial=false"
@@ -2708,7 +2706,7 @@ Run easyrsa without commands for usage and commands."
 		case "$1" in
 			nopass)
 				[ "$prohibit_no_pass" ] || EASYRSA_NO_PASS=1
-			;;
+				;;
 			*) warn "Ignoring unknown command option: '$1'"
 		esac
 		shift
@@ -3150,7 +3148,7 @@ Existing file must be revoked:
 			nopass)
 				warn "\
 Option 'nopass' is not supported by command '$cmd'."
-			;;
+				;;
 			*) user_error "Unknown option: $1"
 		esac
 		shift
@@ -3323,20 +3321,20 @@ Run easyrsa without commands for usage and command help."
 		case "$1" in
 			noca)
 				want_ca=""
-			;;
+				;;
 			nokey)
 				want_key=""
 				# Undocumented OpenSSL feature: option
 				# -nokeys will ignore missing -inkey file
 				# No doubt, the reason for the extra -inkey
 				nokeys=-nokeys
-			;;
+				;;
 			nopass)
 				[ "$prohibit_no_pass" ] || EASYRSA_NO_PASS=1
-			;;
+				;;
 			nofn)
 				friendly_name=""
-			;;
+				;;
 			legacy)
 				if [ "$openssl_v3" ]; then
 					legacy=-legacy
@@ -3344,7 +3342,7 @@ Run easyrsa without commands for usage and command help."
 					# Downgrade PBE & MAC opts
 					p12_cipher_opts=""
 				fi
-			;;
+				;;
 			*)
 				warn "Ignoring unknown option: '$1'"
 		esac
@@ -3355,10 +3353,10 @@ Run easyrsa without commands for usage and command help."
 	case "$pkcs_type" in
 		p12|p7)
 			: # ok
-		;;
+			;;
 		p8|p1)
 			want_key=1
-		;;
+			;;
 		*) die "Unknown PKCS type: $pkcs_type"
 	esac
 
@@ -3386,10 +3384,10 @@ but the CA Certificate will not be included."
 				fi
 				want_ca=""
 			fi
-		;;
+			;;
 		p8|p1)
 			: # Not required
-		;;
+			;;
 		*) die "Unknown PKCS type: $pkcs_type"
 		esac
 	fi
@@ -3416,15 +3414,15 @@ but the Private Key will not be included."
 					die "export-$pkcs_type: Missing key"
 				fi
 				nokeys=-nokeys
-			;;
+				;;
 			p8|p1)
 				user_error "\
 Missing Private Key, expected at:
 * $key_in"
-			;;
+				;;
 			p7)
 				: # Not required
-			;;
+				;;
 			*) die "Unknown PKCS type: $pkcs_type"
 			esac
 		fi
@@ -3439,10 +3437,10 @@ Missing Private Key, expected at:
 			user_error "\
 Missing User Certificate, expected at:
 * $crt_in"
-		;;
+			;;
 		p8|p1)
 			: # Not required
-		;;
+			;;
 		*) die "Unknown PKCS type: $pkcs_type"
 		esac
 	fi
@@ -3476,7 +3474,7 @@ Missing User Certificate, expected at:
 			${EASYRSA_PASSIN:+ -passin "$EASYRSA_PASSIN"} \
 			${EASYRSA_PASSOUT:+ -passout "$EASYRSA_PASSOUT"} \
 				|| die "Failed to export PKCS#12"
-	;;
+		;;
 	p7)
 		pkcs_out="$EASYRSA_PKI/issued/$file_name_base.p7b"
 
@@ -3486,7 +3484,7 @@ Missing User Certificate, expected at:
 			-out "$pkcs_out" \
 			${want_ca:+ -certfile "$crt_ca"} \
 				|| die "Failed to export PKCS#7"
-	;;
+		;;
 	p8)
 		pkcs_out="$EASYRSA_PKI/private/$file_name_base.p8"
 
@@ -3497,7 +3495,7 @@ Missing User Certificate, expected at:
 			${EASYRSA_PASSIN:+ -passin "$EASYRSA_PASSIN"} \
 			${EASYRSA_PASSOUT:+ -passout "$EASYRSA_PASSOUT"} \
 				|| die "Failed to export PKCS#8"
-	;;
+		;;
 	p1)
 		pkcs_out="$EASYRSA_PKI/private/$file_name_base.p1"
 
@@ -3551,10 +3549,10 @@ Missing argument: no name/file supplied."
 		case "$1" in
 			nopass)
 				[ "$prohibit_no_pass" ] || EASYRSA_NO_PASS=1
-			;;
+				;;
 			file)
 				file="$raw_file"
-			;;
+				;;
 			*) warn "Ignoring unknown command option: '$1'"
 		esac
 		shift
@@ -3738,16 +3736,16 @@ Run easyrsa without commands for usage help."
 	cert)
 		in_file="$EASYRSA_PKI/issued/$name.crt"
 		format="x509"
-	;;
+		;;
 	req)
 		in_file="$EASYRSA_PKI/reqs/$name.req"
 		format="req"
-	;;
+		;;
 	crl)
 		in_file="$EASYRSA_PKI/$name.pem"
 		format="crl"
 		unset -v type_opts out_opts name_opts
-	;;
+		;;
 	*) die "Unrecognised type: $type"
 	esac
 
@@ -3850,27 +3848,27 @@ ssl_cert_x509v3_eku() {
 
 	# Match EKU with supported usage
 	case "$__eku" in
-	"$__srv_cli")
-		__known=1
-		__type=serverClient
-	;;
-	"$__cli")
-		__known=1
-		__type=client
-	;;
-	"$__srv")
-		__known=1
-		__type=server
-	;;
-	"$__codeSign")
-		__known=1
-		__type=codeSign
-	;;
-	'')
-		__type=undefined
-	;;
-	*)
-		__type="'$__eku'"
+		"$__srv_cli")
+			__known=1
+			__type=serverClient
+			;;
+		"$__cli")
+			__known=1
+			__type=client
+			;;
+		"$__srv")
+			__known=1
+			__type=server
+			;;
+		"$__codeSign")
+			__known=1
+			__type=codeSign
+			;;
+		'')
+			__type=undefined
+			;;
+		*)
+			__type="'$__eku'"
 	esac
 
 	# Set variable to return
@@ -3972,9 +3970,9 @@ show_host() {
 	print "$host_out"
 	[ "$EASYRSA_DEBUG" ] || return 0
 	case "$easyrsa_host_os" in
-	win) set ;;
-	nix) env ;;
-	*) print "Unknown host OS: $easyrsa_host_os"
+		win) set ;;
+		nix) env ;;
+		*) print "Unknown host OS: $easyrsa_host_os"
 	esac
 } # => show_host()
 
@@ -3984,7 +3982,7 @@ verify_algo_params() {
 	rsa)
 		# Set RSA key size
 		EASYRSA_ALGO_PARAMS="$EASYRSA_KEY_SIZE"
-	;;
+		;;
 	ec)
 		# Verify Elliptic curve
 		EASYRSA_ALGO_PARAMS=""
@@ -3999,7 +3997,7 @@ verify_algo_params - easyrsa_mktemp EASYRSA_ALGO_PARAMS"
 				-out "$EASYRSA_ALGO_PARAMS" \
 				>/dev/null 2>&1 || user_error "\
 Failed to generate ecparam file for curve '$EASYRSA_CURVE'"
-	;;
+		;;
 	ed)
 		# Verify Edwards curve
 		# call openssl directly because error is expected
@@ -4007,7 +4005,7 @@ Failed to generate ecparam file for curve '$EASYRSA_CURVE'"
 				-algorithm "$EASYRSA_CURVE" \
 				>/dev/null 2>&1 || user_error "\
 Edwards Curve '$EASYRSA_CURVE' not found."
-	;;
+		;;
 	*) user_error "\
 Unknown algorithm '$EASYRSA_ALGO': Must be 'rsa', 'ec' or 'ed'"
 	esac
@@ -4049,7 +4047,7 @@ Use of --startdate requires use of --enddate."
 Option --days is over-ruled by option --enddate."
 				fi
 				unset -v EASYRSA_CERT_EXPIRE alias_days
-			;;
+				;;
 			*)
 				warn "\
 EasyRSA '$cmd' does not support --startdate or --enddate"
@@ -4276,13 +4274,13 @@ default_vars() {
 		# default EASYRSA_KEY_SIZE must always be set
 		# it must NOT be set selectively because it is
 		# present in the SSL config file
-	;;
+		;;
 	ec)
 		set_var EASYRSA_CURVE		secp384r1
-	;;
+		;;
 	ed)
 		set_var EASYRSA_CURVE		ed25519
-	;;
+		;;
 	*) user_error "\
 Algorithm '$EASYRSA_ALGO' is invalid: Must be 'rsa', 'ec' or 'ed'"
 	esac
@@ -4478,23 +4476,24 @@ f97425686fa1976d436fa31f550641aa"
 
 		# Compare SSL output
 		case "$file_hash" in
-		*[!1234567890abcdef]*|'')
-			warn "hash failure: $file_hash"
+			*[!1234567890abcdef]*|'')
+				warn "hash failure: $file_hash"
 		esac
 
 		# Check file hash against known hash
 		hash_is_unknown=""
 
 		case "$file_hash" in
-		"$known_file_317") ;;
-		"$known_file_315") ;;
-		"$known_file_310") ;;
-		"$known_file_308") ;;
-		"$known_heredoc_320") ;;
+			"$known_file_317") ;;
+			"$known_file_315") ;;
+			"$known_file_310") ;;
+			"$known_file_308") ;;
+			"$known_heredoc_320") ;;
 
-		*)
-			# File is unknown or has been changed, leave in place
-			hash_is_unknown=1
+			*)
+				# File is unknown or has been changed
+				# leave in place
+				hash_is_unknown=1
 		esac
 
 		# Cleanup
@@ -4621,7 +4620,7 @@ write() {
 
 		write_recursion="$(( write_recursion - 1 ))"
 		return
-	;;
+		;;
 	ssl-cnf)
 		# Set expansion to use '$ENV::EASYRSA_PKI' style
 		set_openssl_easyrsa_cnf_vars unexpanded
@@ -4630,26 +4629,26 @@ write() {
 		if [ "$write_dir" ]; then
 			write_file="$write_dir"/openssl-easyrsa.cnf
 		fi
-	;;
+		;;
 	vars)
 		# write to stdout or $write_dir/vars.example
 		if [ "$write_dir" ]; then
 			write_file="$write_dir"/vars.example
 		fi
-	;;
+		;;
 	# This correctly renames 'code-signing' to 'codeSigning'
 	COMMON|ca|server|serverClient|client|codeSigning|email|kdc)
 		# write to stdout or $write_dir/$write_type [x509-type]
 		if [ "$write_dir" ]; then
 			write_file="$write_dir/$write_type"
 		fi
-	;;
+		;;
 	selfsign)
 		# write to stdout or $write_dir/$write_type [x509-type]
 		if [ "$write_dir" ]; then
 			write_file="$write_dir/$write_type"
 		fi
-	;;
+		;;
 	*)
 		user_error "write - unknown type '$write_type'"
 	esac
@@ -4700,7 +4699,7 @@ set_openssl_easyrsa_cnf_vars(){
 		conf_EASYRSA_REQ_OU="$EASYRSA_REQ_OU"
 		conf_EASYRSA_REQ_EMAIL="$EASYRSA_REQ_EMAIL"
 		conf_EASYRSA_REQ_SERIAL="$EASYRSA_REQ_SERIAL"
-	;;
+		;;
 	unexpanded)
 		# write standard ssl-cnf
 		conf_EASYRSA_dir='$dir'
@@ -4716,7 +4715,7 @@ set_openssl_easyrsa_cnf_vars(){
 		conf_EASYRSA_REQ_OU='$ENV::EASYRSA_REQ_OU'
 		conf_EASYRSA_REQ_EMAIL='$ENV::EASYRSA_REQ_EMAIL'
 		conf_EASYRSA_REQ_SERIAL='$ENV::EASYRSA_REQ_SERIAL'
-	;;
+		;;
 	*)
 		die "set_openssl_easyrsa_cnf_vars - input"
 	esac
@@ -4729,7 +4728,7 @@ create_legacy_stream() {
 	# COMMON is not very useful
 		cat <<- "CREATE_X509_TYPE_COMMON"
 		CREATE_X509_TYPE_COMMON
-	;;
+		;;
 	easyrsa)
 	# This could be COMMON but not is not suitable for a CA
 		cat <<- "CREATE_X509_TYPE_EASYRSA"
@@ -4738,28 +4737,28 @@ create_legacy_stream() {
 		authorityKeyIdentifier = keyid,issuer:always
 		keyUsage = digitalSignature,keyEncipherment
 		CREATE_X509_TYPE_EASYRSA
-	;;
+		;;
 	serverClient)
 	# serverClient
 		create_legacy_stream easyrsa
 		cat <<- "CREATE_X509_TYPE_SERV_CLI"
 		extendedKeyUsage = serverAuth,clientAuth
 		CREATE_X509_TYPE_SERV_CLI
-	;;
+		;;
 	server)
 	# server
 		create_legacy_stream easyrsa
 		cat <<- "CREATE_X509_TYPE_SERV"
 		extendedKeyUsage = serverAuth
 		CREATE_X509_TYPE_SERV
-	;;
+		;;
 	client)
 	# client
 		create_legacy_stream easyrsa
 		cat <<- "CREATE_X509_TYPE_CLI"
 		extendedKeyUsage = clientAuth
 		CREATE_X509_TYPE_CLI
-	;;
+		;;
 	ca)
 	# ca
 		cat <<- "CREATE_X509_TYPE_CA"
@@ -4768,7 +4767,7 @@ create_legacy_stream() {
 		authorityKeyIdentifier = keyid:always,issuer:always
 		keyUsage = cRLSign, keyCertSign
 		CREATE_X509_TYPE_CA
-	;;
+		;;
 	selfsign)
 	# selfsign
 		cat <<- "CREATE_X509_TYPE_SELFSIGN"
@@ -4779,7 +4778,7 @@ create_legacy_stream() {
 		CREATE_X509_TYPE_SELFSIGN
 
 		print "extendedKeyUsage = $selfsign_eku"
-	;;
+		;;
 	codeSigning)
 	# codeSigning
 		cat <<- "CREATE_X509_CODE_SIGNING"
@@ -4789,7 +4788,7 @@ create_legacy_stream() {
 		extendedKeyUsage = codeSigning
 		keyUsage = digitalSignature
 		CREATE_X509_CODE_SIGNING
-	;;
+		;;
 	email)
 	# email
 		cat <<- "CREATE_X509_TYPE_EMAIL"
@@ -4799,7 +4798,7 @@ create_legacy_stream() {
 		extendedKeyUsage = emailProtection
 		keyUsage = digitalSignature,keyEncipherment,nonRepudiation
 		CREATE_X509_TYPE_EMAIL
-	;;
+		;;
 	kdc)
 	# kdc
 		cat <<- "CREATE_X509_TYPE_KDC"
@@ -4823,7 +4822,7 @@ name_string = EXP:1,SEQUENCE:kdc_principals
 princ1 = GeneralString:krbtgt
 princ2 = GeneralString:${ENV::EASYRSA_KDC_REALM}
 CREATE_X509_TYPE_KDC
-	;;
+		;;
 	vars)
 	# vars
 		cat << "CREATE_VARS_EXAMPLE"
@@ -4968,7 +4967,7 @@ fi
 #
 #set_var EASYRSA_PRE_EXPIRY_WINDOW	90
 CREATE_VARS_EXAMPLE
-	;;
+		;;
 	ssl-cnf|safe-cnf)
 	# SSL config v3.2.0-1
 	cat << CREATE_SSL_CONFIG
@@ -5125,7 +5124,7 @@ keyUsage = cRLSign, keyCertSign
 # issuerAltName=issuer:copy
 authorityKeyIdentifier=keyid:always,issuer:always
 CREATE_SSL_CONFIG
-	;;
+		;;
 	*)
 		die "create_legacy_stream: unknown type '$1'"
 	esac
@@ -5208,182 +5207,180 @@ while :; do
 	[ "$val" ] || is_empty=1
 
 	case "$opt" in
-	--days)
-		number_only=1
-		# Set the appropriate date variable
-		# when called by command later
-		alias_days="$val"
-		;;
-	--startdate)
-		export EASYRSA_START_DATE="$val"
-		;;
-	--enddate)
-		export EASYRSA_END_DATE="$val"
-		;;
-	--pki-dir|--pki)
-		export EASYRSA_PKI="$val"
-		;;
-	--tmp-dir)
-		export EASYRSA_TEMP_DIR="$val"
-		;;
-	--ssl-conf)
-		export EASYRSA_SSL_CONF="$val"
-		;;
-	--keep-tmp)
-		export EASYRSA_KEEP_TEMP="$val"
-		;;
-	--use-algo)
-		export EASYRSA_ALGO="$val"
-		;;
-	--keysize)
-		number_only=1
-		export EASYRSA_KEY_SIZE="$val"
-		;;
-	--curve)
-		export EASYRSA_CURVE="$val"
-		;;
-	--dn-mode)
-		export EASYRSA_DN="$val"
-		;;
-	--req-cn)
-		export EASYRSA_REQ_CN="$val"
-		;;
-	--digest)
-		export EASYRSA_DIGEST="$val"
-		;;
-	--req-c)
-		empty_ok=1
-		export EASYRSA_REQ_COUNTRY="$val"
-		;;
-	--req-st)
-		empty_ok=1
-		export EASYRSA_REQ_PROVINCE="$val"
-		;;
-	--req-city)
-		empty_ok=1
-		export EASYRSA_REQ_CITY="$val"
-		;;
-	--req-org)
-		empty_ok=1
-		export EASYRSA_REQ_ORG="$val"
-		;;
-	--req-email)
-		empty_ok=1
-		export EASYRSA_REQ_EMAIL="$val"
-		;;
-	--req-ou)
-		empty_ok=1
-		export EASYRSA_REQ_OU="$val"
-		;;
-	--req-serial)
-		empty_ok=1
-		export EASYRSA_REQ_SERIAL="$val"
-		;;
-	--ns-cert)
-		empty_ok=1
-		[ "$is_empty" ] && unset -v val
-		export EASYRSA_NS_SUPPORT="${val:-yes}"
-		;;
-	--ns-comment)
-		empty_ok=1
-		export EASYRSA_NS_COMMENT="$val"
-		;;
-	--batch)
-		empty_ok=1
-		export EASYRSA_BATCH=1
-		;;
-	-s|--silent)
-		empty_ok=1
-		export EASYRSA_SILENT=1
-		;;
-	--sbatch|--silent-batch)
-		empty_ok=1
-		export EASYRSA_SILENT=1
-		export EASYRSA_BATCH=1
-		;;
-	--verbose)
-		empty_ok=1
-		export EASYRSA_VERBOSE=1
-		;;
-	--days-margin)
-		# ONLY ALLOWED use by status reports
-		number_only=1
-		export EASYRSA_iso_8601_MARGIN="$val"
-		;;
-	-S|--silent-ssl)
-		empty_ok=1
-		export EASYRSA_SILENT_SSL=1
-		# This will probably be need
-		#save_EASYRSA_SILENT_SSL=1
-		;;
-	--force-safe-ssl)
-		empty_ok=1
-		export EASYRSA_FORCE_SAFE_SSL=1
-		;;
-	--old-safe-ssl)
-		empty_ok=1
-		export EASYRSA_FORCE_SAFE_SSL=1
-		export EASYRSA_LEGACY_SAFE_SSL=1
-		;;
-	--nopass|--no-pass)
-		empty_ok=1
-		export EASYRSA_NO_PASS=1
-		;;
-	--passin)
-		export EASYRSA_PASSIN="$val"
-		;;
-	--passout)
-		export EASYRSA_PASSOUT="$val"
-		;;
-	--raw-ca)
-		empty_ok=1
-		export EASYRSA_RAW_CA=1
-		;;
-	--notext|--no-text)
-		empty_ok=1
-		export EASYRSA_NO_TEXT=1
-		;;
-	--subca-len)
-		number_only=1
-		zero_allowed=1
-		export EASYRSA_SUBCA_LEN="$val"
-		;;
-	--vars)
-		export EASYRSA_VARS_FILE="$val"
-		;;
-	--copy-ext)
-		empty_ok=1
-		export EASYRSA_CP_EXT=1
-		;;
-	--subject-alt-name|--san)
-		# This allows --san to be used multiple times
-		if [ "$EASYRSA_SAN" ]; then
-			EASYRSA_SAN="$EASYRSA_SAN, $val"
-		else
-			EASYRSA_SAN="$val"
-		fi
-		;;
-	--new-subject)
-		export EASYRSA_NEW_SUBJECT="$val"
-		;;
-	--usefn)
-		export EASYRSA_P12_FR_NAME="$val"
-		;;
-	--tools)
-		export EASYRSA_TOOLS_LIB="$val"
-		;;
-	--version)
-		shift "$#"
-		set -- "$@" "version"
-		break
-		;;
-	-*)
-		user_error "\
+		--days)
+			number_only=1
+			# Set the appropriate date variable
+			# when called by command later
+			alias_days="$val"
+			;;
+		--startdate)
+			export EASYRSA_START_DATE="$val"
+			;;
+		--enddate)
+			export EASYRSA_END_DATE="$val"
+			;;
+		--pki-dir|--pki)
+			export EASYRSA_PKI="$val"
+			;;
+		--tmp-dir)
+			export EASYRSA_TEMP_DIR="$val"
+			;;
+		--ssl-conf)
+			export EASYRSA_SSL_CONF="$val"
+			;;
+		--keep-tmp)
+			export EASYRSA_KEEP_TEMP="$val"
+			;;
+		--use-algo)
+			export EASYRSA_ALGO="$val"
+			;;
+		--keysize)
+			number_only=1
+			export EASYRSA_KEY_SIZE="$val"
+			;;
+		--curve)
+			export EASYRSA_CURVE="$val"
+			;;
+		--dn-mode)
+			export EASYRSA_DN="$val"
+			;;
+		--req-cn)
+			export EASYRSA_REQ_CN="$val"
+			;;
+		--digest)
+			export EASYRSA_DIGEST="$val"
+			;;
+		--req-c)
+			empty_ok=1
+			export EASYRSA_REQ_COUNTRY="$val"
+			;;
+		--req-st)
+			empty_ok=1
+			export EASYRSA_REQ_PROVINCE="$val"
+			;;
+		--req-city)
+			empty_ok=1
+			export EASYRSA_REQ_CITY="$val"
+			;;
+		--req-org)
+			empty_ok=1
+			export EASYRSA_REQ_ORG="$val"
+			;;
+		--req-email)
+			empty_ok=1
+			export EASYRSA_REQ_EMAIL="$val"
+			;;
+		--req-ou)
+			empty_ok=1
+			export EASYRSA_REQ_OU="$val"
+			;;
+		--req-serial)
+			empty_ok=1
+			export EASYRSA_REQ_SERIAL="$val"
+			;;
+		--ns-cert)
+			empty_ok=1
+			[ "$is_empty" ] && unset -v val
+			export EASYRSA_NS_SUPPORT="${val:-yes}"
+			;;
+		--ns-comment)
+			empty_ok=1
+			export EASYRSA_NS_COMMENT="$val"
+			;;
+		--batch)
+			empty_ok=1
+			export EASYRSA_BATCH=1
+			;;
+		-s|--silent)
+			empty_ok=1
+			export EASYRSA_SILENT=1
+			;;
+		--sbatch|--silent-batch)
+			empty_ok=1
+			export EASYRSA_SILENT=1
+			export EASYRSA_BATCH=1
+			;;
+		--verbose)
+			empty_ok=1
+			export EASYRSA_VERBOSE=1
+			;;
+		--days-margin)
+			# ONLY ALLOWED use by status reports
+			number_only=1
+			export EASYRSA_iso_8601_MARGIN="$val"
+			;;
+		-S|--silent-ssl)
+			empty_ok=1
+			export EASYRSA_SILENT_SSL=1
+			;;
+		--force-safe-ssl)
+			empty_ok=1
+			export EASYRSA_FORCE_SAFE_SSL=1
+			;;
+		--old-safe-ssl)
+			empty_ok=1
+			export EASYRSA_FORCE_SAFE_SSL=1
+			export EASYRSA_LEGACY_SAFE_SSL=1
+			;;
+		--nopass|--no-pass)
+			empty_ok=1
+			export EASYRSA_NO_PASS=1
+			;;
+		--passin)
+			export EASYRSA_PASSIN="$val"
+			;;
+		--passout)
+			export EASYRSA_PASSOUT="$val"
+			;;
+		--raw-ca)
+			empty_ok=1
+			export EASYRSA_RAW_CA=1
+			;;
+		--notext|--no-text)
+			empty_ok=1
+			export EASYRSA_NO_TEXT=1
+			;;
+		--subca-len)
+			number_only=1
+			zero_allowed=1
+			export EASYRSA_SUBCA_LEN="$val"
+			;;
+		--vars)
+			export EASYRSA_VARS_FILE="$val"
+			;;
+		--copy-ext)
+			empty_ok=1
+			export EASYRSA_CP_EXT=1
+			;;
+		--subject-alt-name|--san)
+			# This allows --san to be used multiple times
+			if [ "$EASYRSA_SAN" ]; then
+				EASYRSA_SAN="$EASYRSA_SAN, $val"
+			else
+				EASYRSA_SAN="$val"
+			fi
+			;;
+		--new-subject)
+			export EASYRSA_NEW_SUBJECT="$val"
+			;;
+		--usefn)
+			export EASYRSA_P12_FR_NAME="$val"
+			;;
+		--tools)
+			export EASYRSA_TOOLS_LIB="$val"
+			;;
+		--version)
+			shift "$#"
+			set -- "$@" "version"
+			break
+			;;
+		-*)
+			user_error "\
 Unknown option '$opt'.
 Run 'easyrsa help options' for option help."
-		;;
-	*)
-		break
+			;;
+		*)
+			break
 	esac
 
 	# fatal error when no value was provided
@@ -5399,7 +5396,7 @@ Run 'easyrsa help options' for option help."
 				# Allow zero only
 				[ "$zero_allowed" ] || \
 					user_error "$opt - Number expected: '$val'"
-			;;
+				;;
 			(*[!1234567890]*|0*)
 				user_error "$opt - Number expected: '$val'"
 		esac
@@ -5428,28 +5425,28 @@ case "$cmd" in
 	''|help|-h|--help|--usage| \
 	version|show-host|rand|random)
 		quiet_vars=1
-	;;
+		;;
 	write)
 		# write is not compatible with diagnostics
 		unset -v EASYRSA_VERBOSE
 		EASYRSA_SILENT=1
-	;;
+		;;
 	init-pki|clean-all)
 		: # ok
-	;;
+		;;
 	*)
 		require_pki=1
 		case "$cmd" in
 			gen-req|gen-dh|build-ca|show-req|export-p*)
 				: # ok
-			;;
+				;;
 			inline)
 				unset -v EASYRSA_VERBOSE
 				EASYRSA_SILENT=1
-			;;
+				;;
 			self-sign-*)
 				: # ok
-			;;
+				;;
 			*)
 				require_ca=1
 		esac
@@ -5512,13 +5509,13 @@ case "$cmd" in
 		[ -z "$alias_days" ] || \
 			export EASYRSA_CERT_EXPIRE="$alias_days"
 		build_self_sign server "$@"
-	;;
+		;;
 	self-sign-client)
 		verify_working_env
 		[ -z "$alias_days" ] || \
 			export EASYRSA_CERT_EXPIRE="$alias_days"
 		build_self_sign client "$@"
-	;;
+		;;
 	gen-dh)
 		verify_working_env
 		gen_dh
