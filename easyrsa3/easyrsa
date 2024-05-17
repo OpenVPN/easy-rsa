@@ -4160,10 +4160,9 @@ Missing vars file:
 	if grep -q \
 		-e 'EASYRSA_PASSIN' -e 'EASYRSA_PASSOUT' \
 		-e '[^(]`[^)]' \
-		-e '[[:blank:]]export[[:blank:]]*' \
-		-e '[[:blank:]]unset[[:blank:]]*' \
-		-e '^  > ' \
-		"$target_file"
+		-e 'export ' \
+		-e 'unset ' \
+			"$target_file"
 	then
 		# here we go ..
 		err_msg="\
@@ -4191,7 +4190,7 @@ These problems have been found in your 'vars' settings:${NL}"
 
 		# No export
 		if grep -q \
-			-e '[[:blank:]]export[[:blank:]]*' \
+			-e 'export ' \
 			"$target_file"
 		then
 			err_msg="${err_msg}
@@ -4201,22 +4200,12 @@ These problems have been found in your 'vars' settings:${NL}"
 
 		# No unset
 		if grep -q \
-			-e '[[:blank:]]unset[[:blank:]]*' \
+			-e 'unset ' \
 			"$target_file"
 		then
 			err_msg="${err_msg}
   Use of 'unset':
   Remove 'unset' ('force_set_var' may also work)."
-		fi
-
-		# No redirection - caused by --verbose output
-		if grep -q \
-			-e '^  > ' \
-			"$target_file"
-		then
-			err_msg="${err_msg}
-  Use of unsupported characters:
-  These characters are not supported: '>' redirection"
 		fi
 
 		# Fatal error
