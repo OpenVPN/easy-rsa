@@ -4258,19 +4258,19 @@ default_vars() {
 	set_var EASYRSA_KEY_SIZE		2048
 
 	case "$EASYRSA_ALGO" in
-	rsa)
-		: # ok
-		# default EASYRSA_KEY_SIZE must always be set
-		# it must NOT be set selectively because it is
-		# present in the SSL config file
-		;;
-	ec)
-		set_var EASYRSA_CURVE		secp384r1
-		;;
-	ed)
-		set_var EASYRSA_CURVE		ed25519
-		;;
-	*) user_error "\
+		rsa)
+			: # ok
+			# default EASYRSA_KEY_SIZE must always be set
+			# it must NOT be set selectively because it is
+			# present in the SSL config file
+			;;
+		ec)
+			set_var EASYRSA_CURVE		secp384r1
+			;;
+		ed)
+			set_var EASYRSA_CURVE		ed25519
+			;;
+		*) user_error "\
 Algorithm '$EASYRSA_ALGO' is invalid: Must be 'rsa', 'ec' or 'ed'"
 	esac
 
