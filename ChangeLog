@@ -1,6 +1,6 @@
 Easy-RSA 3 ChangeLog
 
-3.2.0 (TBD)
+3.2.0 (2024-05-18)
 
    * Revert ca76697: Restore escape_hazard() (b1e9d7a) (#1137)
    * New X509 Type: 'selfsign' Internal only (999533e) (#1135)
