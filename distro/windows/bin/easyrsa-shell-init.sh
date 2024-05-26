@@ -51,21 +51,9 @@ access_denied() {
 	cat << "ACCESS_DENIED_MSG"
 
 To use Easy-RSA in a protected system directory, you must have
-elevated privileges via 'Windows User Access Control'.
-You can try 'run-as admin' but that may also fail.
+full administrator privileges via Windows User Access Control.
 
-It is recommended to use Easy-RSA in your User/home directory.
-
-Please try using one of the following solutions:
-* Use the Start Menu item: 'Start Easy-RSA Shell (Non-Admin)'
-* Or, in a Non-Admin command prompt window, run two commands:
-
-    cd '\Program Files\Openvpn\easy-rsa\'
-    EasyRSA-Start.bat /no-admin
-
-These will start EasyRSA in your user's 'home directory/easy-rsa'
-
-Press enter to exit.
+Press Enter or CTRL-C to exit.
 ACCESS_DENIED_MSG
 
 	#shellcheck disable=SC2162

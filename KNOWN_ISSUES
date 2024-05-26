@@ -1,6 +1,9 @@
 For a full list of issues, please visit the GitHub issue tracker at
 https://github.com/OpenVPN/easy-rsa/issues
 
+* EasyRSA tools, MKSH and mkdir.exe, *may* not work with Windows 11.
+  Requires further investigation.
+
 * OpenSSL 3.x does not appear to work on Windows 7.  Please use EasyRSA v3.0.9
   if you intend on using Windows 7.  Note that Windows 7 is no longer supported
   by Microsoft.

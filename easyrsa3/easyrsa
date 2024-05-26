@@ -825,24 +825,15 @@ remove_secure_session: DELETED: $secured_session"
 	die "remove_secure_session: $secured_session"
 } # => remove_secure_session()
 
-# Replace 'mkdir -p', broken by win11
-easyrsa_mkdir_p() {
-	[ "$#" = 2 ] || die "easyrsa_mkdir_p: input"
-	if [ -d "$1" ]; then
-		: # ok
-	else
-		mkdir "$1"
-		[ -d "$1" ] || die "(1) easyrsa_mkdir_p: $1"
-	fi
-
-	if [ -d "$1/$2" ]; then
-		return 0 # Exists ok
-	else
-		mkdir "$1/$2"
-		[ -d "$1/$2" ] && return 0 # Exists now
-	fi
-	die "(2) easyrsa_mkdir_p: $1/$2"
-} # => easyrsa_mkdir_p()
+# 'mkdir' wrapper, broken by win11, which fails without error
+easyrsa_mkdir() {
+	[ "$2" ] && die "easyrsa_mkdir - excess input"
+	[ "$1" ] || die "easyrsa_mkdir - input"
+	[ -d "$1" ] && return
+	mkdir "$1" 2>/dev/null
+	[ -d "$1" ] && return
+	die "easyrsa_mkdir - FAIL: $1"
+} # => easyrsa_mkdir()
 
 # Create temp-file atomically or fail
 # WARNING: Running easyrsa_openssl in a subshell
@@ -955,8 +946,8 @@ Temporary session not preserved."
 			else
 				# create temp-snapshot
 				keep_tmp="$EASYRSA_TEMP_DIR/tmp/$EASYRSA_KEEP_TEMP"
-				easyrsa_mkdir_p \
-					"$EASYRSA_TEMP_DIR/tmp" "$EASYRSA_KEEP_TEMP"
+				easyrsa_mkdir "$EASYRSA_TEMP_DIR"/tmp
+				easyrsa_mkdir "$keep_tmp"
 				rm -rf "$keep_tmp"
 				mv -f "$secured_session" "$keep_tmp"
 				information "Temp session preserved: $keep_tmp"
@@ -1429,10 +1420,10 @@ and initialize a fresh PKI here."
 	fi
 
 	# new dirs:
+	easyrsa_mkdir "$EASYRSA_PKI"
+
 	for i in issued private reqs inline; do
-		easyrsa_mkdir_p "$EASYRSA_PKI" "$i" || \
-			die "\
-Failed to create PKI file structure (permissions?)"
+		easyrsa_mkdir "${EASYRSA_PKI}/$i"
 	done
 
 	# pki/vars.example
@@ -1617,11 +1608,12 @@ current CA. To start a new CA, run init-pki first."
 	err_msg="\
 Unable to create necessary PKI files (permissions?)"
 
-	for i in revoked certs_by_serial \
-		revoked/certs_by_serial revoked/private_by_serial \
-		revoked/reqs_by_serial
+	for i in certs_by_serial \
+		revoked \
+		revoked/certs_by_serial \
+		revoked/private_by_serial
 	do
-		easyrsa_mkdir_p "$EASYRSA_PKI" "$i" || die "$err_msg"
+		easyrsa_mkdir "${EASYRSA_PKI}/$i"
 	done
 
 	# create necessary files:
@@ -2727,9 +2719,7 @@ Conflicting file found at:
 	unset -v err_exists
 
 	# Make inline directory
-	[ -d "$EASYRSA_PKI/inline" ] ||	\
-		easyrsa_mkdir_p "$EASYRSA_PKI" inline || \
-			die "Failed to create inline directoy."
+	easyrsa_mkdir "$EASYRSA_PKI"/inline
 
 	# Confirm over write inline file
 	inline_out="$EASYRSA_PKI/inline/$name.inline"
@@ -3043,15 +3033,17 @@ certificate from being accepted."
 # moves revoked certificates to the 'revoked' folder
 # allows reissuing certificates with the same name
 revoke_move() {
-	for target in certs_by_serial private_by_serial reqs_by_serial
+	parent_dir="$EASYRSA_PKI"/revoked
+	easyrsa_mkdir "$parent_dir"
+	for i in certs_by_serial private_by_serial
 	do
-		easyrsa_mkdir_p "$out_dir" "$target" ||
-			die "Failed to mkdir: $target"
+		easyrsa_mkdir "${parent_dir}/$i"
 	done
+	parent_dir=
 
 	# do NOT move the req - can be signed again
 
-	# move crt to renewed_then_revoked folders
+	# move crt to revoked folder
 	mv "$crt_in" "$crt_out" || die "Failed to move: $crt_in"
 
 	# only move the key if we have it
@@ -3133,7 +3125,7 @@ Run easyrsa without commands for usage and command help."
 	crt_out="$out_dir/$file_name_base.crt"
 
 	# make output folder
-	easyrsa_mkdir_p "$EASYRSA_PKI" expired
+	easyrsa_mkdir "$EASYRSA_PKI"/expired
 
 	# Do not over write existing cert
 	if [ -e "$crt_out" ]; then
@@ -4561,8 +4553,7 @@ Legacy files: openssl-easyrsa.cnf and x509-types/ directory."
 	if write ssl-cnf "$legacy_out_d"
 	then
 		x509_d="$legacy_out_d"/x509-types
-		easyrsa_mkdir_p "$legacy_out_d" x509-types || \
-			die "legacy_files - x509_d"
+		easyrsa_mkdir "$x509_d"
 
 		write COMMON "$x509_d"
 		write ca "$x509_d"
@@ -4576,8 +4567,8 @@ Legacy files: openssl-easyrsa.cnf and x509-types/ directory."
 		user_error "legacy_files - write ssl-cnf"
 	fi
 
-	unset -v legacy_out_d x509_dir
 	verbose "legacy_files: OK $x509_d"
+	unset -v legacy_out_d x509_d
 } # => legacy_files()
 
 # write legacy files to stdout or to $folder
