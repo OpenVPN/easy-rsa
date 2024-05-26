@@ -1011,63 +1011,6 @@ Temporary session not preserved."
 	exit 1
 } # => cleanup()
 
-# Escape hazardous characters
-# Auto-escape hazardous characters:
-# '&' - Workaround 'sed' behavior
-# '$' - Workaround 'easyrsa' based limitation
-# This is required for all SSL libs, otherwise,
-# there are unacceptable differences in behavior
-escape_hazard() {
-	if [ "$EASYRSA_FORCE_SAFE_SSL" ] || \
-		[ "$makesafeconf" ]
-	then
-		# Always run
-		verbose "escape_hazard: FORCED"
-	elif [ "$working_safe_org_conf" ]; then
-		# Has run once
-		verbose "escape_hazard: BYPASSED"
-		return
-	else
-		# Run once
-		verbose "escape_hazard: RUN-ONCE"
-	fi
-
-	# Only use if old 'sed' version is requested
-	if [ "$EASYRSA_LEGACY_SAFE_SSL" ]; then
-		: # ok
-	else
-		verbose "escape_hazard: REPLACED by heredoc expansion"
-		verbose "escape_hazard: ABANDONED"
-		return
-	fi
-
-	# Set run once
-	working_safe_org_conf=1
-
-	# Assign temp-file
-	escape_hazard_tmp=""
-	easyrsa_mktemp escape_hazard_tmp || die \
-		"escape_hazard - easyrsa_mktemp escape_hazard_tmp"
-
-	# write org fields to org temp-file and escape '&' and '$'
-	print "\
-export EASYRSA_REQ_COUNTRY=\"$EASYRSA_REQ_COUNTRY\"
-export EASYRSA_REQ_PROVINCE=\"$EASYRSA_REQ_PROVINCE\"
-export EASYRSA_REQ_CITY=\"$EASYRSA_REQ_CITY\"
-export EASYRSA_REQ_ORG=\"$EASYRSA_REQ_ORG\"
-export EASYRSA_REQ_OU=\"$EASYRSA_REQ_OU\"
-export EASYRSA_REQ_EMAIL=\"$EASYRSA_REQ_EMAIL\"
-export EASYRSA_REQ_SERIAL=\"$EASYRSA_REQ_SERIAL\"\
-" | sed -e s\`'\&'\`'\\\&'\`g \
-		-e s\`'\$'\`'\\\$'\`g \
-			> "$escape_hazard_tmp" || die "\
-escape_hazard - Failed to write temp-file"
-
-	# Reload fields from fully escaped temp-file
-	source_vars "$escape_hazard_tmp"
-	verbose "escape_hazard: COMPLETED"
-} # => escape_hazard()
-
 # Replace environment variable names with current value
 # and write to temp-file or return error from sed
 expand_ssl_config() {
@@ -1100,69 +1043,10 @@ expand_ssl_config() {
 expand_ssl_config - \
 easyrsa_mktemp safe_ssl_cnf_tmp"
 
-	# Rewrite
-	# Only use if old 'sed' version is requested
-	# shellcheck disable=SC2016 # No expand '' - expand_ssl_config()
-	if [ "$EASYRSA_LEGACY_SAFE_SSL" ]; then
-		if sed \
-\
--e s\`'$dir'\`\
-\""$EASYRSA_PKI"\"\`g \
-\
--e s\`'$ENV::EASYRSA_PKI'\`\
-\""$EASYRSA_PKI"\"\`g \
-\
--e s\`'$ENV::EASYRSA_CERT_EXPIRE'\`\
-\""$EASYRSA_CERT_EXPIRE"\"\`g \
-\
--e s\`'$ENV::EASYRSA_CRL_DAYS'\`\
-\""$EASYRSA_CRL_DAYS"\"\`g \
-\
--e s\`'$ENV::EASYRSA_DIGEST'\`\
-\""$EASYRSA_DIGEST"\"\`g \
-\
--e s\`'$ENV::EASYRSA_KEY_SIZE'\`\
-\""$EASYRSA_KEY_SIZE"\"\`g \
-\
--e s\`'$ENV::EASYRSA_DN'\`\
-\""$EASYRSA_DN"\"\`g \
-\
--e s\`'$ENV::EASYRSA_REQ_CN'\`\
-\""$EASYRSA_REQ_CN"\"\`g \
-\
--e s\`'$ENV::EASYRSA_REQ_COUNTRY'\`\
-\""$EASYRSA_REQ_COUNTRY"\"\`g \
-\
--e s\`'$ENV::EASYRSA_REQ_PROVINCE'\`\
-\""$EASYRSA_REQ_PROVINCE"\"\`g \
-\
--e s\`'$ENV::EASYRSA_REQ_CITY'\`\
-\""$EASYRSA_REQ_CITY"\"\`g \
-\
--e s\`'$ENV::EASYRSA_REQ_ORG'\`\
-\""$EASYRSA_REQ_ORG"\"\`g \
-\
--e s\`'$ENV::EASYRSA_REQ_OU'\`\
-\""$EASYRSA_REQ_OU"\"\`g \
-\
--e s\`'$ENV::EASYRSA_REQ_EMAIL'\`\
-\""$EASYRSA_REQ_EMAIL"\"\`g \
-\
--e s\`'$ENV::EASYRSA_REQ_SERIAL'\`\
-\""$EASYRSA_REQ_SERIAL"\"\`g \
-\
-			"$EASYRSA_SSL_CONF" > "$safe_ssl_cnf_tmp"
-		then
-			verbose "expand_ssl_config: via 'sed' COMPLETED"
-		else
-			return 1
-		fi
-
-	else
-		write safe-cnf > "$safe_ssl_cnf_tmp" || \
-			die "expand_ssl_config - write safe-cnf temp-file"
-		verbose "expand_ssl_config: via 'write' COMPLETED"
-	fi
+	# Expand openssl-easyrsa.cnf ENV vars
+	write safe-cnf > "$safe_ssl_cnf_tmp" || \
+		die "expand_ssl_config - write safe-cnf temp-file"
+	verbose "expand_ssl_config: via 'write' COMPLETED"
 } # => expand_ssl_config()
 
 # Easy-RSA meta-wrapper for SSL
@@ -1182,10 +1066,6 @@ easyrsa_openssl() {
 		rand)
 			die "easyrsa_openssl: Illegal SSL command: rand"
 	esac
-
-	# Auto-escape hazardous characters
-	escape_hazard || \
-		die "easyrsa_openssl - escape_hazard failed"
 
 	# Rewrite SSL config
 	expand_ssl_config || \
@@ -5298,11 +5178,6 @@ while :; do
 		--force-safe-ssl)
 			empty_ok=1
 			export EASYRSA_FORCE_SAFE_SSL=1
-			;;
-		--old-safe-ssl)
-			empty_ok=1
-			export EASYRSA_FORCE_SAFE_SSL=1
-			export EASYRSA_LEGACY_SAFE_SSL=1
 			;;
 		--nopass|--no-pass)
 			empty_ok=1
