@@ -1,5 +1,9 @@
 Easy-RSA 3 ChangeLog
 
+3.2.1 (TBD)
+
+   * Remove obsolete 'sed' expansion of openssl-easyrsa.cnf (ff16444) (#1147)
+
 3.2.0 (2024-05-18)
 
    * Revert ca76697: Restore escape_hazard() (b1e9d7a) (#1137)
