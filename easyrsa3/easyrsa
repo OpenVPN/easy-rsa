@@ -593,8 +593,6 @@ General options:
                   (Default config file is in the EasyRSA PKI directory)
 --force-safe-ssl: Always generate a safe SSL config file
                   (Default: Generate Safe SSL config once per instance)
---old-safe-ssl  : Always generate a safe SSL config file
-                  As --force-safe-ssl but use 'sed' expansion.
 
 --tools=FILE    : Declare the full easyrsa-tools.lib file-name
 --tmp-dir=DIR   : Declare the temporary directory
