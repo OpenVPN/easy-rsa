@@ -92,6 +92,7 @@ iso_8601_cert_enddate: missing cert"
 
 	# On error return, let the caller decide what to do
 	if fn_ssl_out="$(
+		EASYRSA_VERBOSE=
 		easyrsa_openssl x509 -in "$1" -noout \
 			-enddate -dateopt iso_8601
 		)"
