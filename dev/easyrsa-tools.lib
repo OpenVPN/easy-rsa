@@ -1,3 +1,5 @@
+#!/bin/sh
+
 # Easy-RSA tools library v1.0
 
 # Easy-RSA 3.x does not source into the environment directly.
@@ -90,6 +92,7 @@ iso_8601_cert_enddate: missing cert"
 
 	# On error return, let the caller decide what to do
 	if fn_ssl_out="$(
+		EASYRSA_VERBOSE=
 		easyrsa_openssl x509 -in "$1" -noout \
 			-enddate -dateopt iso_8601
 		)"
@@ -489,6 +492,7 @@ read_db() {
 		# Recreate temp session
 		remove_secure_session || \
 			die "read_db - remove_secure_session"
+		locate_support_files
 		secure_session || \
 			die "read_db - secure_session"
 		# Recreate openssl-easyrsa.cnf (Temp)
