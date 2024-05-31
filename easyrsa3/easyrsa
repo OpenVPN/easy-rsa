@@ -851,11 +851,11 @@ easyrsa_mktemp - input error"
 easyrsa_mktemp - Temporary session undefined (--tmp-dir)"
 
 	# Assign internal temp-file name
-	t="${secured_session}/temp.${mktemp_counter}"
+	local_fname="${secured_session}/temp.${mktemp_counter}"
 
 	# Create shotfile
-	for h in x y z; do
-		shotfile="${t}.${h}"
+	for ext_alpha in x y z; do
+		shotfile="${local_fname}.${ext_alpha}"
 		if [ -e "$shotfile" ]; then
 			verbose "\
 easyrsa_mktemp: shot-file EXISTS: $shotfile"
@@ -868,12 +868,12 @@ easyrsa_mktemp: create shotfile failed (1) $1"
 			# subshells do not update mktemp_counter,
 			# which is why this extension is required.
 			# Current max required is 3 attempts
-			for i in 1 2 3 4 5 6 7 8 9; do
-				want_tmp_file="${t}.${i}"
+			for ext_number in 1 2 3 4 5 6 7 8 9; do
+				want_tmp_file="${local_fname}.${ext_number}"
 
 				# Warn to error log file for max reached
-				[ "$EASYRSA_MAX_TEMP" -gt "$i" ] || print "\
-Max temp-file limit $i, hit for: $1" >> "$easyrsa_err_log"
+				[ "$EASYRSA_MAX_TEMP" -gt "$ext_number" ] || print "\
+Max temp-file limit $ext_number, hit for: $1" >> "$easyrsa_err_log"
 
 				if [ -e "$want_tmp_file" ]; then
 					verbose "\
@@ -886,18 +886,19 @@ easyrsa_mktemp: temp-file EXISTS: $want_tmp_file"
 					fi
 
 					if mv "$shotfile" "$want_tmp_file"; then
-						# Update counter
-						mktemp_counter="$(( mktemp_counter + 1 ))"
-
 						# Assign external temp-file name
 						if force_set_var "$1" "$want_tmp_file"
 						then
 							verbose "\
-easyrsa_mktemp: $1 OK: $want_tmp_file"
+:: easyrsa_mktemp: $1 OK: $want_tmp_file"
 
 							if [ "$easyrsa_host_os" = win ]; then
 								set +o noclobber
 							fi
+
+							# Update counter
+							mktemp_counter="$(( mktemp_counter + 1 ))"
+
 							unset -v want_tmp_file shotfile
 							return
 						else
@@ -912,7 +913,7 @@ easyrsa_mktemp - force_set_var $1 failed"
 
 	# In case of subshell abuse, report to error log
 	err_msg="\
-easyrsa_mktemp - failed for: $1 @ attempt=$i
+easyrsa_mktemp - failed for: $1 @ attempt=$ext_number
 want_tmp_file: $want_tmp_file"
 	print "$err_msg" >> "$easyrsa_err_log"
 	die "$err_msg"
