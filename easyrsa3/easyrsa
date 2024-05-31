@@ -2980,6 +2980,14 @@ Unable to revoke as no certificate was found.
 Certificate was expected at:
 * $crt_in"
 
+	# Verify or create openssl-easyrsa.cnf temp-file
+	# Must be done after setting EASYRSA_REQ_CN
+	# Must be done before using $EASYRSA_EXTRA_EXTS etc
+	# And export $OPENSSL_CONF
+	write_easyrsa_ssl_cnf_tmp
+	export OPENSSL_CONF="$EASYRSA_SSL_CONF"
+	verbose "sign_req: OPENSSL_CONF = $OPENSSL_CONF"
+
 	# Verify certificate
 	verify_file x509 "$crt_in" || user_error "\
 Unable to revoke as the input-file is not a valid certificate.
@@ -3302,6 +3310,15 @@ No request found for the input: '$2'
 Expected to find the request at:
 * $in_req"
 
+	# Verify or create openssl-easyrsa.cnf temp-file
+	# Must be done after setting EASYRSA_REQ_CN
+	# Must be done before using $EASYRSA_EXTRA_EXTS etc
+	# And export $OPENSSL_CONF
+	write_easyrsa_ssl_cnf_tmp
+	export OPENSSL_CONF="$EASYRSA_SSL_CONF"
+	verbose "sign_req: OPENSSL_CONF = $OPENSSL_CONF"
+
+	# Verify request
 	verify_file req "$in_req" || user_error "\
 The certificate request file is not in a valid X509 format:
 * $in_req"
