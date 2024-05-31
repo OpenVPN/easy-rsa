@@ -1643,7 +1643,11 @@ Unable to create necessary PKI files (permissions?)"
 
 	# Verify or create openssl-easyrsa.cnf temp-file
 	# Must be done after setting EASYRSA_REQ_CN
+	# Must be done before using $EASYRSA_EXTRA_EXTS etc
+	# And export $OPENSSL_CONF
 	write_easyrsa_ssl_cnf_tmp
+	export OPENSSL_CONF="$EASYRSA_SSL_CONF"
+	verbose "sign_req: OPENSSL_CONF = $OPENSSL_CONF"
 
 	# When EASYRSA_EXTRA_EXTS is defined,
 	if [ "$EASYRSA_EXTRA_EXTS" ]; then
@@ -1955,6 +1959,14 @@ Conflicting certificate exists at:
 	verbose "\
 self-sign: Use ALGO/CURVE to $EASYRSA_ALGO/$EASYRSA_CURVE"
 
+	# Verify or create openssl-easyrsa.cnf temp-file
+	# Must be done after setting EASYRSA_REQ_CN
+	# Must be done before using verify_file() etc
+	# And export $OPENSSL_CONF
+	write_easyrsa_ssl_cnf_tmp
+	export OPENSSL_CONF="$EASYRSA_SSL_CONF"
+	verbose "sign_req: OPENSSL_CONF = $OPENSSL_CONF"
+
 	# Assign tmp-file for config
 	adjusted_ssl_cnf_tmp=""
 	easyrsa_mktemp adjusted_ssl_cnf_tmp || \
@@ -2135,6 +2147,14 @@ Option conflict --req-cn:
 	# Enforce commonName
 	export EASYRSA_REQ_CN="$file_name_base"
 
+	# Verify or create openssl-easyrsa.cnf temp-file
+	# Must be done after setting EASYRSA_REQ_CN
+	# Must be done before using $EASYRSA_EXTRA_EXTS etc
+	# And export $OPENSSL_CONF
+	write_easyrsa_ssl_cnf_tmp
+	export OPENSSL_CONF="$EASYRSA_SSL_CONF"
+	verbose "sign_req: OPENSSL_CONF = $OPENSSL_CONF"
+
 	# Output files
 	key_out="$EASYRSA_PKI/private/${file_name_base}.key"
 	req_out="$EASYRSA_PKI/reqs/${file_name_base}.req"
@@ -2166,10 +2186,6 @@ WARNING!!!
 An existing private key was found at $key_out
 Continuing with key generation will replace this key."
 	fi
-
-	# Verify or create openssl-easyrsa.cnf temp-file
-	# Must be done after setting EASYRSA_REQ_CN
-	write_easyrsa_ssl_cnf_tmp
 
 	# When EASYRSA_EXTRA_EXTS is defined,
 	# append it to openssl's [req] section:
@@ -2292,6 +2308,14 @@ Option conflict --req-cn:
 
 	# Enforce commonName
 	export EASYRSA_REQ_CN="$file_name_base"
+
+	# Verify or create openssl-easyrsa.cnf temp-file
+	# Must be done after setting EASYRSA_REQ_CN
+	# Must be done before using verify_file() etc
+	# And export $OPENSSL_CONF
+	write_easyrsa_ssl_cnf_tmp
+	export OPENSSL_CONF="$EASYRSA_SSL_CONF"
+	verbose "sign_req: OPENSSL_CONF = $OPENSSL_CONF"
 
 	# Check optional subject
 	force_subj=
@@ -3723,7 +3747,7 @@ Input is not a valid certificate:
 verify_file() {
 	format="$1"
 	path="$2"
-	easyrsa_openssl "$format" -in "$path" -noout 2>/dev/null
+	"$EASYRSA_OPENSSL" "$format" -in "$path" -noout 2>/dev/null
 } # => verify_file()
 
 # show-* command backend
@@ -4423,6 +4447,16 @@ force_set_var() {
 # Create as needed: $EASYRSA_SSL_CONF pki/openssl-easyrsa.cnf
 # If the existing file has a known hash then use temp-file.
 # Otherwise, use the file in place.
+#
+# v3.2.x
+# If $EASYRSA_SSL_CONF exists and is changed from default,
+# by either user edits or insertions from code,
+# then the existing file remains 'in-tact'.
+# For LibreSSL, the 'in-tact' file will be expanded by 'sed'
+#
+# If $EASYRSA_SSL_CONF does not exist or is known by sha256 hash
+# then it is replaced by a here-doc file:
+# OpenSSL:Unexpanded, LibreSSL:Expanded
 write_easyrsa_ssl_cnf_tmp() {
 	if [ -f "$EASYRSA_SSL_CONF" ]; then
 		verbose "write_easyrsa_ssl_cnf_tmp: SSL config EXISTS"
