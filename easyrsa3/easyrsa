@@ -5639,6 +5639,15 @@ Use of Status Reports requires Easy-RSA tools library, source:
 Place a copy of easyrsa-tools.lib in a standard system location."
 		fi
 
+		# Verify tools version
+		if [ "$EASYRSA_TOOLS_VERSION" = 1.0.1 ]; then
+			verbose "EASYRSA_TOOLS_VERSION: $EASYRSA_TOOLS_VERSION"
+		else
+			warn "\
+EasyRSA Tools version is out of date:
+* EASYRSA_TOOLS_VERSION: $EASYRSA_TOOLS_VERSION"
+		fi
+
 		# Validate or create openssl-easyrsa.cnf
 		write_easyrsa_ssl_cnf_tmp
 		export OPENSSL_CONF="$EASYRSA_SSL_CONF"
