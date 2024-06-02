@@ -5639,6 +5639,11 @@ Use of Status Reports requires Easy-RSA tools library, source:
 Place a copy of easyrsa-tools.lib in a standard system location."
 		fi
 
+		# Validate or create openssl-easyrsa.cnf
+		write_easyrsa_ssl_cnf_tmp
+		export OPENSSL_CONF="$EASYRSA_SSL_CONF"
+		verbose "$cmd: OPENSSL_CONF = $OPENSSL_CONF"
+
 		case "$cmd" in
 			show-expire)
 				[ -z "$alias_days" ] || \
