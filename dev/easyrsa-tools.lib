@@ -8,6 +8,9 @@ if [ -z "$EASYRSA_TOOLS_CALLER" ]; then
 	return 1
 fi
 
+# Set tools version
+EASYRSA_TOOLS_VERSION=1.0.1
+
 # Get certificate start date
 # shellcheck disable=2317 # Unreach - ssl_cert_not_before_date()
 ssl_cert_not_before_date() {
@@ -18,7 +21,7 @@ ssl_cert_not_before_date - input error"
 ssl_cert_not_before_date - missing cert"
 
 	fn_ssl_out="$(
-		easyrsa_openssl x509 -in "$1" -noout -startdate
+		"$EASYRSA_OPENSSL" x509 -in "$1" -noout -startdate
 		)" || die "\
 ssl_cert_not_before_date - failed: -startdate"
 
@@ -39,7 +42,7 @@ ssl_cert_not_after_date - input error"
 ssl_cert_not_after_date - missing cert"
 
 	fn_ssl_out="$(
-		easyrsa_openssl x509 -in "$1" -noout -enddate
+		"$EASYRSA_OPENSSL" x509 -in "$1" -noout -enddate
 		)" || die "\
 ssl_cert_not_after_date - failed: -enddate"
 
@@ -62,7 +65,7 @@ iso_8601_cert_startdate: missing cert"
 
 	# On error return, let the caller decide what to do
 	if fn_ssl_out="$(
-		easyrsa_openssl x509 -in "$1" -noout \
+		"$EASYRSA_OPENSSL" x509 -in "$1" -noout \
 			-startdate -dateopt iso_8601
 		)"
 	then
@@ -92,8 +95,7 @@ iso_8601_cert_enddate: missing cert"
 
 	# On error return, let the caller decide what to do
 	if fn_ssl_out="$(
-		EASYRSA_VERBOSE=
-		easyrsa_openssl x509 -in "$1" -noout \
+		"$EASYRSA_OPENSSL" x509 -in "$1" -noout \
 			-enddate -dateopt iso_8601
 		)"
 	then
@@ -664,8 +666,7 @@ expire_status: FALL-BACK completed"
 
 		# Check cert expiry against window
 		# openssl direct call because error is expected
-		if OPENSSL_CONF=/dev/null \
-			"$EASYRSA_OPENSSL" x509 -in "$cert_issued" \
+		if "$EASYRSA_OPENSSL" x509 -in "$cert_issued" \
 				-noout -checkend "$pre_expire_window_s" \
 				1>/dev/null
 		then
