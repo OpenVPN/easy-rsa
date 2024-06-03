@@ -849,6 +849,13 @@ easyrsa_mktemp() {
 	[ "$secured_session" ] || die "\
 easyrsa_mktemp - Temporary session undefined (--tmp-dir)"
 
+	# Force noclobber
+	if [ "$easyrsa_host_os" = win ]; then
+		set -o noclobber
+	else
+		set -C
+	fi
+
 	# Assign internal temp-file name
 	tmp_fname="${secured_session}/temp.${mktemp_counter}"
 
@@ -880,10 +887,6 @@ easyrsa_mktemp: temp-file EXISTS: $want_tmp_file"
 					continue
 				else
 					# atomic:
-					if [ "$easyrsa_host_os" = win ]; then
-						set -o noclobber
-					fi
-
 					if mv "$shotfile" "$want_tmp_file"; then
 						# Assign external temp-file name
 						if force_set_var "$1" "$want_tmp_file"
@@ -891,8 +894,11 @@ easyrsa_mktemp: temp-file EXISTS: $want_tmp_file"
 							verbose "\
 :: easyrsa_mktemp: $1 OK: $want_tmp_file"
 
+							# unset noclobber
 							if [ "$easyrsa_host_os" = win ]; then
 								set +o noclobber
+							else
+								set +C
 							fi
 
 							# Update counter
@@ -910,6 +916,13 @@ easyrsa_mktemp - force_set_var $1 failed"
 			done
 		fi
 	done
+
+	# unset noclobber
+	if [ "$easyrsa_host_os" = win ]; then
+		set +o noclobber
+	else
+		set +C
+	fi
 
 	# In case of subshell abuse, report to error log
 	err_msg="\
