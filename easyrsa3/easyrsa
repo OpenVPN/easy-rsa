@@ -3635,9 +3635,11 @@ display_dn - input error"
 
 	# Display DN
 	ssl_out="$(
-		"$EASYRSA_OPENSSL" "$format" -in "$path" -noout -subject \
-		-nameopt utf8,sep_multiline,space_eq,lname,align)" || \
-			die "display_dn: SSL command '$format'"
+		OPENSSL_CONF='' "$EASYRSA_OPENSSL" "$format" \
+			-in "$path" -noout -subject \
+			-nameopt utf8,sep_multiline,space_eq,lname,align \
+			2>/dev/null)" || die "display_dn: SSL command '$format'"
+
 	print "$ssl_out"
 } # => display_dn()
 
@@ -3722,7 +3724,11 @@ Input is not a valid certificate:
 verify_file() {
 	format="$1"
 	path="$2"
-	easyrsa_openssl "$format" -in "$path" -noout 2>/dev/null
+
+	# OPENSSL_CONF is not required, ignore warning
+	# Must not pass an unexpanded SSL cgf to LibreSSL
+	OPENSSL_CONF='' "$EASYRSA_OPENSSL" "$format" \
+		-in "$path" -noout 2>/dev/null
 } # => verify_file()
 
 # show-* command backend
