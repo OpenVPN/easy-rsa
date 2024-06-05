@@ -1204,16 +1204,13 @@ easyrsa_openssl() {
 			die "easyrsa_openssl: Illegal SSL command: rand"
 	esac
 
-	# Auto-escape hazardous characters
-	escape_hazard || \
-		die "easyrsa_openssl - escape_hazard failed"
-
-	# Rewrite SSL config
-	expand_ssl_config || \
-		die "easyrsa_openssl - expand_ssl_config failed"
-
-	# create local SSL cnf
-	write_easyrsa_ssl_cnf_tmp
+	# Use local SSL cnf
+	if [ "$EASYRSA_SSL_CONF" ]; then
+		export OPENSSL_CONF="$EASYRSA_SSL_CONF"
+	else
+		[ "$OPENSSL_CONF" ] || \
+			die "easyrsa_openssl - OPENSSL_CONF undefined"
+	fi
 	verbose "easyrsa_openssl: OPENSSL_CONF = $OPENSSL_CONF"
 
 	# Debug level
@@ -4457,6 +4454,10 @@ verify_working_env - easyrsa_mktemp global_safe_ssl_cnf_tmp"
 	write safe-cnf > "$global_safe_ssl_cnf_tmp" || die "\
 verify_working_env - write safe-cnf"
 
+	# If EASYRSA_SSL_CONF is not set then use global SSL conf
+	[ "$EASYRSA_SSL_CONF" ] || \
+		export EASYRSA_SSL_CONF="$global_safe_ssl_cnf_tmp"
+
 	export OPENSSL_CONF="$global_safe_ssl_cnf_tmp"
 	verbose "GLOBAL - OPENSSL_CONF = $OPENSSL_CONF"
 } # => write_global_safe_ssl_cnf_tmp()
@@ -4533,12 +4534,23 @@ f97425686fa1976d436fa31f550641aa"
 				known_file_308
 
 		# Use the existing file ONLY
-		if [ "$hash_is_unknown" ]; then
+		if [ "$hash_is_unknown" ] || \
+			[ "$EASYRSA_FORCE_SAFE_SSL" ]
+		then
 			unset -v hash_is_unknown
 			verbose "write_easyrsa_ssl_cnf_tmp: SSL config UNKNOWN!"
 
 			# Force 'sed' expnsion of file in place
 			export EASYRSA_LEGACY_SAFE_SSL=1
+
+			# Auto-escape hazardous characters
+			escape_hazard || \
+				die "easyrsa_openssl - escape_hazard failed"
+
+			# Rewrite SSL config
+			expand_ssl_config || \
+				die "easyrsa_openssl - expand_ssl_config failed"
+
 			return 0
 		fi
 
@@ -4551,6 +4563,9 @@ f97425686fa1976d436fa31f550641aa"
 	ssl_cnf_tmp=
 	easyrsa_mktemp ssl_cnf_tmp || die "\
 write_easyrsa_ssl_cnf_tmp - easyrsa_mktemp"
+
+	# Honor EASYRSA_FORCE_SAFE_SSL
+	[ -z "$EASYRSA_FORCE_SAFE_SSL" ] || ssl_cnf_type=safe-ssl
 
 	# Write SSL cnf to temp-file
 	write "$ssl_cnf_type" > "$ssl_cnf_tmp" || die "\
@@ -5206,6 +5221,7 @@ detect_host
 
 # Initialisation requirements
 unset -v \
+	OPENSSL_CONF \
 	verify_ssl_lib_ok \
 	secured_session \
 	working_safe_ssl_conf working_safe_org_conf \
@@ -5691,11 +5707,6 @@ Place a copy of easyrsa-tools.lib in a standard system location."
 EasyRSA Tools version is out of date:
 * EASYRSA_TOOLS_VERSION: $EASYRSA_TOOLS_VERSION"
 		fi
-
-		# Validate or create openssl-easyrsa.cnf
-		write_easyrsa_ssl_cnf_tmp
-		export OPENSSL_CONF="$EASYRSA_SSL_CONF"
-		verbose "$cmd: OPENSSL_CONF = $OPENSSL_CONF"
 
 		case "$cmd" in
 			show-expire)
