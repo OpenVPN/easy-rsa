@@ -593,8 +593,6 @@ General options:
                   (Default config file is in the EasyRSA PKI directory)
 --force-safe-ssl: Always generate a safe SSL config file
                   (Default: Generate Safe SSL config once per instance)
---old-safe-ssl  : Always generate a safe SSL config file
-                  As --force-safe-ssl but use 'sed' expansion.
 
 --tools=FILE    : Declare the full easyrsa-tools.lib file-name
 --tmp-dir=DIR   : Declare the temporary directory
@@ -1049,15 +1047,6 @@ escape_hazard() {
 		verbose "escape_hazard: RUN-ONCE"
 	fi
 
-	# Only use if old 'sed' version is requested
-	if [ "$EASYRSA_LEGACY_SAFE_SSL" ]; then
-		: # ok
-	else
-		verbose "escape_hazard: REPLACED by heredoc expansion"
-		verbose "escape_hazard: ABANDONED"
-		return
-	fi
-
 	# Set run once
 	working_safe_org_conf=1
 
@@ -1118,10 +1107,8 @@ expand_ssl_config - \
 easyrsa_mktemp safe_ssl_cnf_tmp"
 
 	# Rewrite
-	# Only use if old 'sed' version is requested
 	# shellcheck disable=SC2016 # No expand '' - expand_ssl_config()
-	if [ "$EASYRSA_LEGACY_SAFE_SSL" ]; then
-		if sed \
+	if sed \
 \
 -e s\`'$dir'\`\
 \""$EASYRSA_PKI"\"\`g \
@@ -1174,12 +1161,6 @@ easyrsa_mktemp safe_ssl_cnf_tmp"
 		else
 			return 1
 		fi
-
-	else
-		write safe-cnf > "$safe_ssl_cnf_tmp" || \
-			die "expand_ssl_config - write safe-cnf temp-file"
-		verbose "expand_ssl_config: via 'write' COMPLETED"
-	fi
 
 	export EASYRSA_SSL_CONF="$safe_ssl_cnf_tmp"
 	verbose "\
@@ -4539,9 +4520,6 @@ f97425686fa1976d436fa31f550641aa"
 			unset -v hash_is_unknown
 			verbose "write_easyrsa_ssl_cnf_tmp: SSL config UNKNOWN!"
 
-			# Force 'sed' expnsion of file in place
-			export EASYRSA_LEGACY_SAFE_SSL=1
-
 			# Auto-escape hazardous characters
 			escape_hazard || \
 				die "easyrsa_openssl - escape_hazard failed"
@@ -5363,11 +5341,6 @@ while :; do
 		--force-safe-ssl)
 			empty_ok=1
 			export EASYRSA_FORCE_SAFE_SSL=1
-			;;
-		--old-safe-ssl)
-			empty_ok=1
-			export EASYRSA_FORCE_SAFE_SSL=1
-			export EASYRSA_LEGACY_SAFE_SSL=1
 			;;
 		--nopass|--no-pass)
 			empty_ok=1
