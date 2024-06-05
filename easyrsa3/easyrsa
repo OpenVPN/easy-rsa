@@ -3654,7 +3654,6 @@ display_dn - input error"
 
 	# Display DN
 	ssl_out="$(
-		#export OPENSSL_CONF="$global_safe_ssl_cnf_tmp"
 		"$EASYRSA_OPENSSL" "$format" -in "$path" -noout -subject \
 		-nameopt utf8,sep_multiline,space_eq,lname,align)" || \
 			die "display_dn: SSL command '$format'"
@@ -3742,7 +3741,7 @@ Input is not a valid certificate:
 verify_file() {
 	format="$1"
 	path="$2"
-	easyrsa_openssl "$format" -in "$path" -noout 2>/dev/null
+	"$EASYRSA_OPENSSL" "$format" -in "$path" -noout 2>/dev/null
 } # => verify_file()
 
 # show-* command backend
