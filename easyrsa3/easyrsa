@@ -1259,9 +1259,11 @@ verify_ssl_lib() {
 	case "${val%% *}" in
 		OpenSSL)
 			ssl_lib=openssl
+			ssl_cnf_type=ssl-cnf
 			;;
 		LibreSSL)
 			ssl_lib=libressl
+			ssl_cnf_type=safe-cnf
 			;;
 		*)
 			error_msg="$("$EASYRSA_OPENSSL" version 2>&1)"
@@ -4549,11 +4551,6 @@ f97425686fa1976d436fa31f550641aa"
 	ssl_cnf_tmp=
 	easyrsa_mktemp ssl_cnf_tmp || die "\
 write_easyrsa_ssl_cnf_tmp - easyrsa_mktemp"
-
-	# Choose SSL Conf type:
-	# OpenSSL=Unexpended, LibreSSL=Expanded (Safe)
-	ssl_cnf_type=ssl-cnf
-	[ "$ssl_lib" = openssl ] || ssl_cnf_type=safe-cnf
 
 	# Write SSL cnf to temp-file
 	write "$ssl_cnf_type" > "$ssl_cnf_tmp" || die "\
