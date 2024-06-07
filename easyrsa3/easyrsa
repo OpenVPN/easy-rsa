@@ -4558,17 +4558,24 @@ write_easyrsa_ssl_cnf_tmp: $ssl_cnf_type \
 
 # Write x509 type file to a temp file
 write_x509_type_tmp() {
-		type="$1"
-		shift
+	# Verify x509-type before redirect
+	case "$1" in
+		COMMON|ca|server|serverClient|client|email| \
+		codeSigning|kdc|selfsign)
+			: # ok
+		;;
+	*)
+		die "write_x509_type_tmp - unknown type '$1'"
+	esac
 
-		write_x509_file_tmp=""
-		easyrsa_mktemp write_x509_file_tmp || die \
-			"write_x509_type_tmp - easyrsa_mktemp write_x509_file_tmp"
+	write_x509_file_tmp=""
+	easyrsa_mktemp write_x509_file_tmp || \
+		die "write_x509_type_tmp - easyrsa_mktemp"
 
-		write "$type" > "$write_x509_file_tmp" || \
-			die "write_x509_type_tmp - write $type"
+	write "$1" > "$write_x509_file_tmp" || \
+		die "write_x509_type_tmp - write $1"
 
-		verbose ": write_x509_type_tmp: $type COMPLETE"
+	verbose ": write_x509_type_tmp: $1 COMPLETE"
 } # => write_x509_type_tmp()
 
 ############################################################################
