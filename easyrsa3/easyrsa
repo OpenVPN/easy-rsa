@@ -4434,10 +4434,6 @@ verify_working_env - easyrsa_mktemp global_safe_ssl_cnf_tmp"
 	write safe-cnf > "$global_safe_ssl_cnf_tmp" || die "\
 verify_working_env - write safe-cnf"
 
-	# If EASYRSA_SSL_CONF is not set then use global SSL conf
-	[ "$EASYRSA_SSL_CONF" ] || \
-		export EASYRSA_SSL_CONF="$global_safe_ssl_cnf_tmp"
-
 	export OPENSSL_CONF="$global_safe_ssl_cnf_tmp"
 	verbose "GLOBAL - OPENSSL_CONF = $OPENSSL_CONF"
 } # => write_global_safe_ssl_cnf_tmp()
@@ -4542,7 +4538,7 @@ f97425686fa1976d436fa31f550641aa"
 write_easyrsa_ssl_cnf_tmp - easyrsa_mktemp"
 
 	# Honor EASYRSA_FORCE_SAFE_SSL
-	[ -z "$EASYRSA_FORCE_SAFE_SSL" ] || ssl_cnf_type=safe-ssl
+	[ -z "$EASYRSA_FORCE_SAFE_SSL" ] || ssl_cnf_type=safe-cnf
 
 	# Write SSL cnf to temp-file
 	write "$ssl_cnf_type" > "$ssl_cnf_tmp" || die "\
@@ -4552,7 +4548,7 @@ write_easyrsa_ssl_cnf_tmp - write $ssl_cnf_type: $ssl_cnf_tmp"
 	export EASYRSA_SSL_CONF="$ssl_cnf_tmp"
 	verbose "\
 write_easyrsa_ssl_cnf_tmp: $ssl_cnf_type \
-- EASYRSA_SSL_CONF = $ssl_cnf_tmp"
+- EASYRSA_SSL_CONF = $EASYRSA_SSL_CONF"
 
 	export OPENSSL_CONF="$EASYRSA_SSL_CONF"
 	verbose "LOCAL - OPENSSL_CONF = $OPENSSL_CONF"
@@ -4570,7 +4566,7 @@ write_x509_type_tmp() {
 		write "$type" > "$write_x509_file_tmp" || \
 			die "write_x509_type_tmp - write $type"
 
-		verbose "write_x509_type_tmp: $type COMPLETE"
+		verbose ": write_x509_type_tmp: $type COMPLETE"
 } # => write_x509_type_tmp()
 
 ############################################################################
