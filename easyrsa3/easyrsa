@@ -1237,7 +1237,12 @@ verify_ssl_lib() {
 	case "${val%% *}" in
 		OpenSSL)
 			ssl_lib=openssl
-			ssl_cnf_type=ssl-cnf
+			# Honor EASYRSA_FORCE_SAFE_SSL
+			if [ "$EASYRSA_FORCE_SAFE_SSL" ]; then
+				ssl_cnf_type=safe-cnf
+			else
+				ssl_cnf_type=ssl-cnf
+			fi
 			;;
 		LibreSSL)
 			ssl_lib=libressl
@@ -4536,9 +4541,6 @@ f97425686fa1976d436fa31f550641aa"
 	ssl_cnf_tmp=
 	easyrsa_mktemp ssl_cnf_tmp || die "\
 write_easyrsa_ssl_cnf_tmp - easyrsa_mktemp"
-
-	# Honor EASYRSA_FORCE_SAFE_SSL
-	[ -z "$EASYRSA_FORCE_SAFE_SSL" ] || ssl_cnf_type=safe-cnf
 
 	# Write SSL cnf to temp-file
 	write "$ssl_cnf_type" > "$ssl_cnf_tmp" || die "\
