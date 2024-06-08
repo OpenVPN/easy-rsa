@@ -2026,11 +2026,20 @@ self-sign: Use ALGO/CURVE to $EASYRSA_ALGO/$EASYRSA_CURVE"
 		-out "$selfsign_params_file" || \
 			die "build_self_sign - params-file failed"
 
+	# Create temp-files for output
+	tmp_key_out=""
+	easyrsa_mktemp tmp_key_out || \
+		die "build_self_sign - easyrsa_mktemp tmp_key_out"
+
+	tmp_crt_out=""
+	easyrsa_mktemp tmp_crt_out || \
+		die "build_self_sign - easyrsa_mktemp tmp_crt_out"
+
 	# create self-signed key pair
 	easyrsa_openssl req -x509 -utf8 -sha256 -text \
 		-newkey "$EASYRSA_ALGO":"$selfsign_params_file" \
-		-keyout "$key_out" \
-		-out "$crt_out" \
+		-keyout "$tmp_key_out" \
+		-out "$tmp_crt_out" \
 		-subj "/CN=$file_name_base" \
 		${EASYRSA_NO_PASS:+ "$no_password"} \
 		${EASYRSA_PASSIN:+ -passin "$EASYRSA_PASSIN"} \
@@ -2038,6 +2047,14 @@ self-sign: Use ALGO/CURVE to $EASYRSA_ALGO/$EASYRSA_CURVE"
 		${EASYRSA_CERT_EXPIRE:+ -days "$EASYRSA_CERT_EXPIRE"} \
 		${EASYRSA_START_DATE:+ -startdate "$EASYRSA_START_DATE"} \
 		${EASYRSA_END_DATE:+ -enddate "$EASYRSA_END_DATE"}
+
+	# Move temp-files to target-files
+	mv "$tmp_key_out" "$key_out" || mv_temp_error=1
+	mv "$tmp_crt_out" "$crt_out" || mv_temp_error=1
+	if [ "$mv_temp_error" ]; then
+		rm -f "$key_out" "$crt_out"
+		die "Failed to move new key/cert files."
+	fi
 
 	# Generate fingerprint for inline file
 	crt_fingerprint="$(
