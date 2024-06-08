@@ -1428,7 +1428,8 @@ and initialize a fresh PKI here."
 	done
 
 	# pki/vars.example
-	write vars "$EASYRSA_PKI" || die "init-pki - write vars"
+	write_legacy_file vars "$EASYRSA_PKI" || \
+		die "init-pki - write vars"
 
 	# User notice
 	notice "\
@@ -4438,8 +4439,8 @@ write_global_safe_ssl_cnf_tmp() {
 	easyrsa_mktemp global_safe_ssl_cnf_tmp || die "\
 verify_working_env - easyrsa_mktemp global_safe_ssl_cnf_tmp"
 
-	write safe-cnf > "$global_safe_ssl_cnf_tmp" || die "\
-verify_working_env - write safe-cnf"
+	write_legacy_file safe-cnf > "$global_safe_ssl_cnf_tmp" || \
+		die "verify_working_env - write safe-cnf"
 
 	export OPENSSL_CONF="$global_safe_ssl_cnf_tmp"
 	verbose "GLOBAL - OPENSSL_CONF = $OPENSSL_CONF"
@@ -4545,7 +4546,7 @@ f97425686fa1976d436fa31f550641aa"
 write_easyrsa_ssl_cnf_tmp - easyrsa_mktemp"
 
 	# Write SSL cnf to temp-file
-	write "$ssl_cnf_type" > "$ssl_cnf_tmp" || die "\
+	write_legacy_file "$ssl_cnf_type" > "$ssl_cnf_tmp" || die "\
 write_easyrsa_ssl_cnf_tmp - write $ssl_cnf_type: $ssl_cnf_tmp"
 
 	# export SSL cnf tmp
@@ -4574,7 +4575,7 @@ write_x509_type_tmp() {
 	easyrsa_mktemp write_x509_file_tmp || \
 		die "write_x509_type_tmp - easyrsa_mktemp"
 
-	write "$1" > "$write_x509_file_tmp" || \
+	write_legacy_file "$1" > "$write_x509_file_tmp" || \
 		die "write_x509_type_tmp - write $1"
 
 	verbose ": write_x509_type_tmp: $1 COMPLETE"
@@ -4602,19 +4603,19 @@ Legacy files: openssl-easyrsa.cnf and x509-types/ directory."
 	[ -d "$legacy_out_d" ] || \
 		user_error "Missing directory '$legacy_out_d'"
 
-	if write ssl-cnf "$legacy_out_d"
+	if write_legacy_file ssl-cnf "$legacy_out_d"
 	then
 		x509_d="$legacy_out_d"/x509-types
 		easyrsa_mkdir "$x509_d"
 
-		write COMMON "$x509_d"
-		write ca "$x509_d"
-		write server "$x509_d"
-		write serverClient "$x509_d"
-		write client "$x509_d"
-		write codeSigning "$x509_d"
-		write email "$x509_d"
-		write kdc "$x509_d"
+		write_legacy_file COMMON "$x509_d"
+		write_legacy_file ca "$x509_d"
+		write_legacy_file server "$x509_d"
+		write_legacy_file serverClient "$x509_d"
+		write_legacy_file client "$x509_d"
+		write_legacy_file codeSigning "$x509_d"
+		write_legacy_file email "$x509_d"
+		write_legacy_file kdc "$x509_d"
 	else
 		user_error "legacy_files - write ssl-cnf"
 	fi
@@ -4624,7 +4625,7 @@ Legacy files: openssl-easyrsa.cnf and x509-types/ directory."
 } # => legacy_files()
 
 # write legacy files to stdout or to $folder
-write() {
+write_legacy_file() {
 	# recursion check
 	write_recursion="$(( write_recursion + 1 ))"
 	if [ "$write_recursion" -gt 2 ]; then
@@ -4712,7 +4713,7 @@ write() {
 		create_legacy_stream "$write_type"
 	fi
 	write_recursion="$(( write_recursion - 1 ))"
-} # => write()
+} # => write_legacy_file()
 
 # set heredoc variables for openssl-esyrsa.cnf
 # shellcheck disable=SC2016 # (info): $ don't expand in ''
@@ -5728,7 +5729,7 @@ EasyRSA Tools version is out of date:
 			legacy_files "$@"
 			;;
 		*)
-			write "$@"
+			write_legacy_file "$@"
 		esac
 		;;
 	serial|check-serial)
