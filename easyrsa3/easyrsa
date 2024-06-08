@@ -593,8 +593,6 @@ General options:
                   (Default config file is in the EasyRSA PKI directory)
 --force-safe-ssl: Always generate a safe SSL config file
                   (Default: Generate Safe SSL config once per instance)
---old-safe-ssl  : Always generate a safe SSL config file
-                  As --force-safe-ssl but use 'sed' expansion.
 
 --tools=FILE    : Declare the full easyrsa-tools.lib file-name
 --tmp-dir=DIR   : Declare the temporary directory
@@ -1049,15 +1047,6 @@ escape_hazard() {
 		verbose "escape_hazard: RUN-ONCE"
 	fi
 
-	# Only use if old 'sed' version is requested
-	if [ "$EASYRSA_LEGACY_SAFE_SSL" ]; then
-		: # ok
-	else
-		verbose "escape_hazard: REPLACED by heredoc expansion"
-		verbose "escape_hazard: ABANDONED"
-		return
-	fi
-
 	# Set run once
 	working_safe_org_conf=1
 
@@ -1081,7 +1070,9 @@ export EASYRSA_REQ_SERIAL=\"$EASYRSA_REQ_SERIAL\"\
 escape_hazard - Failed to write temp-file"
 
 	# Reload fields from fully escaped temp-file
+	# shellcheck disable=1090 # Non-constant source
 	. "$escape_hazard_tmp"
+
 	verbose "escape_hazard: COMPLETED"
 } # => escape_hazard()
 
@@ -1118,10 +1109,8 @@ expand_ssl_config - \
 easyrsa_mktemp safe_ssl_cnf_tmp"
 
 	# Rewrite
-	# Only use if old 'sed' version is requested
 	# shellcheck disable=SC2016 # No expand '' - expand_ssl_config()
-	if [ "$EASYRSA_LEGACY_SAFE_SSL" ]; then
-		if sed \
+	if sed \
 \
 -e s\`'$dir'\`\
 \""$EASYRSA_PKI"\"\`g \
@@ -1175,12 +1164,6 @@ easyrsa_mktemp safe_ssl_cnf_tmp"
 			return 1
 		fi
 
-	else
-		write safe-cnf > "$safe_ssl_cnf_tmp" || \
-			die "expand_ssl_config - write safe-cnf temp-file"
-		verbose "expand_ssl_config: via 'write' COMPLETED"
-	fi
-
 	export EASYRSA_SSL_CONF="$safe_ssl_cnf_tmp"
 	verbose "\
 expand_ssl_config: EASYRSA_SSL_CONF = $EASYRSA_SSL_CONF"
@@ -1204,16 +1187,13 @@ easyrsa_openssl() {
 			die "easyrsa_openssl: Illegal SSL command: rand"
 	esac
 
-	# Auto-escape hazardous characters
-	escape_hazard || \
-		die "easyrsa_openssl - escape_hazard failed"
-
-	# Rewrite SSL config
-	expand_ssl_config || \
-		die "easyrsa_openssl - expand_ssl_config failed"
-
-	# VERIFY safe temp-file exists
-	export OPENSSL_CONF="$EASYRSA_SSL_CONF"
+	# Use local SSL cnf
+	if [ "$EASYRSA_SSL_CONF" ]; then
+		export OPENSSL_CONF="$EASYRSA_SSL_CONF"
+	else
+		[ "$OPENSSL_CONF" ] || \
+			die "easyrsa_openssl - OPENSSL_CONF undefined"
+	fi
 	verbose "easyrsa_openssl: OPENSSL_CONF = $OPENSSL_CONF"
 
 	# Debug level
@@ -1259,9 +1239,16 @@ verify_ssl_lib() {
 	case "${val%% *}" in
 		OpenSSL)
 			ssl_lib=openssl
+			# Honor EASYRSA_FORCE_SAFE_SSL
+			if [ "$EASYRSA_FORCE_SAFE_SSL" ]; then
+				ssl_cnf_type=safe-cnf
+			else
+				ssl_cnf_type=ssl-cnf
+			fi
 			;;
 		LibreSSL)
 			ssl_lib=libressl
+			ssl_cnf_type=safe-cnf
 			;;
 		*)
 			error_msg="$("$EASYRSA_OPENSSL" version 2>&1)"
@@ -1441,7 +1428,8 @@ and initialize a fresh PKI here."
 	done
 
 	# pki/vars.example
-	write vars "$EASYRSA_PKI" || die "init-pki - write vars"
+	write_legacy_file vars "$EASYRSA_PKI" || \
+		die "init-pki - write vars"
 
 	# User notice
 	notice "\
@@ -1656,6 +1644,9 @@ Unable to create necessary PKI files (permissions?)"
 			export EASYRSA_REQ_CN="Easy-RSA CA"
 		fi
 	fi
+
+	# create local SSL cnf
+	write_easyrsa_ssl_cnf_tmp
 
 	# Check for insert-marker in ssl config file
 	if [ "$EASYRSA_EXTRA_EXTS" ]; then
@@ -1907,6 +1898,17 @@ Run easyrsa without commands for usage and command help."
 	file_name_base="$1"
 	shift
 
+	# Prohibit --req-cn
+	[ "$EASYRSA_REQ_CN" = ChangeMe ] || user_error "\
+Option conflict --req-cn:
+* '$cmd' does not support setting an external commonName"
+
+	# Enforce commonName
+	export EASYRSA_REQ_CN="$file_name_base"
+
+	# create local SSL cnf
+	write_easyrsa_ssl_cnf_tmp
+
 	# Refuse option as name
 	case "$file_name_base" in
 		nopass)
@@ -2024,11 +2026,20 @@ self-sign: Use ALGO/CURVE to $EASYRSA_ALGO/$EASYRSA_CURVE"
 		-out "$selfsign_params_file" || \
 			die "build_self_sign - params-file failed"
 
+	# Create temp-files for output
+	tmp_key_out=""
+	easyrsa_mktemp tmp_key_out || \
+		die "build_self_sign - easyrsa_mktemp tmp_key_out"
+
+	tmp_crt_out=""
+	easyrsa_mktemp tmp_crt_out || \
+		die "build_self_sign - easyrsa_mktemp tmp_crt_out"
+
 	# create self-signed key pair
 	easyrsa_openssl req -x509 -utf8 -sha256 -text \
 		-newkey "$EASYRSA_ALGO":"$selfsign_params_file" \
-		-keyout "$key_out" \
-		-out "$crt_out" \
+		-keyout "$tmp_key_out" \
+		-out "$tmp_crt_out" \
 		-subj "/CN=$file_name_base" \
 		${EASYRSA_NO_PASS:+ "$no_password"} \
 		${EASYRSA_PASSIN:+ -passin "$EASYRSA_PASSIN"} \
@@ -2036,6 +2047,14 @@ self-sign: Use ALGO/CURVE to $EASYRSA_ALGO/$EASYRSA_CURVE"
 		${EASYRSA_CERT_EXPIRE:+ -days "$EASYRSA_CERT_EXPIRE"} \
 		${EASYRSA_START_DATE:+ -startdate "$EASYRSA_START_DATE"} \
 		${EASYRSA_END_DATE:+ -enddate "$EASYRSA_END_DATE"}
+
+	# Move temp-files to target-files
+	mv "$tmp_key_out" "$key_out" || mv_temp_error=1
+	mv "$tmp_crt_out" "$crt_out" || mv_temp_error=1
+	if [ "$mv_temp_error" ]; then
+		rm -f "$key_out" "$crt_out"
+		die "Failed to move new key/cert files."
+	fi
 
 	# Generate fingerprint for inline file
 	crt_fingerprint="$(
@@ -2142,6 +2161,9 @@ Option conflict --req-cn:
 
 	# Enforce commonName
 	export EASYRSA_REQ_CN="$file_name_base"
+
+	# create local SSL cnf
+	write_easyrsa_ssl_cnf_tmp
 
 	# Output files
 	key_out="$EASYRSA_PKI/private/${file_name_base}.key"
@@ -2293,6 +2315,9 @@ Option conflict --req-cn:
 
 	# Enforce commonName
 	export EASYRSA_REQ_CN="$file_name_base"
+
+	# create local SSL cnf
+	write_easyrsa_ssl_cnf_tmp
 
 	# Check optional subject
 	force_subj=
@@ -2763,7 +2788,7 @@ Option conflict --req-cn:
 	remove_secure_session
 	locate_support_files
 	secure_session
-	write_easyrsa_ssl_cnf_tmp
+	write_global_safe_ssl_cnf_tmp
 
 	# Require --copy-ext
 	export EASYRSA_CP_EXT=1
@@ -2915,6 +2940,17 @@ Run easyrsa without commands for usage and command help."
 	# Assign file_name_base and dust off!
 	file_name_base="$1"
 	shift
+
+	# Prohibit --req-cn
+	[ "$EASYRSA_REQ_CN" = ChangeMe ] || user_error "\
+Option conflict --req-cn:
+* '$cmd' does not support setting an external commonName"
+
+	# Enforce commonName
+	export EASYRSA_REQ_CN="$file_name_base"
+
+	# create local SSL cnf
+	write_easyrsa_ssl_cnf_tmp
 
 	in_dir="$EASYRSA_PKI"
 	key_in="$in_dir/private/${file_name_base}.key"
@@ -3722,7 +3758,7 @@ Input is not a valid certificate:
 verify_file() {
 	format="$1"
 	path="$2"
-	easyrsa_openssl "$format" -in "$path" -noout 2>/dev/null
+	"$EASYRSA_OPENSSL" "$format" -in "$path" -noout 2>/dev/null
 } # => verify_file()
 
 # show-* command backend
@@ -4361,13 +4397,11 @@ verify_working_env() {
 		# Verify PKI is initialised
 		verify_pki_init
 
-		# Temp dir session and default SSL conf file
-		if [ -z "$secured_session" ]; then
-			secure_session
+		# Temp dir session
+		secure_session
 
-			# Verify or create temp EASYRSA_SSL_CONF
-			write_easyrsa_ssl_cnf_tmp
-		fi
+		# global safe ssl cnf temp
+		write_global_safe_ssl_cnf_tmp
 
 		# Verify selected algorithm and parameters
 		verify_algo_params
@@ -4382,13 +4416,11 @@ verify_working_env() {
 		# If there is a valid temp-dir:
 		# Create temp-session and openssl-easyrsa.cnf (Temp) now
 		if [ -d "$EASYRSA_TEMP_DIR" ]; then
-			# Temp dir session and default SSL conf file
-			if [ -z "$secured_session" ]; then
-				secure_session
+			# Temp dir session
+			secure_session
 
-				# Verify or create: EASYRSA_SSL_CONF
-				write_easyrsa_ssl_cnf_tmp
-			fi
+			# global safe ssl cnf temp
+			write_global_safe_ssl_cnf_tmp
 		fi
 	fi
 	verbose "verify_working_env: COMPLETED Handover-to: $cmd"
@@ -4428,6 +4460,19 @@ force_set_var() {
 	set_var "$1" "$2" && return
 	die "force_set_var - set_var '$*'"
 } # => force_set_var()
+
+# global Safe SSL conf file, for use by any SSL lib
+write_global_safe_ssl_cnf_tmp() {
+	global_safe_ssl_cnf_tmp=
+	easyrsa_mktemp global_safe_ssl_cnf_tmp || die "\
+verify_working_env - easyrsa_mktemp global_safe_ssl_cnf_tmp"
+
+	write_legacy_file safe-cnf > "$global_safe_ssl_cnf_tmp" || \
+		die "verify_working_env - write safe-cnf"
+
+	export OPENSSL_CONF="$global_safe_ssl_cnf_tmp"
+	verbose "GLOBAL - OPENSSL_CONF = $OPENSSL_CONF"
+} # => write_global_safe_ssl_cnf_tmp()
 
 # Create as needed: $EASYRSA_SSL_CONF pki/openssl-easyrsa.cnf
 # If the existing file has a known hash then use temp-file.
@@ -4501,12 +4546,20 @@ f97425686fa1976d436fa31f550641aa"
 				known_file_308
 
 		# Use the existing file ONLY
-		if [ "$hash_is_unknown" ]; then
+		if [ "$hash_is_unknown" ] || \
+			[ "$EASYRSA_FORCE_SAFE_SSL" ]
+		then
 			unset -v hash_is_unknown
 			verbose "write_easyrsa_ssl_cnf_tmp: SSL config UNKNOWN!"
 
-			# Force 'sed' expnsion of file in place
-			export EASYRSA_LEGACY_SAFE_SSL=1
+			# Auto-escape hazardous characters
+			escape_hazard || \
+				die "easyrsa_openssl - escape_hazard failed"
+
+			# Rewrite SSL config
+			expand_ssl_config || \
+				die "easyrsa_openssl - expand_ssl_config failed"
+
 			return 0
 		fi
 
@@ -4520,35 +4573,40 @@ f97425686fa1976d436fa31f550641aa"
 	easyrsa_mktemp ssl_cnf_tmp || die "\
 write_easyrsa_ssl_cnf_tmp - easyrsa_mktemp"
 
-	# Choose SSL Conf type:
-	# OpenSSL=Unexpended, LibreSSL=Expanded (Safe)
-	ssl_cnf_type=ssl-cnf
-	[ "$ssl_lib" = openssl ] || ssl_cnf_type=safe-cnf
-
 	# Write SSL cnf to temp-file
-	write "$ssl_cnf_type" > "$ssl_cnf_tmp" || die "\
-write_easyrsa_ssl_cnf_tmp - write ssl-cnf: $ssl_cnf_tmp"
+	write_legacy_file "$ssl_cnf_type" > "$ssl_cnf_tmp" || die "\
+write_easyrsa_ssl_cnf_tmp - write $ssl_cnf_type: $ssl_cnf_tmp"
 
 	# export SSL cnf tmp
 	export EASYRSA_SSL_CONF="$ssl_cnf_tmp"
 	verbose "\
 write_easyrsa_ssl_cnf_tmp: $ssl_cnf_type \
-- EASYRSA_SSL_CONF = $ssl_cnf_tmp"
+- EASYRSA_SSL_CONF = $EASYRSA_SSL_CONF"
+
+	export OPENSSL_CONF="$EASYRSA_SSL_CONF"
+	verbose "LOCAL - OPENSSL_CONF = $OPENSSL_CONF"
 } # => write_easyrsa_ssl_cnf_tmp()
 
 # Write x509 type file to a temp file
 write_x509_type_tmp() {
-		type="$1"
-		shift
+	# Verify x509-type before redirect
+	case "$1" in
+		COMMON|ca|server|serverClient|client|email| \
+		codeSigning|kdc|selfsign)
+			: # ok
+		;;
+	*)
+		die "write_x509_type_tmp - unknown type '$1'"
+	esac
 
-		write_x509_file_tmp=""
-		easyrsa_mktemp write_x509_file_tmp || die \
-			"write_x509_type_tmp - easyrsa_mktemp write_x509_file_tmp"
+	write_x509_file_tmp=""
+	easyrsa_mktemp write_x509_file_tmp || \
+		die "write_x509_type_tmp - easyrsa_mktemp"
 
-		write "$type" > "$write_x509_file_tmp" || \
-			die "write_x509_type_tmp - write $type"
+	write_legacy_file "$1" > "$write_x509_file_tmp" || \
+		die "write_x509_type_tmp - write $1"
 
-		verbose "write_x509_type_tmp: $type COMPLETE"
+	verbose ": write_x509_type_tmp: $1 COMPLETE"
 } # => write_x509_type_tmp()
 
 ############################################################################
@@ -4573,19 +4631,19 @@ Legacy files: openssl-easyrsa.cnf and x509-types/ directory."
 	[ -d "$legacy_out_d" ] || \
 		user_error "Missing directory '$legacy_out_d'"
 
-	if write ssl-cnf "$legacy_out_d"
+	if write_legacy_file ssl-cnf "$legacy_out_d"
 	then
 		x509_d="$legacy_out_d"/x509-types
 		easyrsa_mkdir "$x509_d"
 
-		write COMMON "$x509_d"
-		write ca "$x509_d"
-		write server "$x509_d"
-		write serverClient "$x509_d"
-		write client "$x509_d"
-		write codeSigning "$x509_d"
-		write email "$x509_d"
-		write kdc "$x509_d"
+		write_legacy_file COMMON "$x509_d"
+		write_legacy_file ca "$x509_d"
+		write_legacy_file server "$x509_d"
+		write_legacy_file serverClient "$x509_d"
+		write_legacy_file client "$x509_d"
+		write_legacy_file codeSigning "$x509_d"
+		write_legacy_file email "$x509_d"
+		write_legacy_file kdc "$x509_d"
 	else
 		user_error "legacy_files - write ssl-cnf"
 	fi
@@ -4595,7 +4653,7 @@ Legacy files: openssl-easyrsa.cnf and x509-types/ directory."
 } # => legacy_files()
 
 # write legacy files to stdout or to $folder
-write() {
+write_legacy_file() {
 	# recursion check
 	write_recursion="$(( write_recursion + 1 ))"
 	if [ "$write_recursion" -gt 2 ]; then
@@ -4683,7 +4741,7 @@ write() {
 		create_legacy_stream "$write_type"
 	fi
 	write_recursion="$(( write_recursion - 1 ))"
-} # => write()
+} # => write_legacy_file()
 
 # set heredoc variables for openssl-esyrsa.cnf
 # shellcheck disable=SC2016 # (info): $ don't expand in ''
@@ -5176,6 +5234,7 @@ detect_host
 
 # Initialisation requirements
 unset -v \
+	OPENSSL_CONF \
 	verify_ssl_lib_ok \
 	secured_session \
 	working_safe_ssl_conf working_safe_org_conf \
@@ -5318,11 +5377,6 @@ while :; do
 		--force-safe-ssl)
 			empty_ok=1
 			export EASYRSA_FORCE_SAFE_SSL=1
-			;;
-		--old-safe-ssl)
-			empty_ok=1
-			export EASYRSA_FORCE_SAFE_SSL=1
-			export EASYRSA_LEGACY_SAFE_SSL=1
 			;;
 		--nopass|--no-pass)
 			empty_ok=1
@@ -5662,11 +5716,6 @@ EasyRSA Tools version is out of date:
 * EASYRSA_TOOLS_VERSION: $EASYRSA_TOOLS_VERSION"
 		fi
 
-		# Validate or create openssl-easyrsa.cnf
-		write_easyrsa_ssl_cnf_tmp
-		export OPENSSL_CONF="$EASYRSA_SSL_CONF"
-		verbose "$cmd: OPENSSL_CONF = $OPENSSL_CONF"
-
 		case "$cmd" in
 			show-expire)
 				[ -z "$alias_days" ] || \
@@ -5708,7 +5757,7 @@ EasyRSA Tools version is out of date:
 			legacy_files "$@"
 			;;
 		*)
-			write "$@"
+			write_legacy_file "$@"
 		esac
 		;;
 	serial|check-serial)
