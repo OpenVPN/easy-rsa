@@ -1898,6 +1898,17 @@ Run easyrsa without commands for usage and command help."
 	file_name_base="$1"
 	shift
 
+	# Prohibit --req-cn
+	[ "$EASYRSA_REQ_CN" = ChangeMe ] || user_error "\
+Option conflict --req-cn:
+* '$cmd' does not support setting an external commonName"
+
+	# Enforce commonName
+	export EASYRSA_REQ_CN="$file_name_base"
+
+	# create local SSL cnf
+	write_easyrsa_ssl_cnf_tmp
+
 	# Refuse option as name
 	case "$file_name_base" in
 		nopass)
