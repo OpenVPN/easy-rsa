@@ -415,7 +415,7 @@ Usage: easyrsa [ OPTIONS.. ] <COMMAND> <TARGET> [ cmd-opts.. ]"
 	--san|--subject-alt-name|altname|subjectaltname|san)
 		text_only=1
 		text="
-* Option: --subject-alt-name=SAN_FORMAT_STRING
+* Global Option: --subject-alt-name=SAN_FORMAT_STRING
 
       This global option adds a subjectAltName to the request or issued
       certificate. It MUST be in a valid format accepted by openssl or
@@ -436,7 +436,7 @@ Usage: easyrsa [ OPTIONS.. ] <COMMAND> <TARGET> [ cmd-opts.. ]"
 	--copy-ext|copy-ext|copyext)
 		text_only=1
 		text="
-* How to use --copy-ext and --san=<SAN>
+* Global Option: How to use --copy-ext and --san=<SAN>
 
     These are the only commands that support --copy-ext and/or --san.
 
@@ -456,7 +456,7 @@ Usage: easyrsa [ OPTIONS.. ] <COMMAND> <TARGET> [ cmd-opts.. ]"
 	--days|days)
 		text_only=1
 		text="
-* Option: --days=DAYS
+* Global Option: --days=DAYS
 
       This global option is an alias for one of the following:
       * Expiry days for a new CA.
@@ -471,7 +471,7 @@ Usage: easyrsa [ OPTIONS.. ] <COMMAND> <TARGET> [ cmd-opts.. ]"
 	--req-cn|req-cn)
 		text_only=1
 		text="
-* Option: --req-cn=NAME
+* Global Option: --req-cn=NAME
 
       This global option can be used to set the CA commonName.
 
