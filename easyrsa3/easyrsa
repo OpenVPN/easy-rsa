@@ -4667,44 +4667,6 @@ Legacy files:
 	fi
 } # => legacy_files_v2()
 
-# Write ALL legacy files to $1 or default
-all_legacy_files() {
-	
-	die "Disbaled: all_legacy_files (v1)"
-	
-
-	if [ "$legacy_file_over_write" ]; then
-		confirm "${NL}  Confirm OVER-WRITE files ? " yes "
-'legacy-hard' will OVER-WRITE all legacy files to default settings.
-Legacy files: openssl-easyrsa.cnf and x509-types/ directory."
-	fi
-
-	legacy_out_d="${1:-$EASYRSA_PKI}"
-	legacy_out_d="${legacy_out_d:-$EASYRSA}"
-	[ -d "$legacy_out_d" ] || \
-		user_error "Missing directory '$legacy_out_d'"
-
-	if write_legacy_file ssl-cnf "$legacy_out_d"
-	then
-		x509_d="$legacy_out_d"/x509-types
-		easyrsa_mkdir "$x509_d"
-
-		write_legacy_file COMMON "$x509_d"
-		write_legacy_file ca "$x509_d"
-		write_legacy_file server "$x509_d"
-		write_legacy_file serverClient "$x509_d"
-		write_legacy_file client "$x509_d"
-		write_legacy_file codeSigning "$x509_d"
-		write_legacy_file email "$x509_d"
-		write_legacy_file kdc "$x509_d"
-	else
-		user_error "legacy_files - write ssl-cnf"
-	fi
-
-	verbose "legacy_files: OK $x509_d"
-	unset -v legacy_out_d x509_d
-} # => legacy_files()
-
 # write legacy files to stdout or to $folder
 write_legacy_file_v2() {
 	# recursion check
@@ -4776,101 +4738,6 @@ write_legacy_file_v2() {
 
 	write_recursion="$(( write_recursion - 1 ))"
 } # => write_legacy_file_v2()
-
-# write legacy files to stdout or to $folder
-write_legacy_file() {
-	
-	die "Disabled: write_legacy_file (v1)"
-	
-
-	# recursion check
-	write_recursion="$(( write_recursion + 1 ))"
-	if [ "$write_recursion" -gt 2 ]; then
-		print "write recursion" > "$easyrsa_err_log"
-		die "write recursion"
-	fi
-
-	write_type="$1"
-	write_dir="$2"
-	write_file=
-
-	case "$write_type" in
-	safe-cnf)
-		# Set expansion to use full-expansion style
-		set_openssl_easyrsa_cnf_vars expanded
-
-		# write to stdout or $write_dir/safessl-easyrsa.cnf
-		if [ "$write_dir" ]; then
-			[ -d "$write_dir" ] || \
-				user_error "Missing directory '$write_dir'"
-			write_file="$write_dir"/safessl-easyrsa.cnf
-			create_legacy_stream "$write_type" >"$write_file" || \
-				die "write failed"
-		else
-			create_legacy_stream "$write_type"
-		fi
-
-		write_recursion="$(( write_recursion - 1 ))"
-		return
-		;;
-	ssl-cnf)
-		# Set expansion to use '$ENV::EASYRSA_PKI' style
-		set_openssl_easyrsa_cnf_vars unexpanded
-
-		# write to stdout or $write_dir/openssl-easyrsa.cnf
-		if [ "$write_dir" ]; then
-			write_file="$write_dir"/openssl-easyrsa.cnf
-		fi
-		;;
-	vars)
-		# write to stdout or $write_dir/vars.example
-		if [ "$write_dir" ]; then
-			write_file="$write_dir"/vars.example
-		fi
-		;;
-	# This correctly renames 'code-signing' to 'codeSigning'
-	COMMON|ca|server|serverClient|client|codeSigning|email|kdc)
-		# write to stdout or $write_dir/$write_type [x509-type]
-		if [ "$write_dir" ]; then
-			write_file="$write_dir/$write_type"
-		fi
-		;;
-	selfsign)
-		# write to stdout or $write_dir/$write_type [x509-type]
-		if [ "$write_dir" ]; then
-			write_file="$write_dir/$write_type"
-		fi
-		;;
-	*)
-		user_error "write - unknown type '$write_type'"
-	esac
-
-	# Check for output directory and file-name
-	if [ "$write_dir" ]; then
-		[ -d "$write_dir" ] || \
-			user_error "Missing directory '$write_dir'"
-
-		if [ -f "$write_file" ]; then
-			# If the file exists then do not over write
-			# unless explicitly instructed
-			if [ "$legacy_file_over_write" ]; then
-				: # ok
-			else
-				write_recursion="$(( write_recursion - 1 ))"
-				return 0
-			fi
-		fi
-	fi
-
-	# write legacy data stream to stdout or $write_file
-	if [ "$write_file" ]; then
-		create_legacy_stream "$write_type" >"$write_file" || \
-			die "write failed"
-	else
-		create_legacy_stream "$write_type"
-	fi
-	write_recursion="$(( write_recursion - 1 ))"
-} # => write_legacy_file()
 
 # set heredoc variables for openssl-esyrsa.cnf
 # shellcheck disable=SC2016 # (info): $ don't expand in ''
@@ -5872,7 +5739,7 @@ EasyRSA Tools version is out of date:
 		verify_cert "$@" || \
 			easyrsa_exit_with_error=1
 		;;
-	write-v2)
+	write)
 		verify_working_env
 
 		# Write legacy files to write_dir
@@ -5891,30 +5758,6 @@ EasyRSA Tools version is out of date:
 			;;
 		*)
 			write_legacy_file_v2 "$@"
-		esac
-		;;
-	write)
-	
-		die "Disabled: Command write (v1)"
-	
-
-		verify_working_env
-		# Write legacy files to write_dir
-		# or EASYRSA_PKI or EASYRSA
-		case "$1" in
-		legacy)
-			# over-write NO
-			shift
-			legacy_files "$@"
-			;;
-		legacy-hard)
-			# over-write YES
-			shift
-			legacy_file_over_write=1
-			legacy_files "$@"
-			;;
-		*)
-			write_legacy_file "$@"
 		esac
 		;;
 	serial|check-serial)
