@@ -1649,9 +1649,11 @@ Unable to create necessary PKI files (permissions?)"
 	# create local SSL cnf
 	write_easyrsa_ssl_cnf_tmp
 
+	# Ensure an SSL config exists for EASYRSA_SSL_CONF
+	[ -f "$EASYRSA_SSL_CONF" ] || die "Missing SSL config"
+
 	# Check for insert-marker in ssl config file
 	if [ "$EASYRSA_EXTRA_EXTS" ]; then
-		#[ -f "$EASYRSA_SSL_CONF" ] || die "Missing SSL config"
 		if ! grep -q '^#%CA_X509_TYPES_EXTRA_EXTS%' \
 			"$EASYRSA_SSL_CONF"
 		then
@@ -1911,6 +1913,9 @@ Option conflict --req-cn:
 	# create local SSL cnf
 	write_easyrsa_ssl_cnf_tmp
 
+	# Ensure an SSL config exists for EASYRSA_SSL_CONF
+	[ -f "$EASYRSA_SSL_CONF" ] || die "Missing SSL config"
+
 	# Refuse option as name
 	case "$file_name_base" in
 		nopass)
@@ -2167,6 +2172,9 @@ Option conflict --req-cn:
 	# create local SSL cnf
 	write_easyrsa_ssl_cnf_tmp
 
+	# Ensure an SSL config exists for EASYRSA_SSL_CONF
+	[ -f "$EASYRSA_SSL_CONF" ] || die "Missing SSL config"
+
 	# Output files
 	key_out="$EASYRSA_PKI/private/${file_name_base}.key"
 	req_out="$EASYRSA_PKI/reqs/${file_name_base}.req"
@@ -2320,6 +2328,9 @@ Option conflict --req-cn:
 
 	# create local SSL cnf
 	write_easyrsa_ssl_cnf_tmp
+
+	# Ensure an SSL config exists for EASYRSA_SSL_CONF
+	[ -f "$EASYRSA_SSL_CONF" ] || die "Missing SSL config"
 
 	# Check optional subject
 	force_subj=
@@ -2953,6 +2964,9 @@ Option conflict --req-cn:
 
 	# create local SSL cnf
 	write_easyrsa_ssl_cnf_tmp
+
+	# Ensure an SSL config exists for EASYRSA_SSL_CONF
+	[ -f "$EASYRSA_SSL_CONF" ] || die "Missing SSL config"
 
 	in_dir="$EASYRSA_PKI"
 	key_in="$in_dir/private/${file_name_base}.key"
