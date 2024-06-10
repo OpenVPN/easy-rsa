@@ -1427,8 +1427,8 @@ and initialize a fresh PKI here."
 		easyrsa_mkdir "${EASYRSA_PKI}/$i"
 	done
 
-	# pki/vars.example
-	write_legacy_file vars "$EASYRSA_PKI" || \
+	# write pki/vars.example - no temp-file because no session
+	write_legacy_file_v2 vars "$EASYRSA_PKI"/vars.example || \
 		die "init-pki - write vars"
 
 	# User notice
@@ -1650,6 +1650,7 @@ Unable to create necessary PKI files (permissions?)"
 
 	# Check for insert-marker in ssl config file
 	if [ "$EASYRSA_EXTRA_EXTS" ]; then
+		#[ -f "$EASYRSA_SSL_CONF" ] || die "Missing SSL config"
 		if ! grep -q '^#%CA_X509_TYPES_EXTRA_EXTS%' \
 			"$EASYRSA_SSL_CONF"
 		then
@@ -4064,7 +4065,7 @@ Edwards Curve '$EASYRSA_CURVE' not found."
 Unknown algorithm '$EASYRSA_ALGO': Must be 'rsa', 'ec' or 'ed'"
 	esac
 	verbose "\
-verify_algo_params: Params verified for algo '$EASYRSA_ALGO'"
+verify_algo_params: Params verified for algo '$EASYRSA_ALGO' OK"
 } # => verify_algo_params()
 
 # Check for conflicting input options
@@ -4467,7 +4468,7 @@ write_global_safe_ssl_cnf_tmp() {
 	easyrsa_mktemp global_safe_ssl_cnf_tmp || die "\
 verify_working_env - easyrsa_mktemp global_safe_ssl_cnf_tmp"
 
-	write_legacy_file safe-cnf > "$global_safe_ssl_cnf_tmp" || \
+	write_legacy_file_v2 safe-cnf "$global_safe_ssl_cnf_tmp" || \
 		die "verify_working_env - write safe-cnf"
 
 	export OPENSSL_CONF="$global_safe_ssl_cnf_tmp"
@@ -4574,7 +4575,7 @@ f97425686fa1976d436fa31f550641aa"
 write_easyrsa_ssl_cnf_tmp - easyrsa_mktemp"
 
 	# Write SSL cnf to temp-file
-	write_legacy_file "$ssl_cnf_type" > "$ssl_cnf_tmp" || die "\
+	write_legacy_file_v2 "$ssl_cnf_type" "$ssl_cnf_tmp" || die "\
 write_easyrsa_ssl_cnf_tmp - write $ssl_cnf_type: $ssl_cnf_tmp"
 
 	# export SSL cnf tmp
@@ -4603,7 +4604,7 @@ write_x509_type_tmp() {
 	easyrsa_mktemp write_x509_file_tmp || \
 		die "write_x509_type_tmp - easyrsa_mktemp"
 
-	write_legacy_file "$1" > "$write_x509_file_tmp" || \
+	write_legacy_file_v2 "$1" "$write_x509_file_tmp" || \
 		die "write_x509_type_tmp - write $1"
 
 	verbose ": write_x509_type_tmp: $1 COMPLETE"
@@ -4616,9 +4617,61 @@ write_x509_type_tmp() {
 # Directories are user configurable, File names are fixed
 
 # Write ALL legacy files to $1 or default
-legacy_files() {
-	require_pki=1
-	verify_working_env
+all_legacy_files_v2() {
+	# Confirm over write
+	if [ "$legacy_file_over_write" ]; then
+		confirm "${NL}  Confirm OVER-WRITE files ? " yes "
+Warning:
+'legacy-hard' will OVER-WRITE all legacy files to default settings.
+
+Legacy files:
+* File: ${EASYRSA_PKI}/openssl-easyrsa.cnf
+* File: ${EASYRSA_PKI}/vars.example
+* Dir:  ${EASYRSA_PKI}/x509-types/*"
+
+		verbose "all_legacy_files_v2 - over-write ENABLED"
+	fi
+
+	# Output directories
+	legacy_out_d="$EASYRSA_PKI"
+		easyrsa_mkdir "$EASYRSA_PKI"
+	x509_types_d="${legacy_out_d}"/x509-types
+		easyrsa_mkdir "$x509_types_d"
+
+	# Create x509-types
+	for legacy_type in COMMON ca server serverClient client \
+		email codeSigning kdc
+	do
+		legacy_target="${x509_types_d}/${legacy_type}"
+		write_legacy_file_v2 "$legacy_type" "$legacy_target" \
+			"$legacy_file_over_write"
+	done
+
+	# vars.example
+	legacy_type=vars
+	legacy_target="${legacy_out_d}"/vars.example
+	write_legacy_file_v2 "$legacy_type" "$legacy_target" \
+		"$legacy_file_over_write"
+
+	# openssl-easyrsa.cnf
+	legacy_type=ssl-cnf
+	legacy_target="${legacy_out_d}"/openssl-easyrsa.cnf
+	write_legacy_file_v2 "$legacy_type" "$legacy_target" \
+		"$legacy_file_over_write"
+
+	# User notice
+	if [ "$legacy_file_over_write" ]; then
+		notice "legacy-hard has updated all files."
+	else
+		notice "legacy has updated missing files."
+	fi
+} # => legacy_files_v2()
+
+# Write ALL legacy files to $1 or default
+all_legacy_files() {
+	
+	die "Disbaled: all_legacy_files (v1)"
+	
 
 	if [ "$legacy_file_over_write" ]; then
 		confirm "${NL}  Confirm OVER-WRITE files ? " yes "
@@ -4653,7 +4706,83 @@ Legacy files: openssl-easyrsa.cnf and x509-types/ directory."
 } # => legacy_files()
 
 # write legacy files to stdout or to $folder
+write_legacy_file_v2() {
+	# recursion check
+	write_recursion="$(( write_recursion + 1 ))"
+	if [ "$write_recursion" -gt 1 ]; then
+		print "write recursion" > "$easyrsa_err_log"
+		die "write recursion"
+	fi
+
+	write_type="$1"
+	write_file="$2"
+	write_over=
+	[ "$3" = overwrite ] && write_over="$3"
+
+	# Select by type
+	case "$write_type" in
+	ssl-cnf|safe-cnf)
+		# Set expansion style
+		case "$write_type" in
+			ssl-cnf) set_openssl_easyrsa_cnf_vars unexpanded ;;
+			safe-cnf) set_openssl_easyrsa_cnf_vars expanded ;;
+		esac
+		;;
+	vars)
+		;;
+	# This correctly renames 'code-signing' to 'codeSigning'
+	COMMON|ca|server|serverClient|client|codeSigning|email|kdc)
+		;;
+	selfsign)
+		;;
+	*)
+		user_error "write - unknown type '$write_type'"
+	esac
+
+	# If given then $write_file is required to exist
+	# and be a temp-file ONLY
+	if [ "$write_file" ]; then
+		# Verify write_file is a temp-file
+		if [ -f "$write_file" ]; then
+			# is this a temp file ?
+			path="${write_file%%/temp.*}"
+			if [ "${secured_session}" = "$path" ]; then
+				verbose ": write_legacy_file_v2 - temp-file ACCEPTED"
+				write_over=overwrite
+				verbose ": write_legacy_file_v2 - over-write ENABLED"
+			else
+				verbose ": Target is not a temp-file: $write_file"
+			fi
+		else
+			# enable overwrite, "there is no file" to over write
+			verbose ": Missing input file: $write_file"
+			write_over=overwrite
+			verbose ": write_legacy_file_v2 - over-write ENABLED"
+		fi
+	fi
+
+	# write legacy data stream to stdout or temp-file
+	if [ "$write_file" ]; then
+		if [ "$write_over" ]; then
+			create_legacy_stream "$write_type" >"$write_file" || \
+				die "write failed"
+		else
+			verbose ": Over-write refused for existing file!"
+		fi
+	else
+		# write stream to stdout ONLY
+		create_legacy_stream "$write_type"
+	fi
+
+	write_recursion="$(( write_recursion - 1 ))"
+} # => write_legacy_file_v2()
+
+# write legacy files to stdout or to $folder
 write_legacy_file() {
+	
+	die "Disabled: write_legacy_file (v1)"
+	
+
 	# recursion check
 	write_recursion="$(( write_recursion + 1 ))"
 	if [ "$write_recursion" -gt 2 ]; then
@@ -5484,8 +5613,8 @@ case "$cmd" in
 		;;
 	write)
 		# write is not compatible with diagnostics
-		unset -v EASYRSA_VERBOSE
-		EASYRSA_SILENT=1
+		#unset -v EASYRSA_VERBOSE
+		#EASYRSA_SILENT=1
 		;;
 	init-pki|clean-all)
 		: # ok
@@ -5501,6 +5630,9 @@ case "$cmd" in
 				EASYRSA_SILENT=1
 				;;
 			self-sign-*)
+				: # ok
+				;;
+			write-v2)
 				: # ok
 				;;
 			*)
@@ -5740,7 +5872,32 @@ EasyRSA Tools version is out of date:
 		verify_cert "$@" || \
 			easyrsa_exit_with_error=1
 		;;
+	write-v2)
+		verify_working_env
+
+		# Write legacy files to write_dir
+		# or EASYRSA_PKI or EASYRSA
+		case "$1" in
+		legacy)
+			# over-write NO
+			shift
+			all_legacy_files_v2 "$@"
+			;;
+		legacy-hard)
+			# over-write YES
+			shift
+			legacy_file_over_write=overwrite
+			all_legacy_files_v2 "$@"
+			;;
+		*)
+			write_legacy_file_v2 "$@"
+		esac
+		;;
 	write)
+	
+		die "Disabled: Command write (v1)"
+	
+
 		verify_working_env
 		# Write legacy files to write_dir
 		# or EASYRSA_PKI or EASYRSA
