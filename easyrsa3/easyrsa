@@ -390,26 +390,27 @@ Usage: easyrsa [ OPTIONS.. ] <COMMAND> <TARGET> [ cmd-opts.. ]"
 	;;
 	write)
 		text="
-* write <type> <DIR>
+* write <type> <filename> ['overwrite']
 
-      Write <type> data to stdout or <DIR>
+      Write <type> data to stdout or <filename>
 
       Types:
       * ssl-cnf  - Write openssl-easyrsa.cnf file.
       * COMMON|ca|server|serverClient|client|codeSigning|email|kdc
                  - Write x509-type <type> file.
-      * legacy   - Write ALL support files (above) to <DIR>.
-                   Will create <DIR>/x509-types directory.
-                   Default <DIR> is EASYRSA_PKI or EASYRSA.
+      * legacy   - Write ALL support files (above) to the $PKI.
+                   Will create $PKI/x509-types directory.
       * legacy-hard
                  - Same as 'legacy' plus OVER-WRITE files.
       * safe-cnf - Expand EasyRSA SSL config file for LibreSSL.
       * vars     - Write vars.example file."
 
 		opts="
-      * <DIR>    - If <DIR> is specified then files are created.
-                   Otherwise, the data is sent to stdout, except
-                   for 'legacy', which always creates files."
+      * filename - If <filename> is specified then it is the output
+                   is directed to the named file.
+                   Otherwise, the data is sent to stdout
+      * overwrite - Overwrite the <filename>.
+                   <filename> is always preserved without 'overwrite'."
 	;;
 	--san|--subject-alt-name|altname|subjectaltname|san)
 		text_only=1
