@@ -5493,11 +5493,6 @@ case "$cmd" in
 	version|show-host|rand|random)
 		quiet_vars=1
 		;;
-	write)
-		# write is not compatible with diagnostics
-		#unset -v EASYRSA_VERBOSE
-		#EASYRSA_SILENT=1
-		;;
 	init-pki|clean-all)
 		: # ok
 		;;
@@ -5514,7 +5509,7 @@ case "$cmd" in
 			self-sign-*)
 				: # ok
 				;;
-			write-v2)
+			write)
 				: # ok
 				;;
 			*)
