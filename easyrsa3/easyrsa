@@ -1430,7 +1430,7 @@ and initialize a fresh PKI here."
 
 	# write pki/vars.example - no temp-file because no session
 	write_legacy_file_v2 vars "$EASYRSA_PKI"/vars.example || \
-		die "init-pki - write vars"
+		warn "init-pki - Failed to create vars.example"
 
 	# User notice
 	notice "\
