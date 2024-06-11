@@ -5789,7 +5789,6 @@ EasyRSA Tools version is out of date:
 		;;
 	rand|random)
 		easyrsa_random "$1"
-		cleanup ok
 		;;
 	""|help|-h|--help|--usage)
 		verify_working_env
