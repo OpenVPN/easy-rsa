@@ -4649,8 +4649,8 @@ Legacy files:
 
 	# Output directories
 	legacy_out_d="$EASYRSA_PKI"
-		easyrsa_mkdir "$EASYRSA_PKI"
-	x509_types_d="${legacy_out_d}"/x509-types
+		easyrsa_mkdir "$legacy_out_d"
+	x509_types_d="$legacy_out_d"/x509-types
 		easyrsa_mkdir "$x509_types_d"
 
 	# Create x509-types
@@ -4664,13 +4664,13 @@ Legacy files:
 
 	# vars.example
 	legacy_type=vars
-	legacy_target="${legacy_out_d}"/vars.example
+	legacy_target="$legacy_out_d"/vars.example
 	write_legacy_file_v2 "$legacy_type" "$legacy_target" \
 		"$legacy_file_over_write"
 
 	# openssl-easyrsa.cnf
 	legacy_type=ssl-cnf
-	legacy_target="${legacy_out_d}"/openssl-easyrsa.cnf
+	legacy_target="$legacy_out_d"/openssl-easyrsa.cnf
 	write_legacy_file_v2 "$legacy_type" "$legacy_target" \
 		"$legacy_file_over_write"
 
@@ -4716,17 +4716,17 @@ write_legacy_file_v2() {
 		user_error "write - unknown type '$write_type'"
 	esac
 
-	# If given then $write_file is required to exist
-	# and be a temp-file ONLY
+	# If $write_file is given then establish overwrite rules
 	if [ "$write_file" ]; then
-		# Verify write_file is a temp-file
+		# If $write_file exists then check for temp-file
 		if [ -f "$write_file" ]; then
-			# is this a temp file ?
+			# if this is a temp file then enable auto-overwrite
 			path="${write_file%%/temp.*}"
 			if [ "${secured_session}" = "$path" ]; then
 				verbose ": write_legacy_file_v2 - temp-file ACCEPTED"
 				write_over=overwrite
 			else
+				# target is not a temp-file, overwrite not changed
 				verbose ": Target is not a temp-file: $write_file"
 			fi
 		else
@@ -4736,11 +4736,11 @@ write_legacy_file_v2() {
 		fi
 	fi
 
-	# write legacy data stream to stdout or temp-file
+	# write legacy data stream to stdout or file
 	if [ "$write_file" ]; then
 		if [ "$write_over" ]; then
 			verbose ": write_legacy_file_v2 - over-write ENABLED"
-			create_legacy_stream "$write_type" >"$write_file" || \
+			create_legacy_stream "$write_type" > "$write_file" || \
 				die "write failed"
 		else
 			verbose ": Over-write refused for existing file!"
@@ -5255,7 +5255,7 @@ unset -v \
 	selfsign_eku \
 	internal_batch mv_temp_error \
 	easyrsa_exit_with_error error_info \
-	legacy_file_over_write
+	write_recursion
 
 	# Used by build-ca->cleanup to restore prompt
 	# after user interrupt when using manual password
@@ -5757,6 +5757,7 @@ EasyRSA Tools version is out of date:
 		legacy)
 			# over-write NO
 			shift
+			legacy_file_over_write=
 			all_legacy_files_v2 "$@"
 			;;
 		legacy-hard)
