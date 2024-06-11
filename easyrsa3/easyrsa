@@ -4726,7 +4726,6 @@ write_legacy_file_v2() {
 			if [ "${secured_session}" = "$path" ]; then
 				verbose ": write_legacy_file_v2 - temp-file ACCEPTED"
 				write_over=overwrite
-				verbose ": write_legacy_file_v2 - over-write ENABLED"
 			else
 				verbose ": Target is not a temp-file: $write_file"
 			fi
@@ -4734,13 +4733,13 @@ write_legacy_file_v2() {
 			# enable overwrite, "there is no file" to over write
 			verbose ": Missing input file: $write_file"
 			write_over=overwrite
-			verbose ": write_legacy_file_v2 - over-write ENABLED"
 		fi
 	fi
 
 	# write legacy data stream to stdout or temp-file
 	if [ "$write_file" ]; then
 		if [ "$write_over" ]; then
+			verbose ": write_legacy_file_v2 - over-write ENABLED"
 			create_legacy_stream "$write_type" >"$write_file" || \
 				die "write failed"
 		else
