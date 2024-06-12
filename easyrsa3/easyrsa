@@ -1034,9 +1034,7 @@ Temporary session not preserved."
 # This is required for all SSL libs, otherwise,
 # there are unacceptable differences in behavior
 escape_hazard() {
-	if [ "$EASYRSA_FORCE_SAFE_SSL" ] || \
-		[ "$makesafeconf" ]
-	then
+	if [ "$EASYRSA_FORCE_SAFE_SSL" ]; then
 		# Always run
 		verbose "escape_hazard: FORCED"
 	elif [ "$working_safe_org_conf" ]; then
