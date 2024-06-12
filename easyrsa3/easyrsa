@@ -3684,11 +3684,8 @@ display_dn - input error"
 	shift 2
 
 	# Display DN
-	ssl_out="$(
-		"$EASYRSA_OPENSSL" "$format" -in "$path" -noout -subject \
-		-nameopt utf8,sep_multiline,space_eq,lname,align)" || \
-			die "display_dn: SSL command '$format'"
-	print "$ssl_out"
+	"$EASYRSA_OPENSSL" "$format" -in "$path" -noout -subject \
+	-nameopt utf8,sep_multiline,space_eq,lname,align
 } # => display_dn()
 
 # Verify certificate against CA
