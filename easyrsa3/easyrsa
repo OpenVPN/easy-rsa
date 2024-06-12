@@ -1483,9 +1483,9 @@ locate_support_files() {
 		fi
 	done
 
-	verbose "> EASYRSA_EXT_DIR: ${EASYRSA_EXT_DIR:-built-in}"
-	verbose "> EASYRSA_SSL_CONF: ${EASYRSA_SSL_CONF:-built-in}"
-	verbose "> EASYRSA_TOOLS_LIB: ${EASYRSA_TOOLS_LIB:-undefined}"
+	verbose ": EASYRSA_EXT_DIR: ${EASYRSA_EXT_DIR:-built-in}"
+	verbose ": EASYRSA_SSL_CONF: ${EASYRSA_SSL_CONF:-built-in}"
+	verbose ": EASYRSA_TOOLS_LIB: ${EASYRSA_TOOLS_LIB:-undefined}"
 	verbose "locate_support_files: COMPLETED"
 } # => locate_support_files()
 
