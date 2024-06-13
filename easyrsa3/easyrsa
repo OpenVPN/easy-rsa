@@ -1900,13 +1900,11 @@ Run easyrsa without commands for usage and command help."
 	file_name_base="$1"
 	shift
 
-	# Prohibit --req-cn
-	[ "$EASYRSA_REQ_CN" = ChangeMe ] || user_error "\
-Option conflict --req-cn:
-* '$cmd' does not support setting an external commonName"
-
-	# Enforce commonName
-	export EASYRSA_REQ_CN="$file_name_base"
+	# if EASYRSA_REQ_CN has not been changed
+	# then use file_name_base
+	if [ "$EASYRSA_REQ_CN" = ChangeMe ]; then
+		export EASYRSA_REQ_CN="$file_name_base"
+	fi
 
 	# create local SSL cnf
 	write_easyrsa_ssl_cnf_tmp
@@ -2159,13 +2157,11 @@ Run easyrsa without commands for usage and commands."
 		ssl_batch=1
 	fi
 
-	# Prohibit --req-cn
-	[ "$EASYRSA_REQ_CN" = ChangeMe ] || user_error "\
-Option conflict --req-cn:
-* '$cmd' does not support setting an external commonName"
-
-	# Enforce commonName
-	export EASYRSA_REQ_CN="$file_name_base"
+	# if EASYRSA_REQ_CN has NOT been changed
+	# then use file_name_base
+	if [ "$EASYRSA_REQ_CN" = ChangeMe ]; then
+		export EASYRSA_REQ_CN="$file_name_base"
+	fi
 
 	# create local SSL cnf
 	write_easyrsa_ssl_cnf_tmp
@@ -2316,13 +2312,13 @@ expected 2, got $# (see command help for usage)"
 	crt_out="$EASYRSA_PKI/issued/$file_name_base.crt"
 	shift 2
 
-	# Prohibit --req-cn
-	[ "$EASYRSA_REQ_CN" = ChangeMe ] || user_error "\
-Option conflict --req-cn:
+	# Ignore --req-cn, CN is set by request
+	# To change the CN use --new-subject='/CN=foo'
+	if [ "$EASYRSA_REQ_CN" != ChangeMe ]; then
+		warn "\
+Ignoring Option conflict --req-cn:
 * '$cmd' does not support setting an external commonName"
-
-	# Enforce commonName
-	export EASYRSA_REQ_CN="$file_name_base"
+	fi
 
 	# create local SSL cnf
 	write_easyrsa_ssl_cnf_tmp
@@ -2781,10 +2777,7 @@ Warning!
 An inline file for name '$name' already exists:
 * $inline_out"
 
-	# Set commonName
-	[ "$EASYRSA_REQ_CN" = ChangeMe ] || user_error "\
-Option conflict --req-cn:
-* '$cmd' does not support setting an external commonName"
+	# 'commonName' has already been set for 'gen-req'
 
 	# Set to modify sign-req confirmation message
 	do_build_full=1
@@ -2804,7 +2797,7 @@ Option conflict --req-cn:
 	# Require --copy-ext
 	export EASYRSA_CP_EXT=1
 
-	# Must be reset for nested commmands
+	# CN Must be reset for nested sign_req
 	export EASYRSA_REQ_CN=ChangeMe
 
 	# Sign it
@@ -2951,14 +2944,6 @@ Run easyrsa without commands for usage and command help."
 	# Assign file_name_base and dust off!
 	file_name_base="$1"
 	shift
-
-	# Prohibit --req-cn
-	[ "$EASYRSA_REQ_CN" = ChangeMe ] || user_error "\
-Option conflict --req-cn:
-* '$cmd' does not support setting an external commonName"
-
-	# Enforce commonName
-	export EASYRSA_REQ_CN="$file_name_base"
 
 	# create local SSL cnf
 	write_easyrsa_ssl_cnf_tmp
