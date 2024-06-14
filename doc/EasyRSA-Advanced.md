@@ -158,7 +158,6 @@ short description is shown below:
     include the **deprecated** Netscape extensions
  *  `EASYRSA_NS_COMMENT` (CLI: `--ns-comment`) - string comment to include when
     using the **deprecated** Netscape extensions
-    extensions
  *  `EASYRSA_REQ_CN` (CLI: `--req-cn`) - default CN, can only be used in BATCH
     mode
  *  `EASYRSA_DIGEST` (CLI: `--digest`) - set a hash digest to use for req/cert

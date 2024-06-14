@@ -108,7 +108,7 @@ messages and merge actions.
 
   Contributions can come in many forms: GitHub "pull requests" from cloned
   repos, references to external repos, patches to the ML, or others. Those won't
-  necessary have `Signed-off-by:` lines or may contain less info in the commit
+  necessarily have `Signed-off-by:` lines or may contain less info in the commit
   message than is desirable to explain the changes.
 
   The committing author to this project should make a merge-commit in this case

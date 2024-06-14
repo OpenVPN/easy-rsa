@@ -44,7 +44,7 @@ Easy-RSA 3 ChangeLog
    Branch-merge: v3.2.0-beta1 (#1046) 2023/12/15 Commit: 7120876
 
    * Important note: As of Easy-RSA version 3.2.0-beta1, the configuration files
-     `vars.example`, `openssl-eayrsa.cnf` and all files in `x509-types` directory
+     `vars.example`, `openssl-easyrsa.cnf` and all files in `x509-types` directory
      are no longer required. Package maintainers can omit these files in the future.
      All files are created as required and deleted upon command completion.
      `vars.example` is created during `init-pki` and placed in the fresh PKI.
@@ -73,7 +73,7 @@ Easy-RSA 3 ChangeLog
 3.1.7 (2023-10-13)
    * Rewrite vars-auto-detect, adhere to EasyRSA-Advanced.md (#1029)
      Under the hood, this is a considerable change but there are no user
-     noticable differences. With the exception of:
+     noticeable differences. With the exception of:
      Caveat: The default '$PWD/pki/vars' file is forbidden to change either
              EASYRSA or EASYRSA_PKI, which are both implied by default.
    * EasyRSA-Advanced.md: Correct vars-auto-detect hierarchy (#1029)
@@ -97,7 +97,7 @@ Easy-RSA 3 ChangeLog
 3.1.5 (2023-06-10)
    * Build Update: script now supports signing and verifying
    * Automate support-file creation (Free packaging) (#964)
-   * build-ca: New command option 'raw-ca', abbrevation: 'raw' (#963)
+   * build-ca: New command option 'raw-ca', abbreviation: 'raw' (#963)
 
      This 'raw' method, is the most reliable way to build a CA,
      with a password, without writing the CA password to a temp-file.
@@ -183,7 +183,7 @@ Easy-RSA 3 ChangeLog
 
 3.0.9 (2022-05-17)
    * Upgrade OpenSSL from 1.1.0j to 1.1.1o (#405, #407) 
-      - We are buliding this ourselves now.
+      - We are building this ourselves now.
    * Fix --version so it uses EASYRSA_OPENSSL (#416)
    * Use openssl rand instead of non-POSIX mktemp (#478)
    * Fix paths with spaces (#443)
