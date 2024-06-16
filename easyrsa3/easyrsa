@@ -2290,6 +2290,15 @@ sign_req() {
 	crt_type="$1"
 	file_name_base="$2"
 
+	# Verify $crt_type is valid
+	case "$crt_type" in
+		ca|server|serverClient|client|codeSigning|email|kdc)
+			: # All known types plus CA for sub-ca
+		;;
+		*)
+			user_error "Type is not recognised: '$crt_type'"
+	esac
+
 	# Check argument sanity:
 	[ "$file_name_base" ] || user_error "\
 Incorrect number of arguments provided to sign-req:
