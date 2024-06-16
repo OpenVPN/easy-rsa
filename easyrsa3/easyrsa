@@ -1631,8 +1631,6 @@ Unable to create necessary PKI files (permissions?)"
 	# otherwise use default
 	if [ "$EASYRSA_BATCH" ]; then
 		ssl_batch=1
-	else
-		export EASYRSA_REQ_CN=ChangeMe
 	fi
 
 	# Default CA commonName
