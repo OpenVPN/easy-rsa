@@ -2159,13 +2159,10 @@ Run easyrsa without commands for usage and commands."
 		ssl_batch=1
 	fi
 
-	# Prohibit --req-cn
-	[ "$EASYRSA_REQ_CN" = ChangeMe ] || user_error "\
-Option conflict --req-cn:
-* '$cmd' does not support setting an external commonName"
-
-	# Enforce commonName
-	export EASYRSA_REQ_CN="$file_name_base"
+	# Set commonName
+	if [ "$EASYRSA_REQ_CN" = ChangeMe ]; then
+		export EASYRSA_REQ_CN="$file_name_base"
+	fi
 
 	# create local SSL cnf
 	write_easyrsa_ssl_cnf_tmp
@@ -2315,14 +2312,6 @@ expected 2, got $# (see command help for usage)"
 	req_in="$EASYRSA_PKI/reqs/$file_name_base.req"
 	crt_out="$EASYRSA_PKI/issued/$file_name_base.crt"
 	shift 2
-
-	# Prohibit --req-cn
-	[ "$EASYRSA_REQ_CN" = ChangeMe ] || user_error "\
-Option conflict --req-cn:
-* '$cmd' does not support setting an external commonName"
-
-	# Enforce commonName
-	export EASYRSA_REQ_CN="$file_name_base"
 
 	# create local SSL cnf
 	write_easyrsa_ssl_cnf_tmp
@@ -2546,6 +2535,13 @@ Error message: $error_msg
 Failed to create temp extension file (bad permissions?) at:
 * $ext_tmp"
 	verbose "sign_req: Generated extensions file OK"
+
+	# Get request CN
+	EASYRSA_REQ_CN="$(
+		"$EASYRSA_OPENSSL" req -utf8 -in "$req_in" -noout \
+			-subject -nameopt multiline | grep 'commonName'
+	)" || warn "sign-req - EASYRSA_REQ_CN FAILED"
+	EASYRSA_REQ_CN="${EASYRSA_REQ_CN##*= }"
 
 	# Set confirm CN
 	confirm_CN="  Requested CN:   '$EASYRSA_REQ_CN'"
@@ -2781,11 +2777,6 @@ Warning!
 An inline file for name '$name' already exists:
 * $inline_out"
 
-	# Set commonName
-	[ "$EASYRSA_REQ_CN" = ChangeMe ] || user_error "\
-Option conflict --req-cn:
-* '$cmd' does not support setting an external commonName"
-
 	# Set to modify sign-req confirmation message
 	do_build_full=1
 
@@ -2803,9 +2794,6 @@ Option conflict --req-cn:
 
 	# Require --copy-ext
 	export EASYRSA_CP_EXT=1
-
-	# Must be reset for nested commmands
-	export EASYRSA_REQ_CN=ChangeMe
 
 	# Sign it
 	verbose "build_full: BEGIN sign_req"
