@@ -468,18 +468,6 @@ Usage: easyrsa [ OPTIONS.. ] <COMMAND> <TARGET> [ cmd-opts.. ]"
       * Cutoff days for command: show-expire.
         eg: '--days=90 show-expire'"
 	;;
-	--req-cn|req-cn)
-		text_only=1
-		text="
-* Global Option: --req-cn=NAME
-
-      This global option can be used to set the CA commonName.
-
-      * To build a new CA [or Sub-CA]:
-        eg: '--batch --req-cn=NAME build-ca [subca]'
-
-      Can only be used in BATCH mode."
-	;;
 	--new-subj*|new-subj*|newsubj*|subject)
 		text_only=1
 		text="
@@ -635,7 +623,7 @@ Distinguished Name mode:
 
 --dn-mode=MODE  : Distinguished Name mode to use 'cn_only' (Default) or 'org'
 
---req-cn=NAME   : Set CA commonName. For details, see: 'help req-cn'
+--req-cn=NAME   : Request commonName
 
   Distinguished Name Organizational options: (only used with '--dn-mode=org')
   --req-c=CC           : Country code (2-letters)
