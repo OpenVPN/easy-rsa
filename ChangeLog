@@ -2,6 +2,7 @@ Easy-RSA 3 ChangeLog
 
 3.2.1 (TBD)
 
+   * gen-req: Re-enable use of --req-cn (5cf8c46) (#1170)
    * write: Change syntax, target as file, not directory (722ce54) (#1165)
 
 3.2.0 (2024-05-18)
