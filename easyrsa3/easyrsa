@@ -5387,7 +5387,7 @@ while :; do
 				EASYRSA_SAN="$val"
 			fi
 			;;
-		--new-subject)
+		--new-subj*)
 			export EASYRSA_NEW_SUBJECT="$val"
 			;;
 		--usefn)
