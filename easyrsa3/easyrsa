@@ -2551,16 +2551,11 @@ Failed to create temp extension file (bad permissions?) at:
 		confirm_period="  Valid for:      '$EASYRSA_CERT_EXPIRE' days"
 	fi
 
-	# Set confirm force_subj
-	confirm_force_subj=
-	[ "$force_subj" ] && \
-		confirm_force_subj="${NL}* Forced Subject: '$force_subj'${NL}"
-
 	# Set confirm DN
 	if [ "$force_subj" ]; then
-		confirm_dn="$force_subj"
+		confirm_dn="${NL}* Forced Subject: '$force_subj'${NL}"
 	else
-		confirm_dn="$(display_dn req "$req_in")" || \
+		confirm_dn="${NL}$(display_dn req "$req_in")" || \
 			die "sign-req: display_dn"
 	fi
 
@@ -2593,7 +2588,6 @@ Failed to create temp extension file (bad permissions?) at:
 $confirm_CN
 $confirm_type
 $confirm_period
-$confirm_force_subj
 $confirm_dn"
 
 	# --san takes priority over req SAN and --copy-ext
