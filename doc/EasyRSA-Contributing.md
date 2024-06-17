@@ -1,4 +1,4 @@
-Easy-RSA 3 Github Contributions Documentation
+Easy-RSA 3 GitHub Contributions Documentation
 =============================================
 
 This document explains how to contribute to Easy-RSA 3.
@@ -14,7 +14,7 @@ Contributing Guide
 
 -   **Do not** edit Easy-RSA `master` branch.
 
-    Pull Requests submitted from `master` branch may be be squashed or rejected.
+    Pull Requests submitted from `master` branch may be squashed or rejected.
 
 ### Create a new branch:
 
@@ -72,7 +72,7 @@ Contributing Guide
     Raise a Pull Request on github.
     ```
 
-Keeping your fork syncronised
+Keeping your fork synchronised
 -----------------------------
 
 -   Configure the `upstream` remote for your fork:
@@ -101,7 +101,7 @@ Keeping your fork syncronised
     upstream https://github.com/Openvpn/easy-rsa.git (push)
     ```
 
-### Syncronising your fork:
+### Synchronising your fork:
 
 -   Select `master` branch:
 
@@ -128,4 +128,4 @@ Keeping your fork syncronised
     ```
 
 
-    Your fork is now syncronised.
+    Your fork is now synchronised.

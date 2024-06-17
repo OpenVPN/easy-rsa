@@ -133,7 +133,7 @@ This icon may be used to refer to The MirBSD Korn Shell and
 its Win32 port. Distribution patches are acceptable as long
 as they modify $KSH_VERSION according to the guidelines that
 are published on the website; forks and works that are not
-derivates are not allowed to use it.
+derivatives are not allowed to use it.
 
 The BSD daemon is Copyright (c) 1988 by Marshall Kirk McKusick.
 All Rights Reserved.  Individuals may use the daemon for their

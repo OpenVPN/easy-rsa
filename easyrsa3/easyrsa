@@ -441,15 +441,15 @@ Usage: easyrsa [ OPTIONS.. ] <COMMAND> <TARGET> [ cmd-opts.. ]"
     These are the only commands that support --copy-ext and/or --san.
 
     Command 'gen-req':
-      --san: Add SAN extention to the request file.
+      --san: Add SAN extension to the request file.
 
     Command 'sign-req':
-      --copy-ext: Copy all request extentions to the signed certificate.
+      --copy-ext: Copy all request extensions to the signed certificate.
       --san: Over write the request SAN with option SAN.
 
     Command 'build-*-full':
       --copy-ext: Always enabled.
-      --san: Add SAN extention to the request and signed certificate.
+      --san: Add SAN extension to the request and signed certificate.
 
     See 'help san' for option --san full syntax."
 	;;
@@ -463,7 +463,7 @@ Usage: easyrsa [ OPTIONS.. ] <COMMAND> <TARGET> [ cmd-opts.. ]"
         eg: '--days=3650 build-ca'
       * Expiry days for new/renewed certificate.
         eg: '--days=1095 renew server'
-      * Expiry days for certificate revokation list.
+      * Expiry days for certificate revocation list.
         eg: '--days=180 gen-crl'
       * Cutoff days for command: show-expire.
         eg: '--days=90 show-expire'"
@@ -1771,7 +1771,7 @@ Raw CA mode
 		# X509 files
 		cat "$x509_ca_file" "$x509_COMMON_file"
 
-		# User extentions
+		# User extensions
 		[ "$EASYRSA_EXTRA_EXTS" ] && \
 			print "$EASYRSA_EXTRA_EXTS"
 
@@ -2008,7 +2008,7 @@ self-sign: Use ALGO/CURVE to $EASYRSA_ALGO/$EASYRSA_CURVE"
 		# X509 files
 		cat "$x509_selfsign_file" "$x509_COMMON_file"
 
-		# User extentions
+		# User extensions
 		[ "$EASYRSA_EXTRA_EXTS" ] && \
 			print "$EASYRSA_EXTRA_EXTS"
 
@@ -2231,7 +2231,7 @@ $EASYRSA_EXTRA_EXTS"
 	{ while ( getline<"/dev/stdin" ) {print} next }
  {print}
 }'
-		# Assign temp-file for confg
+		# Assign temp-file for config
 		adjusted_ssl_cnf_tmp=""
 		easyrsa_mktemp adjusted_ssl_cnf_tmp || \
 			die "gen_req - easyrsa_mktemp adjusted_ssl_cnf_tmp"
@@ -2433,7 +2433,7 @@ to the latest Easy-RSA release."
 	{ while ( getline<"/dev/stdin" ) {print} next }
  {print}
 }'
-		# Assign temp-file for confg
+		# Assign temp-file for config
 		adjusted_ssl_cnf_tmp=""
 		easyrsa_mktemp adjusted_ssl_cnf_tmp || \
 			die "sign_req - easyrsa_mktemp adjusted_ssl_cnf_tmp"
@@ -2473,9 +2473,9 @@ Writing 'copy_exts' to SSL config temp-file failed"
 	unset -v basicConstraints
 	if [ "$crt_type" = "ca" ] && [ "$EASYRSA_SUBCA_LEN" ]
 	then
-		# Print the last occurence of basicContraints in
+		# Print the last occurrence of basicConstraints in
 		# x509-types/ca
-		# If basicContraints is not defined then bail
+		# If basicConstraints is not defined then bail
 		# shellcheck disable=SC2016 # No expand '' - sign_req()
 		awkscript='\
 /^[[:blank:]]*basicConstraints[[:blank:]]*=/ { bC=$0 }
@@ -2576,7 +2576,7 @@ Failed to create temp extension file (bad permissions?) at:
 	# Set confirm SAN
 	# SAN from .req
 	if [ "$EASYRSA_CP_EXT" ]; then
-		# cature complete CSR
+		# capture complete CSR
 		req_text="$(
 			easyrsa_openssl req -in "$req_in" -noout -text
 			)" || die "sign-req: openssl: req_text"
@@ -2621,12 +2621,12 @@ $confirm_dn"
 
 	# Display the request subject in an easy-to-read format
 	# Confirm the user wishes to sign this request
-	# The foriegn_request confirmation is not required
+	# The foreign_request confirmation is not required
 	# for build_full:
 	if [ "$do_build_full" ]; then
-		unset -v foriegn_request
+		unset -v foreign_request
 	else
-		foriegn_request="\
+		foreign_request="\
 Please check over the details shown below for accuracy. \
 Note that this request
 has not been cryptographically verified. Please be sure \
@@ -2636,7 +2636,7 @@ with the sender.$NL"
 	fi
 
 	confirm "Confirm request details: " "yes" "\
-${foriegn_request}You are about to sign the following certificate:
+${foreign_request}You are about to sign the following certificate:
 
 $confirm_details" # => confirm end
 
@@ -2687,7 +2687,7 @@ check_serial_unique() {
 
 	# Check for openssl -status of serial number
 	# Always errors out - Do not capture error
-	# unset EASYRSA_SILENT_SSL to capure all output
+	# unset EASYRSA_SILENT_SSL to capture all output
 	# Do NOT unset check_serial for sign-req error msg
 	check_serial="$(
 		unset -v EASYRSA_SILENT_SSL
@@ -4451,7 +4451,7 @@ set_var() {
 	die "set_var - eval '$*'"
 } # => set_var()
 
-# sanatize and set var
+# sanitize and set var
 # nix.sh/win.sh/busybox.sh never return error from unset
 # when an invalid variable name 'a=b' is used with a value
 # to set, eg. 'c'; This causes EasyRSA to execute:
@@ -4466,7 +4466,7 @@ force_set_var() {
 	esac
 	# Guard unset with '|| die', just in case
 	unset -v "$1" || die "force_set_var - unset '$1'"
-	# Allow emmpty value to unset variable
+	# Allow empty value to unset variable
 	[ "$2" ] || return 0
 	set_var "$1" "$2" && return
 	die "force_set_var - set_var '$*'"
@@ -4748,7 +4748,7 @@ write_legacy_file_v2() {
 	write_recursion="$(( write_recursion - 1 ))"
 } # => write_legacy_file_v2()
 
-# set heredoc variables for openssl-esyrsa.cnf
+# set heredoc variables for openssl-easyrsa.cnf
 # shellcheck disable=SC2016 # (info): $ don't expand in ''
 set_openssl_easyrsa_cnf_vars(){
 	case "$1" in
