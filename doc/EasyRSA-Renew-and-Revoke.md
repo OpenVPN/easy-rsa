@@ -19,7 +19,7 @@ Instead, the process is as follows:
 
 2. Command `sign-req <TYPE> <NAME>` - Sign a new certificate.
 
-   This allows ALL command line cutomisations to be used. eg: SAN.
+   This allows ALL command line customisations to be used. eg: SAN.
    (These customisations do not work correctly with the old `renew`)
 
 3. If required, Command `revoke-expired` can be used to revoke an
@@ -116,7 +116,7 @@ Easy-RSA Reporting tools for certificate status
 -----------------------------------------------
 
 Easy-RSA version `3.1.x`, also has the following tools to keep track of
-certificate staus:
+certificate status:
 
     easyrsa [ --days=# ] show-expire [ file-name-base ]
 
