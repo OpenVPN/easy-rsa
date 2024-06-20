@@ -211,26 +211,26 @@ Usage: easyrsa [ OPTIONS.. ] <COMMAND> <TARGET> [ cmd-opts.. ]"
 	;;
 	revoke*)
 		text="
-* revoke <file_name_base> [reason]
-* revoke-expired <file_name_base> [reason]
-* revoke-renewed <file_name_base> [reason]
+* revoke <file_name_base> [ reason ]
+* revoke-expired <file_name_base> [ reason ]
+* revoke-renewed <file_name_base> [ reason ]
 
       Revoke a certificate specified by the <file_name_base>,
-      with an optional revocation [reason] which can be one of:
-        unspecified
-        keyCompromise
-        CACompromise
-        affiliationChanged
-        superseded
-        cessationOfOperation
-        certificateHold
+      with an optional revocation [ reason ].
 
-      revoke-expired and revoke-renewed are functionally equivalent
-      to revoke, however, they are used to revoke certificates which
-      have been either 'expired' or 'renewed' by EasyRSA commands."
-
+      Commands 'revoke-expired' and 'revoke-renewed' are functionally
+      equivalent to 'revoke', however, they are used to revoke certificates
+      which have been either 'expired' or 'renewed' by EasyRSA commands."
 		opts="
-      * [reason] - As shown above."
+      * [ reason ]${NL}
+      Values accepted for option [ reason ]:${NL}
+         us | uns* | unspecified
+         kc | key* | keyCompromise
+         cc | ca*  | CACompromise
+         ac | aff* | affiliationChanged
+         ss | sup* | superseded
+         co | ces* | cessationOfOperation
+         ch | cer* | certificateHold"
 	;;
 	expire)
 		text="
@@ -2932,9 +2932,6 @@ Run easyrsa without commands for usage and command help."
 	# create local SSL cnf
 	write_easyrsa_ssl_cnf_tmp
 
-	# Ensure an SSL config exists for EASYRSA_SSL_CONF
-	[ -f "$EASYRSA_SSL_CONF" ] || die "Missing SSL config"
-
 	in_dir="$EASYRSA_PKI"
 	key_in="$in_dir/private/${file_name_base}.key"
 	req_in="$in_dir/reqs/${file_name_base}.req"
@@ -2950,14 +2947,15 @@ Run easyrsa without commands for usage and command help."
 		shift
 
 		case "$crl_reason" in
-			unspecified) : ;;
-			keyCompromise) : ;;
-			CACompromise) : ;;
-			affiliationChanged) : ;;
-			superseded) : ;;
-			cessationOfOperation) : ;;
-			certificateHold) : ;;
-			*) user_error "Illegal reason: $crl_reason"
+			us|uns*) crl_reason=unspecified ;;
+			kc|key*) crl_reason=keyCompromise ;;
+			cc|[Cc][Aa]*) crl_reason=CACompromise ;;
+			ac|aff*) crl_reason=affiliationChanged ;;
+			ss|sup*) crl_reason=superseded ;;
+			co|ces*) crl_reason=cessationOfOperation ;;
+			ch|cer*) crl_reason=certificateHold ;;
+			*) user_error "\
+Unexpected reason: '$crl_reason'. See 'help revoke' for valid reasons."
 		esac
 	else
 		unset -v crl_reason
