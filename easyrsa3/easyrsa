@@ -2978,6 +2978,62 @@ Unable to revoke as the input-file is not a valid certificate.
 Certificate was expected at:
 * $crt_in"
 
+	# Check for misuse of revoke when revoke-* is intended
+	case "${cert_dir}" in
+	issued)
+		# expired cert
+		exp_exist="${in_dir}/expired/${file_name_base}.crt"
+		if [ -f "${exp_exist}" ]; then
+			exp_endd="$(
+				"$EASYRSA_OPENSSL" x509 -in "${exp_exist}" -noout \
+					-enddate)" || die "revoke - expire -enddate"
+			exp_confirm="
+Expired certificate:
+* ${exp_exist}
+  Expiry: ${exp_endd}
+  Use command 'revoke-expired' to revoke this certificate."
+		else
+			unset -v exp_exist exp_endd exp_confirm
+		fi
+
+		# renewed cert
+		ren_exist="${in_dir}/renewed/${file_name_base}.crt"
+		if [ -f "${ren_exist}" ]; then
+			ren_endd="$(
+				"$EASYRSA_OPENSSL" x509 -in "${ren_exist}" -noout \
+					-enddate)" || die "revoke - renew -enddate"
+			ren_confirm="
+Renewed certificate:
+* ${ren_exist}
+  Expiry: ${ren_endd}
+  Use command 'revoke-renewed' to revoke this certificate."
+		else
+			unset -v ren_exist ren_endd ren_confirm
+		fi
+
+		# issued cert
+		crt_endd="$(
+			"$EASYRSA_OPENSSL" x509 -in "${crt_in}" -noout \
+				-enddate)" || die "revoke - expire -enddate"
+
+		# Confirm intended use of 'revoke'
+		if [ "${exp_exist}" ] || [ "${ren_exist}" ]; then
+			warn "The following certificate(s) exist:
+${exp_exist:+${exp_confirm}${NL}}${ren_exist:+${ren_confirm}${NL}}"
+			confirm "  Confirm intended use of 'revoke' ? " yes "\
+Please confirm your intended use of 'revoke' for the following
+issued certificate:${NL}
+* ${crt_in}
+  Expiry: ${crt_endd}${NL}"
+		fi
+	;;
+	expired|renewed)
+		: # ok
+	;;
+	*)
+		die "Invalid cert_dir: '$cert_dir'"
+	esac
+
 	# Verify request
 	if [ -e "$req_in" ]; then
 		verify_file req "$req_in" || user_error "\
