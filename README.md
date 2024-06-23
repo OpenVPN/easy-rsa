@@ -7,8 +7,8 @@ certificates, including intermediate CAs and certificate revocation lists (CRL).
 
 # Downloads
 
-If you are looking for release downloads, please see the releases section on
-GitHub. Releases are also available as source checkouts using named tags.
+If you are looking for release downloads, please see the [releases section on
+GitHub](https://github.com/OpenVPN/easy-rsa/releases). Releases are also available as source checkouts using named tags.
 
 # Documentation
 
