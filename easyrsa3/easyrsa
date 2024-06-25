@@ -1738,11 +1738,11 @@ Raw CA mode
 	# Find or create x509 CA file
 	if [ -f "$EASYRSA_EXT_DIR/ca" ]; then
 		# Use the x509-types/ca file
-		x509_ca_file="$EASYRSA_EXT_DIR/ca"
+		x509_type_file="$EASYRSA_EXT_DIR/ca"
 	else
 		# Use a temp file
 		write_x509_type_tmp ca
-		x509_ca_file="$write_x509_file_tmp"
+		x509_type_file="$write_x509_file_tmp"
 	fi
 
 	# keyUsage critical
@@ -1755,7 +1755,7 @@ Raw CA mode
 			"$crit_tmp" || die "build-ca - KU add_critical_attrib"
 
 		# Use the new tmp-file with critical attribute
-		x509_ca_file="$crit_tmp"
+		x509_type_file="$crit_tmp"
 	fi
 
 	# basicConstraints critical
@@ -1768,7 +1768,7 @@ Raw CA mode
 			"$crit_tmp" || die "build-ca - BC add_critical_attrib"
 
 		# Use the new tmp-file with critical attribute
-		x509_ca_file="$crit_tmp"
+		x509_type_file="$crit_tmp"
 	fi
 
 	# Find or create x509 COMMON file
@@ -1784,7 +1784,7 @@ Raw CA mode
 	# Insert x509-types COMMON and 'ca' and EASYRSA_EXTRA_EXTS
 	{
 		# X509 files
-		cat "$x509_ca_file" "$x509_COMMON_file"
+		cat "$x509_type_file" "$x509_COMMON_file"
 
 		# User extensions
 		[ "$EASYRSA_EXTRA_EXTS" ] && \
