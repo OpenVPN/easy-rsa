@@ -1756,6 +1756,7 @@ Raw CA mode
 
 		# Use the new tmp-file with critical attribute
 		x509_type_file="$crit_tmp"
+		verbose "build_ca: keyUsage critical OK"
 	fi
 
 	# basicConstraints critical
@@ -1769,6 +1770,7 @@ Raw CA mode
 
 		# Use the new tmp-file with critical attribute
 		x509_type_file="$crit_tmp"
+		verbose "build_ca: basicConstraints critical OK"
 	fi
 
 	# Find or create x509 COMMON file
@@ -2483,6 +2485,7 @@ Writing 'copy_exts' to SSL config temp-file failed"
 
 		# Use the new tmp-file with critical attribute
 		x509_type_file="$crit_tmp"
+		verbose "sign_req: keyUsage critical OK"
 	fi
 
 	# basicConstraints critical
@@ -2496,6 +2499,7 @@ Writing 'copy_exts' to SSL config temp-file failed"
 
 		# Use the new tmp-file with critical attribute
 		x509_type_file="$crit_tmp"
+		verbose "sign_req: basicConstraints critical OK"
 	fi
 
 	# Find or create x509 COMMON file
