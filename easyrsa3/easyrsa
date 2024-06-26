@@ -3029,9 +3029,13 @@ issued certificate:${NL}
   Expiry: ${crt_endd%%${NL}serial=*}
   Serial: ${crt_endd##*serial=}"
 		fi
+
+		# Revoking an issued cert forces req/key to be moved
+		move_req_and_key=1
 	;;
 	expired|renewed)
-		: # ok
+		# Revoke-expired/renewed cert means req/key can remain
+		move_req_and_key=
 	;;
 	*)
 		die "Invalid cert_dir: '$cert_dir'"
@@ -3070,10 +3074,15 @@ Cannot revoke this certificate, a conflicting file exists.
 
 	# Check for key and request files
 	unset -v if_exist_key_in if_exist_req_in
-	[ -e "$key_in" ] && if_exist_key_in="
+	if [ "$move_req_and_key" ] && [ -e "$key_in" ]; then
+		if_exist_key_in="
 * $key_in"
-	[ -e "$req_in" ] && if_exist_req_in="
+	fi
+
+	if [ "$move_req_and_key" ] && [ -e "$req_in" ]; then
+		if_exist_req_in="
 * $req_in"
+	fi
 
 	# Set confirm DN and serial
 	confirm_dn="$(display_dn x509 "$crt_in")" || \
@@ -3130,19 +3139,24 @@ certificate from being accepted."
 revoke_move() {
 	parent_dir="$EASYRSA_PKI"/revoked
 	easyrsa_mkdir "$parent_dir"
-	for i in certs_by_serial private_by_serial
+	for i in reqs_by_serial certs_by_serial private_by_serial
 	do
 		easyrsa_mkdir "${parent_dir}/$i"
 	done
 	parent_dir=
 
-	# do NOT move the req - can be signed again
+	# only move the req when revoking an issued cert
+	# and if we have the req
+	if [ "$move_req_and_key" ] && [ -e "$req_in" ]; then
+		mv "$req_in" "$req_out" || warn "Failed to move: $req_in"
+	fi
 
 	# move crt to revoked folder
 	mv "$crt_in" "$crt_out" || die "Failed to move: $crt_in"
 
-	# only move the key if we have it
-	if [ -e "$key_in" ]; then
+	# only move the key when revoking an issued cert
+	# and if we have the key
+	if [ "$move_req_and_key" ] && [ -e "$key_in" ]; then
 		mv "$key_in" "$key_out" || warn "Failed to move: $key_in"
 	fi
 
