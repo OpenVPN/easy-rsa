@@ -3050,10 +3050,6 @@ Request was expected at:
 	ssl_cert_serial "$crt_in" cert_serial || \
 		die "$cmd: Failed to get cert serial number!"
 
-	# Duplicate cert by serial file
-	dup_dir="$EASYRSA_PKI/certs_by_serial"
-	dup_crt_by_serial="$dup_dir/${cert_serial}.pem"
-
 	# Set out_dir
 	out_dir="$EASYRSA_PKI/revoked"
 	crt_out="$out_dir/certs_by_serial/${cert_serial}.crt"
@@ -3096,10 +3092,7 @@ All PKCS files for commonName : $file_name_base
 
 The inline credentials files:
 * $creds_in
-* $inline_in
-
-The duplicate certificate:
-* $dup_crt_by_serial"
+* $inline_in"
 
 	confirm "  Continue with revocation: " "yes" "
 Please confirm that you wish to revoke the certificate
@@ -3167,13 +3160,6 @@ revoke_move() {
 				warn "Failed to remove: $file_name_base.$pkcs"
 		fi
 	done
-
-	# remove the duplicate certificate
-	if [ -e "$dup_crt_by_serial" ]; then
-		rm "$dup_crt_by_serial" || warn "\
-Failed to remove the duplicate certificate:
-* $dup_crt_by_serial"
-	fi
 
 	# remove credentials file
 	if [ -e "$creds_in" ]; then
