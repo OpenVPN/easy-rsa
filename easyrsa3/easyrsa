@@ -2178,15 +2178,25 @@ Run easyrsa without commands for usage and commands."
 		shift
 	done
 
-	# don't wipe out an existing private key without confirmation
-	if [ -f "$key_out" ]; then
-		confirm "Confirm key overwrite: " "yes" "\
+	# don't wipe out an existing request without confirmation
+	[ -f "$req_out" ] && confirm "Confirm request overwrite: " "yes" "\
 
 WARNING!!!
 
-An existing private key was found at $key_out
+An existing request file was found at
+* $req_out
+
+Continuing with key generation will replace this request."
+
+	# don't wipe out an existing private key without confirmation
+	[ -f "$key_out" ] && confirm "Confirm key overwrite: " "yes" "\
+
+WARNING!!!
+
+An existing private key was found at
+* $key_out
+
 Continuing with key generation will replace this key."
-	fi
 
 	# When EASYRSA_EXTRA_EXTS is defined,
 	# append it to openssl's [req] section:
