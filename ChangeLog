@@ -2,6 +2,9 @@ Easy-RSA 3 ChangeLog
 
 3.2.1 (TBD)
 
+   * gen-req: Always check for existing request file (7eab98e) (#1177)
+   * revoke/revoke-expired/-renewed: Keep duplicate certificate (3da7f66) (#1177)
+   * revoke-expired/-renewed: Keep req/key files for resigning (4537ae7) (#1177)
    * revoke: Add abbreviations for optional 'reason' (a88ccc7) (#1173)
    * build-ca: Allow use of --req-cn without batch mode (b77a0fb) (#1170)
    * gen-req: Re-enable use of --req-cn (5cf8c46) (#1170)
