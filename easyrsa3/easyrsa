@@ -2178,15 +2178,25 @@ Run easyrsa without commands for usage and commands."
 		shift
 	done
 
-	# don't wipe out an existing private key without confirmation
-	if [ -f "$key_out" ]; then
-		confirm "Confirm key overwrite: " "yes" "\
+	# don't wipe out an existing request without confirmation
+	[ -f "$req_out" ] && confirm "Confirm request overwrite: " "yes" "\
 
 WARNING!!!
 
-An existing private key was found at $key_out
+An existing request file was found at
+* $req_out
+
+Continuing with key generation will replace this request."
+
+	# don't wipe out an existing private key without confirmation
+	[ -f "$key_out" ] && confirm "Confirm key overwrite: " "yes" "\
+
+WARNING!!!
+
+An existing private key was found at
+* $key_out
+
 Continuing with key generation will replace this key."
-	fi
 
 	# When EASYRSA_EXTRA_EXTS is defined,
 	# append it to openssl's [req] section:
@@ -3029,9 +3039,13 @@ issued certificate:${NL}
   Expiry: ${crt_endd%%${NL}serial=*}
   Serial: ${crt_endd##*serial=}"
 		fi
+
+		# Revoking an issued cert forces req/key to be moved
+		move_req_and_key=1
 	;;
 	expired|renewed)
-		: # ok
+		# Revoke-expired/renewed cert means req/key can remain
+		move_req_and_key=
 	;;
 	*)
 		die "Invalid cert_dir: '$cert_dir'"
@@ -3049,10 +3063,6 @@ Request was expected at:
 	cert_serial=
 	ssl_cert_serial "$crt_in" cert_serial || \
 		die "$cmd: Failed to get cert serial number!"
-
-	# Duplicate cert by serial file
-	dup_dir="$EASYRSA_PKI/certs_by_serial"
-	dup_crt_by_serial="$dup_dir/${cert_serial}.pem"
 
 	# Set out_dir
 	out_dir="$EASYRSA_PKI/revoked"
@@ -3074,10 +3084,15 @@ Cannot revoke this certificate, a conflicting file exists.
 
 	# Check for key and request files
 	unset -v if_exist_key_in if_exist_req_in
-	[ -e "$key_in" ] && if_exist_key_in="
+	if [ "$move_req_and_key" ] && [ -e "$key_in" ]; then
+		if_exist_key_in="
 * $key_in"
-	[ -e "$req_in" ] && if_exist_req_in="
+	fi
+
+	if [ "$move_req_and_key" ] && [ -e "$req_in" ]; then
+		if_exist_req_in="
 * $req_in"
+	fi
 
 	# Set confirm DN and serial
 	confirm_dn="$(display_dn x509 "$crt_in")" || \
@@ -3096,10 +3111,7 @@ All PKCS files for commonName : $file_name_base
 
 The inline credentials files:
 * $creds_in
-* $inline_in
-
-The duplicate certificate:
-* $dup_crt_by_serial"
+* $inline_in"
 
 	confirm "  Continue with revocation: " "yes" "
 Please confirm that you wish to revoke the certificate
@@ -3137,19 +3149,24 @@ certificate from being accepted."
 revoke_move() {
 	parent_dir="$EASYRSA_PKI"/revoked
 	easyrsa_mkdir "$parent_dir"
-	for i in certs_by_serial private_by_serial
+	for i in reqs_by_serial certs_by_serial private_by_serial
 	do
 		easyrsa_mkdir "${parent_dir}/$i"
 	done
 	parent_dir=
 
-	# do NOT move the req - can be signed again
+	# only move the req when revoking an issued cert
+	# and if we have the req
+	if [ "$move_req_and_key" ] && [ -e "$req_in" ]; then
+		mv "$req_in" "$req_out" || warn "Failed to move: $req_in"
+	fi
 
 	# move crt to revoked folder
 	mv "$crt_in" "$crt_out" || die "Failed to move: $crt_in"
 
-	# only move the key if we have it
-	if [ -e "$key_in" ]; then
+	# only move the key when revoking an issued cert
+	# and if we have the key
+	if [ "$move_req_and_key" ] && [ -e "$key_in" ]; then
 		mv "$key_in" "$key_out" || warn "Failed to move: $key_in"
 	fi
 
@@ -3167,13 +3184,6 @@ revoke_move() {
 				warn "Failed to remove: $file_name_base.$pkcs"
 		fi
 	done
-
-	# remove the duplicate certificate
-	if [ -e "$dup_crt_by_serial" ]; then
-		rm "$dup_crt_by_serial" || warn "\
-Failed to remove the duplicate certificate:
-* $dup_crt_by_serial"
-	fi
 
 	# remove credentials file
 	if [ -e "$creds_in" ]; then
