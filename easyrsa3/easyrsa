@@ -2235,6 +2235,8 @@ $EASYRSA_EXTRA_EXTS"
 			> "$adjusted_ssl_cnf_tmp" || \
 				die "Writing SSL config to temp file failed"
 
+	[ "${EASYRSA_SAN_CRIT}" ] && verbose "gen-req: SAN critical OK"
+
 		# Use this SSL config for the rest of this function
 		EASYRSA_SSL_CONF="$adjusted_ssl_cnf_tmp"
 	fi
@@ -2507,6 +2509,8 @@ basicConstraints is not defined, cannot use 'pathlen'"
 		# ok No NS support required
 		unset -v ns_cert_type
 	esac
+
+	[ "${EASYRSA_SAN_CRIT}" ] && verbose "sign-req: SAN critical OK"
 
 	# Generate the extensions file for this cert:
 	ext_tmp=""
@@ -5512,7 +5516,6 @@ if [ "$EASYRSA_SAN" ]; then
 	EASYRSA_EXTRA_EXTS="\
 $EASYRSA_EXTRA_EXTS
 subjectAltName = ${EASYRSA_SAN_CRIT}${EASYRSA_SAN}"
-	[ "${EASYRSA_SAN_CRIT}" ] && verbose "SAN critical OK"
 fi
 
 # Set cmd now
