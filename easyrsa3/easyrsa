@@ -2604,7 +2604,7 @@ $confirm_dn"
 	if [ "$EASYRSA_SAN" ]; then
 		confirm_san="\
             X509v3 Subject Alternative Name:
-                $EASYRSA_SAN"
+                ${EASYRSA_SAN_CRIT}${EASYRSA_SAN}"
 	else
 		confirm_san="$req_x509_san"
 	fi
@@ -5463,6 +5463,10 @@ while :; do
 		--usefn)
 			export EASYRSA_P12_FR_NAME="$val"
 			;;
+		--san-crit*)
+			empty_ok=1
+			export EASYRSA_SAN_CRIT='critical,'
+			;;
 		--tools)
 			export EASYRSA_TOOLS_LIB="$val"
 			;;
@@ -5507,7 +5511,8 @@ done
 if [ "$EASYRSA_SAN" ]; then
 	EASYRSA_EXTRA_EXTS="\
 $EASYRSA_EXTRA_EXTS
-subjectAltName = $EASYRSA_SAN"
+subjectAltName = ${EASYRSA_SAN_CRIT}${EASYRSA_SAN}"
+	[ "${EASYRSA_SAN_CRIT}" ] && verbose "SAN critical OK"
 fi
 
 # Set cmd now
