@@ -2,6 +2,7 @@ Easy-RSA 3 ChangeLog
 
 3.2.1 (TBD)
 
+   * Introduce new global options: --ku-crit and --bc-crit (b79abee) (#1176)
    * revoke: Add abbreviations for optional 'reason' (a88ccc7) (#1173)
    * build-ca: Allow use of --req-cn without batch mode (b77a0fb) (#1170)
    * gen-req: Re-enable use of --req-cn (5cf8c46) (#1170)
