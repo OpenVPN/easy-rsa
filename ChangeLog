@@ -2,6 +2,7 @@ Easy-RSA 3 ChangeLog
 
 3.2.1 (TBD)
 
+   * Introduce global option --san-crit, mark SAN critical (dd69f50) (#1179)
    * gen-req: Always check for existing request file (7eab98e) (#1177)
    * revoke/revoke-expired/-renewed: Keep duplicate certificate (3da7f66) (#1177)
    * revoke-expired/-renewed: Keep req/key files for resigning (4537ae7) (#1177)
