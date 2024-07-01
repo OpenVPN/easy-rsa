@@ -611,14 +611,16 @@ Certificate & Request options: (these impact cert/req field values)
 --san|--subject-alt-name=SUBJECT_ALT_NAME
                 : Add a subjectAltName. Can be used multiple times.
                   For more info and syntax, see: 'easyrsa help altname'
+--auto-san      : Use commonName as subjectAltName: 'DNS:commonName'
+                  If commonName is 'n.n.n.n' then set 'IP:commonName'
+
 --san-crit      : Mark X509v3 subjectAltName as critical
+--ku-crit       : Add X509 'keyUsage = critical' attribute.
+--bc-crit       : Add X509 'basicContraints = critical' attribute.
 
 --new-subject='SUBJECT'
                 : Specify a new subject field to sign a request with.
                   For more info and syntax, see: 'easyrsa help subject'
-
---ku-crit       : Add X509 'keyUsage = critical' attribute.
---bc-crit       : Add X509 'basicContraints = critical' attribute.
 
 --usefn=NAME    : export-p12, set 'friendlyName' to NAME
                   For more, see: 'easyrsa help friendly'
@@ -2570,6 +2572,38 @@ basicConstraints is not defined, cannot use 'pathlen'"
 		unset -v ns_cert_type
 	esac
 
+	# Get request CN
+	# EASYRSA_REQ_CN MUST always be set to the CSR CN
+	EASYRSA_REQ_CN="$(
+		"$EASYRSA_OPENSSL" req -utf8 -in "$req_in" -noout \
+			-subject -nameopt multiline | grep 'commonName'
+	)" || warn "sign-req - EASYRSA_REQ_CN FAILED"
+	EASYRSA_REQ_CN="${EASYRSA_REQ_CN##*= }"
+
+	# Add auto SAN, if EASYRSA_AUTO_SAN is enabled
+	if [ -z "$EASYRSA_SAN" ] && [ "$EASYRSA_AUTO_SAN" ]; then
+		# Set auto_san_type to IP or DNS
+		octet='[[:digit:]]\+'
+		if print "$EASYRSA_REQ_CN" | \
+			grep -q "${octet}\.${octet}\.${octet}\.${octet}"
+		then
+			auto_san_type=IP
+		else
+			auto_san_type=DNS
+		fi
+
+		# Add auto SAN to EASYRSA_EXTRA_EXTS
+		EASYRSA_SAN="${auto_san_type}:${EASYRSA_REQ_CN}"
+		EASYRSA_EXTRA_EXTS="\
+$EASYRSA_EXTRA_EXTS
+subjectAltName = ${EASYRSA_SAN_CRIT}${EASYRSA_SAN}"
+
+		verbose "sign-req: Auto SAN: ${EASYRSA_SAN}"
+		unset -v octet auto_san_type
+	else
+		auto_san_type=
+	fi
+
 	[ "${EASYRSA_SAN_CRIT}" ] && verbose "sign-req: SAN critical OK"
 
 	# Generate the extensions file for this cert:
@@ -2604,14 +2638,6 @@ Error message: $error_msg
 Failed to create temp extension file (bad permissions?) at:
 * $ext_tmp"
 	verbose "sign_req: Generated extensions file OK"
-
-	# Get request CN
-	# EASYRSA_REQ_CN MUST always be set to the CSR CN
-	EASYRSA_REQ_CN="$(
-		"$EASYRSA_OPENSSL" req -utf8 -in "$req_in" -noout \
-			-subject -nameopt multiline | grep 'commonName'
-	)" || warn "sign-req - EASYRSA_REQ_CN FAILED"
-	EASYRSA_REQ_CN="${EASYRSA_REQ_CN##*= }"
 
 	# Set confirm CN
 	confirm_CN="  Requested CN:   '$EASYRSA_REQ_CN'"
@@ -5535,15 +5561,13 @@ while :; do
 				EASYRSA_SAN="$val"
 			fi
 			;;
+		--auto-san)
+			empty_ok=1
+			export EASYRSA_AUTO_SAN=1
+			;;
 		--san-crit*)
 			empty_ok=1
 			export EASYRSA_SAN_CRIT='critical,'
-			;;
-		--new-subj*)
-			export EASYRSA_NEW_SUBJECT="$val"
-			;;
-		--usefn)
-			export EASYRSA_P12_FR_NAME="$val"
 			;;
 		--ku-crit*)
 			empty_ok=1
@@ -5552,6 +5576,12 @@ while :; do
 		--bc-crit*)
 			empty_ok=1
 			export EASYRSA_BC_CRIT=1
+			;;
+		--new-subj*)
+			export EASYRSA_NEW_SUBJECT="$val"
+			;;
+		--usefn)
+			export EASYRSA_P12_FR_NAME="$val"
 			;;
 		--tools)
 			export EASYRSA_TOOLS_LIB="$val"
