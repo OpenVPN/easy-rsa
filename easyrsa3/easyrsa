@@ -3661,9 +3661,12 @@ Missing User Certificate, expected at:
 	fi
 
 	# Complete export
+	inline_out=
+	inline_msg=
 	case "$pkcs_type" in
 	p12)
 		pkcs_out="$EASYRSA_PKI/private/$file_name_base.p12"
+		inline_out="$EASYRSA_PKI/inline/$file_name_base-p12.inline"
 
 		[ "$legacy" ] && \
 			error_info="SSL library may not support -legacy mode"
@@ -3682,6 +3685,37 @@ Missing User Certificate, expected at:
 			${EASYRSA_PASSIN:+ -passin "$EASYRSA_PASSIN"} \
 			${EASYRSA_PASSOUT:+ -passout "$EASYRSA_PASSOUT"} \
 				|| die "Failed to export PKCS#12"
+
+		# Inline .p12 only
+		# Get cert CN
+		inline_CN="$(
+			"$EASYRSA_OPENSSL" x509 -in "$crt_in" -noout -subject \
+				-nameopt multiline,-esc_msb | grep 'commonName'
+		)" || die "export_pkcs - inline_CN FAILED"
+		inline_CN="${inline_CN##*= }"
+
+		# BASE64 encode pkcs12
+		inline_tmp=
+		easyrsa_mktemp inline_tmp || die "export_pkcs - inline_tmp"
+		if "$EASYRSA_OPENSSL" enc -a -in "$pkcs_out" > "$inline_tmp"
+		then
+			# make inline file
+			{
+				print "\
+# Easy-RSA inline file: pkcs12
+# commonName: ${inline_CN}${NL}"
+				print "<pkcs12>"
+				cat "$inline_tmp"
+				print "</pkcs12>"
+			} > "$inline_out" || die "export_pkcs - make inline"
+
+			inline_msg="\
+A BASE64 encoded inline file has also been created at:
+* ${inline_out}${NL}"
+		else
+			inline_msg="\
+Failed to create a BASE64 encoded inline file${NL}"
+		fi
 		;;
 	p7)
 		pkcs_out="$EASYRSA_PKI/issued/$file_name_base.p7b"
@@ -3731,9 +3765,11 @@ Missing User Certificate, expected at:
 	*) die "Unknown PKCS type: $pkcs_type"
 	esac
 
+	# User messages
 	notice "\
 Successful export of $pkcs_type file. Your exported file is at:
 * $pkcs_out"
+	[ "$inline_msg" ] && print "$inline_msg"
 
 	return 0
 } # => export_pkcs()
