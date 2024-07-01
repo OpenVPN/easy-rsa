@@ -616,6 +616,9 @@ Certificate & Request options: (these impact cert/req field values)
                 : Specify a new subject field to sign a request with.
                   For more info and syntax, see: 'easyrsa help subject'
 
+--ku-crit       : Add X509 'keyUsage = critical' attribute.
+--bc-crit       : Add X509 'basicContraints = critical' attribute.
+
 --usefn=NAME    : export-p12, set 'friendlyName' to NAME
                   For more, see: 'easyrsa help friendly'
 
@@ -1735,11 +1738,39 @@ Raw CA mode
 	# Find or create x509 CA file
 	if [ -f "$EASYRSA_EXT_DIR/ca" ]; then
 		# Use the x509-types/ca file
-		x509_ca_file="$EASYRSA_EXT_DIR/ca"
+		x509_type_file="$EASYRSA_EXT_DIR/ca"
 	else
 		# Use a temp file
 		write_x509_type_tmp ca
-		x509_ca_file="$write_x509_file_tmp"
+		x509_type_file="$write_x509_file_tmp"
+	fi
+
+	# keyUsage critical
+	if [ "$EASYRSA_KU_CRIT" ]; then
+		crit_tmp=
+		easyrsa_mktemp crit_tmp || \
+			die "build-ca - easyrsa_mktemp KU crit_tmp"
+
+		add_critical_attrib keyUsage "$x509_type_file" \
+			"$crit_tmp" || die "build-ca - KU add_critical_attrib"
+
+		# Use the new tmp-file with critical attribute
+		x509_type_file="$crit_tmp"
+		verbose "build_ca: keyUsage critical OK"
+	fi
+
+	# basicConstraints critical
+	if [ "$EASYRSA_BC_CRIT" ]; then
+		crit_tmp=
+		easyrsa_mktemp crit_tmp || \
+			die "build-ca - easyrsa_mktemp BC crit_tmp"
+
+		add_critical_attrib basicConstraints "$x509_type_file" \
+			"$crit_tmp" || die "build-ca - BC add_critical_attrib"
+
+		# Use the new tmp-file with critical attribute
+		x509_type_file="$crit_tmp"
+		verbose "build_ca: basicConstraints critical OK"
 	fi
 
 	# Find or create x509 COMMON file
@@ -1755,7 +1786,7 @@ Raw CA mode
 	# Insert x509-types COMMON and 'ca' and EASYRSA_EXTRA_EXTS
 	{
 		# X509 files
-		cat "$x509_ca_file" "$x509_COMMON_file"
+		cat "$x509_type_file" "$x509_COMMON_file"
 
 		# User extensions
 		[ "$EASYRSA_EXTRA_EXTS" ] && \
@@ -2453,6 +2484,34 @@ Writing 'copy_exts' to SSL config temp-file failed"
 		x509_type_file="$write_x509_file_tmp"
 	fi
 
+	# keyUsage critical
+	if [ "$EASYRSA_KU_CRIT" ]; then
+		crit_tmp=
+		easyrsa_mktemp crit_tmp || \
+			die "sign-req - easyrsa_mktemp KU crit_tmp"
+
+		add_critical_attrib keyUsage "$x509_type_file" \
+			"$crit_tmp" || die "sign-req - KU add_critical_attrib"
+
+		# Use the new tmp-file with critical attribute
+		x509_type_file="$crit_tmp"
+		verbose "sign_req: keyUsage critical OK"
+	fi
+
+	# basicConstraints critical
+	if [ "$EASYRSA_BC_CRIT" ]; then
+		crit_tmp=
+		easyrsa_mktemp crit_tmp || \
+			die "sign-req - easyrsa_mktemp BC crit_tmp"
+
+		add_critical_attrib basicConstraints "$x509_type_file" \
+			"$crit_tmp" || die "sign-req - BC add_critical_attrib"
+
+		# Use the new tmp-file with critical attribute
+		x509_type_file="$crit_tmp"
+		verbose "sign_req: basicConstraints critical OK"
+	fi
+
 	# Find or create x509 COMMON file
 	if [ -f "$EASYRSA_EXT_DIR/COMMON" ]; then
 		# Use the x509-types/COMMON file
@@ -2669,6 +2728,19 @@ Certificate created at:
 
 	return 0
 } # => sign_req()
+
+# Add 'critical' attribute to X509-type file
+add_critical_attrib() {
+	case "$1" in
+		basicConstraints|keyUsage) : ;; # ok
+		*) die "add_critical_attrib - usage: '$1'"
+	esac
+
+	[ -f "$2" ] || die "add_critical_attrib - file-2: '$2'"
+	[ -f "$3" ] || die "add_critical_attrib - file-3: '$3'"
+
+	sed s/"$1 = "/"$1 = "critical,/g "$2" > "$3"
+} # => add_critical_attrib()
 
 # Check serial in db
 check_serial_unique() {
@@ -5462,6 +5534,14 @@ while :; do
 			;;
 		--usefn)
 			export EASYRSA_P12_FR_NAME="$val"
+			;;
+		--ku-crit*)
+			empty_ok=1
+			export EASYRSA_KU_CRIT=1
+			;;
+		--bc-crit*)
+			empty_ok=1
+			export EASYRSA_BC_CRIT=1
 			;;
 		--tools)
 			export EASYRSA_TOOLS_LIB="$val"
