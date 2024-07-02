@@ -2490,6 +2490,7 @@ Writing 'copy_exts' to SSL config temp-file failed"
 	fi
 
 	# keyUsage critical
+	confirm_ku_crit=
 	if [ "$EASYRSA_KU_CRIT" ]; then
 		crit_tmp=
 		easyrsa_mktemp crit_tmp || \
@@ -2500,10 +2501,12 @@ Writing 'copy_exts' to SSL config temp-file failed"
 
 		# Use the new tmp-file with critical attribute
 		x509_type_file="$crit_tmp"
+		confirm_ku_crit="  keyUsage:         'critical'${NL}"
 		verbose "sign_req: keyUsage critical OK"
 	fi
 
 	# basicConstraints critical
+	confirm_bc_crit=
 	if [ "$EASYRSA_BC_CRIT" ]; then
 		crit_tmp=
 		easyrsa_mktemp crit_tmp || \
@@ -2514,6 +2517,7 @@ Writing 'copy_exts' to SSL config temp-file failed"
 
 		# Use the new tmp-file with critical attribute
 		x509_type_file="$crit_tmp"
+		confirm_bc_crit="  basicConstraints: 'critical'${NL}"
 		verbose "sign_req: basicConstraints critical OK"
 	fi
 
@@ -2528,7 +2532,7 @@ Writing 'copy_exts' to SSL config temp-file failed"
 	fi
 
 	# Support a dynamic CA path length when present:
-	unset -v basicConstraints
+	unset -v basicConstraints confirm_bc_len
 	if [ "$crt_type" = "ca" ] && [ "$EASYRSA_SUBCA_LEN" ]
 	then
 		# Print the last occurrence of basicConstraints in
@@ -2542,6 +2546,8 @@ END { if (length(bC) == 0 ) exit 1; print bC }'
 			awk "$awkscript" "$x509_type_file"
 			)" || die "\
 basicConstraints is not defined, cannot use 'pathlen'"
+		confirm_pathlen="
+  Path length:      '$EASYRSA_SUBCA_LEN'${NL}"
 		verbose "sign_req: Using basicConstraints pathlen"
 	fi
 
@@ -2604,7 +2610,12 @@ subjectAltName = ${EASYRSA_SAN_CRIT}${EASYRSA_SAN}"
 		auto_san_type=
 	fi
 
-	[ "${EASYRSA_SAN_CRIT}" ] && verbose "sign-req: SAN critical OK"
+	# confirm SAN critical
+	confirm_san_crit=
+	if [ "${EASYRSA_SAN_CRIT}" ]; then
+		confirm_san_crit="  subjectAltName:   'critical'${NL}"
+		verbose "sign-req: SAN critical OK"
+	fi
 
 	# Generate the extensions file for this cert:
 	ext_tmp=""
@@ -2640,21 +2651,21 @@ Failed to create temp extension file (bad permissions?) at:
 	verbose "sign_req: Generated extensions file OK"
 
 	# Set confirm CN
-	confirm_CN="  Requested CN:   '$EASYRSA_REQ_CN'"
+	confirm_CN="  Requested CN:     '$EASYRSA_REQ_CN'"
 
 	# Set confirm type
-	confirm_type="  Requested type: '$crt_type'"
+	confirm_type="  Requested type:   '$crt_type'"
 
 	# Set confirm valid_period message
 	if [ "$EASYRSA_END_DATE" ]; then
-		confirm_period="  Valid until:    '$EASYRSA_END_DATE'"
+		confirm_period="  Valid until:      '$EASYRSA_END_DATE'"
 	else
-		confirm_period="  Valid for:      '$EASYRSA_CERT_EXPIRE' days"
+		confirm_period="  Valid for:        '$EASYRSA_CERT_EXPIRE' days"
 	fi
 
 	# Set confirm DN
 	if [ "$force_subj" ]; then
-		confirm_dn="${NL}* Forced Subject: '$force_subj'${NL}"
+		confirm_dn="${NL}* Forced Subject:   '$force_subj'${NL}"
 	else
 		confirm_dn="${NL}$(display_dn req "$req_in")" || \
 			die "sign-req: display_dn"
@@ -2685,11 +2696,14 @@ Failed to create temp extension file (bad permissions?) at:
 	fi
 
 	# Set confirm details
+	confirm_critical_attribs="
+${confirm_san_crit}${confirm_ku_crit}${confirm_bc_crit}"
+
 	confirm_details="\
-$confirm_CN
-$confirm_type
-$confirm_period
-$confirm_dn"
+${confirm_CN}
+${confirm_type}${confirm_pathlen}
+${confirm_period}
+${confirm_critical_attribs}${confirm_dn}"
 
 	# --san takes priority over req SAN and --copy-ext
 	if [ "$EASYRSA_SAN" ]; then
