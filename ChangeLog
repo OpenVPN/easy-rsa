@@ -2,6 +2,7 @@ Easy-RSA 3 ChangeLog
 
 3.2.1 (TBD)
 
+   * sign-req: Add critical and pathlen details to confirmation (deae705) (#1182)
    * export-p12: Automatically generate inline file (9d90370) (#1181)
    * Introduce global option --auto-san, use commonName as SAN (5c36d44) (#1180)
    * Introduce global option --san-crit, mark SAN critical (dd69f50) (#1179)
