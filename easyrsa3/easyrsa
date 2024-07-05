@@ -2269,7 +2269,8 @@ $EASYRSA_EXTRA_EXTS"
 			> "$adjusted_ssl_cnf_tmp" || \
 				die "Writing SSL config to temp file failed"
 
-	[ "${EASYRSA_SAN_CRIT}" ] && verbose "gen-req: SAN critical OK"
+		[ "${EASYRSA_SAN_CRIT}" ] && \
+			verbose "gen-req: SAN critical OK"
 
 		# Use this SSL config for the rest of this function
 		EASYRSA_SSL_CONF="$adjusted_ssl_cnf_tmp"
@@ -2588,26 +2589,20 @@ basicConstraints is not defined, cannot use 'pathlen'"
 
 	# Add auto SAN, if EASYRSA_AUTO_SAN is enabled
 	if [ -z "$EASYRSA_SAN" ] && [ "$EASYRSA_AUTO_SAN" ]; then
-		# Set auto_san_type to IP or DNS
-		octet='[[:digit:]]\+'
-		if print "$EASYRSA_REQ_CN" | \
-			grep -q "${octet}\.${octet}\.${octet}\.${octet}"
+		# Choose DNS:san or IP:san
+		if print "$EASYRSA_REQ_CN" | grep -q \
+			'^[0-9]\+\.[0-9]\+\.[0-9]\+\.[0-9]\+$'
 		then
-			auto_san_type=IP
+			EASYRSA_SAN="IP:${EASYRSA_REQ_CN}"
 		else
-			auto_san_type=DNS
+			EASYRSA_SAN="DNS:${EASYRSA_REQ_CN}"
 		fi
 
 		# Add auto SAN to EASYRSA_EXTRA_EXTS
-		EASYRSA_SAN="${auto_san_type}:${EASYRSA_REQ_CN}"
 		EASYRSA_EXTRA_EXTS="\
 $EASYRSA_EXTRA_EXTS
 subjectAltName = ${EASYRSA_SAN_CRIT}${EASYRSA_SAN}"
-
 		verbose "sign-req: Auto SAN: ${EASYRSA_SAN}"
-		unset -v octet auto_san_type
-	else
-		auto_san_type=
 	fi
 
 	# confirm SAN critical
@@ -2644,8 +2639,6 @@ subjectAltName = ${EASYRSA_SAN_CRIT}${EASYRSA_SAN}"
 			print "$EASYRSA_EXTRA_EXTS"
 		fi
 	} > "$ext_tmp" || die "\
-Error message: $error_msg
-
 Failed to create temp extension file (bad permissions?) at:
 * $ext_tmp"
 	verbose "sign_req: Generated extensions file OK"
@@ -5928,7 +5921,7 @@ EasyRSA Tools version is out of date:
 		case "$cmd" in
 			show-expire)
 				[ -z "$alias_days" ] || \
-					   export EASYRSA_PRE_EXPIRY_WINDOW="$alias_days"
+					export EASYRSA_PRE_EXPIRY_WINDOW="$alias_days"
 				status expire "$@"
 				;;
 			show-revoke)
