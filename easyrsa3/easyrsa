@@ -38,7 +38,7 @@ A list of commands is shown below:
   build-client-full <file_name_base> [ cmd-opts ]
   build-server-full <file_name_base> [ cmd-opts ]
   build-serverClient-full <file_name_base> [ cmd-opts ]
-  inline <file_name_base>
+  inline <file_name_base> [ <target-file> ]
   revoke <file_name_base> [ cmd-opts ]
   expire <file_name_base>
   revoke-expired <file_name_base> [ cmd-opts ]
@@ -56,6 +56,7 @@ A list of commands is shown below:
   export-p8 <file_name_base> [ cmd-opts ]
   export-p12 <file_name_base> [ cmd-opts ]
   set-pass <file_name_base> [ cmd-opts ]
+  gen-tls-auth-key / gen-tls-crypt-key
   write <type> [ cmd-opts ]"
 
 	# collect/show dir status:
@@ -202,12 +203,12 @@ Usage: easyrsa [ OPTIONS.. ] <COMMAND> <TARGET> [ cmd-opts.. ]"
 	;;
 	inline)
 		text="
-* inline <file_name_base>
+* inline <file_name_base> [ <target-file> ]
 
-      Print inline data for <file_name_base>, with key and CA.
+      Print inline data for <file_name_base> to stdout."
 
-  * NOTE: To create an inline-file the output must be redirected.
-          If the output is incomplete then an error is returned."
+		opts="
+      * <target-file> - Write inline data to <target-file>"
 	;;
 	revoke*)
 		text="
@@ -510,6 +511,17 @@ These commands require easyrsa-tools.lib to be installed:
   show-expire <file_name_base> (Optional)
   show-revoke <file_name_base> (Optional)
   show-renew <file_name_base> (Optional)"
+	;;
+	gen-tls*)
+		text_only=1
+		text="
+Generate TLS keys for OpenVPN use:
+
+  gen-tls-auth-key    : Generate OpenVPN TLS-AUTH key
+  gen-tls-crypt-key   : Generate OpenVPN TLS-CRYPT key (Preferred)
+
+Only one TLS key is allowed to exist. (pki/private/easyrsa-tls.key)
+This TLS key will be automatically added to inline files."
 	;;
 	opts|options)
 		opt_usage
@@ -2101,7 +2113,7 @@ SHA256 fingerprint (See inline file below):
 * $crt_fingerprint"
 
 	# inline key/cert/fingerprint
-	if inline_creds "$file_name_base" > "$inline_out"; then
+	if inline_creds "$file_name_base" "$inline_out"; then
 		notice "\
 Inline file created:
 * $inline_out"
@@ -2918,7 +2930,7 @@ See error messages above for details."
 	verbose "build_full: END sign_req"
 
 	# inline it
-	if inline_creds "$name" > "$inline_out"; then
+	if inline_creds "$name" "$inline_out"; then
 		notice "\
 Inline file created:
 * $inline_out"
@@ -2935,10 +2947,23 @@ INCOMPLETE Inline file created:
 inline_creds() {
 	[ "$1" ] || die "inline_creds - Missing file_name_base"
 
+	if [ "$2" ]; then
+		[ -f "$2" ] && user_error "Cannot overwrite existing file!"
+		out_tmp_file="$2"
+		output_to_stdout=
+	else
+		inline_tmp=
+		easyrsa_mktemp inline_tmp || \
+			die "inline_creds - easyrsa_mktemp inline_tmp"
+		out_tmp_file="$inline_tmp"
+		output_to_stdout=1
+	fi
+
 	# Source files
 	crt_source="${EASYRSA_PKI}/issued/${1}.crt"
 	key_source="${EASYRSA_PKI}/private/${1}.key"
 	ca_source="$EASYRSA_PKI/ca.crt"
+	tls_source="${EASYRSA_PKI}"/private/easyrsa-tls.key
 	incomplete=0
 
 	# Generate data
@@ -2973,7 +2998,7 @@ inline_creds() {
 			selfsign_details="\
 # SELF-SIGNED
 # SHA256 fingerprint:
-# $crt_fingerprint"
+# ${crt_fingerprint}${NL}"
 		fi
 
 		# Certificate
@@ -3023,18 +3048,52 @@ $(cat "$ca_source")
 		fi
 	fi
 
+	# TLS auth|crypt key
+	if [ -f "$tls_source" ]; then
+		tls_key_data="$(cat "$tls_source")"
+		case "$tls_key_data" in
+		*'TLS-AUTH'*)
+			inline_label=tls-auth
+		;;
+		*'TLS-CRYPT'*)
+			inline_label=tls-crypt
+		;;
+		*)
+			inline_label=
+		esac
+
+		if [ "$inline_label" ]; then
+			tls_data="\
+<${inline_label}>
+${tls_key_data}
+</${inline_label}>"
+		else
+			incomplete=1
+			tls_data="# Easy-RSA TLS Key not recognised!"
+		fi
+	else
+		incomplete=1
+		tls_data="# Easy-RSA TLS Key not found!"
+	fi
+
 	# Print data
 	print "\
-# Easy-RSA Type: $type_data
+# Easy-RSA inline-file for use with OpenVPN
+# Type: $type_data
 # Name: $1
 $selfsign_details
-
 $crt_data
 
 $key_data
 
 $ca_data
-"
+
+$tls_data
+" > "$out_tmp_file" || die "inline_creds - write FAILED"
+
+	# Output to stdout
+	[ "$output_to_stdout" ] && cat "$out_tmp_file"
+
 	# If inline file is incomplete then return error
 	return "$incomplete"
 } # => inline_creds()
@@ -5937,6 +5996,26 @@ case "$cmd" in
 				;;
 			*)
 				die "Unknown command: '$cmd'"
+		esac
+		;;
+	gen-tls-*)
+		verify_working_env
+
+		# easyrsa-tools.lib is required
+		easyrsa_source_tools_lib
+
+		case "$cmd" in
+			gen-tls-auth|gen-tls-auth-*)
+				tls_key_gen tls-auth "$@"
+			;;
+			gen-tls-crypt|gen-tls-crypt-*)
+				tls_key_gen tls-crypt "$@"
+			;;
+			gen-tls-cryptv2|gen-tls-cryptv2-*)
+				tls_key_gen tls-crypt-v2 "$@"
+			;;
+			*)
+				die "Command '$cmd' not currently implemented."
 		esac
 		;;
 	verify|verify-cert)
