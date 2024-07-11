@@ -1621,8 +1621,6 @@ Unable to create necessary PKI files (permissions?)"
 	unset -v err_msg
 
 	# Set ssl batch mode, as required
-	# --req-cn must be used with --batch,
-	# otherwise use default
 	if [ "$EASYRSA_BATCH" ]; then
 		ssl_batch=1
 	fi
@@ -1641,21 +1639,6 @@ Unable to create necessary PKI files (permissions?)"
 
 	# Ensure an SSL config exists for EASYRSA_SSL_CONF
 	[ -f "$EASYRSA_SSL_CONF" ] || die "Missing SSL config"
-
-	# Check for insert-marker in ssl config file
-	if [ "$EASYRSA_EXTRA_EXTS" ]; then
-		if ! grep -q '^#%CA_X509_TYPES_EXTRA_EXTS%' \
-			"$EASYRSA_SSL_CONF"
-		then
-			die "\
-This openssl config file does \
-not support X509-type 'ca'.
-* $EASYRSA_SSL_CONF
-
-Please update 'openssl-easyrsa.cnf' \
-to the latest Easy-RSA release."
-		fi
-	fi
 
 	# Assign cert and key temp files
 	out_key_tmp=""
@@ -1725,19 +1708,6 @@ Raw CA mode
 		fi
 	fi
 
-	# Assign tmp-file for config
-	adjusted_ssl_cnf_tmp=""
-	easyrsa_mktemp adjusted_ssl_cnf_tmp || \
-		die "build_ca - easyrsa_mktemp adjusted_ssl_cnf_tmp"
-
-	# Assign awkscript to insert EASYRSA_EXTRA_EXTS
-	# shellcheck disable=SC2016 # No expand '' - build_ca()
-	awkscript='\
-{if ( match($0, "^#%CA_X509_TYPES_EXTRA_EXTS%") )
-	{ while ( getline<"/dev/stdin" ) {print} next }
- {print}
-}'
-
 	# Find or create x509 CA file
 	if [ -f "$EASYRSA_EXT_DIR/ca" ]; then
 		# Use the x509-types/ca file
@@ -1785,6 +1755,30 @@ Raw CA mode
 		write_x509_type_tmp COMMON
 		x509_COMMON_file="$write_x509_file_tmp"
 	fi
+
+	# Check for insert-marker in ssl config file
+	if ! grep -q '^#%CA_X509_TYPES_EXTRA_EXTS%' \
+		"$EASYRSA_SSL_CONF"
+	then
+		die "\
+This openssl config file does not support X509-type 'ca'.
+* $EASYRSA_SSL_CONF
+
+Please update 'openssl-easyrsa.cnf' to the latest Easy-RSA release."
+	fi
+
+	# Assign awkscript to insert EASYRSA_EXTRA_EXTS
+	# shellcheck disable=SC2016 # No expand '' - build_ca()
+	awkscript='\
+{if ( match($0, "^#%CA_X509_TYPES_EXTRA_EXTS%") )
+{ while ( getline<"/dev/stdin" ) {print} next }
+{print}
+}'
+
+	# Assign tmp-file for config
+	adjusted_ssl_cnf_tmp=""
+	easyrsa_mktemp adjusted_ssl_cnf_tmp || \
+		die "build_ca - easyrsa_mktemp adjusted_ssl_cnf_tmp"
 
 	# Insert x509-types COMMON and 'ca' and EASYRSA_EXTRA_EXTS
 	{
@@ -1885,9 +1879,8 @@ Your intermediate CA request is at:
 * $out_file
   and now must be sent to your parent CA for signing.
 
-Place your resulting cert at:
-* $EASYRSA_PKI/ca.crt
-  prior to signing operations."
+Prior to signing operations, place your resulting Sub-CA cert at:
+* $EASYRSA_PKI/ca.crt"
 	else
 		notice "\
 CA creation complete. Your new CA certificate is at:
