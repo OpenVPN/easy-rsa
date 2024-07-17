@@ -886,7 +886,7 @@ easyrsa_mktemp: temp-file EXISTS: $want_tmp_file"
 						if force_set_var "$1" "$want_tmp_file"
 						then
 							verbose "\
-:: easyrsa_mktemp: $1 OK: $want_tmp_file"
+: easyrsa_mktemp: $1 OK: $want_tmp_file"
 
 							# unset noclobber
 							if [ "$easyrsa_host_os" = win ]; then
@@ -939,8 +939,6 @@ cleanup() {
 	# Remove files when build_full()->sign_req() is interrupted
 	[ "$error_build_full_cleanup" ] && \
 		rm -f "$crt_out" "$req_out" "$key_out"
-	# Restore files when renew is interrupted
-	[ "$error_undo_renew_move" ] && renew_restore_move
 
 	if [ "${secured_session%/*}" ] && \
 		[ -d "$secured_session" ]
@@ -1173,7 +1171,12 @@ expand_ssl_config: EASYRSA_SSL_CONF = $EASYRSA_SSL_CONF"
 # sign-req or gen-req.
 easyrsa_openssl() {
 	openssl_command="$1"; shift
-	verbose "> easyrsa_openssl - BEGIN $openssl_command"
+
+	if [ "$EASYRSA_DEBUG" ]; then
+		verbose "= easyrsa_openssl - BEGIN $openssl_command $*"
+	else
+		verbose "= easyrsa_openssl - BEGIN $openssl_command"
+	fi
 
 	# Do not allow 'rand' here, see easyrsa_random()
 	case "$openssl_command" in
@@ -1188,11 +1191,7 @@ easyrsa_openssl() {
 		[ "$OPENSSL_CONF" ] || \
 			die "easyrsa_openssl - OPENSSL_CONF undefined"
 	fi
-	verbose "easyrsa_openssl: OPENSSL_CONF = $OPENSSL_CONF"
-
-	# Debug level
-	[ -z "$EASYRSA_DEBUG" ] || \
-		verbose "> easyrsa_openssl - EXEC $openssl_command $*"
+	verbose "= easyrsa_openssl: OPENSSL_CONF = $OPENSSL_CONF"
 
 	# Exec SSL
 	if [ "$EASYRSA_SILENT_SSL" ] && [ "$EASYRSA_BATCH" ]
@@ -1200,11 +1199,13 @@ easyrsa_openssl() {
 		if "$EASYRSA_OPENSSL" "$openssl_command" "$@" \
 			2>/dev/null
 		then
+			verbose "= easyrsa_openssl - END $openssl_command"
 			return
 		fi
 	else
 		if "$EASYRSA_OPENSSL" "$openssl_command" "$@"
 		then
+			verbose "= easyrsa_openssl - END $openssl_command"
 			return
 		fi
 	fi
@@ -1337,7 +1338,10 @@ $help_note"
 
 	# When operating in 'test' mode, return success.
 	# test callers don't care about CA-specific dir structure
-	[ "$1" = "test" ] && return 0
+	if [ "$1" = "test" ]; then
+		unset -v help_note
+		return 0
+	fi
 
 	# verify expected CA-specific dirs:
 	for i in issued certs_by_serial
@@ -4162,7 +4166,7 @@ ssl_cert_serial() {
 
 	fn_ssl_out="$(
 		easyrsa_openssl x509 -in "$1" -noout -serial
-		)"  || die "ssl_cert_serial - failed: -serial"
+		)" || die "ssl_cert_serial - failed: -serial"
 	# remove the serial= part -> we only need the XXXX part
 	fn_ssl_out="${fn_ssl_out##*=}"
 
@@ -4598,7 +4602,7 @@ ${unexpected_error}"
 verify_working_env() {
 	verbose "verify_working_env: BEGIN"
 	# For commands which 'require a PKI' and PKI exists
-	if  [ "$require_pki" ]; then
+	if [ "$require_pki" ]; then
 		# Verify PKI is initialised
 		verify_pki_init
 
@@ -4744,7 +4748,7 @@ f97425686fa1976d436fa31f550641aa"
 		esac
 
 		# Cleanup
-		unset -v file_hash  known_heredoc_320 \
+		unset -v file_hash known_heredoc_320 \
 				known_file_317 \
 				known_file_315 \
 				known_file_310 \
