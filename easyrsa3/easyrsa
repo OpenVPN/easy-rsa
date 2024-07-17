@@ -5228,6 +5228,18 @@ fi
 # Cut-off window for checking expiring certificates.
 #
 #set_var EASYRSA_PRE_EXPIRY_WINDOW	90
+
+# Generate automatic subjectAltName for certificates
+#
+#set_var	EASYRSA_AUTO_SAN	1
+
+# Add critical attribute to X509 fields: basicConstraints (BC),
+# keyUsage (KU), extendedKeyUsage (EKU) or SAN
+#
+#set_var	EASYRSA_BC_CRIT		1
+#set_var	EASYRSA_KU_CRIT		1
+#set_var	EASYRSA_EKU_CRIT	1
+#set_var	EASYRSA_SAN_CRIT	1
 CREATE_VARS_EXAMPLE
 		;;
 	ssl-cnf|safe-cnf)
