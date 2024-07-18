@@ -2811,8 +2811,7 @@ check_serial_unique() {
 	# unset EASYRSA_SILENT_SSL to capture all output
 	# Do NOT unset check_serial for sign-req error msg
 	check_serial="$(
-		unset -v EASYRSA_SILENT_SSL
-		easyrsa_openssl ca -status "$1" 2>&1
+			"$EASYRSA_OPENSSL" ca -status "$1" 2>&1
 		)" || :
 
 	# Check for duplicate serial in CA db
@@ -3410,8 +3409,9 @@ Missing certificate file:
 	# This is left as a reminder that easyrsa does not handle
 	# dates well and they should be avoided, at all cost.
 	# This is for confirmation purposes ONLY.
-	crt_expire="$(openssl x509 -in "$crt_in" -noout -enddate)" || \
-		die "expire: enddate"
+	crt_expire="$(
+		"$EASYRSA_OPENSSL" x509 -in "$crt_in" -noout -enddate
+		)" || die "expire: enddate"
 	confirm_ex="    notAfter date             = ${crt_expire#*=}"
 
 	# confirm
