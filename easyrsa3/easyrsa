@@ -4165,7 +4165,7 @@ ssl_cert_serial() {
 	[ -f "$1" ] || die "ssl_cert_serial - missing cert"
 
 	fn_ssl_out="$(
-		easyrsa_openssl x509 -in "$1" -noout -serial
+		"$EASYRSA_OPENSSL" x509 -in "$1" -noout -serial
 		)" || die "ssl_cert_serial - failed: -serial"
 	# remove the serial= part -> we only need the XXXX part
 	fn_ssl_out="${fn_ssl_out##*=}"
