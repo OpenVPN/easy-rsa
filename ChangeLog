@@ -2,6 +2,8 @@ Easy-RSA 3 ChangeLog
 
 3.2.1 (TBD)
 
+   * vars.example: Add flags for auto-SAN and X509 critical attribute (a41dfcc)
+   * Global option --eku-crit: Mark X509 extendedKeyUsage as critical (ca09211)
    * sign-req: Add critical and pathlen details to confirmation (deae705) (#1182)
    * export-p12: Automatically generate inline file (9d90370) (#1181)
    * Introduce global option --auto-san, use commonName as SAN (5c36d44) (#1180)
