@@ -162,6 +162,18 @@ fi
 #
 #set_var EASYRSA_PRE_EXPIRY_WINDOW	90
 
+# Generate automatic subjectAltName for certificates
+#
+#set_var	EASYRSA_AUTO_SAN	1
+
+# Add critical attribute to X509 fields: basicConstraints (BC),
+# keyUsage (KU), extendedKeyUsage (EKU) or SAN
+#
+#set_var	EASYRSA_BC_CRIT		1
+#set_var	EASYRSA_KU_CRIT		1
+#set_var	EASYRSA_EKU_CRIT	1
+#set_var	EASYRSA_SAN_CRIT	1
+
 # Support deprecated "Netscape" extensions? (choices "yes" or "no").
 # The default is "no", to discourage use of deprecated extensions.
 # If you require this feature to use with --ns-cert-type, set this to "yes".

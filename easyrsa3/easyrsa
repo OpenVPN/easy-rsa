@@ -615,8 +615,9 @@ Certificate & Request options: (these impact cert/req field values)
                   If commonName is 'n.n.n.n' then set 'IP:commonName'
 
 --san-crit      : Mark X509v3 subjectAltName as critical
---ku-crit       : Add X509 'keyUsage = critical' attribute.
 --bc-crit       : Add X509 'basicContraints = critical' attribute.
+--ku-crit       : Add X509 'keyUsage = critical' attribute.
+--eku-crit      : Add X509 'extendedKeyUsage = critical' attribute.
 
 --new-subject='SUBJECT'
                 : Specify a new subject field to sign a request with.
@@ -885,7 +886,7 @@ easyrsa_mktemp: temp-file EXISTS: $want_tmp_file"
 						if force_set_var "$1" "$want_tmp_file"
 						then
 							verbose "\
-:: easyrsa_mktemp: $1 OK: $want_tmp_file"
+: easyrsa_mktemp: $1 OK: $want_tmp_file"
 
 							# unset noclobber
 							if [ "$easyrsa_host_os" = win ]; then
@@ -938,8 +939,6 @@ cleanup() {
 	# Remove files when build_full()->sign_req() is interrupted
 	[ "$error_build_full_cleanup" ] && \
 		rm -f "$crt_out" "$req_out" "$key_out"
-	# Restore files when renew is interrupted
-	[ "$error_undo_renew_move" ] && renew_restore_move
 
 	if [ "${secured_session%/*}" ] && \
 		[ -d "$secured_session" ]
@@ -1172,7 +1171,12 @@ expand_ssl_config: EASYRSA_SSL_CONF = $EASYRSA_SSL_CONF"
 # sign-req or gen-req.
 easyrsa_openssl() {
 	openssl_command="$1"; shift
-	verbose "> easyrsa_openssl - BEGIN $openssl_command"
+
+	if [ "$EASYRSA_DEBUG" ]; then
+		verbose "= easyrsa_openssl - BEGIN $openssl_command $*"
+	else
+		verbose "= easyrsa_openssl - BEGIN $openssl_command"
+	fi
 
 	# Do not allow 'rand' here, see easyrsa_random()
 	case "$openssl_command" in
@@ -1187,11 +1191,7 @@ easyrsa_openssl() {
 		[ "$OPENSSL_CONF" ] || \
 			die "easyrsa_openssl - OPENSSL_CONF undefined"
 	fi
-	verbose "easyrsa_openssl: OPENSSL_CONF = $OPENSSL_CONF"
-
-	# Debug level
-	[ -z "$EASYRSA_DEBUG" ] || \
-		verbose "> easyrsa_openssl - EXEC $openssl_command $*"
+	verbose "= easyrsa_openssl: OPENSSL_CONF = $OPENSSL_CONF"
 
 	# Exec SSL
 	if [ "$EASYRSA_SILENT_SSL" ] && [ "$EASYRSA_BATCH" ]
@@ -1199,11 +1199,13 @@ easyrsa_openssl() {
 		if "$EASYRSA_OPENSSL" "$openssl_command" "$@" \
 			2>/dev/null
 		then
+			verbose "= easyrsa_openssl - END $openssl_command"
 			return
 		fi
 	else
 		if "$EASYRSA_OPENSSL" "$openssl_command" "$@"
 		then
+			verbose "= easyrsa_openssl - END $openssl_command"
 			return
 		fi
 	fi
@@ -1336,7 +1338,10 @@ $help_note"
 
 	# When operating in 'test' mode, return success.
 	# test callers don't care about CA-specific dir structure
-	[ "$1" = "test" ] && return 0
+	if [ "$1" = "test" ]; then
+		unset -v help_note
+		return 0
+	fi
 
 	# verify expected CA-specific dirs:
 	for i in issued certs_by_serial
@@ -2515,6 +2520,22 @@ Writing 'copy_exts' to SSL config temp-file failed"
 		verbose "sign_req: basicConstraints critical OK"
 	fi
 
+	# extendedKeyUsage critical
+	confirm_eku_crit=
+	if [ "$EASYRSA_EKU_CRIT" ]; then
+		crit_tmp=
+		easyrsa_mktemp crit_tmp || \
+			die "sign-req - easyrsa_mktemp EKU crit_tmp"
+
+		add_critical_attrib extendedKeyUsage "$x509_type_file" \
+			"$crit_tmp" || die "sign-req - EKU add_critical_attrib"
+
+		# Use the new tmp-file with critical attribute
+		x509_type_file="$crit_tmp"
+		confirm_eku_crit="  extendedKeyUsage: 'critical'${NL}"
+		verbose "sign_req: extendedKeyUsage critical OK"
+	fi
+
 	# Find or create x509 COMMON file
 	if [ -f "$EASYRSA_EXT_DIR/COMMON" ]; then
 		# Use the x509-types/COMMON file
@@ -2683,7 +2704,8 @@ Failed to create temp extension file (bad permissions?) at:
 
 	# Set confirm details
 	confirm_critical_attribs="
-${confirm_san_crit}${confirm_ku_crit}${confirm_bc_crit}"
+${confirm_bc_crit}${confirm_ku_crit}\
+${confirm_eku_crit}${confirm_san_crit}"
 
 	confirm_details="\
 ${confirm_CN}
@@ -2764,14 +2786,14 @@ Certificate created at:
 # Add 'critical' attribute to X509-type file
 add_critical_attrib() {
 	case "$1" in
-		basicConstraints|keyUsage) : ;; # ok
+		basicConstraints|keyUsage|extendedKeyUsage) : ;; # ok
 		*) die "add_critical_attrib - usage: '$1'"
 	esac
 
 	[ -f "$2" ] || die "add_critical_attrib - file-2: '$2'"
 	[ -f "$3" ] || die "add_critical_attrib - file-3: '$3'"
 
-	sed s/"$1 = "/"$1 = "critical,/g "$2" > "$3"
+	sed s/"$1 = "/"$1 = critical,"/g "$2" > "$3"
 } # => add_critical_attrib()
 
 # Check serial in db
@@ -2789,8 +2811,7 @@ check_serial_unique() {
 	# unset EASYRSA_SILENT_SSL to capture all output
 	# Do NOT unset check_serial for sign-req error msg
 	check_serial="$(
-		unset -v EASYRSA_SILENT_SSL
-		easyrsa_openssl ca -status "$1" 2>&1
+			"$EASYRSA_OPENSSL" ca -status "$1" 2>&1
 		)" || :
 
 	# Check for duplicate serial in CA db
@@ -3101,6 +3122,7 @@ Certificate was expected at:
 			exp_endd="$(
 				"$EASYRSA_OPENSSL" x509 -in "${exp_exist}" -noout \
 					-enddate -serial)" || die "revoke - expire -enddate"
+			# shellcheck disable=SC2295 # Expansions inside ${..}
 			exp_confirm="
 Expired certificate:
 * ${exp_exist}
@@ -3117,6 +3139,7 @@ Expired certificate:
 			ren_endd="$(
 				"$EASYRSA_OPENSSL" x509 -in "${ren_exist}" -noout \
 					-enddate -serial)" || die "revoke - renew -enddate"
+			# shellcheck disable=SC2295 # Expansions inside ${..}
 			ren_confirm="
 Renewed certificate:
 * ${ren_exist}
@@ -3136,6 +3159,7 @@ Renewed certificate:
 		if [ "${exp_exist}" ] || [ "${ren_exist}" ]; then
 			warn "The following certificate(s) exist:
 ${exp_exist:+${exp_confirm}${NL}}${ren_exist:+${ren_confirm}${NL}}"
+			# shellcheck disable=SC2295 # Expansions inside ${..}
 			confirm "  Confirm intended use of 'revoke' ? " yes "\
 Please confirm your intended use of 'revoke' for the following
 issued certificate:${NL}
@@ -3388,8 +3412,9 @@ Missing certificate file:
 	# This is left as a reminder that easyrsa does not handle
 	# dates well and they should be avoided, at all cost.
 	# This is for confirmation purposes ONLY.
-	crt_expire="$(openssl x509 -in "$crt_in" -noout -enddate)" || \
-		die "expire: enddate"
+	crt_expire="$(
+		"$EASYRSA_OPENSSL" x509 -in "$crt_in" -noout -enddate
+		)" || die "expire: enddate"
 	confirm_ex="    notAfter date             = ${crt_expire#*=}"
 
 	# confirm
@@ -4143,8 +4168,8 @@ ssl_cert_serial() {
 	[ -f "$1" ] || die "ssl_cert_serial - missing cert"
 
 	fn_ssl_out="$(
-		easyrsa_openssl x509 -in "$1" -noout -serial
-		)"  || die "ssl_cert_serial - failed: -serial"
+		"$EASYRSA_OPENSSL" x509 -in "$1" -noout -serial
+		)" || die "ssl_cert_serial - failed: -serial"
 	# remove the serial= part -> we only need the XXXX part
 	fn_ssl_out="${fn_ssl_out##*=}"
 
@@ -4580,7 +4605,7 @@ ${unexpected_error}"
 verify_working_env() {
 	verbose "verify_working_env: BEGIN"
 	# For commands which 'require a PKI' and PKI exists
-	if  [ "$require_pki" ]; then
+	if [ "$require_pki" ]; then
 		# Verify PKI is initialised
 		verify_pki_init
 
@@ -4726,7 +4751,7 @@ f97425686fa1976d436fa31f550641aa"
 		esac
 
 		# Cleanup
-		unset -v file_hash  known_heredoc_320 \
+		unset -v file_hash known_heredoc_320 \
 				known_file_317 \
 				known_file_315 \
 				known_file_310 \
@@ -5210,6 +5235,18 @@ fi
 # Cut-off window for checking expiring certificates.
 #
 #set_var EASYRSA_PRE_EXPIRY_WINDOW	90
+
+# Generate automatic subjectAltName for certificates
+#
+#set_var	EASYRSA_AUTO_SAN	1
+
+# Add critical attribute to X509 fields: basicConstraints (BC),
+# keyUsage (KU), extendedKeyUsage (EKU) or SAN
+#
+#set_var	EASYRSA_BC_CRIT		1
+#set_var	EASYRSA_KU_CRIT		1
+#set_var	EASYRSA_EKU_CRIT	1
+#set_var	EASYRSA_SAN_CRIT	1
 CREATE_VARS_EXAMPLE
 		;;
 	ssl-cnf|safe-cnf)
@@ -5605,13 +5642,17 @@ while :; do
 			empty_ok=1
 			export EASYRSA_SAN_CRIT='critical,'
 			;;
+		--bc-crit*)
+			empty_ok=1
+			export EASYRSA_BC_CRIT=1
+			;;
 		--ku-crit*)
 			empty_ok=1
 			export EASYRSA_KU_CRIT=1
 			;;
-		--bc-crit*)
+		--eku-crit*)
 			empty_ok=1
-			export EASYRSA_BC_CRIT=1
+			export EASYRSA_EKU_CRIT=1
 			;;
 		--new-subj*)
 			export EASYRSA_NEW_SUBJECT="$val"
