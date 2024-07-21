@@ -4825,7 +4825,6 @@ write_x509_type_tmp() {
 #
 # Create legacy files
 #
-# Directories are user configurable, File names are fixed
 
 # Write ALL legacy files to $1 or default
 all_legacy_files_v2() {
@@ -4878,7 +4877,7 @@ Legacy files:
 	fi
 } # => legacy_files_v2()
 
-# write legacy files to stdout or to $folder
+# write legacy files to stdout or user defined file
 write_legacy_file_v2() {
 	# recursion check
 	write_recursion="$(( write_recursion + 1 ))"
@@ -4894,12 +4893,11 @@ write_legacy_file_v2() {
 
 	# Select by type
 	case "$write_type" in
-	ssl-cnf|safe-cnf)
-		# Set expansion style
-		case "$write_type" in
-			ssl-cnf) set_openssl_easyrsa_cnf_vars unexpanded ;;
-			safe-cnf) set_openssl_easyrsa_cnf_vars expanded ;;
-		esac
+	ssl-cnf)
+		set_openssl_easyrsa_cnf_vars unexpanded
+		;;
+	safe-cnf)
+		set_openssl_easyrsa_cnf_vars expanded
 		;;
 	vars)
 		;;
@@ -4914,6 +4912,11 @@ write_legacy_file_v2() {
 
 	# If $write_file is given then establish overwrite rules
 	if [ "$write_file" ]; then
+
+		# $write_file must not be a directory
+		[ -d "$write_file" ] && user_error \
+			"write: Target is a directory: '$write_file'"
+
 		# If $write_file exists then check for temp-file
 		if [ -f "$write_file" ]; then
 			# if this is a temp file then enable auto-overwrite
@@ -4939,7 +4942,7 @@ write_legacy_file_v2() {
 			create_legacy_stream "$write_type" > "$write_file" || \
 				die "write failed"
 		else
-			verbose ": Over-write refused for existing file!"
+			user_error "write: Over-write refused for existing file!"
 		fi
 	else
 		# write stream to stdout ONLY
