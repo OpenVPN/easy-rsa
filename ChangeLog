@@ -2,6 +2,7 @@ Easy-RSA 3 ChangeLog
 
 3.2.1 (TBD)
 
+   * bug-fix: revoke: Pass the correct certificate location (24d5514)
    * vars.example: Add flags for auto-SAN and X509 critical attribute (a41dfcc)
    * Global option --eku-crit: Mark X509 extendedKeyUsage as critical (ca09211)
    * sign-req: Add critical and pathlen details to confirmation (deae705) (#1182)
