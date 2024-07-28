@@ -9,7 +9,7 @@ if [ -z "$EASYRSA_TOOLS_CALLER" ]; then
 fi
 
 # Set tools version
-EASYRSA_TOOLS_VERSION=1.0.1
+export EASYRSA_TOOLS_VERSION=321
 
 # Get certificate start date
 # shellcheck disable=2317 # Unreach - ssl_cert_not_before_date()
@@ -921,3 +921,257 @@ before they can be revoked."
 	read_db
 
 } # => status()
+
+# renew backend
+renew() {
+	# pull filename base:
+	[ "$1" ] || user_error "\
+Error: didn't find a file base name as the first argument.
+Run easyrsa without commands for usage and command help."
+
+	# Assign file_name_base and dust off!
+	file_name_base="$1"
+	shift
+
+	# Assign input files
+	in_dir="$EASYRSA_PKI"
+	crt_in="$in_dir/issued/${file_name_base}.crt"
+	key_in="$in_dir/private/${file_name_base}.key"
+	req_in="$in_dir/reqs/${file_name_base}.req"
+	creds_in="$in_dir/${file_name_base}.creds"
+	inline_in="$in_dir/inline/${file_name_base}.inline"
+
+	# Upgrade CA index.txt.attr - unique_subject = no
+	print 'unique_subject = no' > "$EASYRSA_PKI/index.txt.attr" || \
+		die "Failed to upgrade CA to support renewal."
+
+	# deprecate ALL options
+	while [ "$1" ]; do
+		case "$1" in
+			nopass)
+				warn "\
+Option 'nopass' is not supported by command 'renew'."
+			;;
+			*) user_error "Unknown option: $1"
+		esac
+		shift
+	done
+
+	# Verify certificate
+	if [ -f "$crt_in" ]; then
+		verify_file x509 "$crt_in" || user_error "\
+Input file is not a valid certificate:
+* $crt_in"
+	else
+		user_error "\
+Missing certificate file:
+* $crt_in"
+	fi
+
+	# Verify request
+	if [ -e "$req_in" ]; then
+		verify_file req "$req_in" || user_error "\
+Input file is not a valid request:
+* $req_in"
+	else
+		user_error "\
+Missing request file:
+* $req_in"
+	fi
+
+	# get the serial number of the certificate
+	ssl_cert_serial "$crt_in" cert_serial || \
+		die "$cmd: Failed to get cert serial number!"
+
+	# Duplicate cert by serial file
+	dup_dir="$EASYRSA_PKI/certs_by_serial"
+	dup_crt_by_serial="$dup_dir/${cert_serial}.pem"
+
+	# Set out_dir
+	out_dir="$EASYRSA_PKI/renewed"
+	crt_out="$out_dir/issued/${file_name_base}.crt"
+
+	# NEVER over-write a renewed cert, revoke it first
+	deny_msg="\
+Cannot renew this certificate, a conflicting file exists:
+*"
+	[ -e "$crt_out" ] && \
+		user_error "$deny_msg certificate: $crt_out"
+	unset -v deny_msg
+
+	# Make inline directory
+	[ -d "$EASYRSA_PKI/inline" ] ||	\
+		mkdir -p "$EASYRSA_PKI/inline" || \
+			die "Failed to create inline directoy."
+
+	# Extract certificate usage from old cert
+	ssl_cert_x509v3_eku "$crt_in" cert_type
+
+	# --san-crit
+	unset -v EASYRSA_SAN_CRIT
+	if grep -q 'X509v3 Subject Alternative Name: critical' "$crt_in"
+	then
+		export EASYRSA_SAN_CRIT='critical,'
+		verbose "renew: --san-crit ENABLED"
+	fi
+
+	# Use SAN from old cert ONLY
+	if grep 'X509v3 Subject Alternative Name' "$crt_in"; then
+		EASYRSA_SAN="$(
+			"$EASYRSA_OPENSSL" x509 -in "$crt_in" -noout -text | \
+				grep -A 1 'X509v3 Subject Alternative Name' | \
+					sed -e s/'^\ *'// \
+						-e /'X509v3 Subject Alternative Name'/d
+		)" || die "renew - EASYRSA_SAN: easyrsa_openssl subshell"
+		verbose "renew: EASYRSA_SAN: ${EASYRSA_SAN}"
+
+		export EASYRSA_EXTRA_EXTS="\
+$EASYRSA_EXTRA_EXTS
+subjectAltName = ${EASYRSA_SAN_CRIT}${EASYRSA_SAN}"
+		verbose "renew: EASYRSA_EXTRA_EXTS: ${EASYRSA_EXTRA_EXTS}"
+	fi
+
+	# --bc-crit
+	if grep -q 'X509v3 Basic Constraints: critical' "$crt_in"
+	then
+		export EASYRSA_BC_CRIT=1
+		verbose "renew: --bc-crit ENABLED"
+	fi
+
+	# --ku-crit
+	if grep -q 'X509v3 Key Usage: critical' "$crt_in"
+	then
+		export EASYRSA_KU_CRIT=1
+		verbose "renew: --ku-crit ENABLED"
+	fi
+
+	# --eku-crit
+	if grep -q 'X509v3 Extended Key Usage: critical' "$crt_in"
+	then
+		export EASYRSA_EKU_CRIT=1
+		verbose "renew: --eku-crit ENABLED"
+	fi
+
+	# confirm operation by displaying Warning
+	confirm "Continue with 'renew' ? " yes "\
+WARNING: This process is destructive!
+
+These files will be MOVED to the 'renewed' sub-directory:
+* $crt_in
+
+These files will be DELETED:
+All PKCS files for commonName: $file_name_base
+
+The inline credentials files:
+* $creds_in
+* $inline_in"
+
+	# move renewed files
+	# so we can reissue certificate with the same name
+	renew_move
+	error_undo_renew_move=1
+
+	# Set to modify sign-req confirmation message
+	local_request=1
+
+	# renew certificate
+	# EASYRSA_BATCH=1
+	if sign_req "$cert_type" "$file_name_base"
+	then
+		unset -v error_undo_renew_move
+	else
+		# If renew failed then restore cert.
+		# Otherwise, issue a warning
+		renew_restore_move
+		die "Renewal has failed to build a new certificate."
+	fi
+
+	# inline it
+	# Over write existing because renew is successful
+	if inline_creds "$file_name_base" > "$inline_in"
+	then
+		notice "\
+Inline file created:
+* $inline_in"
+	else
+		warn "\
+INCOMPLETE Inline file created:
+* $inline_in"
+	fi
+
+	# Success messages
+	notice "\
+Renew was successful.
+
+                    * IMPORTANT *
+
+Renew has created a new certificate, to replace the old one.
+
+To revoke the old certificate, once the new one has been deployed,
+use command 'revoke-renewed $file_name_base'"
+
+	return 0
+} # => renew()
+
+# Restore files on failure to renew
+renew_restore_move() {
+	# restore crt file to PKI folders
+	rrm_err=
+	if mv "$restore_crt_out" "$restore_crt_in"; then
+		: # ok
+	else
+		warn "Failed to restore: $restore_crt_in"
+		rrm_err=1
+	fi
+
+	# messages
+	if [ "$rrm_err" ]; then
+		warn "Failed to restore renewed files."
+	else
+		notice "\
+Renew FAILED but files have been successfully restored."
+	fi
+
+	return 0
+} # => renew_restore_move()
+
+# renew_move
+# moves renewed certificates to the 'renewed' folder
+# allows reissuing certificates with the same name
+renew_move() {
+	# make sure renewed dirs exist
+	easyrsa_mkdir "$out_dir"
+	easyrsa_mkdir "$out_dir"/issued
+
+	# move crt to renewed folders
+	# After this point, renew is possible!
+	restore_crt_in="$crt_in"
+	restore_crt_out="$crt_out"
+	mv "$crt_in" "$crt_out" || \
+		die "Failed to move: $crt_in"
+
+	# Remove files that can be recreated:
+	# remove any pkcs files
+	for pkcs in p12 p7b p8 p1; do
+		# issued
+		rm -f "$in_dir/issued/$file_name_base.$pkcs"
+		# private
+		rm -f "$in_dir/private/$file_name_base.$pkcs"
+	done
+
+	# remove credentials file
+	if [ -e "$creds_in" ]; then
+		rm "$creds_in" || warn "\
+Failed to remove credentials file:
+* $creds_in"
+	fi
+
+	# remove inline file
+	if [ -e "$inline_in" ]; then
+		rm "$inline_in" || warn "\
+Failed to remove inline file:
+* $inline_in"
+	fi
+
+	return 0
+} # => renew_move()
