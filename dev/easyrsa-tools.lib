@@ -1007,14 +1007,6 @@ Cannot renew this certificate, a conflicting file exists:
 	# Extract certificate usage from old cert
 	ssl_cert_x509v3_eku "$crt_in" cert_type
 
-	# --san-crit
-	unset -v EASYRSA_SAN_CRIT
-	if grep -q 'X509v3 Subject Alternative Name: critical' "$crt_in"
-	then
-		export EASYRSA_SAN_CRIT='critical,'
-		verbose "renew: --san-crit ENABLED"
-	fi
-
 	# Use SAN from old cert ONLY
 	if grep 'X509v3 Subject Alternative Name' "$crt_in"; then
 		EASYRSA_SAN="$(
@@ -1024,6 +1016,15 @@ Cannot renew this certificate, a conflicting file exists:
 						-e /'X509v3 Subject Alternative Name'/d
 		)" || die "renew - EASYRSA_SAN: easyrsa_openssl subshell"
 		verbose "renew: EASYRSA_SAN: ${EASYRSA_SAN}"
+
+		# --san-crit
+		unset -v EASYRSA_SAN_CRIT
+		if grep -q 'X509v3 Subject Alternative Name: critical' \
+			"$crt_in"
+		then
+			export EASYRSA_SAN_CRIT='critical,'
+			verbose "renew: --san-crit ENABLED"
+		fi
 
 		export EASYRSA_EXTRA_EXTS="\
 $EASYRSA_EXTRA_EXTS
