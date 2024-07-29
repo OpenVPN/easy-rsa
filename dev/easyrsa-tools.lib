@@ -1053,6 +1053,9 @@ subjectAltName = ${EASYRSA_SAN_CRIT}${EASYRSA_SAN}"
 		verbose "renew: --eku-crit ENABLED"
 	fi
 
+	# Disable options not supported by renew
+	unset -v EASYRSA_CP_EXTS EASYRSA_AUTO_SAN EASYRSA_NEW_SUBJECT
+
 	# confirm operation by displaying Warning
 	confirm "Continue with 'renew' ? " yes "\
 WARNING: This process is destructive!
