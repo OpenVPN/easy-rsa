@@ -979,6 +979,21 @@ Missing request file:
 * $req_in"
 	fi
 
+	# Get cert commonName
+	cert_CN="$(
+			display_dn x509 "$crt_in" | grep 'commonName'
+		)" || die "renew - display_dn of cert failed"
+
+	# Get req commonName
+	req_CN="$(
+			display_dn req "$req_in" | grep 'commonName'
+		)" || die "renew - display_dn of req failed"
+
+	# For renew, cert_CN must match req_CN
+	[ "$cert_CN" = "$req_CN" ] || user_error \
+		"Certificate cannot be renewed due to commonName mismatch"
+	verbose "renew - cert_CN MATCH req_CN"
+
 	# get the serial number of the certificate
 	ssl_cert_serial "$crt_in" cert_serial || \
 		die "$cmd: Failed to get cert serial number!"
