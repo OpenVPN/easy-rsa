@@ -940,6 +940,9 @@ cleanup() {
 	[ "$error_build_full_cleanup" ] && \
 		rm -f "$crt_out" "$req_out" "$key_out"
 
+	# Restore files when renew is interrupted
+	[ "$error_undo_renew_move" ] && renew_restore_move
+
 	if [ "${secured_session%/*}" ] && \
 		[ -d "$secured_session" ]
 	then
@@ -2731,7 +2734,7 @@ ${confirm_critical_attribs}${confirm_dn}"
 	# Confirm the user wishes to sign this request
 	# The foreign_request confirmation is not required
 	# for build_full:
-	if [ "$do_build_full" ]; then
+	if [ "$local_request" ]; then
 		unset -v foreign_request
 	else
 		foreign_request="\
@@ -2743,7 +2746,7 @@ source or that you have verified the request checksum \
 with the sender.$NL"
 	fi
 
-	confirm "Confirm request details: " "yes" "\
+	confirm "Confirm requested details: " "yes" "\
 ${foreign_request}You are about to sign the following certificate:
 
 $confirm_details" # => confirm end
@@ -2901,13 +2904,13 @@ Warning!
 An inline file for name '$name' already exists:
 * $inline_out"
 
-	# Set to modify sign-req confirmation message
-	do_build_full=1
-
 	# create request
 	verbose "build_full: BEGIN gen_req"
 	gen_req "$name" batch
 	verbose "build_full: END gen_req"
+
+	# Set to modify sign-req confirmation message
+	local_request=1
 
 	# Recreate temp-session and
 	# drop edits to SSL Conf file
@@ -3329,17 +3332,6 @@ Failed to remove inline file:
 
 	return 0
 } # => revoke_move()
-
-# renew backend
-renew() {
-	print "
-To renew a certificate, please use commands:
-* expire <NAME>
-* sign-req <TYPE> <NAME>
-
-See help for details.${NL}"
-	cleanup
-} # => renew()
 
 # Move expired cert out of pki/issued to pki/expired
 # to allow renewal
@@ -5462,7 +5454,7 @@ unset -v \
 	alias_days \
 	prohibit_no_pass \
 	invalid_vars \
-	do_build_full error_build_full_cleanup \
+	local_request error_build_full_cleanup \
 	selfsign_eku \
 	internal_batch mv_temp_error \
 	easyrsa_exit_with_error error_info \
@@ -5864,12 +5856,6 @@ case "$cmd" in
 		cert_dir=renewed/issued
 		revoke "$@"
 		;;
-	renew)
-		verify_working_env
-		[ -z "$alias_days" ] || \
-			export EASYRSA_CERT_EXPIRE="$alias_days"
-		renew "$@"
-		;;
 	import-req)
 		verify_working_env
 		import_req "$@"
@@ -5927,7 +5913,7 @@ case "$cmd" in
 		verify_working_env
 		show_host "$@"
 		;;
-	show-expire|show-revoke|show-renew)
+	renew|show-expire|show-revoke|show-renew)
 		verify_working_env
 
 		# easyrsa-tools.lib is required
@@ -5936,36 +5922,61 @@ case "$cmd" in
 			# shellcheck disable=SC1090 # can't follow non-constant..
 			. "$EASYRSA_TOOLS_LIB" || \
 				die "Source failed: $EASYRSA_TOOLS_LIB"
-			unset -v EASYRSA_TOOLS_CALLER
-		else
-			user_error "Missing: easyrsa-tools.lib
+			unset -v EASYRSA_TOOLS_CALLER tools_error
 
-Use of Status Reports requires Easy-RSA tools library, source:
+			verbose "EASYRSA_TOOLS_LIB: $EASYRSA_TOOLS_LIB"
+			verbose "EASYRSA_TOOLS_VERSION: $EASYRSA_TOOLS_VERSION"
+
+			# Verify tools version
+			if [ "$EASYRSA_TOOLS_VERSION" -lt 321 ]; then
+				warn "\
+EasyRSA Tools version is out of date:
+* EASYRSA_TOOLS_VERSION: $EASYRSA_TOOLS_VERSION"
+			fi
+		else
+			tools_error="Missing: easyrsa-tools.lib
+
+Use of command '$cmd' requires Easy-RSA tools library, source:
 * https://github.com/OpenVPN/easy-rsa/dev/easyrsa-tools.lib
 
 Place a copy of easyrsa-tools.lib in a standard system location."
 		fi
 
-		# Verify tools version
-		if [ "$EASYRSA_TOOLS_VERSION" = 1.0.1 ]; then
-			verbose "EASYRSA_TOOLS_VERSION: $EASYRSA_TOOLS_VERSION"
-		else
-			warn "\
-EasyRSA Tools version is out of date:
-* EASYRSA_TOOLS_VERSION: $EASYRSA_TOOLS_VERSION"
-		fi
-
 		case "$cmd" in
+			renew)
+				if [ "$tools_error" ]; then
+					user_error "$tools_error
+
+A certificate can be renewed without EasyRSA Tools. Expire the certificate
+using command 'expire' and sign the original request with 'sign-req'."
+				else
+					[ -z "$alias_days" ] || \
+						export EASYRSA_CERT_EXPIRE="$alias_days"
+					renew "$@"
+				fi
+				;;
 			show-expire)
-				[ -z "$alias_days" ] || \
-					export EASYRSA_PRE_EXPIRY_WINDOW="$alias_days"
-				status expire "$@"
+				if [ "$tools_error" ]; then
+					user_error "$tools_error"
+				else
+					[ -z "$alias_days" ] || \
+						export EASYRSA_PRE_EXPIRY_WINDOW="$alias_days"
+					status expire "$@"
+				fi
 				;;
 			show-revoke)
-				status revoke "$@"
+				if [ "$tools_error" ]; then
+					user_error "$tools_error"
+				else
+					status revoke "$@"
+				fi
 				;;
 			show-renew)
-				status renew "$@"
+				if [ "$tools_error" ]; then
+					user_error "$tools_error"
+				else
+					status renew "$@"
+				fi
 				;;
 			*)
 				die "Unknown command: '$cmd'"
