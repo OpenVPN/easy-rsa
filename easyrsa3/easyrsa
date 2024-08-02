@@ -1972,24 +1972,36 @@ Conflicting certificate exists at:
 
 	# Check algo and curve
 	case "$EASYRSA_ALGO" in
-		rsa)
-			# Silently use ec
+		rsa|ec)
+			# Silently use ec instead of rsa
 			export EASYRSA_ALGO=ec
 			# Selectively set --curve=secp384r1
 			set_var EASYRSA_CURVE secp384r1
-			;;
-		ec)
-			: # ok
+
+			# temp-file for params-file
+			selfsign_params_file=""
+			easyrsa_mktemp selfsign_params_file || \
+				die "self_sign - easyrsa_mktemp selfsign_params_file"
+
+			# params-file
+			"$EASYRSA_OPENSSL" ecparam \
+				-name "$EASYRSA_CURVE" \
+				-out "$selfsign_params_file" || \
+					die "self_sign - params-file failed"
+
+			newkey_params="$EASYRSA_ALGO":"$selfsign_params_file"
 			;;
 		ed)
-			user_error "self-sign does not support ED Curves."
+			# Selectively set --curve=ed25519
+			set_var EASYRSA_CURVE ed25519
+			newkey_params="$EASYRSA_CURVE"
 			;;
 		*)
 			user_error "Unrecognised algorithm: '$EASYRSA_ALGO'"
 	esac
 
 	verbose "\
-self-sign: Use ALGO/CURVE to $EASYRSA_ALGO/$EASYRSA_CURVE"
+self-sign: Use ALGO:'$EASYRSA_ALGO' / CURVE:'$EASYRSA_CURVE'"
 
 	# Assign tmp-file for config
 	adjusted_ssl_cnf_tmp=""
@@ -2041,17 +2053,6 @@ self-sign: Use ALGO/CURVE to $EASYRSA_ALGO/$EASYRSA_CURVE"
 	# Use this new SSL config for the rest of this function
 	EASYRSA_SSL_CONF="$adjusted_ssl_cnf_tmp"
 
-	# temp-file for params-file
-	selfsign_params_file=""
-	easyrsa_mktemp selfsign_params_file || \
-		die "self_sign - easyrsa_mktemp selfsign_params_file"
-
-	# params-file
-	"$EASYRSA_OPENSSL" ecparam \
-		-name "$EASYRSA_CURVE" \
-		-out "$selfsign_params_file" || \
-			die "self_sign - params-file failed"
-
 	# Create temp-files for output
 	tmp_key_out=""
 	easyrsa_mktemp tmp_key_out || \
@@ -2063,7 +2064,7 @@ self-sign: Use ALGO/CURVE to $EASYRSA_ALGO/$EASYRSA_CURVE"
 
 	# create self-signed key pair
 	easyrsa_openssl req -x509 -utf8 -sha256 -text \
-		-newkey "$EASYRSA_ALGO":"$selfsign_params_file" \
+		-newkey "$newkey_params" \
 		-keyout "$tmp_key_out" \
 		-out "$tmp_crt_out" \
 		-subj "/CN=$file_name_base" \
@@ -5802,6 +5803,9 @@ case "$cmd" in
 		[ -z "$alias_days" ] || \
 			export EASYRSA_CERT_EXPIRE="$alias_days"
 		self_sign client "$@"
+		;;
+	self*)
+		user_error "Self-sign syntax example: 'self-sign-server foo'"
 		;;
 	gen-dh)
 		verify_working_env
