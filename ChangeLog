@@ -2,6 +2,7 @@ Easy-RSA 3 ChangeLog
 
 3.2.1 (TBD)
 
+   * self-sign: Allow Edwards Curve based keys (81b749b) (#1197)
    * Re-enable command 'renew' (version 2): Requires EasyRSA Tools (30fe311) (#1195)
    * bug-fix: revoke: Pass the correct certificate location (24d5514)
    * vars.example: Add flags for auto-SAN and X509 critical attribute (a41dfcc)
