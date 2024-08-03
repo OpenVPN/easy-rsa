@@ -3439,6 +3439,7 @@ It is now possible to sign a new certificate for '$file_name_base'"
 # gen-crl backend
 gen_crl() {
 	out_file="$EASYRSA_PKI/crl.pem"
+	out_der="$EASYRSA_PKI/crl.der"
 
 	out_file_tmp=""
 	easyrsa_mktemp out_file_tmp || \
@@ -3461,7 +3462,19 @@ gen_crl() {
 		die "Failed to move temp CRL file."
 	fi
 
+	# Copy to DER - As published by OpenSSL
+	if "$EASYRSA_OPENSSL" crl -in "$out_file" -out "$out_der" \
+		 -outform DER
+	then
+		crl_der_note="An updated CRL DER copy has been created:
+* $out_der"
+	else
+		crl_der_note="Failed to create CRL DER copy!"
+	fi
+
 	notice "\
+$crl_der_note
+
 An updated CRL has been created:
 * $out_file"
 
