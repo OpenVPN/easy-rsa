@@ -5715,8 +5715,7 @@ case "$cmd" in
 				: # ok
 				;;
 			inline)
-				unset -v EASYRSA_VERBOSE
-				EASYRSA_SILENT=1
+				: # ok
 				;;
 			self-sign-*)
 				: # ok
