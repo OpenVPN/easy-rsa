@@ -5859,7 +5859,7 @@ case "$cmd" in
 		;;
 	inline)
 		verify_working_env
-		inline_creds "$@" || \
+		inline_file "$@" || \
 			easyrsa_exit_with_error=1
 		;;
 	export-p12)
