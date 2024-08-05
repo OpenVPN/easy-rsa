@@ -2784,6 +2784,9 @@ Signing failed (openssl output above may have more detail)"
 Certificate created at:
 * $crt_out"
 
+	# inline file
+	inline_file "$file_name_base"
+
 	return 0
 } # => sign_req()
 
@@ -2934,17 +2937,6 @@ Failed to sign '$name' - \
 See error messages above for details."
 	fi
 	verbose "build_full: END sign_req"
-
-	# inline it
-	if inline_creds "$name" > "$inline_out"; then
-		notice "\
-Inline file created:
-* $inline_out"
-	else
-		warn "\
-INCOMPLETE Inline file created:
-* $inline_out"
-	fi
 
 	return 0
 } # => build_full()
