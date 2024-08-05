@@ -2949,6 +2949,98 @@ INCOMPLETE Inline file created:
 	return 0
 } # => build_full()
 
+# Generate inline file V2
+inline_file() {
+	[ "$1" ] || die "inline_file - Missing file_name_base"
+
+	# Source files
+	crt_source="${EASYRSA_PKI}/issued/${1}.crt"
+	key_source="${EASYRSA_PKI}/private/${1}.key"
+	ca_source="${EASYRSA_PKI}/ca.crt"
+
+	# output
+	inline_out="${EASYRSA_PKI}/inline/${1}.inline"
+	easyrsa_mkdir "${EASYRSA_PKI}/inline"
+	inline_incomplete=
+
+	# Generate fingerprint
+	crt_fingerprint="$(
+		"$EASYRSA_OPENSSL" x509 -in "$crt_source" \
+			-noout -sha256 -fingerprint
+		)" || die "inline_file - Failed -fingerprint"
+	# strip prefix
+	crt_fingerprint="${crt_fingerprint#*=}"
+
+	# Generate Inline data
+	# Certificate
+	if [ -f "$crt_source" ]; then
+		crt_data="\
+<cert>
+$(cat "$crt_source")
+</cert>"
+	else
+		inline_incomplete=1
+		crt_data="\
+<cert>
+* Paste your user certificate here *
+</cert>"
+	fi
+
+	# Private key
+	if [ -e "$key_source" ]; then
+		key_data="\
+<key>
+$(cat "$key_source")
+</key>"
+	else
+		inline_incomplete=1
+		key_data="\
+<key>
+* Paste your private key here *
+</key>"
+	fi
+
+	# CA certificate
+	if [ -f "$ca_source" ]; then
+		ca_data="\
+<ca>
+$(cat "$ca_source")
+</ca>"
+	else
+		inline_incomplete=1
+		ca_data="\
+<ca>
+* Paste your CA certificate here *
+</ca>"
+	fi
+
+	# Print data
+	print "\
+# Easy-RSA Inline file
+# Name: ${1}
+# SHA256 fingerprint:
+# $crt_fingerprint
+
+$crt_data
+
+$key_data
+
+$ca_data
+" > "$inline_out"
+
+	if [ "$inline_incomplete" ]; then
+		warn "\
+INCOMPLETE Inline file created:
+* $inline_out"
+	else
+		notice "\
+Inline file created:
+* $inline_out"
+	fi
+
+	return 0
+} # => inline_file()
+
 # Print inline data for file_name_base
 inline_creds() {
 	[ "$1" ] || die "inline_creds - Missing file_name_base"
