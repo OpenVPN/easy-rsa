@@ -3334,7 +3334,7 @@ Run easyrsa without commands for usage and command help."
 	easyrsa_mkdir "$EASYRSA_PKI"/expired
 
 	# Do not over write existing cert
-	if [ -e "$crt_out" ]; then
+	if [ -f "$crt_out" ]; then
 		user_error "\
 Existing file must be revoked:
 * $crt_out"
