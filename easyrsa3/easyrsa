@@ -2865,25 +2865,13 @@ file already exists. Aborting build to avoid overwriting this file.
 If you wish to continue, please use a different name.
 Conflicting file found at:
 *"
-	[ -e "$req_out" ] && \
+	[ -f "$req_out" ] && \
 		user_error "Request $err_exists $req_out"
-	[ -e "$key_out" ] && \
+	[ -f "$key_out" ] && \
 		user_error "Key $err_exists $key_out"
-	[ -e "$crt_out" ] && \
+	[ -f "$crt_out" ] && \
 		user_error "Certificate $err_exists $crt_out"
 	unset -v err_exists
-
-	# Make inline directory
-	easyrsa_mkdir "$EASYRSA_PKI"/inline
-
-	# Confirm over write inline file
-	inline_out="$EASYRSA_PKI/inline/$name.inline"
-	[ -e "$inline_out" ] && \
-		confirm "Confirm OVER-WRITE existing inline file ? " y "\
-Warning!
-
-An inline file for name '$name' already exists:
-* $inline_out"
 
 	# create request
 	verbose "build_full: BEGIN gen_req"
