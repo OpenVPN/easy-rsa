@@ -2381,7 +2381,7 @@ Expected to find the request at:
 * $req_in"
 
 	# Certificate file must NOT exist
-	[ ! -e "$crt_out" ] || user_error "\
+	[ -f "$crt_out" ] && user_error "\
 Cannot sign this request for '$file_name_base'.
 Conflicting certificate exists at:
 * $crt_out"
