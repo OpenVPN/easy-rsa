@@ -2098,7 +2098,7 @@ gen_dh() {
 	out_file="$EASYRSA_PKI/dh.pem"
 
 	# check to see if we already have a dh parameters file
-	if [ -e "$out_file" ]; then
+	if [ -f "$out_file" ]; then
 		if [ "$EASYRSA_BATCH" ]; then
 			# if batch is enabled, die
 			user_error "\
@@ -2119,14 +2119,12 @@ at: $out_file"
 		die "gen_dh - easyrsa_mktemp tmp_dh_file"
 
 	# Generate dh.pem
-		easyrsa_openssl dhparam -out "$tmp_dh_file" \
-			"$EASYRSA_KEY_SIZE" || \
-				die "Failed to generate DH params"
+	easyrsa_openssl dhparam -out "$tmp_dh_file" \
+		"$EASYRSA_KEY_SIZE" || die "Failed to generate DH params"
 
 	# Validate dh.pem
-		easyrsa_openssl dhparam -in "$tmp_dh_file" \
-			-check -noout || \
-				die "Failed to validate DH params"
+	easyrsa_openssl dhparam -in "$tmp_dh_file" \
+		-check -noout || die "Failed to validate DH params"
 
 	# Move temp-files to target-files
 	mv "$tmp_dh_file" "$out_file" || mv_temp_error=1
