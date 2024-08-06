@@ -3978,7 +3978,7 @@ Run easyrsa without commands for usage help."
 	esac
 
 	# Verify file exists and is of the correct type
-	[ -e "$in_file" ] || user_error "\
+	[ -f "$in_file" ] || user_error "\
 No such '$type' type file with a <file_name_base> of '$name'.
 Expected to find this file at:
 * $in_file"
@@ -4017,7 +4017,7 @@ show_ca() {
 	format="x509"
 
 	# Verify file exists and is of the correct type
-	[ -e "$in_file" ] || user_error "\
+	[ -f "$in_file" ] || user_error "\
 No such $type file with a basename of '$name' is present.
 Expected to find this file at:
 $in_file"
