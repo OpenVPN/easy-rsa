@@ -1955,13 +1955,13 @@ Option conflict --req-cn:
 	inline_out="$EASYRSA_PKI/inline/${file_name_base}.inline"
 
 	# key file must NOT exist
-	[ ! -e "$key_out" ] || user_error "\
+	[ -f "$key_out" ] && user_error "\
 Cannot self-sign this request for '$file_name_base'.
 Conflicting key exists at:
 * $key_out"
 
 	# Certificate file must NOT exist
-	[ ! -e "$crt_out" ] || user_error "\
+	[ -f "$crt_out" ] && user_error "\
 Cannot self-sign this request for '$file_name_base'.
 Conflicting certificate exists at:
 * $crt_out"
