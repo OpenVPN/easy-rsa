@@ -3878,7 +3878,7 @@ Run easyrsa without commands for usage and command help."
 	crt_in="$in_dir/issued/$file_name_base.crt"
 
 	# Cert file must exist
-	[ -e "$crt_in" ] || user_error "\
+	[ -f "$crt_in" ] || user_error "\
 No certificate found for the input:
 * '$crt_in'"
 
