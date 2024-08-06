@@ -1904,9 +1904,11 @@ self_sign() {
 	case "$1" in
 		server)
 			selfsign_eku=serverAuth
+			crt_type=self-signed-server
 			;;
 		client)
 			selfsign_eku=clientAuth
+			crt_type=self-signed-client
 			;;
 		*)
 			die "self_sign: Unknown EKU '$1'"
@@ -2083,15 +2085,6 @@ self-sign: Use ALGO:'$EASYRSA_ALGO' / CURVE:'$EASYRSA_CURVE'"
 		die "Failed to move new key/cert files."
 	fi
 
-	# Generate fingerprint for inline file
-	crt_fingerprint="$(
-		"$EASYRSA_OPENSSL" x509 -in "$crt_out" -noout \
-			-sha256 -fingerprint
-	)" || die "self_sign - Failed -fingerprint"
-
-	# strip fingerprint prefix
-	crt_fingerprint="${crt_fingerprint#*=}"
-
 	# User info
 	notice "\
 Self-signed '$EASYRSA_ALGO/$EASYRSA_CURVE' \
@@ -2103,15 +2096,7 @@ SHA256 fingerprint (See inline file below):
 * $crt_fingerprint"
 
 	# inline key/cert/fingerprint
-	if inline_creds "$file_name_base" > "$inline_out"; then
-		notice "\
-Inline file created:
-* $inline_out"
-	else
-		warn "\
-INCOMPLETE Inline file created:
-* $inline_out"
-	fi
+	inline_file "$file_name_base"
 } # => self_sign()
 
 # gen-dh backend:
@@ -4078,11 +4063,11 @@ ssl_cert_x509v3_eku() {
 	[ "$1" ] || die "ssl_cert_x509v3_eku - Missing input"
 
 	# check input file name
-	if [ -e "$1" ]; then
+	if [ -f "$1" ]; then
 		__crt="$1"
 	else
 		__crt="${EASYRSA_PKI}/issued/${1}.crt"
-		[ -e "$__crt" ] || \
+		[ -f "$__crt" ] || \
 			die "ssl_cert_x509v3_eku - Missing cert '$__crt'"
 	fi
 
@@ -4136,6 +4121,13 @@ ssl_cert_x509v3_eku() {
 		*)
 			__type="'$__eku'"
 	esac
+
+	# Check for self-sign
+	if "$EASYRSA_OPENSSL" x509 -in "$__crt" -noout -text | \
+		grep -q 'CA:TRUE'
+	then
+		__type="self-signed-$__type"
+	fi
 
 	# Set variable to return
 	if [ "$__var" ]; then
