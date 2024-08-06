@@ -3175,12 +3175,12 @@ Cannot revoke this certificate, a conflicting file exists.
 
 	# Check for key and request files
 	unset -v if_exist_key_in if_exist_req_in
-	if [ "$move_req_and_key" ] && [ -e "$key_in" ]; then
+	if [ "$move_req_and_key" ] && [ -f "$key_in" ]; then
 		if_exist_key_in="
 * $key_in"
 	fi
 
-	if [ "$move_req_and_key" ] && [ -e "$req_in" ]; then
+	if [ "$move_req_and_key" ] && [ -f "$req_in" ]; then
 		if_exist_req_in="
 * $req_in"
 	fi
@@ -3589,7 +3589,7 @@ but the CA Certificate will not be included."
 
 	# Check for key, if required
 	if [ "$want_key" ]; then
-		if [ -e "$key_in" ]; then
+		if [ -f "$key_in" ]; then
 			: #ok
 		else
 			case "$pkcs_type" in
@@ -3624,7 +3624,7 @@ Missing Private Key, expected at:
 	fi
 
 	# Check for certificate, if required
-	if [ -e "$crt_in" ]; then
+	if [ -f "$crt_in" ]; then
 		: # ok
 	else
 		case "$pkcs_type" in
