@@ -2955,14 +2955,6 @@ inline_file() {
 	easyrsa_mkdir "${EASYRSA_PKI}/inline"
 	inline_incomplete=
 
-	# Generate fingerprint
-	crt_fingerprint="$(
-		"$EASYRSA_OPENSSL" x509 -in "$crt_source" \
-			-noout -sha256 -fingerprint
-		)" || die "inline_file - Failed -fingerprint"
-	# strip prefix
-	crt_fingerprint="${crt_fingerprint#*=}"
-
 	# Generate Inline data
 	# Certificate
 	if [ -f "$crt_source" ]; then
@@ -2970,12 +2962,37 @@ inline_file() {
 <cert>
 $(cat "$crt_source")
 </cert>"
+
+		# Generate fingerprint
+		crt_fingerprint="$(
+			"$EASYRSA_OPENSSL" x509 -in "$crt_source" \
+				-noout -sha256 -fingerprint
+			)" || die "inline_file - Failed -fingerprint"
+		# strip prefix
+		crt_fingerprint="${crt_fingerprint#*=}"
+
+		# Certificate type
+		if [ -z "$crt_type" ]; then
+			ssl_cert_x509v3_eku "$crt_source" crt_type || \
+				die "inline_file: Failed to set crt_type"
+		fi
+
+		# commonName
+		crt_CN="$(
+			display_dn x509 "$crt_source" | grep 'commonName'
+		)" || die "inline_file: Failed to set crt_CN"
+		# strip prefix
+		crt_CN="${crt_CN#*= }"
 	else
 		inline_incomplete=1
 		crt_data="\
 <cert>
 * Paste your user certificate here *
 </cert>"
+
+		crt_fingerprint=unknown
+		crt_type=unknown
+		crt_CN=unknown
 	fi
 
 	# Private key
@@ -3009,7 +3026,8 @@ $(cat "$ca_source")
 	# Print data
 	print "\
 # Easy-RSA Inline file
-# Name: ${1}
+# Certificate type: $crt_type
+# commonName: $crt_CN
 # SHA256 fingerprint:
 # $crt_fingerprint
 
