@@ -853,7 +853,7 @@ easyrsa_mktemp - Temporary session undefined (--tmp-dir)"
 	# Create shotfile
 	for ext_shot in x y z; do
 		shotfile="${tmp_fname}.${ext_shot}"
-		if [ -e "$shotfile" ]; then
+		if [ -f "$shotfile" ]; then
 			verbose "\
 easyrsa_mktemp: shotfile EXISTS: $shotfile"
 			continue
@@ -872,7 +872,7 @@ easyrsa_mktemp: create shotfile failed (1) $1"
 				[ "$EASYRSA_MAX_TEMP" -gt "$ext_try" ] || print "\
 Max temp-file limit $ext_try, hit for: $1" >> "$easyrsa_err_log"
 
-				if [ -e "$want_tmp_file" ]; then
+				if [ -f "$want_tmp_file" ]; then
 					verbose "\
 easyrsa_mktemp: temp-file EXISTS: $want_tmp_file"
 					continue
