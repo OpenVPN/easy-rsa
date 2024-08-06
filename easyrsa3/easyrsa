@@ -3794,7 +3794,7 @@ Missing argument: no name/file supplied."
 		unset -v cipher
 	fi
 
-	[ -e "$file" ] || user_error "\
+	[ -f "$file" ] || user_error "\
 Missing private key: expected to find the private key file at:
 * $file"
 
