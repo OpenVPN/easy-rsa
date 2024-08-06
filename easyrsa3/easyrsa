@@ -1467,17 +1467,17 @@ locate_support_files() {
 		# EOL
 	do
 		# Find x509-types
-		if [ -e "${area}/${x509_types_dir}" ]; then
+		if [ -d "${area}/${x509_types_dir}" ]; then
 			set_var EASYRSA_EXT_DIR "${area}/${x509_types_dir}"
 		fi
 
 		# Find openssl-easyrsa.cnf
-		if [ -e "${area}/${ssl_cnf_file}" ]; then
+		if [ -f "${area}/${ssl_cnf_file}" ]; then
 			set_var EASYRSA_SSL_CONF "${area}/${ssl_cnf_file}"
 		fi
 
 		# Find easyrsa-tools.lib
-		if [ -e "${area}/${easyrsa_tools}" ]; then
+		if [ -f "${area}/${easyrsa_tools}" ]; then
 			set_var EASYRSA_TOOLS_LIB "${area}/${easyrsa_tools}"
 		fi
 	done
