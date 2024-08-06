@@ -606,7 +606,7 @@ expire_status() {
 
 	# The certificate for CN should exist but may not
 	unset -v expire_status_cert_exists
-	if [ -e "$cert_issued" ]; then
+	if [ -f "$cert_issued" ]; then
 
 		verbose "expire_status: cert exists"
 		expire_status_cert_exists=1
@@ -829,13 +829,13 @@ renew_status() {
 		cert_file_in cert_is_issued cert_is_serial renew_is_old
 
 	# Find renewed/issued/CN
-	if [ -e "$cert_r_issued" ]; then
+	if [ -f "$cert_r_issued" ]; then
 		cert_file_in="$cert_r_issued"
 		cert_is_issued=1
 	fi
 
 	# Find renewed/cert_by_serial/SN
-	if [ -e "$cert_r_by_sno" ]; then
+	if [ -f "$cert_r_by_sno" ]; then
 		cert_file_in="$cert_r_by_sno"
 		cert_is_serial=1
 		renew_is_old=1
@@ -969,7 +969,7 @@ Missing certificate file:
 	fi
 
 	# Verify request
-	if [ -e "$req_in" ]; then
+	if [ -f "$req_in" ]; then
 		verify_file req "$req_in" || user_error "\
 Input file is not a valid request:
 * $req_in"
@@ -1010,7 +1010,7 @@ Missing request file:
 	deny_msg="\
 Cannot renew this certificate, a conflicting file exists:
 *"
-	[ -e "$crt_out" ] && \
+	[ -f "$crt_out" ] && \
 		user_error "$deny_msg certificate: $crt_out"
 	unset -v deny_msg
 
@@ -1179,14 +1179,14 @@ renew_move() {
 	done
 
 	# remove credentials file
-	if [ -e "$creds_in" ]; then
+	if [ -f "$creds_in" ]; then
 		rm "$creds_in" || warn "\
 Failed to remove credentials file:
 * $creds_in"
 	fi
 
 	# remove inline file
-	if [ -e "$inline_in" ]; then
+	if [ -f "$inline_in" ]; then
 		rm "$inline_in" || warn "\
 Failed to remove inline file:
 * $inline_in"
