@@ -5896,7 +5896,7 @@ case "$cmd" in
 		verify_working_env
 
 		# easyrsa-tools.lib is required
-		if [ -e "$EASYRSA_TOOLS_LIB" ]; then
+		if [ -f "$EASYRSA_TOOLS_LIB" ]; then
 			export EASYRSA_TOOLS_CALLER=1
 			# shellcheck disable=SC1090 # can't follow non-constant..
 			. "$EASYRSA_TOOLS_LIB" || \
