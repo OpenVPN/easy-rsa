@@ -1380,7 +1380,7 @@ init_pki() {
 	esac
 
 	# If EASYRSA_PKI exists, confirm before deletion
-	if [ -e "$EASYRSA_PKI" ]; then
+	if [ -d "$EASYRSA_PKI" ]; then
 		confirm "Confirm removal: " "yes" "
 WARNING!!!
 
@@ -2376,7 +2376,7 @@ must also be specified."
 Invalid certificate type: '$crt_type'"
 
 	# Request file must exist
-	[ -e "$req_in" ] || user_error "\
+	[ -f "$req_in" ] || user_error "\
 No request found for the input: '$file_name_base'
 Expected to find the request at:
 * $req_in"
