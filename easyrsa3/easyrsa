@@ -204,10 +204,7 @@ Usage: easyrsa [ OPTIONS.. ] <COMMAND> <TARGET> [ cmd-opts.. ]"
 		text="
 * inline <file_name_base>
 
-      Print inline data for <file_name_base>, with key and CA.
-
-  * NOTE: To create an inline-file the output must be redirected.
-          If the output is incomplete then an error is returned."
+      Create inline file for <file_name_base>."
 	;;
 	revoke*)
 		text="
