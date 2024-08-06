@@ -947,6 +947,7 @@ cleanup() {
 		if [ "$EASYRSA_KEEP_TEMP" ]
 		then
 			# skip on black-listed directory names, with a warning
+			# Use '-e' for directory or file name
 			if [ -e "$EASYRSA_TEMP_DIR/$EASYRSA_KEEP_TEMP" ]
 			then
 				warn "\
