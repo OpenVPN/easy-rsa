@@ -4324,7 +4324,7 @@ select_vars() {
 
 		# User specified PKI; if vars exists, use it ONLY
 		if [ "$EASYRSA_PKI" ]; then
-			if [ -e "$EASYRSA_PKI/vars" ]; then
+			if [ -f "$EASYRSA_PKI/vars" ]; then
 				verbose "select_vars: source EASYRSA_PKI/vars"
 				set_var EASYRSA_VARS_FILE "$EASYRSA_PKI/vars"
 			fi
@@ -4332,14 +4332,14 @@ select_vars() {
 
 		# User specified EASYRSA; if vars exists, use it ONLY
 		if [ "$EASYRSA" ]; then
-			if [ -e "$EASYRSA/vars" ]; then
+			if [ -f "$EASYRSA/vars" ]; then
 				verbose "select_vars: EASYRSA/vars"
 				set_var EASYRSA_VARS_FILE "$EASYRSA/vars"
 			fi
 		fi
 
 		# Default PKI; if vars exists, use it ONLY
-		if [ -e "$PWD/pki/vars" ] && \
+		if [ -f "$PWD/pki/vars" ] && \
 			[ -z "$EASYRSA_PKI" ] && \
 			[ -z "$EASYRSA" ]
 		then
@@ -4363,7 +4363,7 @@ select_vars() {
 		fi
 
 		# Default working dir; if vars exists, use it ONLY
-		if [ -e "$PWD/vars" ]; then
+		if [ -f "$PWD/vars" ]; then
 			verbose "select_vars: PWD/vars"
 			set_var EASYRSA_VARS_FILE "$PWD/vars"
 		fi
@@ -4387,7 +4387,7 @@ Missing vars file:
 * $target_file"
 
 	# 'vars' now MUST exist
-	[ -e "$target_file" ] || user_error "\
+	[ -f "$target_file" ] || user_error "\
 Missing vars file:
 * $target_file"
 
