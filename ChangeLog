@@ -2,6 +2,7 @@ Easy-RSA 3 ChangeLog
 
 3.2.1 (TBD)
 
+   * inline: Move auto-inline from build_full() to sign_req() (823f70f) (#1201)
    * gen-crl: Create additional CRL in DER format (69df0d8) (#1198)
    * self-sign: Allow Edwards Curve based keys (81b749b) (#1197)
    * Re-enable command 'renew' (version 2): Requires EasyRSA Tools (30fe311) (#1195)
