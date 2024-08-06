@@ -2961,7 +2961,7 @@ $(cat "$crt_source")
 	fi
 
 	# Private key
-	if [ -e "$key_source" ]; then
+	if [ -f "$key_source" ]; then
 		key_data="\
 <key>
 $(cat "$key_source")
