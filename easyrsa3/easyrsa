@@ -3255,17 +3255,14 @@ certificate from being accepted."
 # moves revoked certificates to the 'revoked' folder
 # allows reissuing certificates with the same name
 revoke_move() {
-	parent_dir="$EASYRSA_PKI"/revoked
-	easyrsa_mkdir "$parent_dir"
-	for i in reqs_by_serial certs_by_serial private_by_serial
-	do
-		easyrsa_mkdir "${parent_dir}/$i"
-	done
-	parent_dir=
+	easyrsa_mkdir "$EASYRSA_PKI"/revoked
+	easyrsa_mkdir "$EASYRSA_PKI"/revoked/reqs_by_serial
+	easyrsa_mkdir "$EASYRSA_PKI"/revoked/certs_by_serial
+	easyrsa_mkdir "$EASYRSA_PKI"/revoked/private_by_serial
 
 	# only move the req when revoking an issued cert
 	# and if we have the req
-	if [ "$move_req_and_key" ] && [ -e "$req_in" ]; then
+	if [ "$move_req_and_key" ] && [ -f "$req_in" ]; then
 		mv "$req_in" "$req_out" || warn "Failed to move: $req_in"
 	fi
 
@@ -3274,19 +3271,19 @@ revoke_move() {
 
 	# only move the key when revoking an issued cert
 	# and if we have the key
-	if [ "$move_req_and_key" ] && [ -e "$key_in" ]; then
+	if [ "$move_req_and_key" ] && [ -f "$key_in" ]; then
 		mv "$key_in" "$key_out" || warn "Failed to move: $key_in"
 	fi
 
 	# remove any pkcs files
 	for pkcs in p12 p7b p8 p1; do
-		if [ -e "$in_dir/issued/$file_name_base.$pkcs" ]; then
+		if [ -f "$in_dir/issued/$file_name_base.$pkcs" ]; then
 			# issued
 			rm "$in_dir/issued/$file_name_base.$pkcs" ||
 				warn "Failed to remove: $file_name_base.$pkcs"
 		fi
 
-		if [ -e "$in_dir/private/$file_name_base.$pkcs" ]; then
+		if [ -f "$in_dir/private/$file_name_base.$pkcs" ]; then
 			# private
 			rm "$in_dir/private/$file_name_base.$pkcs" ||
 				warn "Failed to remove: $file_name_base.$pkcs"
@@ -3294,14 +3291,14 @@ revoke_move() {
 	done
 
 	# remove credentials file
-	if [ -e "$creds_in" ]; then
+	if [ -f "$creds_in" ]; then
 		rm "$creds_in" || warn "\
 Failed to remove credentials file:
 * $creds_in"
 	fi
 
 	# remove inline file
-	if [ -e "$inline_in" ]; then
+	if [ -f "$inline_in" ]; then
 		rm "$inline_in" || warn "\
 Failed to remove inline file:
 * $inline_in"
