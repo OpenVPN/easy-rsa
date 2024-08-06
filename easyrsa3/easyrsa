@@ -1608,13 +1608,10 @@ current CA. To start a new CA, run init-pki first."
 	err_msg="\
 Unable to create necessary PKI files (permissions?)"
 
-	for i in certs_by_serial \
-		revoked \
-		revoked/certs_by_serial \
-		revoked/private_by_serial
-	do
-		easyrsa_mkdir "${EASYRSA_PKI}/$i"
-	done
+	easyrsa_mkdir "${EASYRSA_PKI}"/certs_by_serial
+	easyrsa_mkdir "${EASYRSA_PKI}"/revoked
+	easyrsa_mkdir "${EASYRSA_PKI}"/revoked/certs_by_serial
+	easyrsa_mkdir "${EASYRSA_PKI}"/revoked/private_by_serial
 
 	# create necessary files:
 	printf "" > \
