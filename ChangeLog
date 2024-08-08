@@ -2,6 +2,7 @@ Easy-RSA 3 ChangeLog
 
 3.2.1 (TBD)
 
+   * Windows secure_session(): Ensure $secured_session dir is created (d99b242) (#1203)
    * Switch to '-f' for file existence (6ab98c9..a02f545) (#1201)
    * inline: Move auto-inline from build_full() to sign_req() (823f70f) (#1201)
    * gen-crl: Create additional CRL in DER format (69df0d8) (#1198)

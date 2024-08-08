@@ -786,6 +786,10 @@ secure_session() {
 
 		# atomic:
 		if mkdir "$secured_session"; then
+			# Check mkdir.exe has created the directory
+			[ -d "$secured_session" ] || \
+				die "secure_session - mkdir FAILED"
+
 			# New session requires safe-ssl conf
 			unset -v OPENSSL_CONF safe_ssl_cnf_tmp \
 				working_safe_ssl_conf working_safe_org_conf
