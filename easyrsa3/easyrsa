@@ -785,10 +785,18 @@ secure_session() {
 		secured_session="${EASYRSA_TEMP_DIR}/${session}"
 
 		# atomic:
+		# ONLY effects Windows 11 "broken" mkdir.exe
+		# The procedure now is a "poor man's" version
+		# of an atomic directory creation call.
+		# The "race condition" still exists but is minimized.
+		# What remains is equivalent to 32bit hash collision.
+		[ -d "$secured_session" ] && continue
 		if mkdir "$secured_session"; then
 			# Check mkdir.exe has created the directory
 			[ -d "$secured_session" ] || \
 				die "secure_session - mkdir FAILED"
+			[ -f "$secured_session"/temp.0.1 ] && \
+				die "secure_session - temp-file EXISTS"
 
 			# New session requires safe-ssl conf
 			unset -v OPENSSL_CONF safe_ssl_cnf_tmp \
