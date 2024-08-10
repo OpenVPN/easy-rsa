@@ -3862,83 +3862,6 @@ display_dn - input error"
 	-nameopt utf8,sep_multiline,space_eq,lname,align
 } # => display_dn()
 
-# Verify certificate against CA
-verify_cert() {
-	# pull filename base:
-	[ "$1" ] || user_error "\
-Error: didn't find a <file-name-base> as the first argument.
-Run easyrsa without commands for usage and command help."
-
-	# Assign file_name_base and dust off!
-	file_name_base="$1"
-	shift
-
-	# function opts support
-	while [ "$1" ]; do
-		case "$1" in
-			# batch flag, return status [0/1] to calling
-			# program.  Otherwise, exit 0 on completion.
-			batch) EASYRSA_BATCH=1 ;;
-			*) warn "Ignoring unknown command option: '$1'"
-		esac
-		shift
-	done
-
-	in_dir="$EASYRSA_PKI"
-	ca_crt="$in_dir/ca.crt"
-	crt_in="$in_dir/issued/$file_name_base.crt"
-
-	# Cert file must exist
-	[ -f "$crt_in" ] || user_error "\
-No certificate found for the input:
-* '$crt_in'"
-
-	# Verify file is a valid cert
-	verify_file x509 "$crt_in" || user_error "\
-Input is not a valid certificate:
-* $crt_in"
-
-	# Silent SSL or not
-	if [ "$EASYRSA_SILENT_SSL" ]; then
-		# Test SSL out
-		# openssl direct call because error is expected
-		if "$EASYRSA_OPENSSL" verify \
-			-CAfile "$ca_crt" "$crt_in" >/dev/null
-		then
-			verify_cert_ok=1
-		else
-			unset -v verify_cert_ok
-		fi
-	else
-		if "$EASYRSA_OPENSSL" verify \
-			-CAfile "$ca_crt" "$crt_in"
-		then
-			verify_cert_ok=1
-		else
-			unset -v verify_cert_ok
-		fi
-	fi
-
-	# Return cert status
-	if [ "$verify_cert_ok" ]; then
-		notice "\
-  Certificate name:    $file_name_base
-  Verification status: GOOD"
-	else
-		notice "\
-  Certificate name:    $file_name_base
-  Verification status: FAILED"
-
-		# Exit with error (batch mode)
-		if [ "$EASYRSA_BATCH" ]; then
-			# exit with error at cleanup
-			easyrsa_exit_with_error=1
-			# Return error for internal callers
-			return 1
-		fi
-	fi
-} # => verify_cert()
-
 # verify a file seems to be a valid req/X509
 verify_file() {
 	format="$1"
@@ -5903,7 +5826,7 @@ case "$cmd" in
 		verify_working_env
 		show_host "$@"
 		;;
-	renew|show-expire|show-revoke|show-renew)
+	renew|show-expire|show-revoke|show-renew|verify-cert)
 		verify_working_env
 
 		# easyrsa-tools.lib is required
@@ -5968,17 +5891,15 @@ using command 'expire' and sign the original request with 'sign-req'."
 					status renew "$@"
 				fi
 				;;
+			verify-cert)
+				# Called with --batch, this will return error
+				# when the certificate fails verification.
+				# Therefore, on error, exit with error.
+				verify_cert "$@" || easyrsa_exit_with_error=1
+				;;
 			*)
 				die "Unknown command: '$cmd'"
 		esac
-		;;
-	verify|verify-cert)
-		verify_working_env
-		# Called with --batch, this will return error
-		# when the certificate fails verification.
-		# Therefore, on error, exit with error.
-		verify_cert "$@" || \
-			easyrsa_exit_with_error=1
 		;;
 	write)
 		verify_working_env
