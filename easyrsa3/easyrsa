@@ -1291,9 +1291,7 @@ $error_msg"
 	esac
 
 	# Message
-	verbose "verify_ssl_lib():
-Using SSL:
-* $EASYRSA_OPENSSL $ssl_version"
+	verbose "verify_ssl_lib(): $ssl_version ($EASYRSA_OPENSSL)"
 } # => verify_ssl_lib()
 
 # Basic sanity-check of PKI init and complain if missing
