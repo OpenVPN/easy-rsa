@@ -1186,7 +1186,7 @@ and initialize a fresh PKI here."
 		# There is no unit test for a soft reset
 		# Do NOT remove reqs/ sub-dir, for "renew ca"
 			for i in ca.crt crl.pem \
-				issued private inline revoked renewed \
+				issued private inline revoked renewed expired \
 				serial serial.old index.txt index.txt.old \
 				index.txt.attr index.txt.attr.old \
 				ecparams certs_by_serial
