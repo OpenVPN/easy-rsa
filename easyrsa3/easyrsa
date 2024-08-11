@@ -89,7 +89,7 @@ cmd_help() {
 
 		opts="
       * hard    - Recursively delete the PKI directory (default).
-      * soft    - Keep the named PKI directory and PKI 'vars' file intact."
+      * soft    - Keep 'vars' file and CSR's of the curent PKI."
 	;;
 	build-ca)
 		text="
@@ -1160,13 +1160,19 @@ and initialize a fresh PKI here."
 		hard)
 
 			# Promote use of soft init
-			confirm "Remove current 'vars' file? " yes "\
-* SECOND WARNING!!!
+			confirm "
+  WARNING: COMPLETELY DESTROY current PKI (NOT recommended) ?
+
+    [yes/NO]: " yes "
+=======< [ ! SECOND WARNING ! STOP ! SECOND WARNING ! ] >=======
 
 * This will remove everything in your current PKI directory.
-  To keep your current settings use 'init-pki soft' instead.
-  Using 'init-pki soft' is recommended."
 
+  To keep your current settings use 'init-pki soft'.
+  To keep your current Request files use 'init-pki soft'
+
+       ** USE OF   'init-pki soft'   IS RECOMMENDED **
+"
 			# # # shellcheck disable=SC2115 # Use "${var:?}"
 			rm -rf "$EASYRSA_PKI" || \
 				die "init-pki hard reset failed."
@@ -1178,6 +1184,7 @@ and initialize a fresh PKI here."
 		;;
 		soft)
 		# There is no unit test for a soft reset
+		# Do NOT remove reqs/ sub-dir, for "renew ca"
 			for i in ca.crt crl.pem \
 				issued private inline revoked renewed \
 				serial serial.old index.txt index.txt.old \
