@@ -322,6 +322,13 @@ cert_date_to_timestamp_s: input error"
 			)"
 	then : # ok
 
+	# Darwin alternative
+	elif timestamp_s="$(
+			date -u -j -f '%Y-%m-%d %H:%M:%SZ' \
+				"$in_date" +%s 2>/dev/null
+			)"
+	then : # ok
+
 	# busybox
 	elif timestamp_s="$(
 			busybox date -D "%b %e %H:%M:%S %Y" \
