@@ -2962,9 +2962,12 @@ $(cat "$crt_source")
 	else
 		inline_incomplete=1
 		crt_data="\
-<cert>
-* Paste your user certificate here *
-</cert>"
+# When you recieve your signed certificate place it in the
+# 'pki/issued' sub-dir of your PKI and use command 'inline'
+# to rebuild this inline file with your certificate.
+# <cert>
+# * Paste your user certificate here *
+# </cert>"
 
 		crt_fingerprint=unknown
 		crt_type=unknown
@@ -2980,9 +2983,12 @@ $(cat "$key_source")
 	else
 		inline_incomplete=1
 		key_data="\
-<key>
-* Paste your private key here *
-</key>"
+# When you recieve your key place it in the
+# 'pki/private' sub-dir of your PKI and use command 'inline'
+# to rebuild this inline file with your key.
+# <key>
+# * Paste your private key here *
+# </key>"
 	fi
 
 	# CA certificate
@@ -2994,9 +3000,12 @@ $(cat "$ca_source")
 	else
 		inline_incomplete=1
 		ca_data="\
-<ca>
-* Paste your CA certificate here *
-</ca>"
+# When you recieve your CA certificate place it in the
+# 'pki' sub-dir of your PKI and use command 'inline'
+# to rebuild this inline file with your CA certificate.
+# <ca>
+# * Paste your CA certificate here *
+# </ca>"
 	fi
 
 	# Print data
