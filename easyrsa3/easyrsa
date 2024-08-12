@@ -2095,10 +2095,7 @@ self-sign: Use ALGO:'$EASYRSA_ALGO' / CURVE:'$EASYRSA_CURVE'"
 Self-signed '$EASYRSA_ALGO/$EASYRSA_CURVE' \
 key and certificate created:
 * $key_out
-* $crt_out
-
-SHA256 fingerprint (See inline file below):
-* $crt_fingerprint"
+* $crt_out"
 
 	# inline key/cert/fingerprint
 	inline_file "$file_name_base"
