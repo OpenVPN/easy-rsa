@@ -2407,6 +2407,9 @@ The certificate request file is not in a valid X509 format:
 		for i in 1 2 3 4 5; do
 			easyrsa_random 16 serial
 
+			# Require 128bit serial number
+			[ "$serial" = "${serial#00}" ] || continue
+
 			# Check for duplicate serial in CA db
 			if check_serial_unique "$serial" batch; then
 				serial_is_unique=1
