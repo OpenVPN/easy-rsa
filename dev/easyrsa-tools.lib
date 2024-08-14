@@ -473,6 +473,17 @@ cert_date_to_iso_8601: force_set_var - $2 - $out_date"
 	unset -v in_date out_date yyyy mmm  mm dd HH MM SS TZ
 } # => cert_date_to_iso_8601()
 
+# Certificate expiry
+will_cert_expire() {
+	[ -f "$1" ] || die "will_cert_expire - Missing file"
+	case "$2" in (*[!1234567890]*|0*)
+		die "will_cert_expire - Non-decimal" ;;
+	esac
+
+	"$EASYRSA_OPENSSL" x509 -in "$1" -noout -checkend "$2"
+} # => will_cert_expire()
+
+
 # SC2295: Expansion inside ${..} need to be quoted separately,
 # otherwise they match as patterns. (what-ever that means ;-)
 # Unfortunately, Windows sh.exe has an weird bug.
@@ -537,10 +548,10 @@ read_db() {
 			case "$db_status" in
 			V|E)
 				case "$target" in
-				'') expire_status ;;
+				'') expire_status_v2 "$cert_issued" ;;
 				*)
 					if [ "$target" = "$db_cn" ]; then
-						expire_status
+						expire_status_v2 "$cert_issued"
 					fi
 				esac
 			;;
@@ -598,7 +609,45 @@ read_db() {
 } # => read_db()
 
 # Expire status
+expire_status_v2() {
+	# expiry seconds
+	pre_expire_window_s="$((
+		EASYRSA_PRE_EXPIRY_WINDOW * 60*60*24
+		))"
+
+	# The certificate for CN should exist but may not
+	if [ -f "$1" ]; then
+		verbose "expire_status: cert exists"
+
+		if will_cert_expire "$1" "$pre_expire_window_s" \
+			 1>/dev/null
+		then
+			: # cert will NOT expire
+		else
+			# cert will expire
+			# ISO8601 date - OpenSSL v3 only
+			if ! iso_8601_cert_enddate "$1" cert_not_after_date \
+					2>/dev/null
+			then
+				# Standard date - OpenSSL v1
+				ssl_cert_not_after_date "$1" cert_not_after_date
+			fi
+
+			# show expiring cert details
+			printf '%s%s\n' \
+				"$db_status | Serial: $db_serial | " \
+				"$cert_not_after_date | CN: $db_cn"
+		fi
+	else
+		: # issued cert does not exist, ignore other certs
+	fi
+} # => expire_status_v2()
+
+# Expire status
 expire_status() {
+
+	die "expire_status - PROHIBITED"
+
 	unset -v expire_status_cert_exists
 	pre_expire_window_s="$((
 		EASYRSA_PRE_EXPIRY_WINDOW * 60*60*24
