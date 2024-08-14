@@ -2,6 +2,7 @@ Easy-RSA 3 ChangeLog
 
 3.2.1 (TBD)
 
+   * sign-req: Require 128bit serial number (806ee19) (#1213)
    * Move command 'verify-cert' to Tools-lib; drop 'verify' shortcut (ddbf304) (#1209)
    * Windows secure_session(): Ensure $secured_session dir is created (d99b242) (#1203)
    * Switch to '-f' for file existence (6ab98c9..a02f545) (#1201)
