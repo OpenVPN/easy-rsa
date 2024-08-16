@@ -5326,6 +5326,34 @@ CREATE_SSL_CONFIG
 	esac
 } # => create_legacy_stream()
 
+# Load easyrsa-tools.lib
+source_easyrsa_tools_lib() {
+	if [ -f "$EASYRSA_TOOLS_LIB" ]; then
+		export EASYRSA_TOOLS_CALLER=1
+		# shellcheck disable=SC1090 # can't follow non-constant..
+		. "$EASYRSA_TOOLS_LIB" || \
+			die "Source failed: $EASYRSA_TOOLS_LIB"
+		unset -v EASYRSA_TOOLS_CALLER tools_error
+
+		verbose "EASYRSA_TOOLS_LIB: $EASYRSA_TOOLS_LIB"
+		verbose "EASYRSA_TOOLS_VERSION: $EASYRSA_TOOLS_VERSION"
+
+		# Verify tools version
+		if [ "$EASYRSA_TOOLS_VERSION" -lt 321 ]; then
+			warn "\
+EasyRSA Tools version is out of date:
+* EASYRSA_TOOLS_VERSION: $EASYRSA_TOOLS_VERSION"
+		fi
+	else
+		tools_error="Missing: easyrsa-tools.lib
+
+Use of command '$cmd' requires Easy-RSA tools library, source:
+* https://github.com/OpenVPN/easy-rsa/dev/easyrsa-tools.lib
+
+Place a copy of easyrsa-tools.lib in a standard system location."
+	fi
+} # => source_easyrsa_tools_lib()
+
 # Version information
 print_version() {
 	ssl_version="$(
@@ -5839,30 +5867,7 @@ case "$cmd" in
 		verify_working_env
 
 		# easyrsa-tools.lib is required
-		if [ -f "$EASYRSA_TOOLS_LIB" ]; then
-			export EASYRSA_TOOLS_CALLER=1
-			# shellcheck disable=SC1090 # can't follow non-constant..
-			. "$EASYRSA_TOOLS_LIB" || \
-				die "Source failed: $EASYRSA_TOOLS_LIB"
-			unset -v EASYRSA_TOOLS_CALLER tools_error
-
-			verbose "EASYRSA_TOOLS_LIB: $EASYRSA_TOOLS_LIB"
-			verbose "EASYRSA_TOOLS_VERSION: $EASYRSA_TOOLS_VERSION"
-
-			# Verify tools version
-			if [ "$EASYRSA_TOOLS_VERSION" -lt 321 ]; then
-				warn "\
-EasyRSA Tools version is out of date:
-* EASYRSA_TOOLS_VERSION: $EASYRSA_TOOLS_VERSION"
-			fi
-		else
-			tools_error="Missing: easyrsa-tools.lib
-
-Use of command '$cmd' requires Easy-RSA tools library, source:
-* https://github.com/OpenVPN/easy-rsa/dev/easyrsa-tools.lib
-
-Place a copy of easyrsa-tools.lib in a standard system location."
-		fi
+		source_easyrsa_tools_lib
 
 		case "$cmd" in
 			renew)
