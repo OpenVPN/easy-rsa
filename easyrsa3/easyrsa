@@ -5387,6 +5387,7 @@ EasyRSA Tools version is out of date:
 * EASYRSA_TOOLS_VERSION: $EASYRSA_TOOLS_VERSION"
 		fi
 	else
+		verbose "Missing: easyrsa-tools.lib"
 		tools_error="Missing: easyrsa-tools.lib
 
 Use of command '$cmd' requires Easy-RSA tools library, source:
@@ -5448,7 +5449,7 @@ unset -v \
 	selfsign_eku \
 	internal_batch mv_temp_error \
 	easyrsa_exit_with_error error_info \
-	write_recursion
+	write_recursion tools_error
 
 	# Used by build-ca->cleanup to restore prompt
 	# after user interrupt when using manual password
@@ -5918,36 +5919,35 @@ case "$cmd" in
 
 A certificate can be renewed without EasyRSA Tools. Expire the certificate
 using command 'expire' and sign the original request with 'sign-req'."
-				else
-					[ -z "$alias_days" ] || \
-						export EASYRSA_CERT_EXPIRE="$alias_days"
-					renew "$@"
 				fi
+				[ -z "$alias_days" ] || \
+					export EASYRSA_CERT_EXPIRE="$alias_days"
+				renew "$@"
 				;;
 			show-expire)
 				if [ "$tools_error" ]; then
 					user_error "$tools_error"
-				else
-					[ -z "$alias_days" ] || \
-						export EASYRSA_PRE_EXPIRY_WINDOW="$alias_days"
-					status expire "$@"
 				fi
+				[ -z "$alias_days" ] || \
+					export EASYRSA_PRE_EXPIRY_WINDOW="$alias_days"
+				status expire "$@"
 				;;
 			show-revoke)
 				if [ "$tools_error" ]; then
 					user_error "$tools_error"
-				else
-					status revoke "$@"
 				fi
+				status revoke "$@"
 				;;
 			show-renew)
 				if [ "$tools_error" ]; then
 					user_error "$tools_error"
-				else
-					status renew "$@"
 				fi
+				status renew "$@"
 				;;
 			verify-cert)
+				if [ "$tools_error" ]; then
+					user_error "$tools_error"
+				fi
 				# Called with --batch, this will return error
 				# when the certificate fails verification.
 				# Therefore, on error, exit with error.
@@ -5962,6 +5962,9 @@ using command 'expire' and sign the original request with 'sign-req'."
 
 		# easyrsa-tools.lib is required
 		source_easyrsa_tools_lib
+		if [ "$tools_error" ]; then
+			user_error "$tools_error"
+		fi
 
 		case "$cmd" in
 			gen-tls-auth|gen-tls-auth-*)
