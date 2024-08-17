@@ -56,6 +56,7 @@ A list of commands is shown below:
   export-p8 <file_name_base> [ cmd-opts ]
   export-p12 <file_name_base> [ cmd-opts ]
   set-pass <file_name_base> [ cmd-opts ]
+  gen-tls-auth-key / gen-tls-crypt-key
   write <type> [ cmd-opts ]"
 
 	# collect/show dir status:
@@ -508,6 +509,17 @@ These commands require easyrsa-tools.lib to be installed:
   show-revoke <file_name_base> (Optional)
   show-renew <file_name_base> (Optional)"
 	;;
+	gen-tls*)
+		text_only=1
+		text="
+Generate TLS keys for use with OpenVPN:
+
+  gen-tls-auth-key    : Generate OpenVPN TLS-AUTH key
+  gen-tls-crypt-key   : Generate OpenVPN TLS-CRYPT key (Preferred)
+
+Only ONE TLS key is allowed to exist. (pki/private/easyrsa-tls.key)
+This TLS key will be automatically added to inline files."
+	;;
 	opts|options)
 		opt_usage
 		cleanup ok
@@ -535,7 +547,7 @@ These commands require easyrsa-tools.lib to be installed:
 			: # ok - No opts message required
 		else
 			print "
-Available command options [ cmd-opts ]:
+    Available command options [ cmd-opts ]:
 ${opts:-
       * No supported command options}"
 		fi
@@ -2090,6 +2102,9 @@ self-sign: Use ALGO:'$EASYRSA_ALGO' / CURVE:'$EASYRSA_CURVE'"
 		die "Failed to move new key/cert files."
 	fi
 
+	# inline key/cert/fingerprint
+	inline_file "$file_name_base"
+
 	# User info
 	notice "\
 Self-signed '$EASYRSA_ALGO/$EASYRSA_CURVE' \
@@ -2097,8 +2112,6 @@ key and certificate created:
 * $key_out
 * $crt_out"
 
-	# inline key/cert/fingerprint
-	inline_file "$file_name_base"
 } # => self_sign()
 
 # gen-dh backend:
@@ -2767,13 +2780,13 @@ Signing failed (openssl output above may have more detail)"
 		die "Failed to move temp certificate file."
 	fi
 
+	# inline file
+	inline_file "$file_name_base"
+
 	# Success messages
 	notice "\
 Certificate created at:
 * $crt_out"
-
-	# inline file
-	inline_file "$file_name_base"
 
 	return 0
 } # => sign_req()
@@ -2914,7 +2927,6 @@ See error messages above for details."
 	fi
 	verbose "build_full: END sign_req"
 
-	return 0
 } # => build_full()
 
 # Generate inline file V2
@@ -2925,6 +2937,7 @@ inline_file() {
 	crt_source="${EASYRSA_PKI}/issued/${1}.crt"
 	key_source="${EASYRSA_PKI}/private/${1}.key"
 	ca_source="${EASYRSA_PKI}/ca.crt"
+	tls_source="${EASYRSA_PKI}"/private/easyrsa-tls.key
 
 	# output
 	inline_out="${EASYRSA_PKI}/inline/${1}.inline"
@@ -3008,6 +3021,34 @@ $(cat "$ca_source")
 # </ca>"
 	fi
 
+	# TLS auth|crypt key
+	if [ -f "$tls_source" ]; then
+		tls_key_data="$(cat "$tls_source")"
+		case "$tls_key_data" in
+		*'TLS-AUTH'*)
+			tls_key_label=tls-auth
+		;;
+		*'TLS-CRYPT'*)
+			tls_key_label=tls-crypt
+		;;
+		*)
+			tls_key_label=
+		esac
+
+		if [ "$tls_key_label" ]; then
+			tls_data="\
+<${tls_key_label}>
+${tls_key_data}
+</${tls_key_label}>"
+		else
+			inline_incomplete=1
+			tls_data="# Easy-RSA TLS Key not recognised!"
+		fi
+	else
+		inline_incomplete=1
+		tls_data="# Easy-RSA TLS Key not found!"
+	fi
+
 	# Print data
 	print "\
 # Easy-RSA Inline file
@@ -3021,6 +3062,8 @@ $crt_data
 $key_data
 
 $ca_data
+
+$tls_data
 " > "$inline_out"
 
 	if [ "$inline_incomplete" ]; then
@@ -3033,7 +3076,6 @@ Inline file created:
 * $inline_out"
 	fi
 
-	return 0
 } # => inline_file()
 
 # revoke backend
@@ -5913,6 +5955,26 @@ using command 'expire' and sign the original request with 'sign-req'."
 				;;
 			*)
 				die "Unknown command: '$cmd'"
+		esac
+		;;
+	gen-tls-*)
+		verify_working_env
+
+		# easyrsa-tools.lib is required
+		source_easyrsa_tools_lib
+
+		case "$cmd" in
+			gen-tls-auth|gen-tls-auth-*)
+				tls_key_gen tls-auth "$@"
+			;;
+			gen-tls-crypt|gen-tls-crypt-*)
+				tls_key_gen tls-crypt "$@"
+			;;
+			gen-tls-cryptv2|gen-tls-cryptv2-*)
+				tls_key_gen tls-crypt-v2 "$@"
+			;;
+			*)
+				die "Command '$cmd' not currently implemented."
 		esac
 		;;
 	write)
