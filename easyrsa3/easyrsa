@@ -515,7 +515,7 @@ These commands require easyrsa-tools.lib to be installed:
 Generate TLS keys for use with OpenVPN:
 
   gen-tls-auth-key    : Generate OpenVPN TLS-AUTH key
-  gen-tls-crypt-key   : Generate OpenVPN TLS-CRYPT key (Preferred)
+  gen-tls-crypt-key   : Generate OpenVPN TLS-CRYPT-V1 key (Preferred)
 
 Only ONE TLS key is allowed to exist. (pki/private/easyrsa-tls.key)
 This TLS key will be automatically added to inline files."
@@ -1455,6 +1455,8 @@ and initialize a fresh PKI here."
 	# User notice
 	notice "\
 'init-pki' complete; you may now create a CA or requests.
+
+Create a TLS-AUTH|TLS-CRYPT-V1 key now: See 'help gen-tls'
 
 Your newly created PKI dir is:
 * $EASYRSA_PKI"
