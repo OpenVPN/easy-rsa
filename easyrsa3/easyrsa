@@ -3049,6 +3049,24 @@ ${tls_key_data}
 		tls_data="# Easy-RSA TLS Key not found!"
 	fi
 
+	# Only support inline files for OpenVPN server/client use
+	case "$crt_type" in
+	server)
+		key_direction="key-direction 0"
+	;;
+	client)
+		key_direction="key-direction 1"
+	;;
+	*)
+		verbose "inline: Unsupported certificate type: $crt_type"
+		return 0
+	esac
+
+	# Add --key-direction for TLS-AUTH
+	if [ "$tls_key_label" = tls-auth ]; then
+		tls_data="${tls_data}${NL}${NL}${key_direction}"
+	fi
+
 	# Print data
 	print "\
 # Easy-RSA Inline file
@@ -3066,6 +3084,7 @@ $ca_data
 $tls_data
 " > "$inline_out"
 
+	# interactive feedback
 	if [ "$inline_incomplete" ]; then
 		warn "\
 INCOMPLETE Inline file created:
@@ -3075,7 +3094,6 @@ INCOMPLETE Inline file created:
 Inline file created:
 * $inline_out"
 	fi
-
 } # => inline_file()
 
 # revoke backend
