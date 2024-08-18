@@ -3061,7 +3061,8 @@ ${tls_key_data}
 	;;
 	*)
 		verbose "inline: Unsupported certificate type: $crt_type"
-		return 0
+		tls_key_label=
+		tls_data="# No TLS Key support for cert-type: $crt_type"
 	esac
 
 	# Add --key-direction for TLS-AUTH
