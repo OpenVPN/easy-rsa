@@ -2,6 +2,9 @@ Easy-RSA 3 ChangeLog
 
 3.2.1 (TBD)
 
+   * inline: OpenVPN TLS Keys inlining for TLS-AUTH, TLS-CRYPT-V1 (6e9e4a2) (#1185)
+     Note: Command inline only writes directly to inline file not stdout.
+   * easyrsa-tools.lib: OpenVPN TLS Key gen. TLS-AUTH, TLS-CRYPT-V1 (cf0da16) (#1185)
    * easyrsa-tools.lib: expire_status_v2() (show-expire version 2) (1e43bf5) (#1214)
    * sign-req: Require 128bit serial number (806ee19) (#1213)
    * Move command 'verify-cert' to Tools-lib; drop 'verify' shortcut (ddbf304) (#1209)
