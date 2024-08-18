@@ -2,6 +2,7 @@ Easy-RSA 3 ChangeLog
 
 3.2.1 (TBD)
 
+   * easyrsa-tools.lib, show-expire: Add CA certificate to report (a36cd54) (#1215)
    * inline: OpenVPN TLS Keys inlining for TLS-AUTH, TLS-CRYPT-V1 (6e9e4a2) (#1185)
      Note: Command inline only writes directly to inline file not stdout.
    * easyrsa-tools.lib: OpenVPN TLS Key gen. TLS-AUTH, TLS-CRYPT-V1 (cf0da16) (#1185)
