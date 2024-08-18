@@ -675,6 +675,26 @@ read_db() {
 
 	done < "$db_in"
 
+	# Add CA to show-expire
+	case  "$report" in
+	expire)
+		# Extract -endate
+		ca_enddate="$(
+			"$EASYRSA_OPENSSL" x509 -in "$EASYRSA_PKI"/ca.crt \
+				-noout -enddate
+		)"
+		ca_enddate="${ca_enddate#*=}"
+
+		# Check CA for expiry
+		if ! will_cert_expire "$EASYRSA_PKI"/ca.crt \
+			"$pre_expire_window_s" 1>/dev/null
+		then
+			# Print CA expiry date
+			printf '%s%s\n' \
+				"CA certificate will expire on $ca_enddate"
+		fi
+	esac
+
 	# Check for target found/valid commonName, if given
 	if [ "$target" ]; then
 		[ "$target_found" ] || \
