@@ -11,6 +11,80 @@ fi
 # Set tools version
 export EASYRSA_TOOLS_VERSION=321
 
+# Verify OpenVPN binary
+verify_openvpn() {
+	# Try to find openvpn
+	set_var EASYRSA_OPENVPN "$(which openvpn)"
+	if [ -f "$EASYRSA_OPENVPN" ]; then
+		verbose "verify_openvpn - $EASYRSA_OPENVPN"
+	else
+		user_error "Cannot find an OpenVPN binary."
+	fi
+} # => verify_openvpn()
+
+# OpenVPN TLS Auth/Crypt Key
+tls_key_gen() {
+	case "$1" in
+		tls-auth)
+			tls_key_type=TLS-AUTH
+		;;
+		tls-crypt)
+			tls_key_type=TLS-CRYPT
+		;;
+		tls-crypt-v2)
+			print "Unavailable."
+			cleanup
+		;;
+		*)
+			die "Unknown key type: '$1'"
+	esac
+	tls_key_file="$EASYRSA_PKI/private/easyrsa-tls.key"
+
+	# Forbid overwrite
+	if [ -f "$tls_key_file" ]; then
+		tls_key_data="$(cat "$tls_key_file")"
+		case "$tls_key_data" in
+		*'TLS-AUTH'*)
+			tls_key_type=TLS-AUTH
+		;;
+		*'TLS-CRYPT'*)
+			tls_key_type=TLS-CRYPT
+		;;
+		*)
+			tls_key_type=UNKNOWN
+		esac
+
+		user_error "\
+Cannot overwrite existing $tls_key_type Key:
+* $tls_key_file
+
+If this file is changed then it MUST be redistributed to ALL servers
+AND clients, to be in effect. Do NOT change the existing file."
+	fi
+
+	verify_openvpn
+
+	tls_key_tmp=
+	easyrsa_mktemp tls_key_tmp || \
+		die "tls_key_gen - easyrsa_mktemp tls_key_tmp"
+
+	# Generate TLS Key
+	"$EASYRSA_OPENVPN" --genkey "$1" "$tls_key_tmp" || \
+		die "tls_key_gen - --genkey $tls_key_type FAIL"
+
+	# Insert type label
+	{
+		print "# Easy-RSA $tls_key_type Key"
+		cat "$tls_key_tmp"
+	} > "$tls_key_file" || \
+			die "tls_key_gen - Insert type label FAIL"
+
+	notice "\
+$tls_key_type Key generated at:
+* $tls_key_file"
+	verbose "tls_key_gen: openvpn --genkey $tls_key_type OK"
+} # => tls_key_gen()
+
 # Get certificate start date
 # shellcheck disable=2317 # Unreach - ssl_cert_not_before_date()
 ssl_cert_not_before_date() {
