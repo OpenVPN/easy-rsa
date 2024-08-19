@@ -548,15 +548,15 @@ cert_date_to_iso_8601: force_set_var - $2 - $out_date"
 } # => cert_date_to_iso_8601()
 
 # Certificate expiry
-will_cert_expire() {
-	[ -f "$1" ] || die "will_cert_expire - Missing file"
+will_cert_be_valid() {
+	[ -f "$1" ] || die "will_cert_be_valid - Missing file"
 	case "$2" in (*[!1234567890]*|0*)
-		die "will_cert_expire - Non-decimal" ;;
+		die "will_cert_be_valid - Non-decimal" ;;
 	esac
 
+	# is the cert still valid at this future date
 	"$EASYRSA_OPENSSL" x509 -in "$1" -noout -checkend "$2"
-} # => will_cert_expire()
-
+} # => will_cert_be_valid()
 
 # SC2295: Expansion inside ${..} need to be quoted separately,
 # otherwise they match as patterns. (what-ever that means ;-)
@@ -686,9 +686,11 @@ read_db() {
 		ca_enddate="${ca_enddate#*=}"
 
 		# Check CA for expiry
-		if ! will_cert_expire "$EASYRSA_PKI"/ca.crt \
+		if will_cert_be_valid "$EASYRSA_PKI"/ca.crt \
 			"$pre_expire_window_s" 1>/dev/null
 		then
+			: # cert will still be valid by expiry window
+		else
 			# Print CA expiry date
 			printf '%s%s\n' \
 				"CA certificate will expire on $ca_enddate"
@@ -713,10 +715,10 @@ expire_status_v2() {
 	if [ -f "$1" ]; then
 		verbose "expire_status: cert exists"
 
-		if will_cert_expire "$1" "$pre_expire_window_s" \
+		if will_cert_be_valid "$1" "$pre_expire_window_s" \
 			 1>/dev/null
 		then
-			: # cert will NOT expire
+			: # cert will still be valid by expiry window
 		else
 			# cert will expire
 			# ISO8601 date - OpenSSL v3 only
