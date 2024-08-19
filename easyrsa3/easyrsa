@@ -122,9 +122,10 @@ Usage: easyrsa [ OPTIONS.. ] <COMMAND> <TARGET> [ cmd-opts.. ]"
       Removes & re-initializes the PKI directory for a new PKI"
 
 		opts="
-      * hard    - Recursively delete the PKI directory (default).
-      * soft    - Keep the named PKI directory and PKI 'vars' file
-                  intact."
+      * hard    - Recursively delete the ENTIRE PKI directory (default).
+      * soft    - Keep the named PKI directory and PKI 'vars' file intact.
+                  Also keep the current Request files,
+                  to be signed by a new CA (Partial CA renewal)."
 	;;
 	self-sign*)
 		text="
@@ -1414,14 +1415,32 @@ and initialize a fresh PKI here."
 		# now remove it:
 		case "$reset" in
 		hard)
+			# Promote use of 'init-pki soft':
+			confirm "
+  WARNING: COMPLETELY DESTROY current PKI (NOT recommended) ?
+
+    [yes/NO]: " yes "\
+         ******************************************
+         * SECOND WARNING - STOP - SECOND WARNING *
+         ******************************************
+
+  To keep your current 'pki/vars' settings use 'init-pki soft'.
+  To keep your current Request files use 'init-pki soft'
+  The Requests can then be signed by a new CA (Partial CA renewal)
+
+       ** USE OF   'init-pki soft'   IS RECOMMENDED **
+"
+
+
 			# # # shellcheck disable=SC2115 # Use "${var:?}"
 			rm -rf "$EASYRSA_PKI" || \
 				die "init-pki hard reset failed."
 			;;
 		soft)
 		# There is no unit test for a soft reset
+		# Do NOT remove pki/reqs sub-dir, for "renew ca"
 			for i in ca.crt crl.pem \
-				issued private reqs inline revoked renewed \
+				issued private inline revoked renewed expired \
 				serial serial.old index.txt index.txt.old \
 				index.txt.attr index.txt.attr.old \
 				ecparams certs_by_serial
