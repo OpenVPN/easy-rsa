@@ -4630,9 +4630,9 @@ force_set_var() {
 	case "$1" in
 		*=*) user_error "force_set_var - var '$1'"
 	esac
-	# Guard unset with '|| die', just in case
+	# force unsetting $1; Guard unset with '|| die', just in case
 	unset -v "$1" || die "force_set_var - unset '$1'"
-	# Allow empty value to unset variable
+	# Allow empty value to unset variable by returning
 	[ "$2" ] || return 0
 	set_var "$1" "$2" && return
 	die "force_set_var - set_var '$*'"
