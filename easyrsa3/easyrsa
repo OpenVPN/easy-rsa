@@ -5399,18 +5399,20 @@ source_easyrsa_tools_lib() {
 
 		# Verify tools version
 		if [ "$EASYRSA_TOOLS_VERSION" -lt 321 ]; then
-			warn "\
+			tools_error_txt="\
 EasyRSA Tools version is out of date:
 * EASYRSA_TOOLS_VERSION: $EASYRSA_TOOLS_VERSION"
+			return 1
 		fi
 	else
 		verbose "Missing: easyrsa-tools.lib"
-		tools_error="Missing: easyrsa-tools.lib
+		tools_error_txt="Missing: easyrsa-tools.lib
 
 Use of command '$cmd' requires Easy-RSA tools library, source:
 * https://github.com/OpenVPN/easy-rsa/dev/easyrsa-tools.lib
 
 Place a copy of easyrsa-tools.lib in a standard system location."
+		return 1
 	fi
 } # => source_easyrsa_tools_lib()
 
@@ -5466,7 +5468,7 @@ unset -v \
 	selfsign_eku \
 	internal_batch mv_temp_error \
 	easyrsa_exit_with_error error_info \
-	write_recursion tools_error
+	write_recursion tools_error tools_error_txt
 
 	# Used by build-ca->cleanup to restore prompt
 	# after user interrupt when using manual password
@@ -5924,44 +5926,34 @@ case "$cmd" in
 		verify_working_env
 
 		# easyrsa-tools.lib is required
-		source_easyrsa_tools_lib
+		source_easyrsa_tools_lib || tools_error=1
 
 		case "$cmd" in
 			renew)
-				if [ "$tools_error" ]; then
-					user_error "$tools_error
+				[ "$tools_error" ] && user_error "$tools_error_txt
 
 A certificate can be renewed without EasyRSA Tools. Expire the certificate
 using command 'expire' and sign the original request with 'sign-req'."
-				fi
 				[ -z "$alias_days" ] || \
 					export EASYRSA_CERT_EXPIRE="$alias_days"
 				renew "$@"
 				;;
 			show-expire)
-				if [ "$tools_error" ]; then
-					user_error "$tools_error"
-				fi
+				[ "$tools_error" ] && user_error "$tools_error_txt"
 				[ -z "$alias_days" ] || \
 					export EASYRSA_PRE_EXPIRY_WINDOW="$alias_days"
 				status expire "$@"
 				;;
 			show-revoke)
-				if [ "$tools_error" ]; then
-					user_error "$tools_error"
-				fi
+				[ "$tools_error" ] && user_error "$tools_error_txt"
 				status revoke "$@"
 				;;
 			show-renew)
-				if [ "$tools_error" ]; then
-					user_error "$tools_error"
-				fi
+				[ "$tools_error" ] && user_error "$tools_error_txt"
 				status renew "$@"
 				;;
 			verify-cert)
-				if [ "$tools_error" ]; then
-					user_error "$tools_error"
-				fi
+				[ "$tools_error" ] && user_error "$tools_error_txt"
 				# Called with --batch, this will return error
 				# when the certificate fails verification.
 				# Therefore, on error, exit with error.
@@ -5975,10 +5967,8 @@ using command 'expire' and sign the original request with 'sign-req'."
 		verify_working_env
 
 		# easyrsa-tools.lib is required
-		source_easyrsa_tools_lib
-		if [ "$tools_error" ]; then
-			user_error "$tools_error"
-		fi
+		source_easyrsa_tools_lib || tools_error=1
+		[ "$tools_error" ] && user_error "$tools_error_txt"
 
 		case "$cmd" in
 			gen-tls-auth|gen-tls-auth-*)
