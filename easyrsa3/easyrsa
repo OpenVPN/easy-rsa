@@ -1552,7 +1552,6 @@ Could not disable echo. Password will be shown on screen!"
 		read -r "$@"
 	fi
 	prompt_restore=0
-	return 0
 } # => hide_read_pass()
 
 # Get passphrase
@@ -1929,8 +1928,6 @@ Prior to signing operations, place your resulting Sub-CA cert at:
 CA creation complete. Your new CA certificate is at:
 * $out_file"
 	fi
-
-	return 0
 } # => build_ca()
 
 # Build self signed key pair
@@ -2129,7 +2126,6 @@ Self-signed '$EASYRSA_ALGO/$EASYRSA_CURVE' \
 key and certificate created:
 * $key_out
 * $crt_out"
-
 } # => self_sign()
 
 # gen-dh backend:
@@ -2175,8 +2171,6 @@ at: $out_file"
 	notice "
 DH parameters of size $EASYRSA_KEY_SIZE created at:
 * $out_file"
-
-	return 0
 } # => gen_dh()
 
 # gen-req and key backend:
@@ -2346,8 +2340,6 @@ Private-Key and Public-Certificate-Request files created.
 Your files are:
 * req: $req_out
 * key: $key_out${do_build_full:+ $NL}"
-
-	return 0
 } # => gen_req()
 
 # common signing backend
@@ -2805,8 +2797,6 @@ Signing failed (openssl output above may have more detail)"
 	notice "\
 Certificate created at:
 * $crt_out"
-
-	return 0
 } # => sign_req()
 
 # Add 'critical' attribute to X509-type file
@@ -2944,7 +2934,6 @@ Failed to sign '$name' - \
 See error messages above for details."
 	fi
 	verbose "build_full: END sign_req"
-
 } # => build_full()
 
 # Generate inline file V2
@@ -3329,8 +3318,6 @@ Failed to revoke certificate: revocation command failed."
 Revocation was successful. You must run 'gen-crl' and upload
 a new CRL to your infrastructure in order to prevent the revoked
 certificate from being accepted."
-
-	return 0
 } # => revoke()
 
 # revoke_move
@@ -3385,8 +3372,6 @@ Failed to remove credentials file:
 Failed to remove inline file:
 * $inline_in"
 	fi
-
-	return 0
 } # => revoke_move()
 
 # Move expired cert out of pki/issued to pki/expired
@@ -3481,14 +3466,13 @@ $confirm_ex" # => End confirm
 
 	# User message
 	notice "\
-Certificate has been successfully moved to the expire directory.
+Certificate has been successfully moved to the expired directory.
 * $crt_out
 
 This certificate is still valid, until it expires.
 It can be revoked with command 'revoke-expired'.
 
 It is now possible to sign a new certificate for '$file_name_base'"
-
 } # => expire_cert()
 
 # gen-crl backend
@@ -3532,8 +3516,6 @@ $crl_der_note
 
 An updated CRL has been created:
 * $out_file"
-
-	return 0
 } # => gen_crl()
 
 # import-req backend
@@ -3569,8 +3551,6 @@ Conflicting file already exists at:
 	notice "\
 Request successfully imported with short-name: $short_name
 This request is now ready to be signed."
-
-	return 0
 } # => import_req()
 
 # export pkcs#12, pkcs#7, pkcs#8 or pkcs#1
@@ -4866,7 +4846,7 @@ Legacy files:
 	else
 		notice "legacy has updated missing files."
 	fi
-} # => legacy_files_v2()
+} # => all_legacy_files_v2()
 
 # write legacy files to stdout or user defined file
 write_legacy_file_v2() {
