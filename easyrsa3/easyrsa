@@ -389,19 +389,19 @@ Usage: easyrsa [ OPTIONS.. ] <COMMAND> <TARGET> [ cmd-opts.. ]"
 	;;
 	write)
 		text="
-* write <type> <filename> ['overwrite']
+* write <type> [<filename>] ['overwrite']
 
       Write <type> data to stdout or <filename>
 
       Types:
-      * ssl-cnf  - Write openssl-easyrsa.cnf file.
+      * ssl-cnf  - Write EasyRSA SSL config file.
+      * safe-cnf - Write expanded EasyRSA SSL config file for LibreSSL.
       * COMMON|ca|server|serverClient|client|codeSigning|email|kdc
                  - Write x509-type <type> file.
-      * legacy   - Write ALL support files (above) to the $PKI.
-                   Will create $PKI/x509-types directory.
+      * legacy   - Write ALL support files (above) to the PKI directory.
+                   Will create '\$EASYRSA_PKI/x509-types' directory.
       * legacy-hard
                  - Same as 'legacy' plus OVER-WRITE files.
-      * safe-cnf - Expand EasyRSA SSL config file for LibreSSL.
       * vars     - Write vars.example file."
 
 		opts="
