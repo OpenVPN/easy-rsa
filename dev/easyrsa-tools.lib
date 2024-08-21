@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Easy-RSA tools library v1.0
+# Easy-RSA tools library
 
 # Easy-RSA 3.x does not source into the environment directly.
 # Complain if a user tries to do this:
@@ -544,7 +544,7 @@ cert_date_to_iso_8601_date: input error"
 	force_set_var "$2" "$out_date" || die "\
 cert_date_to_iso_8601: force_set_var - $2 - $out_date"
 
-	unset -v in_date out_date yyyy mmm  mm dd HH MM SS TZ
+	unset -v in_date out_date yyyy mmm mm dd HH MM SS TZ
 } # => cert_date_to_iso_8601()
 
 # Certificate expiry
@@ -851,7 +851,6 @@ before they can be revoked."
 
 	# Create report
 	read_db
-
 } # => status()
 
 # renew backend
@@ -1060,8 +1059,6 @@ Renew has created a new certificate, to replace the old one.
 
 To revoke the old certificate, once the new one has been deployed,
 use command 'revoke-renewed $file_name_base'"
-
-	return 0
 } # => renew()
 
 # Restore files on failure to renew
@@ -1082,8 +1079,6 @@ renew_restore_move() {
 		notice "\
 Renew FAILED but files have been successfully restored."
 	fi
-
-	return 0
 } # => renew_restore_move()
 
 # renew_move
@@ -1123,8 +1118,6 @@ Failed to remove credentials file:
 Failed to remove inline file:
 * $inline_in"
 	fi
-
-	return 0
 } # => renew_move()
 
 # Verify certificate against CA
