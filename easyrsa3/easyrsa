@@ -5764,15 +5764,13 @@ fi
 default_vars
 
 # Check for unexpected changes to EASYRSA or EASYRSA_PKI
-# This will be resolved in v3.2.0
 # https://github.com/OpenVPN/easy-rsa/issues/1006
 validate_default_vars
 
 # Check for conflicting input options
 mutual_exclusions
 
-# Find x509-types and openssl_easyrsa.cnf
-# used by 'help'
+# Find x509-types, openssl-easyrsa.cnf and easyrsa-tools.lib
 locate_support_files
 
 # Verify SSL Lib - One time ONLY
@@ -5876,8 +5874,7 @@ case "$cmd" in
 		;;
 	inline)
 		verify_working_env
-		inline_file "$@" || \
-			easyrsa_exit_with_error=1
+		inline_file "$@"
 		;;
 	export-p12)
 		verify_working_env
