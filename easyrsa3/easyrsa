@@ -1428,14 +1428,12 @@ and initialize a fresh PKI here."
   To keep your current Request files use 'init-pki soft'
   The Requests can then be signed by a new CA (Partial CA renewal)
 
-       ** USE OF   'init-pki soft'   IS RECOMMENDED **
-"
-
+       ** USE OF   'init-pki soft'   IS RECOMMENDED **${NL}"
 
 			# # # shellcheck disable=SC2115 # Use "${var:?}"
 			rm -rf "$EASYRSA_PKI" || \
 				die "init-pki hard reset failed."
-			;;
+		;;
 		soft)
 		# There is no unit test for a soft reset
 		# Do NOT remove pki/reqs sub-dir, for "renew ca"
@@ -1454,7 +1452,7 @@ and initialize a fresh PKI here."
 					die "init-pki soft reset(2) failed!"
 				fi
 			done
-			;;
+		;;
 		*)
 			user_error "Unknown reset type: $reset"
 		esac
@@ -1462,7 +1460,6 @@ and initialize a fresh PKI here."
 
 	# new dirs:
 	easyrsa_mkdir "$EASYRSA_PKI"
-
 	for i in issued private reqs inline; do
 		easyrsa_mkdir "${EASYRSA_PKI}/$i"
 	done
@@ -1483,7 +1480,7 @@ Your newly created PKI dir is:
 	# Select and show vars file
 	unset -v EASYRSA_VARS_FILE
 	select_vars
-	information "
+	information "\
 Using Easy-RSA configuration:
 * ${EASYRSA_VARS_FILE:-undefined}"
 } # => init_pki()
