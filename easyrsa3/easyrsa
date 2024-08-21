@@ -1338,7 +1338,7 @@ $help_note"
 
 # Verify core CA files present
 verify_ca_init() {
-	help_note="\
+	verify_ca_help_note="\
 Run easyrsa without commands for usage and command help."
 
 	# Verify expected files are present.
@@ -1350,37 +1350,31 @@ Run easyrsa without commands for usage and command help."
 		if [ ! -f "$EASYRSA_PKI/$i" ] && \
 			[ ! -p "$EASYRSA_PKI/$i" ]
 		then
+			# Used by usage() and export-p12/p7
 			[ "$1" = "test" ] && return 1
+
 			user_error "\
 Missing expected CA file: $i
 
 (perhaps you need to run build-ca?)
 
-$help_note"
+$verify_ca_help_note"
 		fi
 	done
 
 	# When operating in 'test' mode, return success.
 	# test callers don't care about CA-specific dir structure
-	if [ "$1" = "test" ]; then
-		unset -v help_note
-		return 0
-	fi
+	[ "$1" = "test" ] && return 0
 
 	# verify expected CA-specific dirs:
-	for i in issued certs_by_serial
-	do
+	for i in issued certs_by_serial; do
 		[ -d "$EASYRSA_PKI/$i" ] || user_error "\
 Missing expected CA dir: $i
 
 (perhaps you need to run build-ca?)
 
-$help_note"
+$verify_ca_help_note"
 	done
-
-	# explicitly return success for callers
-	unset -v help_note
-	return 0
 } # => verify_ca_init()
 
 # init-pki backend:
