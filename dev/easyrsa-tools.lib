@@ -1,6 +1,14 @@
 #!/bin/sh
 
-# Easy-RSA tools library
+# Easy-RSA 3 Tools library
+#
+# Copyright (C) 2024 - The Open-Source OpenVPN development community.
+# A full list of contributors can be found on Github at:
+#   https://github.com/OpenVPN/easy-rsa/graphs/contributors
+#
+# This code released under version 2 of the GNU GPL; see COPYING
+# and the Licensing/ directory of this project for full licensing
+# details.
 
 # Easy-RSA 3.x does not source into the environment directly.
 # Complain if a user tries to do this:
