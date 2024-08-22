@@ -779,15 +779,10 @@ easyrsa_random() {
 # Create session directory atomically or fail
 secure_session() {
 	# Session is already defined
-	[ "$secured_session" ] && \
-		die "session overload"
+	[ "$secured_session" ] && die "session overload"
 
 	# temporary directory must exist
-	if [ "$EASYRSA_TEMP_DIR" ] && \
-		[ -d "$EASYRSA_TEMP_DIR" ]
-	then
-		: # ok
-	else
+	if [ ! -d "$EASYRSA_TEMP_DIR" ]; then
 		die "secure_session - Missing temporary directory:
 * $EASYRSA_TEMP_DIR"
 	fi
@@ -812,7 +807,7 @@ secure_session() {
 				die "secure_session - temp-file EXISTS"
 
 			# New session requires safe-ssl conf
-			unset -v OPENSSL_CONF safe_ssl_cnf_tmp \
+			unset -v session OPENSSL_CONF safe_ssl_cnf_tmp \
 				working_safe_ssl_conf working_safe_org_conf
 
 			easyrsa_err_log="$secured_session/error.log"
@@ -828,10 +823,7 @@ secure_session: CREATED: $secured_session"
 
 # Remove secure session
 remove_secure_session() {
-	if [ "${secured_session%/*}" ] && \
-		[ -d "$secured_session" ]
-	then
-		# Always remove temp-session
+	if [ -d "$secured_session" ]; then
 		if rm -rf "$secured_session"; then
 			verbose "\
 remove_secure_session: DELETED: $secured_session"
@@ -862,7 +854,7 @@ easyrsa_mktemp() {
 	[ "$#" = 1 ] || die "easyrsa_mktemp - input error"
 
 	# session directory must exist
-	[ "$secured_session" ] || die "\
+	[ -d "$secured_session" ] || die "\
 easyrsa_mktemp - Temporary session undefined (--tmp-dir)"
 
 	# Force noclobber
@@ -965,12 +957,9 @@ cleanup() {
 	# Restore files when renew is interrupted
 	[ "$error_undo_renew_move" ] && renew_restore_move
 
-	if [ "${secured_session%/*}" ] && \
-		[ -d "$secured_session" ]
-	then
+	if [ -d "$secured_session" ]; then
 		# Remove temp-session or create temp-snapshot
-		if [ "$EASYRSA_KEEP_TEMP" ]
-		then
+		if [ "$EASYRSA_KEEP_TEMP" ]; then
 			# skip on black-listed directory names, with a warning
 			# Use '-e' for directory or file name
 			if [ -e "$EASYRSA_TEMP_DIR/$EASYRSA_KEEP_TEMP" ]
@@ -991,7 +980,7 @@ Temporary session not preserved."
 		fi
 
 		# remove temp-session
-		if [ "$secured_session" ]; then
+		if [ -d "$secured_session" ]; then
 			verbose "mktemp_counter: $mktemp_counter uses"
 			remove_secure_session || \
 				warn "cleanup - remove_secure_session failed"
