@@ -1423,8 +1423,7 @@ and initialize a fresh PKI here."
 			for i in ca.crt crl.pem \
 				issued private inline revoked renewed expired \
 				serial serial.old index.txt index.txt.old \
-				index.txt.attr index.txt.attr.old \
-				ecparams certs_by_serial
+				index.txt.attr index.txt.attr.old certs_by_serial
 			do
 				# # # shellcheck disable=SC2115 # Use "${var:?}"
 				target="$EASYRSA_PKI/$i"
@@ -4210,7 +4209,7 @@ verify_algo_params() {
 			die "\
 verify_algo_params - easyrsa_mktemp EASYRSA_ALGO_PARAMS"
 
-		# Create the required ecparams file
+		# Create the required ecparams file, temp-file
 		# call openssl directly because error is expected
 			"$EASYRSA_OPENSSL" ecparam \
 				-name "$EASYRSA_CURVE" \
