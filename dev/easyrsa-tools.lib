@@ -995,3 +995,5 @@ Input is not a valid certificate:
 		fi
 	fi
 } # => verify_cert()
+
+# vim: ft=sh nu ai sw=8 ts=8 noet
