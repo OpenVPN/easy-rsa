@@ -1050,7 +1050,7 @@ export EASYRSA_REQ_OU=\"$EASYRSA_REQ_OU\"
 export EASYRSA_REQ_EMAIL=\"$EASYRSA_REQ_EMAIL\"
 export EASYRSA_REQ_SERIAL=\"$EASYRSA_REQ_SERIAL\"\
 " | sed -e s\`'\&'\`'\\\&'\`g \
-		-e s\`'\$'\`'\\\$'\`g \ > "$escape_hazard_tmp" || \
+		-e s\`'\$'\`'\\\$'\`g > "$escape_hazard_tmp" || \
 			die "escape_hazard - Failed to write temp-file"
 
 	# Reload fields from fully escaped temp-file
@@ -1163,11 +1163,11 @@ easyrsa_openssl() {
 		rand) die "easyrsa_openssl: Illegal SSL command: rand"
 	esac
 
-	# Use local SSL cnf
-	if [ "$EASYRSA_SSL_CONF" ]; then
+	# Use $EASYRSA_SSL_CONF or $global_safe_ssl_cnf_tmp
+	if [ -f "$EASYRSA_SSL_CONF" ]; then
 		export OPENSSL_CONF="$EASYRSA_SSL_CONF"
 	else
-		[ "$OPENSSL_CONF" ] || \
+		[ -f "$OPENSSL_CONF" ] || \
 			die "easyrsa_openssl - OPENSSL_CONF undefined"
 	fi
 	verbose "= easyrsa_openssl: OPENSSL_CONF = $OPENSSL_CONF"
