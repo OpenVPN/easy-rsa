@@ -811,8 +811,6 @@ secure_session() {
 				working_safe_ssl_conf working_safe_org_conf
 
 			easyrsa_err_log="$secured_session/error.log"
-			mktemp_counter=0
-
 			verbose "\
 secure_session: CREATED: $secured_session"
 			return
@@ -823,15 +821,14 @@ secure_session: CREATED: $secured_session"
 
 # Remove secure session
 remove_secure_session() {
-	if [ -d "$secured_session" ]; then
-		if rm -rf "$secured_session"; then
-			verbose "\
+	[ -d "$secured_session" ] || return 0
+	if rm -rf "$secured_session"; then
+		verbose "\
 remove_secure_session: DELETED: $secured_session"
-			unset -v secured_session \
-				safe_ssl_cnf_tmp working_safe_ssl_conf \
-				EASYRSA_SSL_CONF OPENSSL_CONF
-			return
-		fi
+		unset -v secured_session \
+			safe_ssl_cnf_tmp working_safe_ssl_conf \
+			EASYRSA_SSL_CONF OPENSSL_CONF
+		return
 	fi
 	die "remove_secure_session: $secured_session"
 } # => remove_secure_session()
@@ -944,9 +941,7 @@ want_tmp_file: $want_tmp_file"
 cleanup() {
 	# In case of subshell abuse, display error log file
 	if [ -f "$easyrsa_err_log" ]; then
-		print
-		cat "$easyrsa_err_log"
-		print
+		print; cat "$easyrsa_err_log"; print
 	fi
 
 	# undo changes BEFORE delete temp-dir
@@ -957,8 +952,8 @@ cleanup() {
 	# Restore files when renew is interrupted
 	[ "$error_undo_renew_move" ] && renew_restore_move
 
+	# Remove temp-session or create temp-snapshot
 	if [ -d "$secured_session" ]; then
-		# Remove temp-session or create temp-snapshot
 		if [ "$EASYRSA_KEEP_TEMP" ]; then
 			# skip on black-listed directory names, with a warning
 			# Use '-e' for directory or file name
@@ -980,25 +975,23 @@ Temporary session not preserved."
 		fi
 
 		# remove temp-session
-		if [ -d "$secured_session" ]; then
-			verbose "mktemp_counter: $mktemp_counter uses"
-			remove_secure_session || \
-				warn "cleanup - remove_secure_session failed"
-		fi
+		remove_secure_session
+		verbose "mktemp_counter: $mktemp_counter uses"
 	fi
 
-	# shellcheck disable=SC3040 # POSIX set - cleanup()
+	# When prompt is disabled then restore prompt
 	case "$prompt_restore" in
 		0) : ;; # Not required
 		1)
 			[ -t 1 ] && stty echo
 			[ "$EASYRSA_SILENT" ] || print
-			;;
+		;;
 		2)
+			# shellcheck disable=SC3040 # POSIX set -o
 			set -o echo
 			[ "$EASYRSA_SILENT" ] || print
-			;;
-		*) warn "prompt_restore: '$prompt_restore'"
+		;;
+		*) warn "Unknown prompt_restore: '$prompt_restore'"
 	esac
 
 	# Clear traps
@@ -1012,27 +1005,17 @@ Temporary session not preserved."
 	if [ "$easyrsa_exit_with_error" ]; then
 		verbose "Exit: Known errors = true"
 		exit 1
-	fi
-
-	# Exit: SIGINT
-	if [ "$1" = 2 ]; then
+	elif [ "$1" = 2 ]; then
 		verbose "exit SIGINT = true"
-		kill -2 "$$"
-	fi
-
-	# Exit: Final Success
-	if [ "$1" = ok ]; then
-		# if there is no error
-		# then 'cleanup ok' is called
+		kill -2 "$$" # Exit: SIGINT
+	elif [ "$1" = ok ]; then
 		verbose "Exit: Final Success = true"
-		exit 0
+		exit 0 # Exit: Final Success
 	fi
 
-	# Exit: Final Fail
-	# if 'cleanup' is called without 'ok'
-	# then an error occurred
+	# if 'cleanup' is called without 'ok' then an error occurred
 	verbose "Exit: Final Fail = true"
-	exit 1
+	exit 1 # Exit: Final Fail, unknown error
 } # => cleanup()
 
 # Escape hazardous characters
@@ -5441,7 +5424,7 @@ detect_host
 unset -v \
 	OPENSSL_CONF \
 	verify_ssl_lib_ok \
-	secured_session \
+	secured_session mktemp_counter \
 	working_safe_ssl_conf working_safe_org_conf \
 	alias_days \
 	prohibit_no_pass \
