@@ -2,33 +2,77 @@ Easy-RSA 3 Certificate Renewal and Revocation Documentation
 ===========================================================
 
 This document explains how the **differing versions** of Easy-RSA 3 work
-with Renewal and Revocation of Certificates and Private keys.
+with regard to Renewal and Revocation of Certificates.
+
+## In summary:
+
+ **Easy-RSA Version 3.1.7** provides the most flexible support of renewal.
+This includes command `rewind-renew`, which is required to recover certificates
+renewed by `renew` command version 1. However, this does **not** include renewing
+any supported certificate attributes.
+
+**Easy-RSA Version 3.2.1** is preferred for future support.
+
+----
+
+Reason codes available for revoke commands
+------------------------------------------
+
+The follow is an exhaustive list of available `reason` codes, with abbreviations:
+
+- `us | uns* | unspecified`
+- `kc | key* | keyCompromise`
+- `cc | ca*  | CACompromise`
+- `ac | aff* | affiliationChanged`
+- `ss | sup* | superseded`
+- `co | ces* | cessationOfOperation`
+- `ch | cer* | certificateHold`
+
+  `reason` must be one of these abbreviations/codes, otherwise not be used.
+
+----
 
 Easy-RSA version 3.2.x
 ----------------------
-v3.2 no longer supports the `renew` command.
+For **Easy-RSA Version 3.2.0**, command `renew` is NOT supported.
 
-Instead, the process is as follows:
-1. Command `expire <NAME>` - This will move an existing certificate
-   from `pki/issued` to `pki/expired`, so that a new certificate
-   can be signed, using the original request.
+Please upgrade to Easy-RSA Version 3.2.1
 
-   Generally, renewing is required ONLY when a certificate is due to
-   expire. This means that certificates moved to `pki/expired` are
-   expected to be expired or to expire in the near future.
+For **Easy-RSA Version 3.2.1+**, command `renew` is supported.
 
-2. Command `sign-req <TYPE> <NAME>` - Sign a new certificate.
+The command `renew` has been rewritten and now supports the renewal of
+supported attributes. During renewal, the certificate is inspected and all
+supported attributes are applied to the renewed certificate, as they were
+in the original.
 
-   This allows ALL command line customisations to be used. eg: SAN.
-   (These customisations do not work correctly with the old `renew`)
+User added attributes from `$EASYRSA_EXTRA_EXTS`, that are not supported,
+are dropped.
 
-3. If required, Command `revoke-expired` can be used to revoke an
+If the renewed certificate requires unsupported attibutes or changing the
+`commonName` then the following process, that of expiry and then signing a
+new certificate from the original request file, is required.
+
+The expiry and signing process is as follows:
+1. Command `expire <NAME>`
+
+   This will move an existing certificate from `pki/issued` to `pki/expired`,
+   so that a new certificate can be signed, using the original request.
+
+   Generally, renewing is required ONLY when a certificate is due to expire.
+   This means that certificates moved to `pki/expired` are expected to be expired
+   or to expire in the near future, however, this is not a requirement.
+
+2. Command `sign-req <TYPE> <NAME>`
+
+   Sign a new certificate. This allows ALL command line customisations to be used.
+
+3. If required, command `revoke-expired` can be used to revoke an
    expired certificate in the `pki/expired` directory.
 
-This approach also allows certificates which have been edited during
-`sign-req` to be edited the same way, without the need for excessive
-and non-standard code. (Note: OpenSSL allows only one way for edits)
+This approach allows original certificates, which have been edited during `sign-req`,
+to be edited the same way.
 
+----
 
 Easy-RSA version 3.1.x
 ----------------------
@@ -76,7 +120,7 @@ using command:
 
     easyrsa rewind-renew serialNumber
 
-Command `rewind-renew` is available since Easy-RSA version `3.1.1`
+Command `rewind-renew` is only available in Easy-RSA version `3.1.1` to `3.1.7`.
 
 Once `rewind-renew` has recovered the files, the certificate can be revoked:
 
@@ -111,6 +155,7 @@ private key is still valid.
 
 `renew` version 3 is **only** available since Easy-RSA version `3.1.1+`.
 
+----
 
 Easy-RSA Reporting tools for certificate status
 -----------------------------------------------
@@ -131,21 +176,7 @@ certificate status:
 
   `show-revoke` shows all certificates which have been revoked.
 
-
-Reason codes available for revoke commands
-------------------------------------------
-
-The follow is an exhaustive list of available `reason` codes:
-- `unspecified`
-- `keyCompromise`
-- `CACompromise`
-- `affiliationChanged`
-- `superseded`
-- `cessationOfOperation`
-- `certificateHold`
-
-  `reason` must be one of these codes, otherwise not be used.
-
+----
 
 About command `rebuild`
 -----------------------
@@ -153,3 +184,10 @@ About command `rebuild`
 If `rebuild` is used then the output directory of old certificate, key and
 request is also the `renewed` directory.  Use **`revoke-renewed`** to revoke
 an old certificate/key pair, which has been _rebuilt_ by command `rebuild`.
+
+----
+
+Renew CA Certificate
+====================
+
+TBD
