@@ -1686,9 +1686,6 @@ Unable to create necessary PKI files (permissions?)"
 	# create local SSL cnf
 	write_easyrsa_ssl_cnf_tmp
 
-	# Ensure an SSL config exists for EASYRSA_SSL_CONF
-	[ -f "$EASYRSA_SSL_CONF" ] || die "Missing SSL config"
-
 	# Assign cert and key temp files
 	out_key_tmp=""
 	easyrsa_mktemp out_key_tmp || \
@@ -1973,9 +1970,6 @@ Option conflict --req-cn:
 	# create local SSL cnf
 	write_easyrsa_ssl_cnf_tmp
 
-	# Ensure an SSL config exists for EASYRSA_SSL_CONF
-	[ -f "$EASYRSA_SSL_CONF" ] || die "Missing SSL config"
-
 	# Refuse option as name
 	case "$file_name_base" in
 		nopass)
@@ -2206,9 +2200,6 @@ Run easyrsa without commands for usage and commands."
 	# create local SSL cnf
 	write_easyrsa_ssl_cnf_tmp
 
-	# Ensure an SSL config exists for EASYRSA_SSL_CONF
-	[ -f "$EASYRSA_SSL_CONF" ] || die "Missing SSL config"
-
 	# Output files
 	key_out="$EASYRSA_PKI/private/${file_name_base}.key"
 	req_out="$EASYRSA_PKI/reqs/${file_name_base}.req"
@@ -2374,9 +2365,6 @@ expected 2, got $# (see command help for usage)"
 
 	# create local SSL cnf
 	write_easyrsa_ssl_cnf_tmp
-
-	# Ensure an SSL config exists for EASYRSA_SSL_CONF
-	[ -f "$EASYRSA_SSL_CONF" ] || die "Missing SSL config"
 
 	# Check optional subject
 	force_subj=
@@ -4727,15 +4715,15 @@ f97425686fa1976d436fa31f550641aa"
 		file_hash="$(
 			"$EASYRSA_OPENSSL" dgst -sha256 -r \
 				"$EASYRSA_SSL_CONF" 2>/dev/null
-		)" || warn "hash malfunction!"
+		)" || die "write_easyrsa_ssl_cnf_tmp - hash malfunction!"
 
 		# Strip excess SSL info
 		file_hash="${file_hash%% *}"
 
 		# Compare SSL output
 		case "$file_hash" in
-			*[!1234567890abcdef]*|'')
-				warn "hash failure: $file_hash"
+		*[!1234567890abcdef]*|'')
+			die "write_easyrsa_ssl_cnf_tmp - hash failure!"
 		esac
 
 		# Check file hash against known hash
@@ -4762,8 +4750,7 @@ f97425686fa1976d436fa31f550641aa"
 				known_file_308
 
 		# Use the existing file ONLY
-		if [ "$hash_is_unknown" ] || \
-			[ "$EASYRSA_FORCE_SAFE_SSL" ]
+		if [ "$hash_is_unknown" ] || [ "$EASYRSA_FORCE_SAFE_SSL" ]
 		then
 			unset -v hash_is_unknown
 			verbose "write_easyrsa_ssl_cnf_tmp: SSL config UNKNOWN!"
