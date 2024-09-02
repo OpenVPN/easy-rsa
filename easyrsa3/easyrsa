@@ -1336,8 +1336,14 @@ init_pki() {
 	reset="hard"
 	while [ "$1" ]; do
 		case "$1" in
-			hard-reset|hard) reset="hard" ;;
-			soft-reset|soft) reset="soft" ;;
+			hard-reset|hard)
+				reset="hard"
+				confirm_msg=
+			;;
+			soft-reset|soft)
+				reset="soft"
+				confirm_msg='PARTIALLY '
+			;;
 			*) warn "Ignoring unknown command option: '$1'"
 		esac
 		shift
@@ -1354,7 +1360,7 @@ init_pki() {
 		confirm "Confirm removal: " "yes" "
 WARNING!!!
 
-You are about to remove the EASYRSA_PKI at:
+You are about to ${confirm_msg}remove the EASYRSA_PKI at:
 * $EASYRSA_PKI
 
 and initialize a fresh PKI here."
@@ -1374,6 +1380,8 @@ and initialize a fresh PKI here."
   To keep your current 'pki/vars' settings use 'init-pki soft'.
   To keep your current Request files use 'init-pki soft'
   The Requests can then be signed by a new CA (Partial CA renewal)
+  To keep your current Easy-RSA TLS Key use 'init-pki soft'
+  This private key file is in use by your current VPN.
 
        ** USE OF   'init-pki soft'   IS RECOMMENDED **${NL}"
 
@@ -1383,7 +1391,38 @@ and initialize a fresh PKI here."
 		;;
 		soft)
 		# There is no unit test for a soft reset
-		# Do NOT remove pki/reqs sub-dir, for "renew ca"
+		# Save existing TLS key
+			tls_key_file="$EASYRSA_PKI"/private/easyrsa-tls.key
+			old_tls_key_file="$EASYRSA_PKI"/easyrsa-keepsafe-tls.key
+
+			# If both keys exist then they must be the same
+			if [ -f "$old_tls_key_file" ]; then
+				if [ -f "$tls_key_file" ]; then
+					# Match by hash
+					tls_key_hash="$(
+						"$EASYRSA_OPENSSL" dgst -sha256 \
+							"$tls_key_file")"
+					old_tls_key_hash="$(
+						"$EASYRSA_OPENSSL" dgst -sha256 \
+							"$old_tls_key_file")"
+					[ "$tls_key_hash" = "$old_tls_key_hash" ] || \
+						user_error "\
+Easy-RSA TLS Keys do not match, only ONE of these files is valid:
+* $tls_key_file
+* $old_tls_key_file
+
+Please delete the key above that is no longer in use."
+				fi
+			fi
+
+			# Save existing TLS key
+			if [ -f "$tls_key_file" ]; then
+				tls_key_data="$(cat "$tls_key_file")"
+			else
+				tls_key_data=
+			fi
+
+			# Do NOT remove pki/reqs sub-dir, for "renew ca"
 			for i in ca.crt crl.pem \
 				issued private inline revoked renewed expired \
 				serial serial.old index.txt index.txt.old \
@@ -1410,15 +1449,29 @@ and initialize a fresh PKI here."
 		easyrsa_mkdir "${EASYRSA_PKI}/$i"
 	done
 
+	# If one existed then recreate old TLS key backup file
+	if [ "$tls_key_data" ]; then
+		header="# Easy-RSA TLS Key: $(date)${NL}# DO NOT DELETE"
+		printf '%s\n\n%s\n' "$header" "$tls_key_data" \
+			> "$old_tls_key_file"
+		tls_msg="\
+Previous Easy-RSA TLS key saved to:
+* $old_tls_key_file"
+	else
+		tls_msg="\
+Create a TLS-AUTH|TLS-CRYPT-V1 key now: See 'help gen-tls'"
+	fi
+
 	# write pki/vars.example - no temp-file because no session
-	write_legacy_file_v2 vars "$EASYRSA_PKI"/vars.example || \
-		warn "init-pki - Failed to create vars.example"
+	write_legacy_file_v2 \
+		vars "$EASYRSA_PKI"/vars.example overwrite || \
+			warn "init-pki - Failed to create vars.example"
 
 	# User notice
 	notice "\
 'init-pki' complete; you may now create a CA or requests.
 
-Create a TLS-AUTH|TLS-CRYPT-V1 key now: See 'help gen-tls'
+$tls_msg
 
 Your newly created PKI dir is:
 * $EASYRSA_PKI"
@@ -1608,6 +1661,14 @@ Unable to create necessary PKI files (permissions?)"
 		> "$EASYRSA_PKI/serial" || die "$err_msg"
 	unset -v err_msg
 
+	# If one exists then recreate TLS Key
+	tls_key_file="$EASYRSA_PKI/private/easyrsa-tls.key"
+	old_tls_key_file="$EASYRSA_PKI"/easyrsa-keepsafe-tls.key
+	if [ -f "$old_tls_key_file" ]; then
+		cp "$old_tls_key_file" "$tls_key_file" || \
+			warn "Failed to install TLS Key!"
+	fi
+
 	# Set ssl batch mode, as required
 	if [ "$EASYRSA_BATCH" ]; then
 		ssl_batch=1
@@ -1624,9 +1685,6 @@ Unable to create necessary PKI files (permissions?)"
 
 	# create local SSL cnf
 	write_easyrsa_ssl_cnf_tmp
-
-	# Ensure an SSL config exists for EASYRSA_SSL_CONF
-	[ -f "$EASYRSA_SSL_CONF" ] || die "Missing SSL config"
 
 	# Assign cert and key temp files
 	out_key_tmp=""
@@ -1912,9 +1970,6 @@ Option conflict --req-cn:
 	# create local SSL cnf
 	write_easyrsa_ssl_cnf_tmp
 
-	# Ensure an SSL config exists for EASYRSA_SSL_CONF
-	[ -f "$EASYRSA_SSL_CONF" ] || die "Missing SSL config"
-
 	# Refuse option as name
 	case "$file_name_base" in
 		nopass)
@@ -2145,9 +2200,6 @@ Run easyrsa without commands for usage and commands."
 	# create local SSL cnf
 	write_easyrsa_ssl_cnf_tmp
 
-	# Ensure an SSL config exists for EASYRSA_SSL_CONF
-	[ -f "$EASYRSA_SSL_CONF" ] || die "Missing SSL config"
-
 	# Output files
 	key_out="$EASYRSA_PKI/private/${file_name_base}.key"
 	req_out="$EASYRSA_PKI/reqs/${file_name_base}.req"
@@ -2313,9 +2365,6 @@ expected 2, got $# (see command help for usage)"
 
 	# create local SSL cnf
 	write_easyrsa_ssl_cnf_tmp
-
-	# Ensure an SSL config exists for EASYRSA_SSL_CONF
-	[ -f "$EASYRSA_SSL_CONF" ] || die "Missing SSL config"
 
 	# Check optional subject
 	force_subj=
@@ -2889,13 +2938,20 @@ inline_file() {
 	# Source files
 	crt_source="${EASYRSA_PKI}/issued/${1}.crt"
 	key_source="${EASYRSA_PKI}/private/${1}.key"
-	ca_source="${EASYRSA_PKI}/ca.crt"
-	tls_source="${EASYRSA_PKI}"/private/easyrsa-tls.key
+	ca_source="$EASYRSA_PKI"/ca.crt
+	tls_source="$EASYRSA_PKI"/private/easyrsa-tls.key
+	old_tls_key_file="$EASYRSA_PKI"/easyrsa-keepsafe-tls.key
 
 	# output
 	inline_out="${EASYRSA_PKI}/inline/${1}.inline"
-	easyrsa_mkdir "${EASYRSA_PKI}/inline"
+	easyrsa_mkdir "$EASYRSA_PKI"/inline
+	easyrsa_mkdir "$EASYRSA_PKI"/inline/private
+	print "\
+# Inline files in the 'private' directory contain security keys which
+# MUST only be transmitted over a secure connection, such as 'scp'." \
+		> "$EASYRSA_PKI"/inline/private/README.inline.private
 	inline_incomplete=
+	inline_private=
 
 	# Generate Inline data
 	# Certificate
@@ -2942,6 +2998,7 @@ $(cat "$crt_source")
 
 	# Private key
 	if [ -f "$key_source" ]; then
+		inline_private=1
 		key_data="\
 <key>
 $(cat "$key_source")
@@ -2974,45 +3031,59 @@ $(cat "$ca_source")
 # </ca>"
 	fi
 
-	# TLS auth|crypt key
+	# TLS KEY - Set TLS auth|crypt key inline label
 	if [ -f "$tls_source" ]; then
 		tls_key_data="$(cat "$tls_source")"
 		case "$tls_key_data" in
-		*'TLS-AUTH'*)
-			tls_key_label=tls-auth
-		;;
-		*'TLS-CRYPT'*)
-			tls_key_label=tls-crypt
-		;;
-		*)
-			tls_key_label=
+			*'TLS-AUTH'*) tls_key_label=tls-auth ;;
+			*'TLS-CRYPT'*) tls_key_label=tls-crypt ;;
+			*) tls_key_label=
 		esac
+	fi
 
-		if [ "$tls_key_label" ]; then
-			tls_data="\
+	# Do NOT add TLS key if OLD TLS key exists
+	# because this PSK has already been shared.
+	if [ -f "$old_tls_key_file" ]; then
+		tls_data="\
+# Add the existing TLS AUTH/CRYPT-V1 Key here:
+# <${tls_key_label}>
+# * Paste The existing pre-shared TLS key here *
+# </${tls_key_label}>"
+
+		# Add --key-direction for TLS-AUTH
+		[ "$tls_key_label" = tls-auth ] && \
+			tls_data="$tls_data
+#
+# Add the required 'key-direction 0|1' here:
+# key-direction 1"
+		unset -v tls_key_data tls_key_label
+	else
+		# Add standard TLS key details
+		if [ -f "$tls_source" ]; then
+			inline_private=1
+			if [ "$tls_key_label" ]; then
+				tls_data="\
 <${tls_key_label}>
 ${tls_key_data}
 </${tls_key_label}>"
+			else
+				inline_incomplete=1
+				tls_data="# Easy-RSA TLS Key not recognised!"
+			fi
 		else
-			inline_incomplete=1
-			tls_data="# Easy-RSA TLS Key not recognised!"
+			#inline_incomplete=1
+			tls_data="# Easy-RSA TLS Key not found!"
 		fi
-	else
-		inline_incomplete=1
-		tls_data="# Easy-RSA TLS Key not found!"
 	fi
 
-	# Only support inline files for OpenVPN server/client use
+	# Only support inline TLS keys for OpenVPN server/client use
 	case "$crt_type" in
-	server)
-		key_direction="key-direction 0"
-	;;
-	client)
-		key_direction="key-direction 1"
-	;;
-	*)
+		server) key_direction="key-direction 0" ;;
+		client) key_direction="key-direction 1" ;;
+		*)
 		verbose "inline: Unsupported certificate type: $crt_type"
 		tls_key_label=
+		key_direction=
 		tls_data="# No TLS Key support for cert-type: $crt_type"
 	esac
 
@@ -3020,6 +3091,10 @@ ${tls_key_data}
 	if [ "$tls_key_label" = tls-auth ]; then
 		tls_data="${tls_data}${NL}${NL}${key_direction}"
 	fi
+
+	# If inline file has keys then redirect to 'private' dir
+	[ "$inline_private" ] && \
+		inline_out="${EASYRSA_PKI}/inline/private/${1}.inline"
 
 	# Print data
 	print "\
@@ -3038,7 +3113,7 @@ $ca_data
 $tls_data
 " > "$inline_out"
 
-	# interactive feedback
+	# user info
 	if [ "$inline_incomplete" ]; then
 		warn "\
 INCOMPLETE Inline file created:
@@ -4640,15 +4715,15 @@ f97425686fa1976d436fa31f550641aa"
 		file_hash="$(
 			"$EASYRSA_OPENSSL" dgst -sha256 -r \
 				"$EASYRSA_SSL_CONF" 2>/dev/null
-		)" || warn "hash malfunction!"
+		)" || die "write_easyrsa_ssl_cnf_tmp - hash malfunction!"
 
 		# Strip excess SSL info
 		file_hash="${file_hash%% *}"
 
 		# Compare SSL output
 		case "$file_hash" in
-			*[!1234567890abcdef]*|'')
-				warn "hash failure: $file_hash"
+		*[!1234567890abcdef]*|'')
+			die "write_easyrsa_ssl_cnf_tmp - hash failure!"
 		esac
 
 		# Check file hash against known hash
@@ -4675,8 +4750,7 @@ f97425686fa1976d436fa31f550641aa"
 				known_file_308
 
 		# Use the existing file ONLY
-		if [ "$hash_is_unknown" ] || \
-			[ "$EASYRSA_FORCE_SAFE_SSL" ]
+		if [ "$hash_is_unknown" ] || [ "$EASYRSA_FORCE_SAFE_SSL" ]
 		then
 			unset -v hash_is_unknown
 			verbose "write_easyrsa_ssl_cnf_tmp: SSL config UNKNOWN!"
@@ -5068,6 +5142,11 @@ fi
 #
 # This sample is in Windows syntax -- edit it for your path if not using PATH:
 #set_var EASYRSA_OPENSSL	"C:/Program Files/OpenSSL-Win32/bin/openssl.exe"
+
+# Windows users, to generate OpenVPN TLS Keys the Openvpn binary must be
+# defined here.
+#
+#set_var EASYRSA_OPENVPN "C:\\Program Files\\Openvpn\\bin\\openvpn.exe"
 
 # Define X509 DN mode.
 #
@@ -5677,20 +5756,10 @@ case "$cmd" in
 	*)
 		require_pki=1
 		case "$cmd" in
-			gen-req|gen-dh|build-ca|show-req|export-p*)
-				: # ok
-				;;
-			inline)
-				: # ok
-				;;
-			self-sign-*)
-				: # ok
-				;;
-			write)
-				: # ok
-				;;
-			*)
-				require_ca=1
+			gen-req|gen-dh|build-ca|show-req|export-p*| \
+			inline|self-sign-*|write|gen-tls-*)
+				: ;; # ok
+			*) require_ca=1
 		esac
 esac
 
