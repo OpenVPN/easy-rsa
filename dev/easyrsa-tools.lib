@@ -24,7 +24,8 @@ verify_openvpn() {
 	# Try to find openvpn
 	set_var EASYRSA_OPENVPN "$(which openvpn)"
 	if [ -f "$EASYRSA_OPENVPN" ]; then
-		verbose "verify_openvpn - $EASYRSA_OPENVPN"
+		verbose \
+			"verify_openvpn - EASYRSA_OPENVPN='$EASYRSA_OPENVPN'"
 	else
 		user_error "Cannot find an OpenVPN binary."
 	fi
@@ -33,41 +34,52 @@ verify_openvpn() {
 # OpenVPN TLS Auth/Crypt Key
 tls_key_gen() {
 	case "$1" in
-		tls-auth)
-			tls_key_type=TLS-AUTH
-		;;
-		tls-crypt)
-			tls_key_type=TLS-CRYPT
-		;;
 		tls-crypt-v2)
 			print "Unavailable."
 			cleanup
 		;;
-		*)
-			die "Unknown key type: '$1'"
+		tls-crypt) tls_key_type=TLS-CRYPT ;;
+		tls-auth) tls_key_type=TLS-AUTH ;;
+		*) die "Unknown key type: '$1'"
 	esac
-	tls_key_file="$EASYRSA_PKI/private/easyrsa-tls.key"
 
-	# Forbid overwrite
+	# Over write error message
+	tls_key_error_msg="
+If this file is changed then it MUST be redistributed to ALL servers
+AND clients, to be in effect. Do NOT change this existing file."
+
+	# Assign possible TLS key sources
+	tls_key_file="$EASYRSA_PKI"/private/easyrsa-tls.key
+	old_tls_key_file="$EASYRSA_PKI"/easyrsa-keepsafe-tls.key
+
+	# Forbid overwrite - default TLS key
 	if [ -f "$tls_key_file" ]; then
 		tls_key_data="$(cat "$tls_key_file")"
 		case "$tls_key_data" in
-		*'TLS-AUTH'*)
-			tls_key_type=TLS-AUTH
-		;;
-		*'TLS-CRYPT'*)
-			tls_key_type=TLS-CRYPT
-		;;
-		*)
-			tls_key_type=UNKNOWN
+			*'TLS-CRYPT'*) tls_key_type=TLS-CRYPT ;;
+			*'TLS-AUTH'*) tls_key_type=TLS-AUTH ;;
+			*) tls_key_type=UNKNOWN
 		esac
 
 		user_error "\
 Cannot overwrite existing $tls_key_type Key:
 * $tls_key_file
+$tls_key_error_msg"
+	fi
 
-If this file is changed then it MUST be redistributed to ALL servers
-AND clients, to be in effect. Do NOT change the existing file."
+	# Forbid overwrite - Old TLS key
+	if [ -f "$old_tls_key_file" ]; then
+		old_tls_key_data="$(cat "$old_tls_key_file")"
+		case "$old_tls_key_data" in
+			*'TLS-CRYPT'*) tls_key_type=TLS-CRYPT ;;
+			*'TLS-AUTH'*) tls_key_type=TLS-AUTH ;;
+			*) tls_key_type=UNKNOWN
+		esac
+
+		user_error "\
+Cannot overwrite existing $tls_key_type Key:
+* $old_tls_key_file
+$tls_key_error_msg"
 	fi
 
 	verify_openvpn
@@ -89,7 +101,8 @@ AND clients, to be in effect. Do NOT change the existing file."
 
 	notice "\
 $tls_key_type Key generated at:
-* $tls_key_file"
+* $tls_key_file
+$tls_key_error_msg"
 	verbose "tls_key_gen: openvpn --genkey $tls_key_type OK"
 } # => tls_key_gen()
 
