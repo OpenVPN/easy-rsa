@@ -1600,7 +1600,7 @@ build_ca() {
 			raw-ca|raw)
 				EASYRSA_RAW_CA=1
 				;;
-			*) warn "Ignoring unknown command option: '$1'"
+			*) user_error "Unknown command option: '$1'"
 		esac
 		shift
 	done
