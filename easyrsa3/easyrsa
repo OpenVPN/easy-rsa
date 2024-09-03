@@ -751,9 +751,6 @@ Type the word '$value' to continue, or any other input to abort."
 } # => confirm()
 
 # Generate random hex
-# Cannot use easyrsa-openssl() due to chicken vs egg,
-# easyrsa_openssl() creates temp-files,
-# which needs `openssl rand`.
 easyrsa_random() {
 	case "$1" in
 		*[!1234567890]*|0*|"")
