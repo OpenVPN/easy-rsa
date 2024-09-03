@@ -3890,7 +3890,7 @@ Missing argument: no name/file supplied."
 			file)
 				file="$raw_file"
 				;;
-			*) warn "Ignoring unknown command option: '$1'"
+			*) user_error "Unknown command option: '$1'"
 		esac
 		shift
 	done
