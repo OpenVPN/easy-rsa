@@ -778,17 +778,16 @@ easyrsa_random() {
 
 # Create session directory atomically or fail
 secure_session() {
-	# Session is already defined
-	[ "$secured_session" ] && die "session overload"
+	# Session must not be defined
+	[ -z "$secured_session" ] || die "session overload"
 
-	# temporary directory must exist
-	if [ ! -d "$EASYRSA_TEMP_DIR" ]; then
-		die "secure_session - Missing temporary directory:
+	# Temporary directory must exist
+	[ -d "$EASYRSA_TEMP_DIR" ] || die "\
+secure_session - Missing temporary directory:
 * $EASYRSA_TEMP_DIR"
-	fi
 
-	session=
 	for i in 1 2 3; do
+		session=
 		easyrsa_random 4 session
 		secured_session="${EASYRSA_TEMP_DIR}/${session}"
 
@@ -807,7 +806,8 @@ secure_session() {
 				die "secure_session - temp-file EXISTS"
 
 			# New session requires safe-ssl conf
-			unset -v session OPENSSL_CONF safe_ssl_cnf_tmp \
+			unset -v session OPENSSL_CONF \
+				EASYRSA_SSL_CONF safe_ssl_cnf_tmp \
 				working_safe_ssl_conf working_safe_org_conf
 
 			easyrsa_err_log="$secured_session/error.log"
@@ -825,9 +825,9 @@ remove_secure_session() {
 	if rm -rf "$secured_session"; then
 		verbose "\
 remove_secure_session: DELETED: $secured_session"
-		unset -v secured_session \
-			safe_ssl_cnf_tmp working_safe_ssl_conf \
-			EASYRSA_SSL_CONF OPENSSL_CONF
+		unset -v secured_session OPENSSL_CONF \
+			EASYRSA_SSL_CONF safe_ssl_cnf_tmp \
+			working_safe_ssl_conf working_safe_org_conf
 		return
 	fi
 	die "remove_secure_session Failed: $secured_session"
@@ -848,7 +848,9 @@ easyrsa_mkdir() {
 # will hide error message and verbose messages
 # from easyrsa_mktemp()
 easyrsa_mktemp() {
-	[ "$#" = 1 ] || die "easyrsa_mktemp - input error"
+	if [ -z "$1" ] || [ "$2" ]; then
+		die "easyrsa_mktemp - input error"
+	fi
 
 	# session directory must exist
 	[ -d "$secured_session" ] || die "\
@@ -865,8 +867,8 @@ easyrsa_mktemp - Temporary session undefined (--tmp-dir)"
 	tmp_fname="${secured_session}/temp.${mktemp_counter}"
 
 	# Create shotfile
-	for ext_shot in x y z; do
-		shotfile="${tmp_fname}.${ext_shot}"
+	for shot_try in x y z; do
+		shotfile="${tmp_fname}.${shot_try}"
 		if [ -f "$shotfile" ]; then
 			verbose "\
 easyrsa_mktemp: shotfile EXISTS: $shotfile"
@@ -878,13 +880,16 @@ easyrsa_mktemp: create shotfile failed (1) $1"
 			# Create temp-file or die
 			# subshells do not update mktemp_counter,
 			# which is why this extension is required.
-			# Current max required is 3 attempts
+			# Current max required is 1 attempt
 			for ext_try in 1 2 3 4 5 6 7 8 9; do
 				want_tmp_file="${tmp_fname}.${ext_try}"
 
 				# Warn to error log file for max reached
-				[ "$EASYRSA_MAX_TEMP" -gt "$ext_try" ] || print "\
-Max temp-file limit $ext_try, hit for: $1" >> "$easyrsa_err_log"
+				if [ "$EASYRSA_MAX_TEMP" -lt "$ext_try" ]; then
+					print "\
+Max temp-file limit $ext_try, hit for: $1" > "$easyrsa_err_log"
+					die "EASYRSA_MAX_TEMP exceeded"
+				fi
 
 				if [ -f "$want_tmp_file" ]; then
 					verbose "\
@@ -909,7 +914,8 @@ easyrsa_mktemp: temp-file EXISTS: $want_tmp_file"
 							# Update counter
 							mktemp_counter="$((mktemp_counter+1))"
 
-							unset -v shotfile ext_shot \
+							unset -v tmp_fname \
+								shotfile shot_try \
 								want_tmp_file ext_try
 							return
 						else
@@ -933,7 +939,7 @@ easyrsa_mktemp - force_set_var $1 failed"
 	err_msg="\
 easyrsa_mktemp - failed for: $1 @ attempt=$ext_try
 want_tmp_file: $want_tmp_file"
-	print "$err_msg" >> "$easyrsa_err_log"
+	print "$err_msg" > "$easyrsa_err_log"
 	die "$err_msg"
 } # => easyrsa_mktemp()
 
@@ -4547,7 +4553,7 @@ Algorithm '$EASYRSA_ALGO' is invalid: Must be 'rsa', 'ec' or 'ed'"
 
 	set_var EASYRSA_KDC_REALM		"CHANGEME.EXAMPLE.COM"
 
-	set_var EASYRSA_MAX_TEMP		4
+	set_var EASYRSA_MAX_TEMP		1
 } # => default_vars()
 
 # Validate expected values for EASYRSA and EASYRSA_PKI
