@@ -1166,7 +1166,7 @@ easyrsa_openssl() {
 		rand) die "easyrsa_openssl: Illegal SSL command: rand"
 	esac
 
-	# Use $EASYRSA_SSL_CONF or $global_safe_ssl_cnf_tmp
+	# Use $EASYRSA_SSL_CONF (local) or $OPENSSL_CONF (global)
 	if [ -f "$EASYRSA_SSL_CONF" ]; then
 		export OPENSSL_CONF="$EASYRSA_SSL_CONF"
 	else
