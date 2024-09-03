@@ -1457,12 +1457,18 @@ Please delete the key above that is no longer in use."
 		header="# Easy-RSA TLS Key: $(date)${NL}# DO NOT DELETE"
 		printf '%s\n\n%s\n' "$header" "$tls_key_data" \
 			> "$old_tls_key_file"
-		tls_msg="\
+		tls_msg="${NL}
 Previous Easy-RSA TLS key saved to:
-* $old_tls_key_file"
+* $old_tls_key_file${NL}"
 	else
-		tls_msg="\
-Create a TLS-AUTH|TLS-CRYPT-V1 key now: See 'help gen-tls'"
+		# if an old TLD key still exists then notify user
+		if [ -f "$old_tls_key_file" ]; then
+			tls_msg="${NL}
+Existing Easy-RSA TLS key preserved:
+* $old_tls_key_file${NL}"
+		else
+			tls_msg=
+		fi
 	fi
 
 	# write pki/vars.example - no temp-file because no session
@@ -1474,8 +1480,6 @@ Create a TLS-AUTH|TLS-CRYPT-V1 key now: See 'help gen-tls'"
 	notice "\
 'init-pki' complete; you may now create a CA or requests.
 
-$tls_msg
-
 Your newly created PKI dir is:
 * $EASYRSA_PKI"
 
@@ -1484,7 +1488,7 @@ Your newly created PKI dir is:
 	select_vars
 	information "\
 Using Easy-RSA configuration:
-* ${EASYRSA_VARS_FILE:-undefined}"
+* ${EASYRSA_VARS_FILE:-undefined}${tls_msg}"
 } # => init_pki()
 
 # Find support files from various sources
@@ -1670,6 +1674,9 @@ Unable to create necessary PKI files (permissions?)"
 	if [ -f "$old_tls_key_file" ]; then
 		cp "$old_tls_key_file" "$tls_key_file" || \
 			warn "Failed to install TLS Key!"
+	else
+		tls_key_msg="${NL}
+Create an OpenVPN TLS-AUTH|TLS-CRYPT-V1 key now: See 'help gen-tls'"
 	fi
 
 	# Set ssl batch mode, as required
@@ -1933,7 +1940,7 @@ Prior to signing operations, place your resulting Sub-CA cert at:
 	else
 		notice "\
 CA creation complete. Your new CA certificate is at:
-* $out_file"
+* $out_file${tls_key_msg}"
 	fi
 } # => build_ca()
 
@@ -5760,7 +5767,7 @@ case "$cmd" in
 		require_pki=1
 		case "$cmd" in
 			gen-req|gen-dh|build-ca|show-req|export-p*| \
-			inline|self-sign-*|write|gen-tls-*)
+			inline|self-sign-*|write)
 				: ;; # ok
 			*) require_ca=1
 		esac
