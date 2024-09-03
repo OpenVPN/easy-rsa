@@ -670,7 +670,7 @@ die() {
 	print "
 Easy-RSA error:
 
-$1${NL}"
+$*${NL}"
 
 	# error_info is for hard-to-spot errors!
 	if [ "$error_info" ]; then
@@ -691,7 +691,7 @@ EasyRSA version $EASYRSA_version
 
 Error
 -----
-$1${NL}"
+$*${NL}"
 
 	easyrsa_exit_with_error=1
 	cleanup
@@ -700,7 +700,7 @@ $1${NL}"
 # verbose information
 verbose() {
 	[ "$EASYRSA_VERBOSE" ] || return 0
-	printf '%s\n' "  # $*"
+	print "  # $*"
 } # => verbose()
 
 # non-fatal warning output
@@ -709,7 +709,7 @@ warn() {
 	print "
 WARNING
 =======
-$1${NL}"
+$*${NL}"
 } # => warn()
 
 # informational notices to stdout
@@ -718,13 +718,13 @@ notice() {
 	print "
 Notice
 ------
-$1${NL}"
+$*${NL}"
 } # => notice()
 
 # Helpful information
 information() {
 	[ "$EASYRSA_SILENT" ] && return
-	print "$1"
+	print "$*"
 } # => information()
 
 # intent confirmation helper func
