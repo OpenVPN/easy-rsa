@@ -2223,7 +2223,7 @@ Run easyrsa without commands for usage and commands."
 			batch)
 				ssl_batch=1
 				;;
-			*) warn "Ignoring unknown command option: '$1'"
+			*) user_error "Unknown command option: '$1'"
 		esac
 		shift
 	done
