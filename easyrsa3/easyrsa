@@ -1405,9 +1405,11 @@ and initialize a fresh PKI here."
 					tls_key_hash="$(
 						"$EASYRSA_OPENSSL" dgst -sha256 \
 							"$tls_key_file")"
+					tls_key_hash="${tls_key_hash##* }"
 					old_tls_key_hash="$(
 						"$EASYRSA_OPENSSL" dgst -sha256 \
 							"$old_tls_key_file")"
+					old_tls_key_hash="${old_tls_key_hash##* }"
 					[ "$tls_key_hash" = "$old_tls_key_hash" ] || \
 						user_error "\
 Easy-RSA TLS Keys do not match, only ONE of these files is valid:
@@ -1461,7 +1463,7 @@ Please delete the key above that is no longer in use."
 Previous Easy-RSA TLS key saved to:
 * $old_tls_key_file${NL}"
 	else
-		# if an old TLD key still exists then notify user
+		# if an OLD TLS key still exists then notify user
 		if [ -f "$old_tls_key_file" ]; then
 			tls_msg="${NL}
 Existing Easy-RSA TLS key preserved:
@@ -1669,11 +1671,34 @@ Unable to create necessary PKI files (permissions?)"
 	unset -v err_msg
 
 	# If one exists then recreate TLS Key
-	tls_key_file="$EASYRSA_PKI/private/easyrsa-tls.key"
+	tls_key_file="$EASYRSA_PKI"/private/easyrsa-tls.key
 	old_tls_key_file="$EASYRSA_PKI"/easyrsa-keepsafe-tls.key
 	if [ -f "$old_tls_key_file" ]; then
+		confirm "Re-install existing Easy-RSA TLS Key ? " yes "
+An Easy-RSA TLS Key, saved by 'init-pki soft', has been found.
+This TLS Key is in use by your VPN, it is recommended that you
+re-install this TLS Key.
+
+Note:
+This is a private key and will NOT be added to new inline files.
+
+To create a new Easy-RSA TLS Key, delete this old TLS Key above."
 		cp "$old_tls_key_file" "$tls_key_file" || \
 			warn "Failed to install TLS Key!"
+		tls_key_msg="${NL}
+NOTICE: The previous Easy-RSA TLS Key has been installed:
+* $tls_key_file
+
+This TLS Key will NOT be added to new inline files. These new
+inline files can then be easily distributed to your servers and
+clients. The TLS Key that your servers and clients have previously
+received, can be added to the inline file manually.
+
+To re-enable automatically adding this TLS Key to inline files,
+simply delete the backup TLS Key at:
+* $old_tls_key_file
+
+To create a new Easy-RSA TLS Key, delete both TLS Keys above."
 	else
 		tls_key_msg="${NL}
 Create an OpenVPN TLS-AUTH|TLS-CRYPT-V1 key now: See 'help gen-tls'"
@@ -1940,7 +1965,9 @@ Prior to signing operations, place your resulting Sub-CA cert at:
 	else
 		notice "\
 CA creation complete. Your new CA certificate is at:
-* $out_file${tls_key_msg}"
+* $out_file${tls_key_msg}
+
+Build-ca completed successfully."
 	fi
 } # => build_ca()
 
