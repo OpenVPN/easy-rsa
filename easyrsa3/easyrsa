@@ -1589,8 +1589,8 @@ get_passphrase() {
 # build-ca backend:
 build_ca() {
 	cipher="-aes256"
-	unset -v sub_ca ssl_batch date_stamp x509 error_info \
-			ca_password_via_cmdline
+	unset -v sub_ca date_stamp x509 error_info \
+		ca_password_via_cmdline
 
 	while [ "$1" ]; do
 		case "$1" in
@@ -1600,7 +1600,7 @@ build_ca() {
 			nopass)
 				[ "$prohibit_no_pass" ] || EASYRSA_NO_PASS=1
 				;;
-			raw-ca|raw)
+			raw*)
 				EASYRSA_RAW_CA=1
 				;;
 			*) user_error "Unknown command option: '$1'"
@@ -1705,9 +1705,7 @@ Create an OpenVPN TLS-AUTH|TLS-CRYPT-V1 key now: See 'help gen-tls'"
 	fi
 
 	# Set ssl batch mode, as required
-	if [ "$EASYRSA_BATCH" ]; then
-		ssl_batch=1
-	fi
+	[ "$EASYRSA_BATCH" ] && ssl_batch=1
 
 	# Default CA commonName
 	if [ "$EASYRSA_REQ_CN" = ChangeMe ]; then
@@ -2221,13 +2219,8 @@ Run easyrsa without commands for usage and commands."
 	file_name_base="$1"
 	shift # scrape off file-name-base
 
-	# Initialisation
-	unset -v text ssl_batch
-
 	# Set ssl batch mode as required
-	if [ "$EASYRSA_BATCH" ]; then
-		ssl_batch=1
-	fi
+	[ "$EASYRSA_BATCH" ] && ssl_batch=1
 
 	# Set commonName
 	if [ "$EASYRSA_REQ_CN" = ChangeMe ]; then
@@ -5520,10 +5513,10 @@ detect_host
 # Initialisation requirements
 unset -v \
 	OPENSSL_CONF \
-	verify_ssl_lib_ok \
+	verify_ssl_lib_ok ssl_batch \
 	secured_session mktemp_counter \
 	working_safe_ssl_conf working_safe_org_conf \
-	alias_days \
+	alias_days text \
 	prohibit_no_pass \
 	invalid_vars \
 	local_request error_build_full_cleanup \
