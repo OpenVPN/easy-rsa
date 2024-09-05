@@ -670,7 +670,7 @@ die() {
 	print "
 Easy-RSA error:
 
-$1${NL}"
+$*${NL}"
 
 	# error_info is for hard-to-spot errors!
 	if [ "$error_info" ]; then
@@ -691,7 +691,7 @@ EasyRSA version $EASYRSA_version
 
 Error
 -----
-$1${NL}"
+$*${NL}"
 
 	easyrsa_exit_with_error=1
 	cleanup
@@ -700,7 +700,7 @@ $1${NL}"
 # verbose information
 verbose() {
 	[ "$EASYRSA_VERBOSE" ] || return 0
-	printf '%s\n' "  # $*"
+	print "  # $*"
 } # => verbose()
 
 # non-fatal warning output
@@ -709,7 +709,7 @@ warn() {
 	print "
 WARNING
 =======
-$1${NL}"
+$*${NL}"
 } # => warn()
 
 # informational notices to stdout
@@ -718,13 +718,13 @@ notice() {
 	print "
 Notice
 ------
-$1${NL}"
+$*${NL}"
 } # => notice()
 
 # Helpful information
 information() {
 	[ "$EASYRSA_SILENT" ] && return
-	print "$1"
+	print "$*"
 } # => information()
 
 # intent confirmation helper func
@@ -751,9 +751,6 @@ Type the word '$value' to continue, or any other input to abort."
 } # => confirm()
 
 # Generate random hex
-# Cannot use easyrsa-openssl() due to chicken vs egg,
-# easyrsa_openssl() creates temp-files,
-# which needs `openssl rand`.
 easyrsa_random() {
 	case "$1" in
 		*[!1234567890]*|0*|"")
@@ -778,17 +775,16 @@ easyrsa_random() {
 
 # Create session directory atomically or fail
 secure_session() {
-	# Session is already defined
-	[ "$secured_session" ] && die "session overload"
+	# Session must not be defined
+	[ -z "$secured_session" ] || die "session overload"
 
-	# temporary directory must exist
-	if [ ! -d "$EASYRSA_TEMP_DIR" ]; then
-		die "secure_session - Missing temporary directory:
+	# Temporary directory must exist
+	[ -d "$EASYRSA_TEMP_DIR" ] || die "\
+secure_session - Missing temporary directory:
 * $EASYRSA_TEMP_DIR"
-	fi
 
-	session=
 	for i in 1 2 3; do
+		session=
 		easyrsa_random 4 session
 		secured_session="${EASYRSA_TEMP_DIR}/${session}"
 
@@ -807,7 +803,8 @@ secure_session() {
 				die "secure_session - temp-file EXISTS"
 
 			# New session requires safe-ssl conf
-			unset -v session OPENSSL_CONF safe_ssl_cnf_tmp \
+			unset -v session OPENSSL_CONF \
+				EASYRSA_SSL_CONF safe_ssl_cnf_tmp \
 				working_safe_ssl_conf working_safe_org_conf
 
 			easyrsa_err_log="$secured_session/error.log"
@@ -825,9 +822,9 @@ remove_secure_session() {
 	if rm -rf "$secured_session"; then
 		verbose "\
 remove_secure_session: DELETED: $secured_session"
-		unset -v secured_session \
-			safe_ssl_cnf_tmp working_safe_ssl_conf \
-			EASYRSA_SSL_CONF OPENSSL_CONF
+		unset -v secured_session OPENSSL_CONF \
+			EASYRSA_SSL_CONF safe_ssl_cnf_tmp \
+			working_safe_ssl_conf working_safe_org_conf
 		return
 	fi
 	die "remove_secure_session Failed: $secured_session"
@@ -848,7 +845,9 @@ easyrsa_mkdir() {
 # will hide error message and verbose messages
 # from easyrsa_mktemp()
 easyrsa_mktemp() {
-	[ "$#" = 1 ] || die "easyrsa_mktemp - input error"
+	if [ -z "$1" ] || [ "$2" ]; then
+		die "easyrsa_mktemp - input error"
+	fi
 
 	# session directory must exist
 	[ -d "$secured_session" ] || die "\
@@ -865,8 +864,8 @@ easyrsa_mktemp - Temporary session undefined (--tmp-dir)"
 	tmp_fname="${secured_session}/temp.${mktemp_counter}"
 
 	# Create shotfile
-	for ext_shot in x y z; do
-		shotfile="${tmp_fname}.${ext_shot}"
+	for shot_try in x y z; do
+		shotfile="${tmp_fname}.${shot_try}"
 		if [ -f "$shotfile" ]; then
 			verbose "\
 easyrsa_mktemp: shotfile EXISTS: $shotfile"
@@ -878,13 +877,16 @@ easyrsa_mktemp: create shotfile failed (1) $1"
 			# Create temp-file or die
 			# subshells do not update mktemp_counter,
 			# which is why this extension is required.
-			# Current max required is 3 attempts
+			# Current max required is 1 attempt
 			for ext_try in 1 2 3 4 5 6 7 8 9; do
 				want_tmp_file="${tmp_fname}.${ext_try}"
 
 				# Warn to error log file for max reached
-				[ "$EASYRSA_MAX_TEMP" -gt "$ext_try" ] || print "\
-Max temp-file limit $ext_try, hit for: $1" >> "$easyrsa_err_log"
+				if [ "$EASYRSA_MAX_TEMP" -lt "$ext_try" ]; then
+					print "\
+Max temp-file limit $ext_try, hit for: $1" > "$easyrsa_err_log"
+					die "EASYRSA_MAX_TEMP exceeded"
+				fi
 
 				if [ -f "$want_tmp_file" ]; then
 					verbose "\
@@ -909,7 +911,8 @@ easyrsa_mktemp: temp-file EXISTS: $want_tmp_file"
 							# Update counter
 							mktemp_counter="$((mktemp_counter+1))"
 
-							unset -v shotfile ext_shot \
+							unset -v tmp_fname \
+								shotfile shot_try \
 								want_tmp_file ext_try
 							return
 						else
@@ -933,7 +936,7 @@ easyrsa_mktemp - force_set_var $1 failed"
 	err_msg="\
 easyrsa_mktemp - failed for: $1 @ attempt=$ext_try
 want_tmp_file: $want_tmp_file"
-	print "$err_msg" >> "$easyrsa_err_log"
+	print "$err_msg" > "$easyrsa_err_log"
 	die "$err_msg"
 } # => easyrsa_mktemp()
 
@@ -1163,7 +1166,7 @@ easyrsa_openssl() {
 		rand) die "easyrsa_openssl: Illegal SSL command: rand"
 	esac
 
-	# Use $EASYRSA_SSL_CONF or $global_safe_ssl_cnf_tmp
+	# Use $EASYRSA_SSL_CONF (local) or $OPENSSL_CONF (global)
 	if [ -f "$EASYRSA_SSL_CONF" ]; then
 		export OPENSSL_CONF="$EASYRSA_SSL_CONF"
 	else
@@ -1402,9 +1405,11 @@ and initialize a fresh PKI here."
 					tls_key_hash="$(
 						"$EASYRSA_OPENSSL" dgst -sha256 \
 							"$tls_key_file")"
+					tls_key_hash="${tls_key_hash##* }"
 					old_tls_key_hash="$(
 						"$EASYRSA_OPENSSL" dgst -sha256 \
 							"$old_tls_key_file")"
+					old_tls_key_hash="${old_tls_key_hash##* }"
 					[ "$tls_key_hash" = "$old_tls_key_hash" ] || \
 						user_error "\
 Easy-RSA TLS Keys do not match, only ONE of these files is valid:
@@ -1454,12 +1459,18 @@ Please delete the key above that is no longer in use."
 		header="# Easy-RSA TLS Key: $(date)${NL}# DO NOT DELETE"
 		printf '%s\n\n%s\n' "$header" "$tls_key_data" \
 			> "$old_tls_key_file"
-		tls_msg="\
+		tls_msg="${NL}
 Previous Easy-RSA TLS key saved to:
-* $old_tls_key_file"
+* $old_tls_key_file${NL}"
 	else
-		tls_msg="\
-Create a TLS-AUTH|TLS-CRYPT-V1 key now: See 'help gen-tls'"
+		# if an OLD TLS key still exists then notify user
+		if [ -f "$old_tls_key_file" ]; then
+			tls_msg="${NL}
+Existing Easy-RSA TLS key preserved:
+* $old_tls_key_file${NL}"
+		else
+			tls_msg=
+		fi
 	fi
 
 	# write pki/vars.example - no temp-file because no session
@@ -1471,8 +1482,6 @@ Create a TLS-AUTH|TLS-CRYPT-V1 key now: See 'help gen-tls'"
 	notice "\
 'init-pki' complete; you may now create a CA or requests.
 
-$tls_msg
-
 Your newly created PKI dir is:
 * $EASYRSA_PKI"
 
@@ -1481,7 +1490,7 @@ Your newly created PKI dir is:
 	select_vars
 	information "\
 Using Easy-RSA configuration:
-* ${EASYRSA_VARS_FILE:-undefined}"
+* ${EASYRSA_VARS_FILE:-undefined}${tls_msg}"
 } # => init_pki()
 
 # Find support files from various sources
@@ -1580,8 +1589,8 @@ get_passphrase() {
 # build-ca backend:
 build_ca() {
 	cipher="-aes256"
-	unset -v sub_ca ssl_batch date_stamp x509 error_info \
-			ca_password_via_cmdline
+	unset -v sub_ca date_stamp x509 error_info \
+		ca_password_via_cmdline
 
 	while [ "$1" ]; do
 		case "$1" in
@@ -1591,10 +1600,10 @@ build_ca() {
 			nopass)
 				[ "$prohibit_no_pass" ] || EASYRSA_NO_PASS=1
 				;;
-			raw-ca|raw)
+			raw*)
 				EASYRSA_RAW_CA=1
 				;;
-			*) warn "Ignoring unknown command option: '$1'"
+			*) user_error "Unknown command option: '$1'"
 		esac
 		shift
 	done
@@ -1662,17 +1671,41 @@ Unable to create necessary PKI files (permissions?)"
 	unset -v err_msg
 
 	# If one exists then recreate TLS Key
-	tls_key_file="$EASYRSA_PKI/private/easyrsa-tls.key"
+	tls_key_file="$EASYRSA_PKI"/private/easyrsa-tls.key
 	old_tls_key_file="$EASYRSA_PKI"/easyrsa-keepsafe-tls.key
 	if [ -f "$old_tls_key_file" ]; then
+		confirm "Re-install existing Easy-RSA TLS Key ? " yes "
+An Easy-RSA TLS Key, saved by 'init-pki soft', has been found.
+This TLS Key is in use by your VPN, it is recommended that you
+re-install this TLS Key.
+
+Note:
+This is a private key and will NOT be added to new inline files.
+
+To create a new Easy-RSA TLS Key, delete this old TLS Key above."
 		cp "$old_tls_key_file" "$tls_key_file" || \
 			warn "Failed to install TLS Key!"
+		tls_key_msg="${NL}
+NOTICE: The previous Easy-RSA TLS Key has been installed:
+* $tls_key_file
+
+This TLS Key will NOT be added to new inline files. These new
+inline files can then be easily distributed to your servers and
+clients. The TLS Key that your servers and clients have previously
+received, can be added to the inline file manually.
+
+To re-enable automatically adding this TLS Key to inline files,
+simply delete the backup TLS Key at:
+* $old_tls_key_file
+
+To create a new Easy-RSA TLS Key, delete both TLS Keys above."
+	else
+		tls_key_msg="${NL}
+Create an OpenVPN TLS-AUTH|TLS-CRYPT-V1 key now: See 'help gen-tls'"
 	fi
 
 	# Set ssl batch mode, as required
-	if [ "$EASYRSA_BATCH" ]; then
-		ssl_batch=1
-	fi
+	[ "$EASYRSA_BATCH" ] && ssl_batch=1
 
 	# Default CA commonName
 	if [ "$EASYRSA_REQ_CN" = ChangeMe ]; then
@@ -1930,7 +1963,9 @@ Prior to signing operations, place your resulting Sub-CA cert at:
 	else
 		notice "\
 CA creation complete. Your new CA certificate is at:
-* $out_file"
+* $out_file${tls_key_msg}
+
+Build-ca completed successfully."
 	fi
 } # => build_ca()
 
@@ -2184,13 +2219,8 @@ Run easyrsa without commands for usage and commands."
 	file_name_base="$1"
 	shift # scrape off file-name-base
 
-	# Initialisation
-	unset -v text ssl_batch
-
 	# Set ssl batch mode as required
-	if [ "$EASYRSA_BATCH" ]; then
-		ssl_batch=1
-	fi
+	[ "$EASYRSA_BATCH" ] && ssl_batch=1
 
 	# Set commonName
 	if [ "$EASYRSA_REQ_CN" = ChangeMe ]; then
@@ -2217,7 +2247,7 @@ Run easyrsa without commands for usage and commands."
 			batch)
 				ssl_batch=1
 				;;
-			*) warn "Ignoring unknown command option: '$1'"
+			*) user_error "Unknown command option: '$1'"
 		esac
 		shift
 	done
@@ -2881,7 +2911,7 @@ Run easyrsa without commands for usage and commands."
 			nopass)
 				[ "$prohibit_no_pass" ] || EASYRSA_NO_PASS=1
 				;;
-			*) warn "Ignoring unknown command option: '$1'"
+			*) user_error "Unknown command option: '$1'"
 		esac
 		shift
 	done
@@ -3639,7 +3669,7 @@ Run easyrsa without commands for usage and command help."
 				fi
 				;;
 			*)
-				warn "Ignoring unknown option: '$1'"
+				user_error "Unknown command option: '$1'"
 		esac
 		shift
 	done
@@ -3884,7 +3914,7 @@ Missing argument: no name/file supplied."
 			file)
 				file="$raw_file"
 				;;
-			*) warn "Ignoring unknown command option: '$1'"
+			*) user_error "Unknown command option: '$1'"
 		esac
 		shift
 	done
@@ -4547,7 +4577,7 @@ Algorithm '$EASYRSA_ALGO' is invalid: Must be 'rsa', 'ec' or 'ed'"
 
 	set_var EASYRSA_KDC_REALM		"CHANGEME.EXAMPLE.COM"
 
-	set_var EASYRSA_MAX_TEMP		4
+	set_var EASYRSA_MAX_TEMP		1
 } # => default_vars()
 
 # Validate expected values for EASYRSA and EASYRSA_PKI
@@ -5483,10 +5513,10 @@ detect_host
 # Initialisation requirements
 unset -v \
 	OPENSSL_CONF \
-	verify_ssl_lib_ok \
+	verify_ssl_lib_ok ssl_batch \
 	secured_session mktemp_counter \
 	working_safe_ssl_conf working_safe_org_conf \
-	alias_days \
+	alias_days text \
 	prohibit_no_pass \
 	invalid_vars \
 	local_request error_build_full_cleanup \
@@ -5757,7 +5787,7 @@ case "$cmd" in
 		require_pki=1
 		case "$cmd" in
 			gen-req|gen-dh|build-ca|show-req|export-p*| \
-			inline|self-sign-*|write|gen-tls-*)
+			inline|self-sign-*|write)
 				: ;; # ok
 			*) require_ca=1
 		esac

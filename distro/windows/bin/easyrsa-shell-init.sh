@@ -6,6 +6,8 @@
 # project; use with other POSIX shells for Windows may require modification to
 # this wrapper script.
 
+echo "Easy-RSA starting.."
+
 setup_path="${EASYRSA:-$PWD}"
 export PATH="$setup_path;$setup_path/bin;$PATH"
 export HOME="$setup_path"
@@ -24,9 +26,8 @@ for f in $extern_list; do
 		echo "  Your installation is incomplete and cannot function without the required"
 		echo "  files."
 		echo ""
-		echo "  Press enter to exit."
 		#shellcheck disable=SC2162
-		read
+		read -p "Press Enter or CTRL-C to exit."
 		exit 1
 	fi
 done
@@ -48,16 +49,13 @@ done
 # Access denied
 access_denied() {
 	echo "Access error: $1"
-	cat << "ACCESS_DENIED_MSG"
-
+	echo "\
 To use Easy-RSA in a protected system directory, you must have
-full administrator privileges via Windows User Access Control.
-
-Press Enter or CTRL-C to exit.
-ACCESS_DENIED_MSG
+full administrator privileges via Windows User Access Control."
+	echo ""
 
 	#shellcheck disable=SC2162
-	read
+	read -p "Press Enter or CTRL-C to exit."
 	exit 1
 }
 
@@ -130,6 +128,7 @@ fi
 
 [ -f "$setup_path/easyrsa" ] || {
 	echo "Missing easyrsa script. Expected to find it at: $setup_path/easyrsa"
+	read -p "Press Enter or CTRL-C to exit."
 	exit 2
 }
 

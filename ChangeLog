@@ -2,6 +2,9 @@ Easy-RSA 3 ChangeLog
 
 3.2.1 (TBD)
 
+   * Always exit with error for unknown command options (Except nopass) (#1221)
+     (build-ca: b2f7912); (gen-req: 07f21d3); (build_full(): 0ff7f4c);
+     (export_pkcs(): 2c51288); (set-pass: 1266d4e)
    * Integrate Easy-RSA TLS-Key for use with 'init-pki soft' (03d9dc2) (#1220)
      Note: Inline files that contain private key data are now created in sub-dir
      'pki/inline/private'.
