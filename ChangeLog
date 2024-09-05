@@ -2,6 +2,7 @@ Easy-RSA 3 ChangeLog
 
 3.2.1 (TBD)
 
+   * inline: Add decimal value for cert. serial (Linux Only) (b33038e) (#1222)
    * Always exit with error for unknown command options (Except nopass) (#1221)
      (build-ca: b2f7912); (gen-req: 07f21d3); (build_full(): 0ff7f4c);
      (export_pkcs(): 2c51288); (set-pass: 1266d4e)
