@@ -5539,7 +5539,7 @@ detect_host
 unset -v \
 	OPENSSL_CONF \
 	verify_ssl_lib_ok ssl_batch \
-	secured_session mktemp_counter \
+	secured_session \
 	working_safe_ssl_conf working_safe_org_conf \
 	alias_days text \
 	prohibit_no_pass \
@@ -5553,6 +5553,8 @@ unset -v \
 	# Used by build-ca->cleanup to restore prompt
 	# after user interrupt when using manual password
 	prompt_restore=0
+	# Sequential temp-file counter
+	mktemp_counter=0
 
 # Parse options
 while :; do
