@@ -39,6 +39,7 @@ A list of commands is shown below:
   build-server-full <file_name_base> [ cmd-opts ]
   build-serverClient-full <file_name_base> [ cmd-opts ]
   inline <file_name_base>
+  renew <file_name_base>
   revoke <file_name_base> [ cmd-opts ]
   expire <file_name_base>
   revoke-expired <file_name_base> [ cmd-opts ]
@@ -239,6 +240,12 @@ Usage: easyrsa [ OPTIONS.. ] <COMMAND> <TARGET> [ cmd-opts.. ]"
       to the 'pki/expired' directory.
 
       Allows an existing request to be signed again."
+	;;
+	renew)
+		text="
+* renew <file_name_base>
+
+      Renew a certificate specified by <file_name_base>"
 	;;
 	gen-crl)
 		text="
