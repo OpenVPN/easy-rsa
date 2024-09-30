@@ -39,6 +39,7 @@ A list of commands is shown below:
   build-server-full <file_name_base> [ cmd-opts ]
   build-serverClient-full <file_name_base> [ cmd-opts ]
   inline <file_name_base>
+  renew <file_name_base>
   revoke <file_name_base> [ cmd-opts ]
   expire <file_name_base>
   revoke-expired <file_name_base> [ cmd-opts ]
@@ -239,6 +240,12 @@ Usage: easyrsa [ OPTIONS.. ] <COMMAND> <TARGET> [ cmd-opts.. ]"
       to the 'pki/expired' directory.
 
       Allows an existing request to be signed again."
+	;;
+	renew)
+		text="
+* renew <file_name_base>
+
+      Renew a certificate specified by <file_name_base>"
 	;;
 	gen-crl)
 		text="
@@ -5532,7 +5539,7 @@ detect_host
 unset -v \
 	OPENSSL_CONF \
 	verify_ssl_lib_ok ssl_batch \
-	secured_session mktemp_counter \
+	secured_session \
 	working_safe_ssl_conf working_safe_org_conf \
 	alias_days text \
 	prohibit_no_pass \
@@ -5546,6 +5553,8 @@ unset -v \
 	# Used by build-ca->cleanup to restore prompt
 	# after user interrupt when using manual password
 	prompt_restore=0
+	# Sequential temp-file counter
+	mktemp_counter=0
 
 # Parse options
 while :; do
