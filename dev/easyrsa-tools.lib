@@ -856,19 +856,6 @@ The inline credentials files:
 		die "Renewal has failed to build a new certificate."
 	fi
 
-	# inline it
-	# Over write existing because renew is successful
-	if inline_creds "$file_name_base" > "$inline_in"
-	then
-		notice "\
-Inline file created:
-* $inline_in"
-	else
-		warn "\
-INCOMPLETE Inline file created:
-* $inline_in"
-	fi
-
 	# Success messages
 	notice "\
 Renew was successful.
