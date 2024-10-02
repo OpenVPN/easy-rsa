@@ -954,6 +954,12 @@ cleanup() {
 		print; cat "$easyrsa_err_log"; print
 	fi
 
+	# Remove redundant file: index.txt.attr
+	if [ -f "$EASYRSA_PKI"/index.txt.attr ]; then
+		rm -f "$EASYRSA_PKI"/index.txt.attr
+		verbose "cleanup: DELETED $EASYRSA_PKI/index.txt.attr"
+	fi
+
 	# undo changes BEFORE delete temp-dir
 	# Remove files when build_full()->sign_req() is interrupted
 	[ "$error_build_full_cleanup" ] && \
@@ -1307,9 +1313,7 @@ Run easyrsa without commands for usage and command help."
 	# Verify expected files are present.
 	# Allow files to be regular files (or symlinks),
 	# but also pipes, for flexibility with ca.key
-	for i in ca.crt private/ca.key \
-			index.txt index.txt.attr serial
-	do
+	for i in ca.crt private/ca.key index.txt serial; do
 		if [ ! -f "$EASYRSA_PKI/$i" ] && \
 			[ ! -p "$EASYRSA_PKI/$i" ]
 		then
@@ -1671,8 +1675,6 @@ Unable to create necessary PKI files (permissions?)"
 	# create necessary files:
 	printf "" > \
 		"$EASYRSA_PKI/index.txt" || die "$err_msg"
-	printf '%s\n' 'unique_subject = no' \
-		> "$EASYRSA_PKI/index.txt.attr" || die "$err_msg"
 	printf '%s\n' "01" \
 		> "$EASYRSA_PKI/serial" || die "$err_msg"
 	unset -v err_msg
