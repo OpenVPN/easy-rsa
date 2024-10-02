@@ -1,5 +1,9 @@
 Easy-RSA 3 ChangeLog
 
+3.2.2 (TBD)
+
+   * Remove redundant file index.txt.attr (da3c249) (#1233)
+
 3.2.1 (2024-09-13)
 
    * inline: Add decimal value for cert. serial (Linux Only) (b33038e) (#1222)

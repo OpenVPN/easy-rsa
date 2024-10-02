@@ -692,10 +692,6 @@ Run easyrsa without commands for usage and command help."
 	creds_in="$in_dir/${file_name_base}.creds"
 	inline_in="$in_dir/inline/${file_name_base}.inline"
 
-	# Upgrade CA index.txt.attr - unique_subject = no
-	print 'unique_subject = no' > "$EASYRSA_PKI/index.txt.attr" || \
-		die "Failed to upgrade CA to support renewal."
-
 	# deprecate ALL options
 	while [ "$1" ]; do
 		case "$1" in
