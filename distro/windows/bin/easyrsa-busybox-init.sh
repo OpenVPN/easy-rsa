@@ -6,31 +6,13 @@
 # project; use with other POSIX shells for Windows may require modification to
 # this wrapper script.
 
-echo "Easy-RSA starting.."
-
 setup_path="${EASYRSA:-$PWD}"
-export PATH="$setup_path;$setup_path/bin;$PATH"
+export PATH="$setup_path;$PATH"
 export HOME="$setup_path"
 
 # This prevents reading from a user's .mkshrc if they have one.
 # A user who runs mksh for other purposes might have it
 export ENV="/disable-env"
-
-# Verify required externals are present
-extern_list="which awk cat cp mkdir printf rm"
-for f in $extern_list; do
-	if ! which "${f}.exe" >/dev/null 2>&1; then
-		echo ""
-		echo "FATAL: EasyRSA Shell init is missing a required external file:"
-		echo "  ${f}.exe"
-		echo "  Your installation is incomplete and cannot function without the required"
-		echo "  files."
-		echo ""
-		#shellcheck disable=SC2162
-		read -p "Press Enter or CTRL-C to exit."
-		exit 1
-	fi
-done
 
 # Allow options
 non_admin=""
@@ -49,13 +31,28 @@ done
 # Access denied
 access_denied() {
 	echo "Access error: $1"
-	echo "\
+	cat << "ACCESS_DENIED_MSG"
+
 To use Easy-RSA in a protected system directory, you must have
-full administrator privileges via Windows User Access Control."
-	echo ""
+elevated privileges via 'Windows User Access Control'.
+You can try 'run-as admin' but that may also fail.
+
+It is recommended to use Easy-RSA in your User/home directory.
+
+Please try using one of the following solutions:
+* Use the Start Menu item: 'Start Easy-RSA Shell (Non-Admin)'
+* Or, in a Non-Admin command prompt window, run two commands:
+
+    cd '\Program Files\Openvpn\easy-rsa\'
+    EasyRSA-Start.bat /no-admin
+
+These will start EasyRSA in your user's 'home directory/easy-rsa'
+
+Press enter to exit."
+ACCESS_DENIED_MSG
 
 	#shellcheck disable=SC2162
-	read -p "Press Enter or CTRL-C to exit."
+	read
 	exit 1
 }
 
@@ -128,7 +125,6 @@ fi
 
 [ -f "$setup_path/easyrsa" ] || {
 	echo "Missing easyrsa script. Expected to find it at: $setup_path/easyrsa"
-	read -p "Press Enter or CTRL-C to exit."
 	exit 2
 }
 
@@ -146,4 +142,4 @@ echo "Using directory: $HOME"
 echo ""
 
 # Drop to a shell and await input
-sh.exe
+"$setup_path"/bin/busybox.exe sh
