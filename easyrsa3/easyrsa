@@ -5491,7 +5491,7 @@ EasyRSA Tools version is out of date:
 		tools_error_txt="Missing: easyrsa-tools.lib
 
 Use of command '$cmd' requires Easy-RSA tools library, source:
-* https://github.com/OpenVPN/easy-rsa/dev/easyrsa-tools.lib
+* https://github.com/OpenVPN/easy-rsa/blob/master/dev/easyrsa-tools.lib
 
 Place a copy of easyrsa-tools.lib in a standard system location."
 		return 1
