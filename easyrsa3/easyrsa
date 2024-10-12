@@ -2390,7 +2390,11 @@ sign_req() {
 			: # All known types plus CA for sub-ca
 		;;
 		*)
-			user_error "Type is not recognised: '$crt_type'"
+			warn "\
+Unrecognised x509-type: '$crt_type'
+
+In order to sign a custom X509 Type certificate, there must be a
+corresponding SSL configuration file in the 'x509-type' folder."
 	esac
 
 	# Check argument sanity:
@@ -4865,6 +4869,7 @@ write_x509_type_tmp() {
 
 	write_legacy_file_v2 "$1" "$write_x509_file_tmp" || \
 		die "write_x509_type_tmp - write $1"
+
 
 	verbose ": write_x509_type_tmp: $1 COMPLETE"
 } # => write_x509_type_tmp()
