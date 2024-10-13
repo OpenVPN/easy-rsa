@@ -2,6 +2,7 @@ Easy-RSA 3 ChangeLog
 
 3.2.2 (TBD)
 
+   * sign-req: Allow custom X509 Types (2ee08cc) (#1238)
    * Remove redundant file index.txt.attr (da3c249) (#1233)
 
 3.2.1 (2024-09-13)
