@@ -1257,7 +1257,7 @@ $error_msg"
 	case "$osslv_major" in
 		1) no_password='-nodes' ;;
 		2) no_password='-nodes' ;;
-		3)
+		3|4)
 			case "$ssl_lib" in
 				openssl)
 					openssl_v3=1
