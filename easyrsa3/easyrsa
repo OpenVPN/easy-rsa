@@ -1217,7 +1217,7 @@ verify_ssl_lib() {
 	# Run once only
 	[ "$verify_ssl_lib_ok" ] && return
 	verify_ssl_lib_ok=1
-	unset -v openssl_v3
+	unset -v openssl_v3 openssl_v110
 
 	# redirect std-err, ignore missing ssl/openssl.cnf
 	val="$(
@@ -4145,7 +4145,7 @@ ssl_cert_x509v3_eku() {
 	unset -v __known
 
 	# Extract certificate Extended Key Usage
-	if [ "$ssl_lib" = libressl ]; then
+	if [ "$ssl_lib" = libressl ] || [ "$openssl_v110" ]; then
 		__eku="$(
 			"$EASYRSA_OPENSSL" x509 -in "${__crt}" -noout -text | \
 				sed -n "/${__pattern}/{n;s/^ *//g;p;}"
