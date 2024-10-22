@@ -689,8 +689,8 @@ Run easyrsa without commands for usage and command help."
 	crt_in="$in_dir/issued/${file_name_base}.crt"
 	key_in="$in_dir/private/${file_name_base}.key"
 	req_in="$in_dir/reqs/${file_name_base}.req"
-	creds_in="$in_dir/${file_name_base}.creds"
-	inline_in="$in_dir/inline/${file_name_base}.inline"
+	inline_pub="$in_dir/inline/${file_name_base}.inline"
+	inline_pri="$in_dir/inline/private/${file_name_base}.inline"
 
 	# deprecate ALL options
 	while [ "$1" ]; do
@@ -829,8 +829,8 @@ These files will be DELETED:
 All PKCS files for commonName: $file_name_base
 
 The inline credentials files:
-* $creds_in
-* $inline_in"
+* $inline_pub
+* $inline_pri"
 
 	# move renewed files
 	# so we can reissue certificate with the same name
@@ -908,19 +908,9 @@ renew_move() {
 		rm -f "$in_dir/private/$file_name_base.$pkcs"
 	done
 
-	# remove credentials file
-	if [ -f "$creds_in" ]; then
-		rm "$creds_in" || warn "\
-Failed to remove credentials file:
-* $creds_in"
-	fi
-
-	# remove inline file
-	if [ -f "$inline_in" ]; then
-		rm "$inline_in" || warn "\
-Failed to remove inline file:
-* $inline_in"
-	fi
+	# remove inline files
+	rm -f "$inline_pub" "$inline_pri" || warn \
+		"renew_move - Error trying to remove inline files."
 } # => renew_move()
 
 # Verify certificate against CA

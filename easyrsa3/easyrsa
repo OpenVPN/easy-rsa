@@ -3368,7 +3368,7 @@ These files will be MOVED to the 'revoked' sub-directory:
 * $crt_in${if_exist_key_in}${if_exist_req_in}
 
 These files will be DELETED:
-All PKCS files for commonName : $file_name_base
+All PKCS files for commonName: $file_name_base
 
 The inline credentials files:
 * $inline_pub
