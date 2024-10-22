@@ -767,7 +767,14 @@ Cannot renew this certificate, a conflicting file exists:
 			die "Failed to create inline directoy."
 
 	# Extract certificate usage from old cert
-	ssl_cert_x509v3_eku "$crt_in" cert_type
+	if ! ssl_cert_x509v3_eku "$crt_in" cert_type; then
+		# On failure, try using openssl 1.1.0
+		cert_type=
+		openssl_v110=1
+		ssl_cert_x509v3_eku "$crt_in" cert_type || \
+			die "renew - ssl_cert_x509v3_eku openssl_v110 failed"
+		openssl_v110=
+	fi
 
 	# Use SAN from old cert ONLY
 	if grep 'X509v3 Subject Alternative Name' "$crt_in"; then
