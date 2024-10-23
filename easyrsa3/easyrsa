@@ -5312,6 +5312,10 @@ fi
 #set_var	EASYRSA_KU_CRIT		1
 #set_var	EASYRSA_EKU_CRIT	1
 #set_var	EASYRSA_SAN_CRIT	1
+
+# Disable automatic inline files
+#
+#set_var	EASYRSA_DISABLE_INLINE	1
 CREATE_VARS_EXAMPLE
 		;;
 	ssl-cnf|safe-cnf)
