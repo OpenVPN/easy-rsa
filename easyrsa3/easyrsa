@@ -2976,6 +2976,10 @@ See error messages above for details."
 
 # Generate inline file V2
 inline_file() {
+	# Allow complete disable
+	[ "$EASYRSA_DISABLE_INLINE" ] && return
+
+	# definitive source
 	[ "$1" ] || die "inline_file - Missing file_name_base"
 
 	# Source files
