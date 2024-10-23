@@ -1461,7 +1461,7 @@ Please delete the key above that is no longer in use."
 
 	# new dirs:
 	easyrsa_mkdir "$EASYRSA_PKI"
-	for i in issued private reqs inline; do
+	for i in issued private reqs; do
 		easyrsa_mkdir "${EASYRSA_PKI}/$i"
 	done
 
@@ -2982,6 +2982,10 @@ inline_file() {
 	# definitive source
 	[ "$1" ] || die "inline_file - Missing file_name_base"
 
+	# make inline dirs
+	easyrsa_mkdir "$EASYRSA_PKI"/inline
+	easyrsa_mkdir "$EASYRSA_PKI"/inline/private
+
 	# Source files
 	crt_source="${EASYRSA_PKI}/issued/${1}.crt"
 	key_source="${EASYRSA_PKI}/private/${1}.key"
@@ -2991,8 +2995,6 @@ inline_file() {
 
 	# output
 	inline_out="${EASYRSA_PKI}/inline/${1}.inline"
-	easyrsa_mkdir "$EASYRSA_PKI"/inline
-	easyrsa_mkdir "$EASYRSA_PKI"/inline/private
 	print "\
 # Inline files in the 'private' directory contain security keys which
 # MUST only be transmitted over a secure connection, such as 'scp'." \
