@@ -3203,8 +3203,8 @@ Run easyrsa without commands for usage and command help."
 	in_dir="$EASYRSA_PKI"
 	key_in="$in_dir/private/${file_name_base}.key"
 	req_in="$in_dir/reqs/${file_name_base}.req"
-	creds_in="$in_dir/${file_name_base}.creds"
-	inline_in="$in_dir/inline/${file_name_base}.inline"
+	inline_pub="$in_dir/inline/${file_name_base}.inline"
+	inline_pri="$in_dir/inline/private/${file_name_base}.inline"
 
 	# input cert for revocation: issued, expired or renewed
 	crt_in="${in_dir}/${cert_dir}/${file_name_base}.crt"
@@ -3368,11 +3368,11 @@ These files will be MOVED to the 'revoked' sub-directory:
 * $crt_in${if_exist_key_in}${if_exist_req_in}
 
 These files will be DELETED:
-All PKCS files for commonName : $file_name_base
+All PKCS files for commonName: $file_name_base
 
 The inline credentials files:
-* $creds_in
-* $inline_in"
+* $inline_pub
+* $inline_pri"
 
 	confirm "  Continue with revocation: " "yes" "
 Please confirm that you wish to revoke the certificate
@@ -3441,19 +3441,9 @@ revoke_move() {
 		fi
 	done
 
-	# remove credentials file
-	if [ -f "$creds_in" ]; then
-		rm "$creds_in" || warn "\
-Failed to remove credentials file:
-* $creds_in"
-	fi
-
-	# remove inline file
-	if [ -f "$inline_in" ]; then
-		rm "$inline_in" || warn "\
-Failed to remove inline file:
-* $inline_in"
-	fi
+	# remove inline files
+	rm -f "$inline_pub" "$inline_pri" || warn \
+		"revoke_move - Error trying to remove inline files."
 } # => revoke_move()
 
 # Move expired cert out of pki/issued to pki/expired
@@ -3473,7 +3463,6 @@ Run easyrsa without commands for usage and command help."
 	crt_in="$in_dir/$file_name_base.crt"
 	#key_in="$in_dir/private/$file_name_base.key"
 	#req_in="$in_dir/reqs/$file_name_base.req"
-	#creds_in="$EASYRSA_PKI/$file_name_base.creds"
 
 	# output
 	out_dir="$EASYRSA_PKI/expired"

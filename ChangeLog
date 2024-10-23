@@ -2,6 +2,9 @@ Easy-RSA 3 ChangeLog
 
 3.2.2 (TBD)
 
+   * bugfix: revoke, renew: Remove pki/inline/private/$file.inline (febef85) (#1244)
+     Initial bug report #1242 (Minor)
+     Stop removing old credentials file pki/$file.creds (a871e9c)
    * Add LibreSSL version 4 to supported SSL Libraries (7df616b) (#1240)
    * sign-req: Allow custom X509 Types (2ee08cc) (#1238)
    * Remove redundant file index.txt.attr (da3c249) (#1233)
