@@ -1461,7 +1461,7 @@ Please delete the key above that is no longer in use."
 
 	# new dirs:
 	easyrsa_mkdir "$EASYRSA_PKI"
-	for i in issued private reqs inline; do
+	for i in issued private reqs; do
 		easyrsa_mkdir "${EASYRSA_PKI}/$i"
 	done
 
@@ -2976,7 +2976,15 @@ See error messages above for details."
 
 # Generate inline file V2
 inline_file() {
+	# Allow complete disable
+	[ "$EASYRSA_DISABLE_INLINE" ] && return
+
+	# definitive source
 	[ "$1" ] || die "inline_file - Missing file_name_base"
+
+	# make inline dirs
+	easyrsa_mkdir "$EASYRSA_PKI"/inline
+	easyrsa_mkdir "$EASYRSA_PKI"/inline/private
 
 	# Source files
 	crt_source="${EASYRSA_PKI}/issued/${1}.crt"
@@ -2987,8 +2995,6 @@ inline_file() {
 
 	# output
 	inline_out="${EASYRSA_PKI}/inline/${1}.inline"
-	easyrsa_mkdir "$EASYRSA_PKI"/inline
-	easyrsa_mkdir "$EASYRSA_PKI"/inline/private
 	print "\
 # Inline files in the 'private' directory contain security keys which
 # MUST only be transmitted over a secure connection, such as 'scp'." \
@@ -5297,6 +5303,10 @@ fi
 #set_var	EASYRSA_KU_CRIT		1
 #set_var	EASYRSA_EKU_CRIT	1
 #set_var	EASYRSA_SAN_CRIT	1
+
+# Disable automatic inline files
+#
+#set_var	EASYRSA_DISABLE_INLINE	1
 CREATE_VARS_EXAMPLE
 		;;
 	ssl-cnf|safe-cnf)
