@@ -776,7 +776,7 @@ Cannot renew this certificate, a conflicting file exists:
 				grep -A 1 'X509v3 Subject Alternative Name' | \
 					sed -e s/'^\ *'// \
 						-e /'X509v3 Subject Alternative Name'/d \
-						-e s/'IP Address'/IP/
+						-e s/'IP Address:'/'IP:'/g
 		)" || die "renew - EASYRSA_SAN: easyrsa_openssl subshell"
 		verbose "renew: EASYRSA_SAN: ${EASYRSA_SAN}"
 
