@@ -2,6 +2,7 @@ Easy-RSA 3 ChangeLog
 
 3.2.2 (TBD)
 
+   * Command 'help': Ignore EASYRSA_SILENT (8804d6b) (#1249)
    * bugfix: easyrsa-tools.lib: renew SAN, remove excess word 'Address' (af17492) (#1251)
    * New global variable 'EASYRSA_DISABLE_INLINE' (ad257ab) (#1245)
    * bugfix: revoke, renew: Remove pki/inline/private/$file.inline (febef85) (#1244)
