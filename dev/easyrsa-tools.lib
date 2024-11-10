@@ -530,7 +530,7 @@ read_db() {
 			: # cert will still be valid by expiry window
 		else
 			# Print CA expiry date
-			printf '%s%s\n' \
+			printf '\n%s\n\n' \
 				"CA certificate will expire on $ca_enddate"
 		fi
 	esac
