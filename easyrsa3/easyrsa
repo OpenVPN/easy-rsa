@@ -5812,6 +5812,7 @@ unset -v require_pki require_ca quiet_vars
 case "$cmd" in
 	''|help|-h|--help|--usage| \
 	version|show-host|rand|random)
+		unset -v EASYRSA_SILENT
 		quiet_vars=1
 		;;
 	init-pki|clean-all)
