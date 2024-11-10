@@ -369,13 +369,31 @@ db_date_to_iso_8601_date: force_set_var - $2 - $out_date"
 
 # Certificate expiry
 will_cert_be_valid() {
-	[ -f "$1" ] || die "will_cert_be_valid - Missing file"
-	case "$2" in (*[!1234567890]*|0*)
-		die "will_cert_be_valid - Non-decimal" ;;
+	# Verify file exists and is a valid cert
+	[ -f "$1" ] || \
+		die "will_cert_be_valid - Missing file: $1"
+	verify_file x509 "$1" || \
+		die "will_cert_be_valid - Invalid file: $1"
+
+	# Verify --days
+	case "$2" in
+		0) : ;; # ok
+		''|*[!1234567890]*|0*)
+			die "will_cert_be_valid - Non-decimal value: $2"
 	esac
 
 	# is the cert still valid at this future date
-	"$EASYRSA_OPENSSL" x509 -in "$1" -noout -checkend "$2"
+	ssl_out="$(
+		"$EASYRSA_OPENSSL" x509 -in "$1" -noout \
+			-checkend "$2"
+	)"
+
+	# analyse SSL output
+	case "$ssl_out" in
+		'Certificate will not expire') return 0 ;;
+		'Certificate will expire') return 1 ;;
+		*) die "will_cert_be_valid - Failure"
+	esac
 } # => will_cert_be_valid()
 
 # SC2295: Expansion inside ${..} need to be quoted separately,
@@ -535,8 +553,7 @@ expire_status_v2() {
 	if [ -f "$1" ]; then
 		verbose "expire_status: cert exists"
 
-		if will_cert_be_valid "$1" "$pre_expire_window_s" \
-			 1>/dev/null
+		if will_cert_be_valid "$1" "$pre_expire_window_s"
 		then
 			: # cert will still be valid by expiry window
 		else
