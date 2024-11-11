@@ -4338,6 +4338,14 @@ Option --passout cannot be used with --nopass|nopass."
 		prohibit_no_pass=1
 	fi
 
+	# Restrict --days=0 to 'show-expire'
+	if [ "$alias_days" = 0 ]; then
+		case "$cmd" in
+			show-expire) : ;; # ok
+			*) user_error "Cannot use --days=0 for command $cmd"
+		esac
+	fi
+
 	# --silent-ssl requires --batch
 	if [ "$EASYRSA_SILENT_SSL" ]; then
 		[ "$EASYRSA_BATCH" ] || warn "\
@@ -5582,6 +5590,7 @@ while :; do
 	case "$opt" in
 		--days)
 			number_only=1
+			zero_allowed=1
 			# Set the appropriate date variable
 			# when called by command later
 			alias_days="$val"
