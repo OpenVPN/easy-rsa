@@ -553,15 +553,16 @@ expire_status_v2() {
 	if [ -f "$1" ]; then
 		verbose "expire_status: cert exists"
 
+		# Check if cert will be valid else print details
 		if will_cert_be_valid "$1" "$pre_expire_window_s"
 		then
-			: # cert will still be valid by expiry window
+			verbose "cert will still be valid by expiry window"
 		else
-			# cert will expire
-			# ISO8601 date - OpenSSL v3 only
-			if ! iso_8601_cert_enddate "$1" cert_not_after_date \
-					2>/dev/null
-			then
+			# cert expiry date
+			if [ "$openssl_v3" ]; then
+				# ISO8601 date - OpenSSL v3 only
+				iso_8601_cert_enddate "$1" cert_not_after_date
+			else
 				# Standard date - OpenSSL v1
 				ssl_cert_not_after_date "$1" cert_not_after_date
 			fi
@@ -572,7 +573,7 @@ expire_status_v2() {
 				"$cert_not_after_date | CN: $db_cn"
 		fi
 	else
-		: # issued cert does not exist, ignore other certs
+		verbose "issued cert does not exist, ignore other certs"
 	fi
 } # => expire_status_v2()
 
