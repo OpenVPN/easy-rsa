@@ -6011,13 +6011,19 @@ case "$cmd" in
 		verify_working_env
 		show_host "$@"
 		;;
-	renew|show-expire|show-revoke|show-renew|verify-cert)
+	renew-ca|renew|show-expire|show-revoke|show-renew|verify-cert)
 		verify_working_env
 
 		# easyrsa-tools.lib is required
 		source_easyrsa_tools_lib || tools_error=1
 
 		case "$cmd" in
+			renew-ca)
+				[ "$tools_error" ] && user_error "$tools_error_txt"
+				[ -z "$alias_days" ] || \
+					export EASYRSA_CA_EXPIRE="$alias_days"
+				renew_ca_cert "$@"
+				;;
 			renew)
 				[ "$tools_error" ] && user_error "$tools_error_txt
 
