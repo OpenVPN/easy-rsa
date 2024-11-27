@@ -86,21 +86,25 @@ Command Details: `renew`
 
 #### `renew` has three different versions:
 
- *  `renew` **Version 1**: Easy-RSA version `3.0.6`, `3.0.7` and `3.0.8`.
+ *  `renew` **Version 1**: Easy-RSA versions `3.0.6`, `3.0.7` and `3.0.8`.
     - Both certificate and private key are rebuilt.
     - Once a certificate has been renewed it **cannot** be revoked.
 
- *  `renew` **Version 2**: Easy-RSA version `3.0.9` and `3.1.0`.
+ *  `renew` **Version 2**: Easy-RSA versions `3.0.9` and `3.1.0`.
     - Both certificate and private key are rebuilt.
     - Once a certificate has been renewed it **can** be revoked.
     - Use command:
 
         `revoke-renewed file-name-base [ reason ]`
 
- *  `renew` **Version 3**: Easy-RSA version `3.1.1+`.
+ *  `renew` **Version 3**: Easy-RSA versions `3.1.1` through `3.1.7`.
     - Only certificate is renewed.
     - The original `renew` command has been renamed to `rebuild`, which
       rebuilds both certificate and private key.
+
+ *  `renew` **Version 4**: Easy-RSA version `3.2.0+`.
+    - Only certificate is renewed.
+    - Supports standard Easy-RSA X509 extension duplication.
 
 
 Resolving issues with `renew` version 1
@@ -149,7 +153,14 @@ Renewed certificate can be revoked:
 This is the preferred method to renew a certificate because the original
 private key is still valid.
 
-`renew` version 3 is **only** available since Easy-RSA version `3.1.1+`.
+Using `renew` version 4
+-----------------------
+
+#### Upgrade Easy-RSA to version `3.2.0+` is required.
+
+This is the most comprensive version of `renew`, which supports automatic
+copying of Easy-RSA X509 extensions.
+
 
 ----
 
@@ -186,7 +197,15 @@ an old certificate/key pair, which has been _rebuilt_ by command `rebuild`.
 Renew CA Certificate
 ====================
 
-Easy-RSA Version 3.2.1+ supports a simple way to effectively renew a CA Certificate.
+Easy-RSA Version `3.2.2+ includes command `renew-ca`, which will create a new
+CA certificate using the original CA key.  This new certificate will completely
+replace the previous CA certificate.  This command can be safely tested without
+disturbing your current PKI. The command requires user confirmation before
+installing the new CA certificate.  The old CA certificate is archived to the
+file 'pki/expired-ca.list'.
+
+
+Easy-RSA Version `3.2.1+` supports a simple way to effectively renew a CA Certificate.
 
 **Preamble** - Specifically for use with OpenVPN:
 
@@ -246,5 +265,3 @@ Please consider the method outlined here, which requires very little work:
    `inline` files in the `pki/inline/private` directory include security keys,
    which MUST only be transmitted over a secure connection, such as `https`.
 
-   As of Easy-RSA Version 3.2.1, this is the only supported way to renew an
-   expired CA certificate.
