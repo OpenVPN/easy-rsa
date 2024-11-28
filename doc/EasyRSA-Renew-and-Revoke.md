@@ -238,7 +238,7 @@ Please consider the method outlined here, which requires very little work:
 
 4. Use command `sign-req <TYPE> <NAME>`
 
-   (With or without other preferences, password is not relavent)
+   (With or without other preferences, password is not relevant)
 
    This will use an existing Request to sign a new Certificate.
 
