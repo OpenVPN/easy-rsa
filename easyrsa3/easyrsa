@@ -3592,7 +3592,10 @@ gen_crl() {
 $crl_der_note
 
 An updated CRL has been created:
-* $out_file"
+* $out_file
+
+IMPORTANT: When the CRL expires, an OpenVPN Server which uses a
+CRL will reject ALL new connections, until the CRL is replaced."
 } # => gen_crl()
 
 # import-req backend
@@ -5285,9 +5288,10 @@ fi
 #
 #set_var EASYRSA_CERT_EXPIRE	825
 
-# How many days until the next CRL publish date?  Note that the CRL can still
-# be parsed after this timeframe passes. It is only used for an expected next
-# publication date.
+# How many days until the Certificate Revokation List will expire.
+#
+# IMPORTANT: When the CRL expires, an OpenVPN Server which uses a
+# CRL will reject ALL new connections, until the CRL is replaced.
 #
 #set_var EASYRSA_CRL_DAYS	180
 
