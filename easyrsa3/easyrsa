@@ -5492,7 +5492,7 @@ source_easyrsa_tools_lib() {
 		verbose "EASYRSA_TOOLS_VERSION: $EASYRSA_TOOLS_VERSION"
 
 		# Verify tools version
-		if [ "$EASYRSA_TOOLS_VERSION" -lt 321 ]; then
+		if [ "$EASYRSA_TOOLS_VERSION" -lt 322 ]; then
 			tools_error_txt="\
 EasyRSA Tools version is out of date:
 * EASYRSA_TOOLS_VERSION: $EASYRSA_TOOLS_VERSION"

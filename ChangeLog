@@ -2,6 +2,7 @@ Easy-RSA 3 ChangeLog
 
 3.2.2 (TBD)
 
+   * Upgrade easyrsa-tools.lib to version 322 - As of command renew-ca
    * easyrsa-tools.lib: Introduce new command 'renew-ca' (ba32b0d) (#1255)
    * easyrsa-tools.lib: show-expire, allow --days to be zero (a1033a5) (#1254)
    * Command 'help': Ignore EASYRSA_SILENT (8804d6b) (#1249)

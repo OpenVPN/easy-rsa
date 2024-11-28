@@ -17,7 +17,7 @@ if [ -z "$EASYRSA_TOOLS_CALLER" ]; then
 fi
 
 # Set tools version
-export EASYRSA_TOOLS_VERSION=321
+export EASYRSA_TOOLS_VERSION=322
 
 # Verify OpenVPN binary
 verify_openvpn() {
