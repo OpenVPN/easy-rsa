@@ -2,6 +2,8 @@ Easy-RSA 3 ChangeLog
 
 3.2.2 (TBD)
 
+   * vars.example: Remove $EASYRSA_PKI (8ee8dcf) (#1262)
+     There is no effect on existing 'vars' files.
    * easyrsa-tools.lib: Move to 'easyrsa3' directory (d30b688) (#1259)
      This now includes 'easyrsa-tools.lib' in the distribution tarballs.
    * Upgrade easyrsa-tools.lib to version 322 - As of command 'renew-ca'
