@@ -39,9 +39,10 @@ A list of commands is shown below:
   build-server-full <file_name_base> [ cmd-opts ]
   build-serverClient-full <file_name_base> [ cmd-opts ]
   inline <file_name_base>
-  renew <file_name_base>
-  revoke <file_name_base> [ cmd-opts ]
   expire <file_name_base>
+  renew <file_name_base>
+  revoke <file_name_base> [ cmd-opts ] #(DEPRECATED)
+  revoke-issued <file_name_base> [ cmd-opts ] #(REPLACEMENT)
   revoke-expired <file_name_base> [ cmd-opts ]
   revoke-renewed <file_name_base> [ cmd-opts ]
   gen-crl
@@ -212,25 +213,43 @@ Usage: easyrsa [ OPTIONS.. ] <COMMAND> <TARGET> [ cmd-opts.. ]"
 	revoke*)
 		text="
 * revoke <file_name_base> [ reason ]
-* revoke-expired <file_name_base> [ reason ]
-* revoke-renewed <file_name_base> [ reason ]
+
+Commmand 'revoke' is DEPRECATED and can ONLY be used in batch mode.
+Commmand 'revoke-issued' REPLACES command 'revoke'.
 
       Revoke a certificate specified by the <file_name_base>,
       with an optional revocation [ reason ].
 
-      Commands 'revoke-expired' and 'revoke-renewed' are functionally
-      equivalent to 'revoke', however, they are used to revoke certificates
-      which have been either 'expired' or 'renewed' by EasyRSA commands."
-		opts="
-      * [ reason ]${NL}
-      Values accepted for option [ reason ]:${NL}
+      Values accepted for option [ reason ]:
          us | uns* | unspecified
          kc | key* | keyCompromise
          cc | ca*  | CACompromise
          ac | aff* | affiliationChanged
          ss | sup* | superseded
          co | ces* | cessationOfOperation
-         ch | cer* | certificateHold"
+         ch | cer* | certificateHold
+
+      Commands 'revoke-expired' and 'revoke-renewed' are functionally
+      equivalent to 'revoke-issued', however, they are used to revoke
+      certificates which have been either 'expired' or 'renewed' by
+      other EasyRSA commands.
+
+Commmand 'revoke' is DEPRECATED and can ONLY be used in batch mode.
+Commmand 'revoke-issued' REPLACES command 'revoke'.
+
+REQUIRED COMMANDS:
+
+* 'revoke-issued' <file_name_base> [ reason ]
+  Revoke a current, issued certificate.
+
+* 'revoke-expired' <file_name_base> [ reason ]
+  Revoke an old, expired certificate.
+
+* 'revoke-renewed' <file_name_base> [ reason ]
+  Revoke an old, renewed certificate."
+		opts="
+      * [ reason ]${NL}
+      Values accepted for option [ reason ]: Details above."
 	;;
 	expire)
 		text="
