@@ -772,26 +772,34 @@ Missing request file:
 	crt_out="$out_dir/issued/${file_name_base}.crt"
 
 	# NEVER over-write a renewed cert, revoke it first
-	deny_msg="\
+	if [ -f "$crt_out" ]; then
+		user_error "\
 Cannot renew this certificate, a conflicting file exists:
-*"
-	[ -f "$crt_out" ] && \
-		user_error "$deny_msg certificate: $crt_out"
-	unset -v deny_msg
+* certificate: $crt_out
 
-	# Make inline directory
-	[ -d "$EASYRSA_PKI/inline" ] ||	\
-		mkdir -p "$EASYRSA_PKI/inline" || \
-			die "Failed to create inline directoy."
+Use command 'revoke-renewed' to revoke this certificate."
+	fi
 
 	# Extract certificate usage from old cert
 	ssl_cert_x509v3_eku "$crt_in" cert_type
 
+	# create temp-file for full cert text
+	full_crt_tmp=
+	easyrsa_mktemp full_crt_tmp || \
+		die "easyrsa_mktemp full_crt_tmp"
+
+	# write full cert text tempfile data
+	"$EASYRSA_OPENSSL" x509 -in "$crt_in" \
+		-noout -text > "$full_crt_tmp" || \
+			die "write full cert text"
+
 	# Use SAN from old cert ONLY
-	if grep 'X509v3 Subject Alternative Name' "$crt_in"; then
+	if grep -q 'X509v3 Subject Alternative Name' \
+		"$full_crt_tmp"
+	then
 		EASYRSA_SAN="$(
-			"$EASYRSA_OPENSSL" x509 -in "$crt_in" -noout -text | \
-				grep -A 1 'X509v3 Subject Alternative Name' | \
+			grep -A 1 'X509v3 Subject Alternative Name' \
+				"$full_crt_tmp" | \
 					sed -e s/'^\ *'// \
 						-e /'X509v3 Subject Alternative Name'/d \
 						-e s/'IP Address:'/'IP:'/g
@@ -801,7 +809,7 @@ Cannot renew this certificate, a conflicting file exists:
 		# --san-crit
 		unset -v EASYRSA_SAN_CRIT
 		if grep -q 'X509v3 Subject Alternative Name: critical' \
-			"$crt_in"
+			"$full_crt_tmp"
 		then
 			export EASYRSA_SAN_CRIT='critical,'
 			verbose "renew: --san-crit ENABLED"
@@ -814,28 +822,31 @@ subjectAltName = ${EASYRSA_SAN_CRIT}${EASYRSA_SAN}"
 	fi
 
 	# --bc-crit
-	if grep -q 'X509v3 Basic Constraints: critical' "$crt_in"
+	if grep -q 'X509v3 Basic Constraints: critical' \
+		"$full_crt_tmp"
 	then
 		export EASYRSA_BC_CRIT=1
 		verbose "renew: --bc-crit ENABLED"
 	fi
 
 	# --ku-crit
-	if grep -q 'X509v3 Key Usage: critical' "$crt_in"
+	if grep -q 'X509v3 Key Usage: critical' \
+		"$full_crt_tmp"
 	then
 		export EASYRSA_KU_CRIT=1
 		verbose "renew: --ku-crit ENABLED"
 	fi
 
 	# --eku-crit
-	if grep -q 'X509v3 Extended Key Usage: critical' "$crt_in"
+	if grep -q 'X509v3 Extended Key Usage: critical' \
+		"$full_crt_tmp"
 	then
 		export EASYRSA_EKU_CRIT=1
 		verbose "renew: --eku-crit ENABLED"
 	fi
 
 	# Disable options not supported by renew
-	unset -v EASYRSA_CP_EXTS EASYRSA_AUTO_SAN EASYRSA_NEW_SUBJECT
+	unset -v EASYRSA_AUTO_SAN EASYRSA_NEW_SUBJECT
 
 	# confirm operation by displaying Warning
 	confirm "Continue with 'renew' ? " yes "\
