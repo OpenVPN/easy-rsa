@@ -3445,8 +3445,10 @@ Run easyrsa without commands for usage and command help."
 	# Do not over write existing cert
 	if [ -f "$crt_out" ]; then
 		user_error "\
-Existing file must be revoked:
-* $crt_out"
+Cannot expire this certificate, a conflicting file exists:
+* certificate: $crt_out
+
+Use command 'revoke-exired' to revoke this certificate."
 	fi
 
 	# deprecate ALL options
