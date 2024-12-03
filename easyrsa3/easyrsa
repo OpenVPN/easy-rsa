@@ -39,9 +39,10 @@ A list of commands is shown below:
   build-server-full <file_name_base> [ cmd-opts ]
   build-serverClient-full <file_name_base> [ cmd-opts ]
   inline <file_name_base>
-  renew <file_name_base>
-  revoke <file_name_base> [ cmd-opts ]
   expire <file_name_base>
+  renew <file_name_base>
+  revoke <file_name_base> [ cmd-opts ] #(DEPRECATED)
+  revoke-issued <file_name_base> [ cmd-opts ] #(REPLACEMENT)
   revoke-expired <file_name_base> [ cmd-opts ]
   revoke-renewed <file_name_base> [ cmd-opts ]
   gen-crl
@@ -212,25 +213,43 @@ Usage: easyrsa [ OPTIONS.. ] <COMMAND> <TARGET> [ cmd-opts.. ]"
 	revoke*)
 		text="
 * revoke <file_name_base> [ reason ]
-* revoke-expired <file_name_base> [ reason ]
-* revoke-renewed <file_name_base> [ reason ]
+
+Commmand 'revoke' is DEPRECATED and can ONLY be used in batch mode.
+Commmand 'revoke-issued' REPLACES command 'revoke'.
 
       Revoke a certificate specified by the <file_name_base>,
       with an optional revocation [ reason ].
 
-      Commands 'revoke-expired' and 'revoke-renewed' are functionally
-      equivalent to 'revoke', however, they are used to revoke certificates
-      which have been either 'expired' or 'renewed' by EasyRSA commands."
-		opts="
-      * [ reason ]${NL}
-      Values accepted for option [ reason ]:${NL}
+      Values accepted for option [ reason ]:
          us | uns* | unspecified
          kc | key* | keyCompromise
          cc | ca*  | CACompromise
          ac | aff* | affiliationChanged
          ss | sup* | superseded
          co | ces* | cessationOfOperation
-         ch | cer* | certificateHold"
+         ch | cer* | certificateHold
+
+      Commands 'revoke-expired' and 'revoke-renewed' are functionally
+      equivalent to 'revoke-issued', however, they are used to revoke
+      certificates which have been either 'expired' or 'renewed' by
+      other EasyRSA commands.
+
+Commmand 'revoke' is DEPRECATED and can ONLY be used in batch mode.
+Commmand 'revoke-issued' REPLACES command 'revoke'.
+
+REQUIRED COMMANDS:
+
+* 'revoke-issued' <file_name_base> [ reason ]
+  Revoke a current, issued certificate.
+
+* 'revoke-expired' <file_name_base> [ reason ]
+  Revoke an old, expired certificate.
+
+* 'revoke-renewed' <file_name_base> [ reason ]
+  Revoke an old, renewed certificate."
+		opts="
+      * [ reason ]${NL}
+      Values accepted for option [ reason ]: Details above."
 	;;
 	expire)
 		text="
@@ -3252,72 +3271,6 @@ Unable to revoke as the input-file is not a valid certificate.
 Certificate was expected at:
 * $crt_in"
 
-	# Check for misuse of revoke when revoke-* is intended
-	case "$cert_dir" in
-	issued)
-		# expired cert
-		exp_exist="${in_dir}/expired/${file_name_base}.crt"
-		if [ -f "$exp_exist" ]; then
-			exp_endd="$(
-				"$EASYRSA_OPENSSL" x509 -in "$exp_exist" -noout \
-					-enddate -serial)" || die "revoke - expire -enddate"
-			# shellcheck disable=SC2295 # Expansions inside ${..}
-			exp_confirm="
-Expired certificate:
-* $exp_exist
-  Expiry: ${exp_endd%%${NL}serial=*}
-  Serial: ${exp_endd##*serial=}
-  Use command 'revoke-expired' to revoke this certificate."
-		else
-			unset -v exp_exist exp_endd exp_confirm
-		fi
-
-		# renewed cert
-		ren_exist="${in_dir}/renewed/${file_name_base}.crt"
-		if [ -f "$ren_exist" ]; then
-			ren_endd="$(
-				"$EASYRSA_OPENSSL" x509 -in "$ren_exist" -noout \
-					-enddate -serial)" || die "revoke - renew -enddate"
-			# shellcheck disable=SC2295 # Expansions inside ${..}
-			ren_confirm="
-Renewed certificate:
-* $ren_exist
-  Expiry: ${ren_endd%%${NL}serial=*}
-  Serial: ${ren_endd##*serial=}
-  Use command 'revoke-renewed' to revoke this certificate."
-		else
-			unset -v ren_exist ren_endd ren_confirm
-		fi
-
-		# issued cert
-		crt_endd="$(
-			"$EASYRSA_OPENSSL" x509 -in "$crt_in" -noout \
-				-enddate -serial)" || die "revoke - expire -enddate"
-
-		# Confirm intended use of 'revoke'
-		if [ "$exp_exist" ] || [ "$ren_exist" ]; then
-			warn "The following certificate(s) exist:
-${exp_exist:+${exp_confirm}${NL}}${ren_exist:+${ren_confirm}${NL}}"
-			# shellcheck disable=SC2295 # Expansions inside ${..}
-			confirm "  Confirm intended use of 'revoke' ? " yes "\
-Please confirm your intended use of 'revoke' for the following
-issued certificate:${NL}
-* $crt_in
-  Expiry: ${crt_endd%%${NL}serial=*}
-  Serial: ${crt_endd##*serial=}"
-		fi
-
-		# Revoking an issued cert forces req/key to be moved
-		move_req_and_key=1
-	;;
-	expired|renewed/issued)
-		# Revoke-expired/renewed cert means req/key can remain
-		move_req_and_key=
-	;;
-	*)
-		die "Invalid cert_dir: '$cert_dir'"
-	esac
-
 	# Verify request
 	if [ -f "$req_in" ]; then
 		verify_file req "$req_in" || user_error "\
@@ -3380,6 +3333,7 @@ The inline credentials files:
 * $inline_pub
 * $inline_pri"
 
+	# now confirm
 	confirm "  Continue with revocation: " "yes" "
 Please confirm that you wish to revoke the certificate
 with the following subject:
@@ -5945,6 +5899,17 @@ case "$cmd" in
 		gen_crl
 		;;
 	revoke)
+		# Force user to select revoke type
+		[ "$EASYRSA_BATCH" ] || user_error "\
+Please select which type of 'revoke' command is required:
+* 'revoke-issued' will revoke a current certificate.
+* 'revoke-expired' will revoke an old cert, which has been expired.
+* 'revoke-renewed' will revoke an old cert, which has been renewed."
+		verify_working_env
+		cert_dir=issued
+		revoke "$@"
+		;;
+	revoke-issued)
 		verify_working_env
 		cert_dir=issued
 		revoke "$@"

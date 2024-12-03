@@ -2,6 +2,9 @@ Easy-RSA 3 ChangeLog
 
 3.2.2 (TBD)
 
+   * Introduce new command 'revoke-issued' (38bf2d8) (#1266)
+     Commands 'revoke' and 'revoke-issued' are identical.
+     Command 'revoke' can ONLY be used in batch mode.
    * vars.example: Remove $EASYRSA_PKI (8ee8dcf) (#1262)
      There is no effect on existing 'vars' files.
    * easyrsa-tools.lib: Move to 'easyrsa3' directory (d30b688) (#1259)
