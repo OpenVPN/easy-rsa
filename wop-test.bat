@@ -18,7 +18,7 @@ copy  "%WORK_DIR%\distro\windows\%SYS_ARCH%\*" "%WORK_DIR%\easyrsa3\bin"
 copy  "%WORK_DIR%\distro\windows\EasyRSA-Start.bat" "%WORK_DIR%\easyrsa3\EasyRSA-Start.bat"
 PATH=%PATH%;%WORK_DIR%\easyrsa3\bin;C:\PROGRA~1\openssl
 
-cmd /C "easyrsa3\bin\sh.exe wop-test.sh"
+cmd /C "easyrsa3\bin\busybox.exe sh wop-test.sh"
 IF ERRORLEVEL 1 (
 	echo Error occurred, Exit 1
 	exit /B 1 )
