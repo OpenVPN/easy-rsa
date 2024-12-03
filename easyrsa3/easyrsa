@@ -40,6 +40,7 @@ A list of commands is shown below:
   build-serverClient-full <file_name_base> [ cmd-opts ]
   inline <file_name_base>
   expire <file_name_base>
+  renew-ca
   renew <file_name_base>
   revoke <file_name_base> [ cmd-opts ] #(DEPRECATED)
   revoke-issued <file_name_base> [ cmd-opts ] #(REPLACEMENT)
@@ -259,6 +260,16 @@ REQUIRED COMMANDS:
       to the 'pki/expired' directory.
 
       Allows an existing request to be signed again."
+	;;
+	renew-ca)
+		text="
+* renew-ca
+
+      Renew CA certificate.
+
+      This will build a new CA certificate and archive the old one.
+      Before changes are made to the current PKI, user confirmation
+      is required."
 	;;
 	renew)
 		text="
