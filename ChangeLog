@@ -2,6 +2,7 @@ Easy-RSA 3 ChangeLog
 
 3.2.2 (TBD)
 
+   * bugfix: Always use locate_support_files() after secure_session() (d530bc3) (#1270)
    * bugfix: easyrsa-tools.lib: renew, write full metadata to temp-file (b47d2af) (#1267)
    * Introduce new command 'revoke-issued' (38bf2d8) (#1266)
      Commands 'revoke' and 'revoke-issued' are identical.
