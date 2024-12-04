@@ -2984,8 +2984,8 @@ Conflicting file found at:
 	# Recreate temp-session and
 	# drop edits to SSL Conf file
 	remove_secure_session
-	locate_support_files
 	secure_session
+	locate_support_files
 	write_global_safe_ssl_cnf_tmp
 
 	# Require --copy-ext
@@ -4661,6 +4661,11 @@ verify_working_env() {
 			write_global_safe_ssl_cnf_tmp
 		fi
 	fi
+
+	# Find x509-types, openssl-easyrsa.cnf
+	# and easyrsa-tools.lib
+	locate_support_files
+
 	verbose "verify_working_env: COMPLETED Handover-to: $cmd"
 } # => verify_working_env()
 
@@ -4716,6 +4721,10 @@ verify_working_env - easyrsa_mktemp global_safe_ssl_cnf_tmp"
 # If the existing file has a known hash then use temp-file.
 # Otherwise, use the file in place.
 write_easyrsa_ssl_cnf_tmp() {
+	# If EASYRSA_SSL_CONF is undefined then use default
+	[ "$EASYRSA_SSL_CONF" ] || set_var \
+		EASYRSA_SSL_CONF "$EASYRSA_PKI"/openssl-easyrsa.cnf
+
 	if [ -f "$EASYRSA_SSL_CONF" ]; then
 		verbose "write_easyrsa_ssl_cnf_tmp: SSL config EXISTS"
 
@@ -5831,9 +5840,6 @@ validate_default_vars
 
 # Check for conflicting input options
 mutual_exclusions
-
-# Find x509-types, openssl-easyrsa.cnf and easyrsa-tools.lib
-locate_support_files
 
 # Verify SSL Lib - One time ONLY
 verify_ssl_lib

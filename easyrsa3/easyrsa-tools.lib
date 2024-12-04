@@ -417,11 +417,11 @@ read_db() {
 		# Recreate temp session
 		remove_secure_session || \
 			die "read_db - remove_secure_session"
-		locate_support_files
 		secure_session || \
 			die "read_db - secure_session"
 		# Recreate openssl-easyrsa.cnf (Temp)
 		write_global_safe_ssl_cnf_tmp
+		locate_support_files
 
 		# Interpret the db/certificate record
 		unset -v db_serial db_cn db_revoke_date db_reason
