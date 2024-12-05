@@ -414,14 +414,12 @@ read_db() {
 
 		verbose "***** Read next record *****"
 
-		# Recreate temp session
-		remove_secure_session || \
-			die "read_db - remove_secure_session"
-		secure_session || \
-			die "read_db - secure_session"
-		# Recreate openssl-easyrsa.cnf (Temp)
-		write_global_safe_ssl_cnf_tmp
+		# Recreate temp-session and
+		# drop edits to SSL Conf file
+		remove_secure_session
+		secure_session
 		locate_support_files
+		write_global_safe_ssl_cnf_tmp
 
 		# Interpret the db/certificate record
 		unset -v db_serial db_cn db_revoke_date db_reason

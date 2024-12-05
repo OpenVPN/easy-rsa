@@ -840,8 +840,7 @@ secure_session - Missing temporary directory:
 				die "secure_session - temp-file EXISTS"
 
 			# New session requires safe-ssl conf
-			unset -v session OPENSSL_CONF \
-				EASYRSA_SSL_CONF safe_ssl_cnf_tmp \
+			unset -v session OPENSSL_CONF safe_ssl_cnf_tmp \
 				working_safe_ssl_conf working_safe_org_conf
 
 			easyrsa_err_log="$secured_session/error.log"
@@ -859,8 +858,11 @@ remove_secure_session() {
 	if rm -rf "$secured_session"; then
 		verbose "\
 remove_secure_session: DELETED: $secured_session"
-		unset -v secured_session OPENSSL_CONF \
-			EASYRSA_SSL_CONF safe_ssl_cnf_tmp \
+
+		# Restore original EASYRSA_SSL_CONF
+		EASYRSA_SSL_CONF="$original_ssl_cnf"
+
+		unset -v secured_session OPENSSL_CONF safe_ssl_cnf_tmp \
 			working_safe_ssl_conf working_safe_org_conf
 		return
 	fi
@@ -4665,6 +4667,9 @@ verify_working_env() {
 	# Find x509-types, openssl-easyrsa.cnf
 	# and easyrsa-tools.lib
 	locate_support_files
+
+	# Save original EASYRSA_SSL_CONF
+	original_ssl_cnf="$EASYRSA_SSL_CONF"
 
 	verbose "verify_working_env: COMPLETED Handover-to: $cmd"
 } # => verify_working_env()
