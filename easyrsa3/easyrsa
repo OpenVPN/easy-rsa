@@ -625,7 +625,7 @@ General options:
                   (Default PKI directory is sub-directory 'pki')
                   See Advanced.md for in depth usage.
 
---ssl-conf=FILE : Define a specific OpenSSL config file for Easy-RSA to use
+--ssl-cnf=FILE  : Define a specific OpenSSL config file for Easy-RSA to use
                   (Default config file is in the EasyRSA PKI directory)
 --force-safe-ssl: Always generate a safe SSL config file
                   (Default: Generate Safe SSL config once per instance)
@@ -840,8 +840,7 @@ secure_session - Missing temporary directory:
 				die "secure_session - temp-file EXISTS"
 
 			# New session requires safe-ssl conf
-			unset -v session OPENSSL_CONF \
-				EASYRSA_SSL_CONF safe_ssl_cnf_tmp \
+			unset -v session OPENSSL_CONF safe_ssl_cnf_tmp \
 				working_safe_ssl_conf working_safe_org_conf
 
 			easyrsa_err_log="$secured_session/error.log"
@@ -859,8 +858,11 @@ remove_secure_session() {
 	if rm -rf "$secured_session"; then
 		verbose "\
 remove_secure_session: DELETED: $secured_session"
-		unset -v secured_session OPENSSL_CONF \
-			EASYRSA_SSL_CONF safe_ssl_cnf_tmp \
+
+		# Restore original EASYRSA_SSL_CONF
+		EASYRSA_SSL_CONF="$original_ssl_cnf"
+
+		unset -v secured_session OPENSSL_CONF safe_ssl_cnf_tmp \
 			working_safe_ssl_conf working_safe_org_conf
 		return
 	fi
@@ -2678,6 +2680,7 @@ basicConstraints is not defined, cannot use 'pathlen'"
 
 	# Get request CN
 	# EASYRSA_REQ_CN MUST always be set to the CSR CN
+	# or use --new-subect
 	EASYRSA_REQ_CN="$(
 		"$EASYRSA_OPENSSL" req -utf8 -in "$req_in" -noout \
 			-subject -nameopt multiline | grep 'commonName'
@@ -2984,8 +2987,8 @@ Conflicting file found at:
 	# Recreate temp-session and
 	# drop edits to SSL Conf file
 	remove_secure_session
-	locate_support_files
 	secure_session
+	locate_support_files
 	write_global_safe_ssl_cnf_tmp
 
 	# Require --copy-ext
@@ -4661,6 +4664,14 @@ verify_working_env() {
 			write_global_safe_ssl_cnf_tmp
 		fi
 	fi
+
+	# Find x509-types, openssl-easyrsa.cnf
+	# and easyrsa-tools.lib
+	locate_support_files
+
+	# Save original EASYRSA_SSL_CONF
+	original_ssl_cnf="$EASYRSA_SSL_CONF"
+
 	verbose "verify_working_env: COMPLETED Handover-to: $cmd"
 } # => verify_working_env()
 
@@ -4716,6 +4727,10 @@ verify_working_env - easyrsa_mktemp global_safe_ssl_cnf_tmp"
 # If the existing file has a known hash then use temp-file.
 # Otherwise, use the file in place.
 write_easyrsa_ssl_cnf_tmp() {
+	# If EASYRSA_SSL_CONF is undefined then use default
+	[ "$EASYRSA_SSL_CONF" ] || set_var \
+		EASYRSA_SSL_CONF "$EASYRSA_PKI"/openssl-easyrsa.cnf
+
 	if [ -f "$EASYRSA_SSL_CONF" ]; then
 		verbose "write_easyrsa_ssl_cnf_tmp: SSL config EXISTS"
 
@@ -5578,7 +5593,7 @@ while :; do
 		--tmp-dir)
 			export EASYRSA_TEMP_DIR="$val"
 			;;
-		--ssl-conf)
+		--ssl-cnf|--ssl-conf)
 			export EASYRSA_SSL_CONF="$val"
 			;;
 		--keep-tmp)
@@ -5831,9 +5846,6 @@ validate_default_vars
 
 # Check for conflicting input options
 mutual_exclusions
-
-# Find x509-types, openssl-easyrsa.cnf and easyrsa-tools.lib
-locate_support_files
 
 # Verify SSL Lib - One time ONLY
 verify_ssl_lib
