@@ -2680,6 +2680,7 @@ basicConstraints is not defined, cannot use 'pathlen'"
 
 	# Get request CN
 	# EASYRSA_REQ_CN MUST always be set to the CSR CN
+	# or use --new-subect
 	EASYRSA_REQ_CN="$(
 		"$EASYRSA_OPENSSL" req -utf8 -in "$req_in" -noout \
 			-subject -nameopt multiline | grep 'commonName'
