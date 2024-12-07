@@ -188,8 +188,7 @@ Usage: easyrsa [ OPTIONS.. ] <COMMAND> <TARGET> [ cmd-opts.. ]"
       This request file must exist in the reqs/ dir and have a .req file
       extension. See 'import-req' for importing from other sources."
 		opts="
-      * newsubj  - Replace subject. See 'help subject'.
-      * preserve - Use the DN-field order of the CSR not the CA."
+      * newsubj  - Replace subject. See 'help subject'."
 	;;
 	build|build-client-full|build-server-full|build-serverClient-full)
 		text="
@@ -2456,7 +2455,7 @@ must also be specified."
 				force_subj="$EASYRSA_NEW_SUBJECT"
 				;;
 			preserve*)
-				export EASYRSA_PRESERVE_DN=1
+				warn "Ignoring option '$1'"
 				;;
 			*)
 				user_error "Unknown option '$1'"
@@ -2842,8 +2841,7 @@ $confirm_details" # => confirm end
 	# sign request
 	easyrsa_openssl ca -utf8 -batch \
 		-in "$req_in" -out "$crt_out_tmp" \
-		-extfile "$ext_tmp" \
-		${EASYRSA_PRESERVE_DN:+ -preserveDN} \
+		-extfile "$ext_tmp" -preserveDN \
 		${force_subj:+ -subj "$force_subj"} \
 		${EASYRSA_PASSIN:+ -passin "$EASYRSA_PASSIN"} \
 		${EASYRSA_NO_TEXT:+ -notext} \
@@ -4735,7 +4733,12 @@ write_easyrsa_ssl_cnf_tmp() {
 		verbose "write_easyrsa_ssl_cnf_tmp: SSL config EXISTS"
 
 		# Set known hashes
-		# 3.1.7 -> Current
+		# 3.2.2 ->
+		known_file_322="\
+87631dd90e599caf41abc0ff47e65f09\
+8711425d2235b6a132dc0db234f841c9"
+
+		# 3.1.7 -> 3.2.1
 		known_file_317="\
 13ca05f031d58c5e2912652b33099ce9\
 ac05f49595e5d5fe96367229e3ce070c"
@@ -4754,6 +4757,11 @@ e0034ebf9d546de11674b897514f3afb"
 		known_file_308="\
 1cc6a1de93ca357b5c364aa0fa2c4bea\
 f97425686fa1976d436fa31f550641aa"
+
+		# Built-in here-doc 3.2.2
+		known_heredoc_322="\
+fd1456179e6570a2bda1d39e09c7c911\
+e73eb133d8acd9a32a98b4cfcf86762e"
 
 		# Built-in here-doc 3.2.0
 		known_heredoc_320="\
@@ -4779,16 +4787,19 @@ f97425686fa1976d436fa31f550641aa"
 		hash_is_unknown=""
 
 		case "$file_hash" in
+			"$known_file_322") ;;
 			"$known_file_317") ;;
 			"$known_file_315") ;;
 			"$known_file_310") ;;
 			"$known_file_308") ;;
+			"$known_heredoc_322") ;;
 			"$known_heredoc_320") ;;
 
 			*)
 				# File is unknown or has been changed
 				# leave in place
 				hash_is_unknown=1
+				verbose "Unknown hash: $file_hash"
 		esac
 
 		# Cleanup
@@ -5228,12 +5239,6 @@ fi
 #set_var EASYRSA_REQ_EMAIL	"me@example.net"
 #set_var EASYRSA_REQ_OU		"My Organizational Unit"
 
-# Preserve the Distinguished Name field order
-# of the certificate signing request
-# *Only* effective in --dn-mode=org
-#
-#set_var EASYRSA_PRESERVE_DN	1
-
 # Set no password mode - This will create the entire PKI without passwords.
 # This can be better managed by choosing which entity private keys should be
 # encrypted with the following command line options:
@@ -5345,7 +5350,7 @@ crl_extensions	= crl_ext
 #default_crl_days	= \$ENV::EASYRSA_CRL_DAYS	# how long before next CRL
 
 default_md	= $conf_EASYRSA_DIGEST		# use public key default MD
-preserve	= no			# keep passed DN ordering
+preserveDN	= yes			# keep passed DN ordering
 
 # This allows to renew certificates which have not been revoked
 unique_subject	= no
