@@ -3227,6 +3227,10 @@ Inline file created:
 
 # revoke backend
 revoke() {
+	# Set cert directory (IE. type) to revoke
+	cert_dir="$1"
+	shift
+
 	# pull filename base:
 	[ "$1" ] || user_error "\
 Error: didn't find a file base name as the first argument.
@@ -3278,6 +3282,33 @@ Unexpected reason: '$crl_reason'. See 'help revoke' for valid reasons."
 Unable to revoke as no certificate was found.
 Certificate was expected at:
 * $crt_in"
+
+	# Set conflicting cert files: issued/ VS expired/ renewed/
+	crt_iss="$EASYRSA_PKI/issued/${file_name_base}.crt"
+	crt_exp="$EASYRSA_PKI/expired/${file_name_base}.crt"
+	crt_ren="$EASYRSA_PKI/renewed/issued/${file_name_base}.crt"
+
+	# If the command is 'revoke' then
+	# if an issued cert exists then check that the others do not
+	# To ensure that 'revoke' is not called accidentally
+	if [ "$cmd" = revoke ] && [ -f "$crt_iss" ]; then
+		if [ -f "$crt_exp" ] || [ -f "$crt_ren" ]; then
+			msg=
+			[ -f "$crt_exp" ] && msg="${NL}[Expired] $crt_exp"
+			[ -f "$crt_ren" ] && msg="${msg}${NL}[Renewed] $crt_ren"
+
+			# Force user to select revoke type
+			[ "$EASYRSA_BATCH" ] || user_error "\
+Conflicting file(s) found:${msg}
+
+Please select which type of 'revoke' command is required:
+* 'revoke-issued' will revoke a current certificate.
+* 'revoke-expired' will revoke an old cert, which has been expired.
+* 'revoke-renewed' will revoke an old cert, which has been renewed."
+		fi
+	fi
+	# Clear variables no longer in use
+	unset -v crt_iss crt_exp crt_ren
 
 	# Verify certificate
 	verify_file x509 "$crt_in" || user_error "\
@@ -5923,31 +5954,17 @@ case "$cmd" in
 			export EASYRSA_CRL_DAYS="$alias_days"
 		gen_crl
 		;;
-	revoke)
-		# Force user to select revoke type
-		[ "$EASYRSA_BATCH" ] || user_error "\
-Please select which type of 'revoke' command is required:
-* 'revoke-issued' will revoke a current certificate.
-* 'revoke-expired' will revoke an old cert, which has been expired.
-* 'revoke-renewed' will revoke an old cert, which has been renewed."
+	revoke|revoke-issued)
 		verify_working_env
-		cert_dir=issued
-		revoke "$@"
-		;;
-	revoke-issued)
-		verify_working_env
-		cert_dir=issued
-		revoke "$@"
+		revoke 'issued' "$@"
 		;;
 	revoke-expired)
 		verify_working_env
-		cert_dir=expired
-		revoke "$@"
+		revoke 'expired' "$@"
 		;;
 	revoke-renewed)
 		verify_working_env
-		cert_dir=renewed/issued
-		revoke "$@"
+		revoke 'renewed/issued' "$@"
 		;;
 	import-req)
 		verify_working_env
