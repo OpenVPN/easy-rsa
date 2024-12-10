@@ -731,6 +731,11 @@ Missing certificate file:
 * $crt_in"
 	fi
 
+	# Forbid self-signed cert from being expired/renewed/revoked
+	if forbid_selfsign "$crt_in"; then
+		user_error "Cannot $cmd a self-signed certificate."
+	fi
+
 	# Verify request
 	if [ -f "$req_in" ]; then
 		verify_file req "$req_in" || user_error "\
