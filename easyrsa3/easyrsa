@@ -3316,6 +3316,11 @@ Unable to revoke as the input-file is not a valid certificate.
 Certificate was expected at:
 * $crt_in"
 
+	# Forbid self-signed cert from being expired/renewed/revoked
+	if forbid_selfsign "$crt_in"; then
+		user_error "Cannot $cmd a self-signed certificate."
+	fi
+
 	# Verify request
 	if [ -f "$req_in" ]; then
 		verify_file req "$req_in" || user_error "\
@@ -3508,6 +3513,11 @@ Missing certificate file:
 * $crt_in"
 	fi
 
+	# Forbid self-signed cert from being expired/renewed/revoked
+	if forbid_selfsign "$crt_in"; then
+		user_error "Cannot $cmd a self-signed certificate."
+	fi
+
 	# get the serial number of the certificate
 	cert_serial=
 	ssl_cert_serial "$crt_in" cert_serial || \
@@ -3552,6 +3562,23 @@ It can be revoked with command 'revoke-expired'.
 
 It is now possible to sign a new certificate for '$file_name_base'"
 } # => expire_cert()
+
+# Forbid a self-signed cert from being expired/renewed/revoked
+# by a CA that has nothing to do with the cert
+forbid_selfsign() {
+	# cert temp-file
+	forbid_selfsign_tmp=
+	easyrsa_mktemp forbid_selfsign_tmp || \
+		die "easyrsa_mktemp forbid_selfsign_tmp"
+
+	# SSL text
+	"$EASYRSA_OPENSSL" x509 -in "$1" -noout -text \
+		> "$forbid_selfsign_tmp" || \
+			die "forbid_selfsign - ssl text"
+
+	# test for CA:TRUE
+	grep -q "^[[:blank:]]*CA:TRUE$" "$forbid_selfsign_tmp"
+} # => forbid_selfsign()
 
 # gen-crl backend
 gen_crl() {

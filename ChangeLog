@@ -2,6 +2,7 @@ Easy-RSA 3 ChangeLog
 
 3.2.2 (TBD)
 
+   * Forbid self-signed certificate from being expired/renewed/revoked (ab45ae7) (#1274)
    * Rename global option --ssl-conf (DEPRECATED) to --ssl-cnf (c788423) (#1270)
    * bugfix: Save and Restore $EASYRSA_SSL_CONF for compound commands (7cdb14d) (#1270)
    * bugfix: Always use locate_support_files() after secure_session() (d530bc3) (#1270)
