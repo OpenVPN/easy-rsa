@@ -5913,13 +5913,6 @@ mutual_exclusions
 # Verify SSL Lib - One time ONLY
 verify_ssl_lib
 
-# Check $working_safe_ssl_conf, to build
-# a fully configured safe ssl conf, on the
-# next invocation of easyrsa_openssl()
-if [ "$working_safe_ssl_conf" ]; then
-	die "working_safe_ssl_conf must not be set!"
-fi
-
 # Hand off to the function responsible
 # ONLY verify_working_env() for valid commands
 case "$cmd" in
