@@ -840,7 +840,7 @@ secure_session - Missing temporary directory:
 				die "secure_session - temp-file EXISTS"
 
 			# New session requires safe-ssl conf
-			unset -v session OPENSSL_CONF safe_ssl_cnf_tmp \
+			unset -v session OPENSSL_CONF \
 				working_safe_ssl_conf working_safe_org_conf
 
 			easyrsa_err_log="$secured_session/error.log"
@@ -862,7 +862,7 @@ remove_secure_session: DELETED: $secured_session"
 		# Restore original EASYRSA_SSL_CONF
 		EASYRSA_SSL_CONF="$original_ssl_cnf"
 
-		unset -v secured_session OPENSSL_CONF safe_ssl_cnf_tmp \
+		unset -v secured_session OPENSSL_CONF \
 			working_safe_ssl_conf working_safe_org_conf
 		return
 	fi
@@ -1190,6 +1190,7 @@ expand_ssl_config() {
 		fi
 
 	export EASYRSA_SSL_CONF="$safe_ssl_cnf_tmp"
+	unset -v safe_ssl_cnf_tmp
 	verbose \
 		"expand_ssl_config: EASYRSA_SSL_CONF = $EASYRSA_SSL_CONF"
 } # => expand_ssl_config()
@@ -1214,9 +1215,10 @@ easyrsa_openssl() {
 	# Use $EASYRSA_SSL_CONF (local) or $OPENSSL_CONF (global)
 	if [ -f "$EASYRSA_SSL_CONF" ]; then
 		export OPENSSL_CONF="$EASYRSA_SSL_CONF"
+	elif [ -f "$OPENSSL_CONF" ]; then
+		export OPENSSL_CONF
 	else
-		[ -f "$OPENSSL_CONF" ] || \
-			die "easyrsa_openssl - OPENSSL_CONF undefined"
+		die "easyrsa_openssl - OPENSSL_CONF undefined"
 	fi
 	verbose "= easyrsa_openssl: OPENSSL_CONF = $OPENSSL_CONF"
 
@@ -5815,6 +5817,11 @@ while :; do
 			set -- "$@" "version"
 			break
 			;;
+		-h|--help|--usage)
+			shift "$#"
+			set -- "$@" "help"
+			break
+			;;
 		-*)
 			user_error "\
 Unknown option '$opt'.
@@ -5863,8 +5870,7 @@ cmd="$1"
 unset -v require_pki require_ca quiet_vars
 
 case "$cmd" in
-	''|help|-h|--help|--usage| \
-	version|show-host|rand|random)
+	''|help|version|show-host|rand|random)
 		unset -v EASYRSA_SILENT
 		quiet_vars=1
 		;;
@@ -5907,13 +5913,6 @@ mutual_exclusions
 
 # Verify SSL Lib - One time ONLY
 verify_ssl_lib
-
-# Check $working_safe_ssl_conf, to build
-# a fully configured safe ssl conf, on the
-# next invocation of easyrsa_openssl()
-if [ "$working_safe_ssl_conf" ]; then
-	die "working_safe_ssl_conf must not be set!"
-fi
 
 # Hand off to the function responsible
 # ONLY verify_working_env() for valid commands
