@@ -5816,6 +5816,11 @@ while :; do
 			set -- "$@" "version"
 			break
 			;;
+		-h|--help|--usage)
+			shift "$#"
+			set -- "$@" "help"
+			break
+			;;
 		-*)
 			user_error "\
 Unknown option '$opt'.
@@ -5864,8 +5869,7 @@ cmd="$1"
 unset -v require_pki require_ca quiet_vars
 
 case "$cmd" in
-	''|help|-h|--help|--usage| \
-	version|show-host|rand|random)
+	''|help|version|show-host|rand|random)
 		unset -v EASYRSA_SILENT
 		quiet_vars=1
 		;;
