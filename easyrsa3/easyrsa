@@ -840,7 +840,7 @@ secure_session - Missing temporary directory:
 				die "secure_session - temp-file EXISTS"
 
 			# New session requires safe-ssl conf
-			unset -v session OPENSSL_CONF safe_ssl_cnf_tmp \
+			unset -v session OPENSSL_CONF \
 				working_safe_ssl_conf working_safe_org_conf
 
 			easyrsa_err_log="$secured_session/error.log"
@@ -862,7 +862,7 @@ remove_secure_session: DELETED: $secured_session"
 		# Restore original EASYRSA_SSL_CONF
 		EASYRSA_SSL_CONF="$original_ssl_cnf"
 
-		unset -v secured_session OPENSSL_CONF safe_ssl_cnf_tmp \
+		unset -v secured_session OPENSSL_CONF \
 			working_safe_ssl_conf working_safe_org_conf
 		return
 	fi
@@ -1190,6 +1190,7 @@ expand_ssl_config() {
 		fi
 
 	export EASYRSA_SSL_CONF="$safe_ssl_cnf_tmp"
+	unset -v safe_ssl_cnf_tmp
 	verbose \
 		"expand_ssl_config: EASYRSA_SSL_CONF = $EASYRSA_SSL_CONF"
 } # => expand_ssl_config()
