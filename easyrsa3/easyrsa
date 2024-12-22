@@ -4990,7 +4990,7 @@ write_legacy_file_v2() {
 	write_type="$1"
 	write_file="$2"
 	write_over=
-	[ "$3" = overwrite ] && write_over="$3"
+	[ "$3" = overwrite ] && write_over=1
 
 	# Select by type
 	case "$write_type" in
@@ -5022,29 +5022,40 @@ write_legacy_file_v2() {
 		if [ -f "$write_file" ]; then
 			# if this is a temp file then enable auto-overwrite
 			path="${write_file%%/temp.*}"
-			if [ "${secured_session}" = "$path" ]; then
+			if [ "$path" = "${secured_session}" ]; then
 				verbose ": write_legacy_file_v2 - temp-file ACCEPTED"
-				write_over=overwrite
+				write_over=1
 			else
 				# target is not a temp-file, overwrite not changed
 				verbose ": Target is not a temp-file: $write_file"
 			fi
 		else
-			# enable overwrite, "there is no file" to over write
-			verbose ": Missing input file: $write_file"
-			write_over=overwrite
+			verbose ": Create new file: $write_file"
 		fi
+	else
+		verbose ": No target file - output to stdout"
 	fi
 
 	# write legacy data stream to stdout or file
-	if [ "$write_file" ]; then
+	if [ -f "$write_file" ]; then
 		if [ "$write_over" ]; then
 			verbose ": write_legacy_file_v2 - over-write ENABLED"
 			create_legacy_stream "$write_type" > "$write_file" || \
 				die "write failed"
+			[ "$EASYRSA_DEBUG" ] && print \
+				"### write OVERWRITE: $write_type to $write_file"
 		else
-			user_error "write: Over-write refused for existing file!"
+			# Preserve existing file and continue
+			verbose "write_legacy_file_v2 - over-write DISABLED "
+			[ "$EASYRSA_DEBUG" ] && print \
+				"### write PRESERVE existing: $write_file"
 		fi
+	elif [ "$write_file" ]; then
+			verbose ": write_legacy_file_v2 - over-write DISABLED"
+			create_legacy_stream "$write_type" > "$write_file" || \
+				die "write failed"
+			[ "$EASYRSA_DEBUG" ] && print \
+				"### write NEWFILE: $write_type to $write_file"
 	else
 		# write stream to stdout ONLY
 		create_legacy_stream "$write_type"
