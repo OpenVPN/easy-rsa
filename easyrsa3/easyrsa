@@ -2428,7 +2428,7 @@ sign_req() {
 Unrecognised x509-type: '$crt_type'
 
 In order to sign a custom X509 Type certificate, there must be a
-corresponding SSL configuration file in the 'x509-type' folder."
+corresponding SSL configuration file in the 'x509-types' folder."
 	esac
 
 	# Check argument sanity:
@@ -2831,6 +2831,7 @@ source or that you have verified the request checksum \
 with the sender.$NL"
 	fi
 
+	# Request FINAL user confirmation
 	confirm "Confirm requested details: " "yes" "\
 ${foreign_request}You are about to sign the following certificate:
 
@@ -2893,12 +2894,8 @@ check_serial_unique() {
 			user_error "Invalid serial number: '$1'"
 	esac
 
-	unset -v unique_serial_true
-
 	# Check for openssl -status of serial number
 	# Always errors out - Do not capture error
-	# unset EASYRSA_SILENT_SSL to capture all output
-	# Do NOT unset check_serial for sign-req error msg
 	check_serial="$(
 			"$EASYRSA_OPENSSL" ca -status "$1" 2>&1
 		)" || :
@@ -2910,17 +2907,15 @@ check_serial_unique() {
 			verbose "check_serial_unique: unique_serial=true"
 			;;
 		*)
-			: # Some other response
+			unique_serial_true=
 			verbose "check_serial_unique: unique_serial=false"
 	esac
 
 	# In batch mode return result only
 	if [ "$2" = batch ] || [ "$EASYRSA_BATCH" ]; then
 		if [ "$unique_serial_true" ]; then
-			unset -v unique_serial_true
 			return 0
 		else
-			unset -v unique_serial_true
 			return 1
 		fi
 	fi
