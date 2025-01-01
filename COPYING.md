@@ -1,7 +1,7 @@
 Easy-RSA -- A Shell-based CA Utility
 ====================================
 
-Copyright (C) 2013 by the Open-Source OpenVPN development community
+Copyright (C) 2025 by the Open-Source OpenVPN development community
 
 Easy-RSA 3 license: GPLv2
 -------------------------
