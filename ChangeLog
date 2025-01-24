@@ -2,6 +2,7 @@ Easy-RSA 3 ChangeLog
 
 3.2.2 (TBD)
 
+   * Revert da3c249: Do not remove index.txt.attr (a236b97) (#1287)
    * Windows: Remove mktemp binary and text files (135f642) (#1285)
    * op-test.sh: Disable download ossl3 and shellcheck binaries (473c43b) (#1284)
    * Forbid self-signed certificate from being expired/renewed/revoked (ab45ae7) (#1274)
