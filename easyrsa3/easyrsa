@@ -7082,36 +7082,27 @@ case "$cmd" in
 
 		case "$cmd" in
 			renew-ca)
-				[ "$tools_error" ] && user_error "$tools_error_txt"
 				[ -z "$alias_days" ] || \
 					export EASYRSA_CA_EXPIRE="$alias_days"
 				renew_ca_cert "$@"
 				;;
 			renew)
-				[ "$tools_error" ] && user_error "$tools_error_txt
-
-A certificate can be renewed without EasyRSA Tools. Expire the certificate
-using command 'expire' and sign the original request with 'sign-req'."
 				[ -z "$alias_days" ] || \
 					export EASYRSA_CERT_EXPIRE="$alias_days"
 				renew "$@"
 				;;
 			show-expire)
-				[ "$tools_error" ] && user_error "$tools_error_txt"
 				[ -z "$alias_days" ] || \
 					export EASYRSA_PRE_EXPIRY_WINDOW="$alias_days"
 				status expire "$@"
 				;;
 			show-revoke)
-				[ "$tools_error" ] && user_error "$tools_error_txt"
 				status revoke "$@"
 				;;
 			show-renew)
-				[ "$tools_error" ] && user_error "$tools_error_txt"
 				status renew "$@"
 				;;
 			verify-cert)
-				[ "$tools_error" ] && user_error "$tools_error_txt"
 				# Called with --batch, this will return error
 				# when the certificate fails verification.
 				# Therefore, on error, exit with error.
@@ -7123,8 +7114,6 @@ using command 'expire' and sign the original request with 'sign-req'."
 		;;
 	gen-tls-*)
 		verify_working_env
-
-		[ "$tools_error" ] && user_error "$tools_error_txt"
 
 		case "$cmd" in
 			gen-tls-auth|gen-tls-auth-*)
