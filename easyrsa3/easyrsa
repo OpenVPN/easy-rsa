@@ -7077,57 +7077,50 @@ case "$cmd" in
 		verify_working_env
 		show_host "$@"
 		;;
-	renew-ca|renew|show-expire|show-revoke|show-renew|verify-cert)
+	renew-ca)
 		verify_working_env
-
-		case "$cmd" in
-			renew-ca)
-				[ -z "$alias_days" ] || \
-					export EASYRSA_CA_EXPIRE="$alias_days"
-				renew_ca_cert "$@"
-				;;
-			renew)
-				[ -z "$alias_days" ] || \
-					export EASYRSA_CERT_EXPIRE="$alias_days"
-				renew "$@"
-				;;
-			show-expire)
-				[ -z "$alias_days" ] || \
-					export EASYRSA_PRE_EXPIRY_WINDOW="$alias_days"
-				status expire "$@"
-				;;
-			show-revoke)
-				status revoke "$@"
-				;;
-			show-renew)
-				status renew "$@"
-				;;
-			verify-cert)
-				# Called with --batch, this will return error
-				# when the certificate fails verification.
-				# Therefore, on error, exit with error.
-				verify_cert "$@" || easyrsa_exit_with_error=1
-				;;
-			*)
-				die "Unknown command: '$cmd'"
-		esac
+		[ -z "$alias_days" ] || \
+			export EASYRSA_CA_EXPIRE="$alias_days"
+		renew_ca_cert "$@"
 		;;
-	gen-tls-*)
+	renew)
 		verify_working_env
-
-		case "$cmd" in
-			gen-tls-auth|gen-tls-auth-*)
-				tls_key_gen tls-auth "$@"
-			;;
-			gen-tls-crypt|gen-tls-crypt-*)
-				tls_key_gen tls-crypt "$@"
-			;;
-			gen-tls-cryptv2|gen-tls-cryptv2-*)
-				tls_key_gen tls-crypt-v2 "$@"
-			;;
-			*)
-				die "Command '$cmd' not currently implemented."
-		esac
+		[ -z "$alias_days" ] || \
+			export EASYRSA_CERT_EXPIRE="$alias_days"
+		renew "$@"
+		;;
+	show-expire)
+		verify_working_env
+		[ -z "$alias_days" ] || \
+			export EASYRSA_PRE_EXPIRY_WINDOW="$alias_days"
+		status expire "$@"
+		;;
+	show-revoke)
+		verify_working_env
+		status revoke "$@"
+		;;
+	show-renew)
+		verify_working_env
+		status renew "$@"
+		;;
+	verify-cert)
+		verify_working_env
+		# Called with --batch, this will return error
+		# when the certificate fails verification.
+		# Therefore, on error, exit with error.
+		verify_cert "$@" || easyrsa_exit_with_error=1
+		;;
+	gen-tls-auth|gen-tls-auth-*)
+		verify_working_env
+		tls_key_gen tls-auth "$@"
+		;;
+	gen-tls-crypt|gen-tls-crypt-*)
+		verify_working_env
+		tls_key_gen tls-crypt "$@"
+		;;
+	gen-tls-cryptv2|gen-tls-cryptv2-*)
+		verify_working_env
+		tls_key_gen tls-crypt-v2 "$@"
 		;;
 	write)
 		verify_working_env
