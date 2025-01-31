@@ -2,6 +2,7 @@ Easy-RSA 3 ChangeLog
 
 3.2.2 (TBD)
 
+   * Fold easyrsa-tools.lib into easyrsa (56cfa0c) (#1288)
    * Revert da3c249: Do not remove index.txt.attr (a236b97) (#1287)
    * Windows: Remove mktemp binary and text files (135f642) (#1285)
    * op-test.sh: Disable download ossl3 and shellcheck binaries (473c43b) (#1284)
