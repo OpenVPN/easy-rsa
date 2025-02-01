@@ -1,5 +1,9 @@
 Easy-RSA 3 ChangeLog
 
+3.3.0 (TBD)
+
+   * Update OpenSSL to 3.4.0 (d020b66)
+
 3.2.2 (2025-02-01)
 
    * Fold easyrsa-tools.lib into easyrsa (56cfa0c) (#1288)
