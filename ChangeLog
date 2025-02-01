@@ -1,6 +1,6 @@
 Easy-RSA 3 ChangeLog
 
-3.2.2 (TBD)
+3.2.2 (2025-02-01)
 
    * Fold easyrsa-tools.lib into easyrsa (56cfa0c) (#1288)
    * Revert da3c249: Do not remove index.txt.attr (a236b97) (#1287)
