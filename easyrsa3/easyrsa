@@ -4690,7 +4690,15 @@ All PKCS files for commonName: $file_name_base
 
 The inline credentials files:
 * $inline_pub
-* $inline_pri"
+* $inline_pri
+
+The CA attibutes file will be set to 'unique_subject = no'.
+Required to create a new certificate with an existing name."
+
+	# Set 'unique_subject = no' in index.txt.attr
+	CA_attrib='unique_subject = no'
+	print "$CA_attrib" > "$EASYRSA_PKI"/index.txt.attr || \
+		die "Failed to update index.txt.attr"
 
 	# move renewed files
 	# so we can reissue certificate with the same name
