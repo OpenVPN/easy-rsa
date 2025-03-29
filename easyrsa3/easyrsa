@@ -2900,6 +2900,11 @@ check_serial_unique() {
 			unique_serial_true=1
 			verbose "check_serial_unique: unique_serial=true"
 			;;
+		# This is caused by file:index.txt.attr being set to
+		# 'unique_subject = yes' AND a duplicate cert subject
+		(*"Error creating name index"*)
+			die "check_serial_unique(): Duplicate Subject conflict"
+			;;
 		*)
 			unique_serial_true=
 			verbose "check_serial_unique: unique_serial=false"
