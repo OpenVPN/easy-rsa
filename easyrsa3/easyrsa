@@ -6829,23 +6829,23 @@ while :; do
 			empty_ok=1
 			export EASYRSA_AUTO_SAN=1
 			;;
-		--san-crit*)
+		--san-crit|--san-critical)
 			empty_ok=1
 			export EASYRSA_SAN_CRIT='critical,'
 			;;
-		--bc-crit*)
+		--bc-crit|--bc-critical)
 			empty_ok=1
 			export EASYRSA_BC_CRIT=1
 			;;
-		--ku-crit*)
+		--ku-crit|--ku-critical)
 			empty_ok=1
 			export EASYRSA_KU_CRIT=1
 			;;
-		--eku-crit*)
+		--eku-crit|--eku-critical)
 			empty_ok=1
 			export EASYRSA_EKU_CRIT=1
 			;;
-		--new-subj*)
+		--new-subj|--new-subject)
 			export EASYRSA_NEW_SUBJECT="$val"
 			;;
 		--usefn)
