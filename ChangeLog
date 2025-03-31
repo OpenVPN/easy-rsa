@@ -2,6 +2,7 @@ Easy-RSA 3 ChangeLog
 
 3.3.0 (TBD)
 
+   * Remove all references to file:easyrsa-tools.lib (e1c8386) (#1298)
    * Correctly define options names - Remove wild-card pattern (d145504) (#1297)
    * check_serial_unique(): Check for duplicate Subject error (be8467f) (#1294)
    * renew: Print 'unique_subject = no' to index.txt.attr (857a4e7) (#1293)
