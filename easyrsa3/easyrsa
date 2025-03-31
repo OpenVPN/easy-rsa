@@ -7165,7 +7165,7 @@ case "$cmd" in
 	rand|random)
 		easyrsa_random "$1"
 		;;
-	""|help|-h|--help|--usage)
+	""|help)
 		verify_working_env
 		cmd_help "$1"
 		;;
