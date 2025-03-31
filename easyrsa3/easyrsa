@@ -541,11 +541,10 @@ These commands are safe to test and will NOT effect your PKI.
   Generate random hex:
     rand <decimal_number>
 
-These commands require easyrsa-tools.lib to be installed:
-
-  show-expire <file_name_base> (Optional)
-  show-revoke <file_name_base> (Optional)
-  show-renew <file_name_base> (Optional)"
+  Reporting tools:
+    show-expire <file_name_base> (Optional)
+    show-revoke <file_name_base> (Optional)
+    show-renew <file_name_base> (Optional)"
 	;;
 	gen-tls*)
 		text_only=1
@@ -630,7 +629,6 @@ General options:
 --force-safe-ssl: Always generate a safe SSL config file
                   (Default: Generate Safe SSL config once per instance)
 
---tools=FILE    : Declare the full easyrsa-tools.lib file-name
 --tmp-dir=DIR   : Declare the temporary directory
                   (Default temporary directory is the EasyRSA PKI directory)
 --keep-tmp=NAME : Keep the original temporary session by name: NAME
@@ -1541,7 +1539,6 @@ locate_support_files() {
 	# Set required sources
 	ssl_cnf_file='openssl-easyrsa.cnf'
 	x509_types_dir='x509-types'
-	easyrsa_tools='easyrsa-tools.lib'
 
 	# Find data-files
 	for area in \
@@ -1563,16 +1560,10 @@ locate_support_files() {
 		if [ -f "${area}/${ssl_cnf_file}" ]; then
 			set_var EASYRSA_SSL_CONF "${area}/${ssl_cnf_file}"
 		fi
-
-		# Find easyrsa-tools.lib
-		if [ -f "${area}/${easyrsa_tools}" ]; then
-			set_var EASYRSA_TOOLS_LIB "${area}/${easyrsa_tools}"
-		fi
 	done
 
 	verbose ": EASYRSA_EXT_DIR: ${EASYRSA_EXT_DIR:-built-in}"
 	verbose ": EASYRSA_SSL_CONF: ${EASYRSA_SSL_CONF:-built-in}"
-	verbose ": EASYRSA_TOOLS_LIB: ${EASYRSA_TOOLS_LIB:-undefined}"
 	verbose "locate_support_files: COMPLETED"
 } # => locate_support_files()
 
@@ -6850,9 +6841,6 @@ while :; do
 			;;
 		--usefn)
 			export EASYRSA_P12_FR_NAME="$val"
-			;;
-		--tools)
-			export EASYRSA_TOOLS_LIB="$val"
 			;;
 		--version)
 			shift "$#"
