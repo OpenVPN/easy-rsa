@@ -5555,12 +5555,7 @@ source_vars() {
 	# File to be sourced
 	target_file="$1"
 
-	# 'vars' MUST not be a directory
-	[ -d "$target_file" ] && user_error "\
-Missing vars file:
-* $target_file"
-
-	# 'vars' now MUST exist
+	# target_file MUST exist
 	[ -f "$target_file" ] || user_error "\
 Missing vars file:
 * $target_file"
