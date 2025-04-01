@@ -5560,7 +5560,7 @@ source_vars() {
 Missing vars file:
 * $target_file"
 
-	# Sanitize vars
+	# Sanitize target_file
 	if grep -q \
 		-e 'EASYRSA_PASSIN' -e 'EASYRSA_PASSOUT' \
 		-e '[^(]`[^)]' \
@@ -5620,17 +5620,17 @@ Please, correct these errors and try again."
 		verbose "source_vars: CLEAN '$target_file'"
 	fi
 
-	# Enable sourcing 'vars'
-	# shellcheck disable=SC2034 # appears unused - source_vars()
+	# Enable sourcing target_file
+	# shellcheck disable=SC2034 # EASYRSA_CALLER appears unused
 	EASYRSA_CALLER=1
 	easyrsa_path="$PATH"
 	# shellcheck disable=SC2123 # PATH is - source_vars()
 	PATH=./
 
-	# Test sourcing 'vars' in a subshell
+	# Test sourcing target_file in a subshell
 	# shellcheck disable=1090 # can't follow - source_vars()
 	if ( . "$target_file" ); then
-		# Source 'vars' now
+		# Source target_file now
 		# shellcheck disable=1090 # can't follow - source_vars()
 		. "$target_file" || \
 			die "Failed to source the '$target_file' file."
