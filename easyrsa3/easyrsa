@@ -5623,9 +5623,6 @@ Please, correct these errors and try again."
 	# Enable sourcing target_file
 	# shellcheck disable=SC2034 # EASYRSA_CALLER appears unused
 	EASYRSA_CALLER=1
-	easyrsa_path="$PATH"
-	# shellcheck disable=SC2123 # PATH is - source_vars()
-	PATH=./
 
 	# Test sourcing target_file in a subshell
 	# shellcheck disable=1090 # can't follow - source_vars()
@@ -5635,13 +5632,11 @@ Please, correct these errors and try again."
 		. "$target_file" || \
 			die "Failed to source the '$target_file' file."
 	else
-		PATH="$easyrsa_path"
 		die "Failed to dry-run the '$target_file' file."
 	fi
 
-	PATH="$easyrsa_path"
 	verbose "source_vars: sourced OK '$target_file'"
-	unset -v EASYRSA_CALLER easyrsa_path target_file
+	unset -v EASYRSA_CALLER target_file
 } # => source_vars()
 
 # Set defaults
