@@ -2,6 +2,7 @@ Easy-RSA 3 ChangeLog
 
 3.3.0 (TBD)
 
+   * Reinstate old function as 'db_date_to_iso_8601()' (0444ad3) (#1303)
    * Remove all references to file:easyrsa-tools.lib (e1c8386) (#1298)
    * Correctly define options names - Remove wild-card pattern (d145504) (#1297)
    * check_serial_unique(): Check for duplicate Subject error (be8467f) (#1294)
