@@ -4195,6 +4195,66 @@ iso_8601_cert_enddate: failed to set var '$*'"
 	unset -v fn_ssl_out
 } # => iso_8601_cert_enddate()
 
+# Build an iso_8601 date from database data
+db_date_to_iso_8601() {
+	# check input
+	[ "$#" = 2 ] || \
+		die "db_date_to_iso_8601: input error"
+
+	# Expected format: '230612235959Z'
+	in_date="$1"
+	verbose "db_date_to_iso_8601: in_date=$in_date"
+
+	# Check length
+	[ "${#in_date}" = 13 ] || \
+		die "db_date_to_iso_8601: input length"
+
+	# yyyy is expected to be only 'yy'
+	yyyy="${in_date%???????????}"
+	in_date="${in_date#??}"
+
+	# Prepend century based on value - Valid until 2070
+	yyyy="${yyyy#0}" # drop a leading zero
+	if [ "$yyyy" -lt 70 ]; then
+		# 20th century
+		if [ "${#yyyy}" = 2 ]; then
+			yyyy=20"${yyyy}"
+		else
+			yyyy=200"${yyyy}"
+		fi
+	else
+		# 19th century
+		if [ "${#yyyy}" = 2 ]; then
+			yyyy=19"${yyyy}"
+		else
+			yyyy=190"${yyyy}"
+		fi
+	fi
+
+	# Consume remaining two digit strings and Timezone
+	mm="${in_date%?????????}"
+	in_date="${in_date#??}"
+	dd="${in_date%???????}"
+	in_date="${in_date#??}"
+	HH="${in_date%?????}"
+	in_date="${in_date#??}"
+	MM="${in_date%???}"
+	in_date="${in_date#??}"
+	SS="${in_date%?}"
+	in_date="${in_date#??}"
+	TZ="$in_date"
+
+	# Assign iso_8601 date
+	out_date="${yyyy}-${mm}-${dd} ${HH}:${MM}:${SS}${TZ}"
+	verbose "db_date_to_iso_8601: out_date=$out_date"
+
+	# Return out_date
+	force_set_var "$2" "$out_date" || \
+		die "db_date_to_iso_8601: force_set_var $2 $out_date"
+
+	unset -v in_date out_date yyyy mm dd HH MM SS TZ
+} # => db_date_to_iso_8601()
+
 # Certificate expiry
 will_cert_be_valid() {
 	# Verify file exists and is a valid cert
@@ -4402,7 +4462,8 @@ expire_status_v2() {
 revoke_status() {
 	# Translate db date to usable date
 	cert_revoke_date=
-	db_date_to_iso_8601_date "$db_revoke_date" cert_revoke_date
+	# eg: 220517142247Z --> 2022-05-17 14:22:47Z
+	db_date_to_iso_8601 "$db_revoke_date" cert_revoke_date
 
 	printf '%s%s%s\n' \
 		"$db_status | Serial: $db_serial | " \
