@@ -4176,7 +4176,7 @@ iso_8601_cert_enddate: missing cert"
 	# On error return, let the caller decide what to do
 	if fn_ssl_out="$(
 		"$EASYRSA_OPENSSL" x509 -in "$1" -noout \
-			-enddate -dateopt iso_8601
+			-enddate -dateopt iso_8601 2>/dev/null
 		)"
 	then
 		: # ok
@@ -4440,9 +4440,8 @@ expire_status_v2() {
 			verbose "cert will still be valid by expiry window"
 		else
 			# cert expiry date
-			if [ "$openssl_v3" ]; then
-				# ISO8601 date - OpenSSL v3 only
-				iso_8601_cert_enddate "$1" cert_not_after_date
+			if iso_8601_cert_enddate "$1" cert_not_after_date; then
+				: # ok
 			else
 				# Standard date - OpenSSL v1
 				ssl_cert_not_after_date "$1" cert_not_after_date
