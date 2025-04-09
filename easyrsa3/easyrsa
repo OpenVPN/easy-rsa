@@ -5558,48 +5558,38 @@ select_vars() {
 
 		# User specified PKI; if vars exists, use it ONLY
 		if [ "$EASYRSA_PKI" ]; then
-			if [ -f "$EASYRSA_PKI/vars" ]; then
+			if [ -f "$EASYRSA_PKI"/vars ]; then
+				set_var EASYRSA_VARS_FILE "$EASYRSA_PKI"/vars
 				verbose "select_vars: source EASYRSA_PKI/vars"
-				set_var EASYRSA_VARS_FILE "$EASYRSA_PKI/vars"
 			fi
 		fi
 
 		# User specified EASYRSA; if vars exists, use it ONLY
 		if [ "$EASYRSA" ]; then
-			if [ -f "$EASYRSA/vars" ]; then
+			if [ -f "$EASYRSA"/vars ]; then
+				set_var EASYRSA_VARS_FILE "$EASYRSA"/vars
 				verbose "select_vars: EASYRSA/vars"
-				set_var EASYRSA_VARS_FILE "$EASYRSA/vars"
 			fi
 		fi
 
 		# Default PKI; if vars exists, use it ONLY
-		if [ -f "$PWD/pki/vars" ] && \
+		if [ -f "$PWD"/pki/vars ] && \
 			[ -z "$EASYRSA_PKI" ] && \
 			[ -z "$EASYRSA" ]
 		then
-			# Prevent vars from changing expected PKI.
+			# Prevent vars from changing 'expected' PKI.
 			# A vars in the PKI MUST always imply EASYRSA_PKI
-			# This is NOT backward compatible
-			# Use expected value comparison for v3.1.7
-			if [ -z "$EASYRSA_VARS_FILE" ]; then
-				expected_EASYRSA="$PWD"
-				expected_EASYRSA_PKI="$PWD/pki"
-			fi
+			expected_EASYRSA="$PWD"
+			expected_EASYRSA_PKI="$PWD"/pki
 
-			# Use this for v3.2.0
-			# If the pki/vars sets a different PKI then
-			# there will be no PKI in the default /pki
-			#set_var EASYRSA "$PWD"
-			#set_var EASYRSA_PKI "$EASYRSA/pki"
-
+			set_var EASYRSA_VARS_FILE "$PWD"/pki/vars
 			verbose "select_vars: PWD/pki/vars"
-			set_var EASYRSA_VARS_FILE "$PWD/pki/vars"
 		fi
 
 		# Default working dir; if vars exists, use it ONLY
-		if [ -f "$PWD/vars" ]; then
+		if [ -f "$PWD"/vars ]; then
+			set_var EASYRSA_VARS_FILE "$PWD"/vars
 			verbose "select_vars: PWD/vars"
-			set_var EASYRSA_VARS_FILE "$PWD/vars"
 		fi
 	fi
 
@@ -5615,17 +5605,12 @@ source_vars() {
 	# File to be sourced
 	target_file="$1"
 
-	# 'vars' MUST not be a directory
-	[ -d "$target_file" ] && user_error "\
-Missing vars file:
-* $target_file"
-
-	# 'vars' now MUST exist
+	# target_file MUST exist
 	[ -f "$target_file" ] || user_error "\
 Missing vars file:
 * $target_file"
 
-	# Sanitize vars
+	# Sanitize target_file
 	if grep -q \
 		-e 'EASYRSA_PASSIN' -e 'EASYRSA_PASSOUT' \
 		-e '[^(]`[^)]' \
@@ -5685,28 +5670,23 @@ Please, correct these errors and try again."
 		verbose "source_vars: CLEAN '$target_file'"
 	fi
 
-	# Enable sourcing 'vars'
-	# shellcheck disable=SC2034 # appears unused - source_vars()
+	# Enable sourcing target_file
+	# shellcheck disable=SC2034 # EASYRSA_CALLER appears unused
 	EASYRSA_CALLER=1
-	easyrsa_path="$PATH"
-	# shellcheck disable=SC2123 # PATH is - source_vars()
-	PATH=./
 
-	# Test sourcing 'vars' in a subshell
+	# Test sourcing target_file in a subshell
 	# shellcheck disable=1090 # can't follow - source_vars()
 	if ( . "$target_file" ); then
-		# Source 'vars' now
+		# Source target_file now
 		# shellcheck disable=1090 # can't follow - source_vars()
 		. "$target_file" || \
 			die "Failed to source the '$target_file' file."
 	else
-		PATH="$easyrsa_path"
 		die "Failed to dry-run the '$target_file' file."
 	fi
 
-	PATH="$easyrsa_path"
 	verbose "source_vars: sourced OK '$target_file'"
-	unset -v EASYRSA_CALLER easyrsa_path target_file
+	unset -v EASYRSA_CALLER target_file
 } # => source_vars()
 
 # Set defaults
