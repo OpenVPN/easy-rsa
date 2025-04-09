@@ -2,6 +2,7 @@ Easy-RSA 3 ChangeLog
 
 3.2.3 (TBD)
 
+   * select_vars(): Minor improvements (12ecc1a) (#1300)
    * expire_status_v2(): Refactor 'if' to capture -date error (52dafed) (#1304)
    * Reinstate old function as 'db_date_to_iso_8601()' (0444ad3) (#1303)
    * Remove all references to file:easyrsa-tools.lib (e1c8386) (#1298)
