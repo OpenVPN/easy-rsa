@@ -2,6 +2,8 @@ Easy-RSA 3 ChangeLog
 
 3.2.3 (TBD)
 
+   * add_critical_attrib(): Do not add 'critical' if it exists (cdfaf61) (#1308)
+     Original bug report: Dmitry Kononov (#1306)
    * select_vars(): Minor improvements (12ecc1a) (#1300)
    * expire_status_v2(): Refactor 'if' to capture -date error (52dafed) (#1304)
    * Reinstate old function as 'db_date_to_iso_8601()' (0444ad3) (#1303)
