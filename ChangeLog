@@ -2,6 +2,7 @@ Easy-RSA 3 ChangeLog
 
 3.2.3 (TBD)
 
+   * inline_file(): Include DH file or placeholder, for RSA Servers (8a7b1fa) (#1310)
    * add_critical_attrib(): Do not add 'critical' if it exists (cdfaf61) (#1308)
      Original bug report: Dmitry Kononov (#1306)
    * select_vars(): Minor improvements (12ecc1a) (#1300)
