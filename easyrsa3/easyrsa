@@ -3127,7 +3127,7 @@ $(cat "$ca_source")
 	if [ "$EASYRSA_ALGO" = rsa ]; then
 		case "$crt_type" in
 		server|serverClient)
-			# Add DH data to $crt_data
+			# Collect DH data
 			if [ -f "$dh_params_source" ]; then
 				dh_params_data="${NL}
 <dh>
