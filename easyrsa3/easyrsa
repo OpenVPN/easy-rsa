@@ -2868,7 +2868,12 @@ add_critical_attrib() {
 	[ -f "$2" ] || die "add_critical_attrib - file-2: '$2'"
 	[ -f "$3" ] || die "add_critical_attrib - file-3: '$3'"
 
-	sed s/"$1 = "/"$1 = critical,"/g "$2" > "$3"
+	# Insert 'critical,' attrib, ONLY if NOT present
+	srch="${1}[[:blank:]]*=[[:blank:]]*critical"
+	repl="${1}[[:blank:]]*=[[:blank:]]*"
+	with="${1} = critical,"
+	sed /"$srch"/!s/"$repl"/"$with"/g "$2" > "$3" || return 1
+	unset -v srch repl with
 } # => add_critical_attrib()
 
 # Check serial in db
