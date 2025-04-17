@@ -3017,6 +3017,7 @@ inline_file() {
 	ca_source="$EASYRSA_PKI"/ca.crt
 	tls_source="$EASYRSA_PKI"/private/easyrsa-tls.key
 	old_tls_key_file="$EASYRSA_PKI"/easyrsa-keepsafe-tls.key
+	dh_params_source="$EASYRSA_PKI"/dh.pem
 
 	# output
 	inline_out="${EASYRSA_PKI}/inline/${1}.inline"
@@ -3120,6 +3121,33 @@ $(cat "$ca_source")
 # <ca>
 # * Paste your CA certificate here *
 # </ca>"
+	fi
+
+	# dh params file, for RSA servers only
+	if [ "$EASYRSA_ALGO" = rsa ]; then
+		case "$crt_type" in
+		server|serverClient)
+			# Add DH data to $crt_data
+			if [ -f "$dh_params_source" ]; then
+				dh_params_data="${NL}
+<dh>
+$(cat "$dh_params_source")
+</dh>"
+			else
+				inline_incomplete=1
+				dh_params_data="${NL}
+# <dh>
+# * Paste your Diffie-Hellman parameters file here *
+# </dh>"
+			fi
+
+			# Append DH data to CA data
+			ca_data="${ca_data}${dh_params_data}"
+		;;
+		*) : # ok, not server
+		esac
+	else
+		: # ok, not RSA
 	fi
 
 	# TLS KEY - Set TLS auth|crypt key inline label
