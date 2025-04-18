@@ -3021,10 +3021,17 @@ inline_file() {
 
 	# output
 	inline_out="${EASYRSA_PKI}/inline/${1}.inline"
-	print "\
-# Inline files in the 'private' directory contain security keys which
-# MUST only be transmitted over a secure connection, such as 'scp'." \
-		> "$EASYRSA_PKI"/inline/private/README.inline.private
+	readme="$EASYRSA_PKI"/inline/private/README.inline.private
+	if [ ! -f "$readme" ]; then
+		print "\
+# Inline files in the 'private' directory contain security keys
+# which MUST ONLY be transmitted over a SECURE connection.
+# eg. 'https' or 'scp'." > "$readme" || \
+			warn "inline_file - Failed to create README"
+	fi
+	unset -v readme
+
+	# flags
 	inline_incomplete=
 	inline_private=
 
