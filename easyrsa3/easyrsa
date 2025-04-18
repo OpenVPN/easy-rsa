@@ -4335,6 +4335,12 @@ read_db() {
 
 	while read -r db_status db_notAfter db_record; do
 
+		# Quiet schellcheck
+		# SC2034 (warning): db_notAfter appears unused
+		unused="$db_notAfter"
+		db_notAfter="$unused"
+		unset -v db_notAfter unused
+
 		verbose "***** Read next record *****"
 
 		# Recreate temp-session and
