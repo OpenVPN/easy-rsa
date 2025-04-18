@@ -872,7 +872,7 @@ easyrsa_mkdir() {
 	[ "$2" ] && die "easyrsa_mkdir - excess input"
 	[ "$1" ] || die "easyrsa_mkdir - input"
 	[ -d "$1" ] && return
-	mkdir "$1" 2>/dev/null
+	mkdir "$1" 2>/dev/null # win11 never errors here
 	[ -d "$1" ] && return
 	die "easyrsa_mkdir - FAIL: $1"
 } # => easyrsa_mkdir()
