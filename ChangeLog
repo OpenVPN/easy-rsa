@@ -2,6 +2,8 @@ Easy-RSA 3 ChangeLog
 
 3.2.3 (TBD)
 
+   * Fix shellcheck warnings:
+     (e28a35c) (6082f6f) (e0ec835) (e0e798a) (85b1086) (#1311)
    * inline_file(): Include DH file or placeholder, for RSA Servers (8a7b1fa) (#1310)
    * add_critical_attrib(): Do not add 'critical' if it exists (cdfaf61) (#1308)
      Original bug report: Dmitry Kononov (#1306)

@@ -4335,6 +4335,12 @@ read_db() {
 
 	while read -r db_status db_notAfter db_record; do
 
+		# Quiet schellcheck
+		# SC2034 (warning): db_notAfter appears unused
+		unused="$db_notAfter"
+		db_notAfter="$unused"
+		unset -v db_notAfter unused
+
 		verbose "***** Read next record *****"
 
 		# Recreate temp-session and
@@ -4480,6 +4486,7 @@ expire_status_v2() {
 			verbose "cert will still be valid by expiry window"
 		else
 			# cert expiry date
+			cert_not_after_date=
 			if iso_8601_cert_enddate "$1" cert_not_after_date; then
 				: # ok
 			else
@@ -4689,10 +4696,6 @@ Missing request file:
 	ssl_cert_serial "$crt_in" cert_serial || \
 		die "$cmd: Failed to get cert serial number!"
 
-	# Duplicate cert by serial file
-	dup_dir="$EASYRSA_PKI/certs_by_serial"
-	dup_crt_by_serial="$dup_dir/${cert_serial}.pem"
-
 	# Set out_dir
 	out_dir="$EASYRSA_PKI/renewed"
 	crt_out="$out_dir/issued/${file_name_base}.crt"
@@ -4707,6 +4710,7 @@ Use command 'revoke-renewed' to revoke this certificate."
 	fi
 
 	# Extract certificate usage from old cert
+	cert_type=
 	ssl_cert_x509v3_eku "$crt_in" cert_type
 
 	# create temp-file for full cert text
@@ -4972,12 +4976,13 @@ renew_ca_cert() {
 $cmd does not support setting an external commonName."
 
 	# Copy Old CA commonName as default
-	export EASYRSA_REQ_CN="$(
+	EASYRSA_REQ_CN="$(
 		"$EASYRSA_OPENSSL" x509 -in "$ca_cert_file" \
 		-noout -subject -nameopt utf8,multiline | \
 			grep 'commonName' | sed -e \
 			s\`^[[:blank:]]*commonName[[:blank:]]*=[[:blank:]]\`\`
-	)"
+	)" || die "renew_ca_cert - Failed to get EASYRSA_REQ_CN"
+	export EASYRSA_REQ_CN
 
 	# Set ssl batch mode, as required
 	[ "$EASYRSA_BATCH" ] && ssl_batch=1
