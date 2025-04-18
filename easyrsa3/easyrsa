@@ -4689,10 +4689,6 @@ Missing request file:
 	ssl_cert_serial "$crt_in" cert_serial || \
 		die "$cmd: Failed to get cert serial number!"
 
-	# Duplicate cert by serial file
-	dup_dir="$EASYRSA_PKI/certs_by_serial"
-	dup_crt_by_serial="$dup_dir/${cert_serial}.pem"
-
 	# Set out_dir
 	out_dir="$EASYRSA_PKI/renewed"
 	crt_out="$out_dir/issued/${file_name_base}.crt"
