@@ -4486,6 +4486,7 @@ expire_status_v2() {
 			verbose "cert will still be valid by expiry window"
 		else
 			# cert expiry date
+			cert_not_after_date=
 			if iso_8601_cert_enddate "$1" cert_not_after_date; then
 				: # ok
 			else
