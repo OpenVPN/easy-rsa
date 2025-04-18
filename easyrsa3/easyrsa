@@ -4710,6 +4710,7 @@ Use command 'revoke-renewed' to revoke this certificate."
 	fi
 
 	# Extract certificate usage from old cert
+	cert_type=
 	ssl_cert_x509v3_eku "$crt_in" cert_type
 
 	# create temp-file for full cert text
