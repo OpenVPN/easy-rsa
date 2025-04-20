@@ -1941,19 +1941,15 @@ Please update 'openssl-easyrsa.cnf' to the latest Easy-RSA release."
 	if [ "$EASYRSA_RAW_CA" ]; then
 		verbose "\
 build_ca: CA key password created via RAW"
-	else
-		if [ "$ca_password_via_cmdline" ]; then
+	elif [ "$ca_password_via_cmdline" ]; then
 			verbose "\
 build_ca: CA key password created via command options"
-		else
-			if [ "$EASYRSA_NO_PASS" ]; then
+	elif [ "$EASYRSA_NO_PASS" ]; then
 				verbose "\
 build_ca: CA key has no password"
-			else
+	else
 				verbose "\
 build_ca: CA key password created via temp-files"
-			fi
-		fi
 	fi
 
 	# Generate the CA keypair:
