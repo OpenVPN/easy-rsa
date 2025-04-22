@@ -624,6 +624,8 @@ General options:
                   (Default PKI directory is sub-directory 'pki')
                   See Advanced.md for in depth usage.
 
+--umask=ARG     : Define a UMASK (Default 077)
+--no-umask      : Do not use a UMASK, fall back to file system default.
 --ssl-cnf=FILE  : Define a specific OpenSSL config file for Easy-RSA to use
                   (Default config file is in the EasyRSA PKI directory)
 --force-safe-ssl: Always generate a safe SSL config file
@@ -6694,9 +6696,6 @@ EASYRSA_version="~VER~"
 NL='
 '
 
-# Be secure with a restrictive umask
-[ "$EASYRSA_NO_UMASK" ] || umask "${EASYRSA_UMASK:=077}"
-
 # Register cleanup on EXIT
 trap 'cleanup $?' EXIT
 # When SIGHUP, SIGINT, SIGQUIT, SIGABRT and SIGTERM,
@@ -6766,6 +6765,13 @@ while :; do
 			;;
 		--tmp-dir)
 			export EASYRSA_TEMP_DIR="$val"
+			;;
+		--umask)
+			export EASYRSA_UMASK="$val"
+			;;
+		--no-umask)
+			empty_ok=1
+			export EASYRSA_NO_UMASK=1
 			;;
 		--ssl-cnf|--ssl-conf)
 			export EASYRSA_SSL_CONF="$val"
@@ -6963,6 +6969,9 @@ Run 'easyrsa help options' for option help."
 
 	shift
 done
+
+# Be secure with a restrictive umask
+[ "$EASYRSA_NO_UMASK" ] || umask "${EASYRSA_UMASK:=077}"
 
 # option dependencies
 # Add full --san to extra extensions
