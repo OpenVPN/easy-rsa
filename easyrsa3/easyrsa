@@ -2011,17 +2011,13 @@ Please update 'openssl-easyrsa.cnf' to the latest Easy-RSA release."
 
 	# verbose notice
 	if [ "$EASYRSA_RAW_CA" ]; then
-		verbose "\
-build_ca: CA key password created via RAW"
+		verbose "build_ca: CA key pass created via RAW"
 	elif [ "$ca_password_via_cmdline" ]; then
-			verbose "\
-build_ca: CA key password created via command options"
+		verbose "build_ca: CA key pass created via command options"
 	elif [ "$EASYRSA_NO_PASS" ]; then
-				verbose "\
-build_ca: CA key has no password"
+		verbose "build_ca: CA key has no password"
 	else
-				verbose "\
-build_ca: CA key password created via temp-files"
+		verbose "build_ca: CA key pass created via temp-files"
 	fi
 
 	# Generate the CA keypair:
