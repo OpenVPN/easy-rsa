@@ -5911,8 +5911,9 @@ lock-file removed - Please try running the easyrsa command again."
 		# Verify PKI is initialised
 		verify_pki_init
 
-		# Temp dir session
+		# Temp dir session and throw-away temp-file
 		secure_session
+		easyrsa_mktemp test_temp_file
 
 		# global safe ssl cnf temp
 		write_global_safe_ssl_cnf_tmp
