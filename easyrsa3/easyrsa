@@ -1893,27 +1893,15 @@ Raw CA mode
 
 	# keyUsage critical
 	if [ "$EASYRSA_KU_CRIT" ]; then
-		crit_tmp=
-		easyrsa_mktemp crit_tmp
-
-		add_critical_attrib keyUsage "$x509_type_file" \
-			"$crit_tmp" || die "build-ca - KU add_critical_attrib"
-
-		# Use the new tmp-file with critical attribute
-		x509_type_file="$crit_tmp"
+		add_critical_attrib_v2 keyUsage "$x509_type_file" || \
+			die "build-ca - add_critical_attrib_v2 keyUsage"
 		verbose "build_ca: keyUsage critical OK"
 	fi
 
 	# basicConstraints critical
 	if [ "$EASYRSA_BC_CRIT" ]; then
-		crit_tmp=
-		easyrsa_mktemp crit_tmp
-
-		add_critical_attrib basicConstraints "$x509_type_file" \
-			"$crit_tmp" || die "build-ca - BC add_critical_attrib"
-
-		# Use the new tmp-file with critical attribute
-		x509_type_file="$crit_tmp"
+		add_critical_attrib_v2 basicConstraints "$x509_type_file" || \
+			die "build-ca - add_critical_attrib_v2 basicConstraints"
 		verbose "build_ca: basicConstraints critical OK"
 	fi
 
@@ -2609,14 +2597,8 @@ Writing 'copy_exts' to SSL config temp-file failed"
 	# keyUsage critical
 	confirm_ku_crit=
 	if [ "$EASYRSA_KU_CRIT" ]; then
-		crit_tmp=
-		easyrsa_mktemp crit_tmp
-
-		add_critical_attrib keyUsage "$x509_type_file" \
-			"$crit_tmp" || die "sign-req - KU add_critical_attrib"
-
-		# Use the new tmp-file with critical attribute
-		x509_type_file="$crit_tmp"
+		add_critical_attrib_v2 keyUsage "$x509_type_file" || \
+			die "sign-req - add_critical_attrib_v2 keyUsage"
 		confirm_ku_crit="  keyUsage:         'critical'${NL}"
 		verbose "sign_req: keyUsage critical OK"
 	fi
@@ -2624,14 +2606,8 @@ Writing 'copy_exts' to SSL config temp-file failed"
 	# basicConstraints critical
 	confirm_bc_crit=
 	if [ "$EASYRSA_BC_CRIT" ]; then
-		crit_tmp=
-		easyrsa_mktemp crit_tmp
-
-		add_critical_attrib basicConstraints "$x509_type_file" \
-			"$crit_tmp" || die "sign-req - BC add_critical_attrib"
-
-		# Use the new tmp-file with critical attribute
-		x509_type_file="$crit_tmp"
+		add_critical_attrib_v2 basicConstraints "$x509_type_file" || \
+			die "sign-req - add_critical_attrib_v2 basicConstraints"
 		confirm_bc_crit="  basicConstraints: 'critical'${NL}"
 		verbose "sign_req: basicConstraints critical OK"
 	fi
@@ -2639,14 +2615,8 @@ Writing 'copy_exts' to SSL config temp-file failed"
 	# extendedKeyUsage critical
 	confirm_eku_crit=
 	if [ "$EASYRSA_EKU_CRIT" ]; then
-		crit_tmp=
-		easyrsa_mktemp crit_tmp
-
-		add_critical_attrib extendedKeyUsage "$x509_type_file" \
-			"$crit_tmp" || die "sign-req - EKU add_critical_attrib"
-
-		# Use the new tmp-file with critical attribute
-		x509_type_file="$crit_tmp"
+		add_critical_attrib_v2 extendedKeyUsage "$x509_type_file" || \
+			die "sign-req - add_critical_attrib_v2 extendedKeyUsage"
 		confirm_eku_crit="  extendedKeyUsage: 'critical'${NL}"
 		verbose "sign_req: extendedKeyUsage critical OK"
 	fi
@@ -2900,22 +2870,31 @@ Certificate created at:
 } # => sign_req()
 
 # Add 'critical' attribute to X509-type file
-add_critical_attrib() {
+add_critical_attrib_v2() {
+	fn_name="$fn_name; add_critical_attrib_v2"
 	case "$1" in
 		basicConstraints|keyUsage|extendedKeyUsage) : ;; # ok
-		*) die "add_critical_attrib - usage: '$1'"
+		*) die "$fn_name - usage: '$1'"
 	esac
 
-	[ -f "$2" ] || die "add_critical_attrib - file-2: '$2'"
-	[ -f "$3" ] || die "add_critical_attrib - file-3: '$3'"
+	[ -f "$2" ] || die "$fn_name - missing output file"
+
+	crit_tmp=
+	easyrsa_mktemp crit_tmp
 
 	# Insert 'critical,' attrib, ONLY if NOT present
 	srch="${1}[[:blank:]]*=[[:blank:]]*critical"
 	repl="${1}[[:blank:]]*=[[:blank:]]*"
 	with="${1} = critical,"
-	sed /"$srch"/!s/"$repl"/"$with"/g "$2" > "$3" || return 1
-	unset -v srch repl with
-} # => add_critical_attrib()
+	sed /"$srch"/!s/"$repl"/"$with"/g \
+		"$2" > "$crit_tmp" || return 1
+
+	# Use the new tmp-file:$crit_tmp with critical attribute
+	mv -f "$crit_tmp" "$2" || return 1
+
+	fn_name="${fn_name%; add_critical_attrib_v2}"
+	unset -v srch repl with crit_tmp
+} # => add_critical_attrib_v2()
 
 # Check serial in db
 check_serial_unique() {
@@ -5052,28 +5031,16 @@ $cmd does not support setting an external commonName."
 	# basicConstraints critical
 	if grep -q 'Basic Constraints: critical' "$old_cert_tmp"
 	then
-		crit_tmp=
-		easyrsa_mktemp crit_tmp
-
-		add_critical_attrib basicConstraints "$x509_type_file" \
-			"$crit_tmp" || die "$f_name BC add_critical_attrib"
-
-		# Use the new tmp-file with critical attribute
-		x509_type_file="$crit_tmp"
+		add_critical_attrib_v2 basicConstraints "$x509_type_file" || \
+			die "$f_name BC add_critical_attrib_v2"
 		verbose "renew_ca_cert: basicConstraints critical OK"
 	fi
 
 	# keyUsage critical
 	if grep -q 'Key Usage: critical' "$old_cert_tmp"
 	then
-		crit_tmp=
-		easyrsa_mktemp crit_tmp
-
-		add_critical_attrib keyUsage "$x509_type_file" \
-			"$crit_tmp" || die "$f_name KU add_critical_attrib"
-
-		# Use the new tmp-file with critical attribute
-		x509_type_file="$crit_tmp"
+		add_critical_attrib_v2 keyUsage "$x509_type_file" || \
+			die "$f_name KU add_critical_attrib_v2"
 		verbose "renew_ca_cert: keyUsage critical OK"
 	fi
 
