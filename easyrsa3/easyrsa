@@ -949,7 +949,7 @@ easyrsa_mktemp - Temporary session undefined (--tmp-dir)"
 		shotfile="${tmp_fname}.${shot_try}"
 		if [ -f "$shotfile" ]; then
 			verbose "\
-easyrsa_mktemp: shotfile EXISTS: $shotfile"
+: easyrsa_mktemp: shotfile EXISTS: $shotfile"
 			continue
 		else
 			printf "" > "$shotfile" || die "\
@@ -971,7 +971,7 @@ Max temp-file limit $ext_try, hit for: $1" > "$easyrsa_err_log"
 
 				if [ -f "$want_tmp_file" ]; then
 					verbose "\
-easyrsa_mktemp: temp-file EXISTS: $want_tmp_file"
+: easyrsa_mktemp: temp-file EXISTS: $want_tmp_file"
 					continue
 				else
 					# atomic:
@@ -1145,8 +1145,7 @@ escape_hazard() {
 
 	# Assign temp-file
 	escape_hazard_tmp=""
-	easyrsa_mktemp escape_hazard_tmp || die \
-		"escape_hazard - easyrsa_mktemp escape_hazard_tmp"
+	easyrsa_mktemp escape_hazard_tmp
 
 	# write org fields to org temp-file and escape '&' and '$'
 	print "\
@@ -1190,8 +1189,7 @@ expand_ssl_config() {
 
 	# Assign temp-file
 	safe_ssl_cnf_tmp=""
-	easyrsa_mktemp safe_ssl_cnf_tmp || die \
-		"expand_ssl_config - easyrsa_mktemp safe_ssl_cnf_tmp"
+	easyrsa_mktemp safe_ssl_cnf_tmp
 
 	# Rewrite
 	# shellcheck disable=SC2016 # No expand ''
@@ -1821,11 +1819,9 @@ Create an OpenVPN TLS-AUTH|TLS-CRYPT-V1 key now: See 'help gen-tls'"
 
 	# Assign cert and key temp files
 	out_key_tmp=""
-	easyrsa_mktemp out_key_tmp || \
-		die "build_ca - easyrsa_mktemp out_key_tmp"
+	easyrsa_mktemp out_key_tmp
 	out_file_tmp=""
-	easyrsa_mktemp out_file_tmp || \
-		die "build_ca - easyrsa_mktemp out_file_tmp"
+	easyrsa_mktemp out_file_tmp
 
 	# Get passphrase from user if necessary
 	if [ "$EASYRSA_RAW_CA" ]
@@ -1871,11 +1867,9 @@ Raw CA mode
 		if [ "$p" ] && [ "$p" = "$q" ]; then
 			# CA password via temp-files
 			in_key_pass_tmp=""
-			easyrsa_mktemp in_key_pass_tmp || \
-				die "build_ca - in_key_pass_tmp"
+			easyrsa_mktemp in_key_pass_tmp
 			out_key_pass_tmp=""
-			easyrsa_mktemp out_key_pass_tmp || \
-				die "build_ca - out_key_pass_tmp"
+			easyrsa_mktemp out_key_pass_tmp
 			printf "%s" "$p" > "$in_key_pass_tmp" || \
 				die "in_key_pass_tmp: write"
 			printf "%s" "$p" > "$out_key_pass_tmp" || \
@@ -1900,8 +1894,7 @@ Raw CA mode
 	# keyUsage critical
 	if [ "$EASYRSA_KU_CRIT" ]; then
 		crit_tmp=
-		easyrsa_mktemp crit_tmp || \
-			die "build-ca - easyrsa_mktemp KU crit_tmp"
+		easyrsa_mktemp crit_tmp
 
 		add_critical_attrib keyUsage "$x509_type_file" \
 			"$crit_tmp" || die "build-ca - KU add_critical_attrib"
@@ -1914,8 +1907,7 @@ Raw CA mode
 	# basicConstraints critical
 	if [ "$EASYRSA_BC_CRIT" ]; then
 		crit_tmp=
-		easyrsa_mktemp crit_tmp || \
-			die "build-ca - easyrsa_mktemp BC crit_tmp"
+		easyrsa_mktemp crit_tmp
 
 		add_critical_attrib basicConstraints "$x509_type_file" \
 			"$crit_tmp" || die "build-ca - BC add_critical_attrib"
@@ -1956,8 +1948,7 @@ Please update 'openssl-easyrsa.cnf' to the latest Easy-RSA release."
 
 	# Assign tmp-file for config
 	adjusted_ssl_cnf_tmp=""
-	easyrsa_mktemp adjusted_ssl_cnf_tmp || \
-		die "build_ca - easyrsa_mktemp adjusted_ssl_cnf_tmp"
+	easyrsa_mktemp adjusted_ssl_cnf_tmp
 
 	# Insert x509-types COMMON and 'ca' and EASYRSA_EXTRA_EXTS
 	{
@@ -2142,8 +2133,7 @@ Conflicting certificate exists at:
 
 			# temp-file for params-file
 			selfsign_params_file=""
-			easyrsa_mktemp selfsign_params_file || \
-				die "self_sign - easyrsa_mktemp selfsign_params_file"
+			easyrsa_mktemp selfsign_params_file
 
 			# params-file
 			"$EASYRSA_OPENSSL" ecparam \
@@ -2167,8 +2157,7 @@ self-sign: Use ALGO:'$EASYRSA_ALGO' / CURVE:'$EASYRSA_CURVE'"
 
 	# Assign tmp-file for config
 	adjusted_ssl_cnf_tmp=""
-	easyrsa_mktemp adjusted_ssl_cnf_tmp || \
-		die "self_sign - easyrsa_mktemp adjusted_ssl_cnf_tmp"
+	easyrsa_mktemp adjusted_ssl_cnf_tmp
 
 	# Assign awkscript to insert EASYRSA_EXTRA_EXTS
 	# shellcheck disable=SC2016 # No expand '' - build_ca()
@@ -2217,12 +2206,10 @@ self-sign: Use ALGO:'$EASYRSA_ALGO' / CURVE:'$EASYRSA_CURVE'"
 
 	# Create temp-files for output
 	tmp_key_out=""
-	easyrsa_mktemp tmp_key_out || \
-		die "self_sign - easyrsa_mktemp tmp_key_out"
+	easyrsa_mktemp tmp_key_out
 
 	tmp_crt_out=""
-	easyrsa_mktemp tmp_crt_out || \
-		die "self_sign - easyrsa_mktemp tmp_crt_out"
+	easyrsa_mktemp tmp_crt_out
 
 	# create self-signed key pair
 	easyrsa_openssl req -x509 -utf8 -sha256 -text \
@@ -2278,8 +2265,7 @@ at: $out_file"
 	# Create a temp file
 	# otherwise user abort leaves an incomplete dh.pem
 	tmp_dh_file=""
-	easyrsa_mktemp tmp_dh_file || \
-		die "gen_dh - easyrsa_mktemp tmp_dh_file"
+	easyrsa_mktemp tmp_dh_file
 
 	# Generate dh.pem
 	easyrsa_openssl dhparam -out "$tmp_dh_file" \
@@ -2392,8 +2378,7 @@ $EASYRSA_EXTRA_EXTS"
 }'
 		# Assign temp-file for config
 		adjusted_ssl_cnf_tmp=""
-		easyrsa_mktemp adjusted_ssl_cnf_tmp || \
-			die "gen_req - easyrsa_mktemp adjusted_ssl_cnf_tmp"
+		easyrsa_mktemp adjusted_ssl_cnf_tmp
 
 		# Insert $extra_exts @ %EXTRA_EXTS% in SSL Config
 		print "$extra_exts" | \
@@ -2410,11 +2395,9 @@ $EASYRSA_EXTRA_EXTS"
 
 	# Name temp files
 	key_out_tmp=""
-	easyrsa_mktemp key_out_tmp || \
-		die "gen_req - easyrsa_mktemp key_out_tmp"
+	easyrsa_mktemp key_out_tmp
 	req_out_tmp=""
-	easyrsa_mktemp req_out_tmp || \
-		die "gen_req - easyrsa_mktemp req_out_tmp"
+	easyrsa_mktemp req_out_tmp
 
 	# Set algorithm options
 	algo_opts=""
@@ -2600,8 +2583,7 @@ to the latest Easy-RSA release."
 }'
 		# Assign temp-file for config
 		adjusted_ssl_cnf_tmp=""
-		easyrsa_mktemp adjusted_ssl_cnf_tmp || \
-			die "sign_req - easyrsa_mktemp adjusted_ssl_cnf_tmp"
+		easyrsa_mktemp adjusted_ssl_cnf_tmp
 
 		print "$copy_exts" | \
 			awk "$awkscript" "$EASYRSA_SSL_CONF" \
@@ -2628,8 +2610,7 @@ Writing 'copy_exts' to SSL config temp-file failed"
 	confirm_ku_crit=
 	if [ "$EASYRSA_KU_CRIT" ]; then
 		crit_tmp=
-		easyrsa_mktemp crit_tmp || \
-			die "sign-req - easyrsa_mktemp KU crit_tmp"
+		easyrsa_mktemp crit_tmp
 
 		add_critical_attrib keyUsage "$x509_type_file" \
 			"$crit_tmp" || die "sign-req - KU add_critical_attrib"
@@ -2644,8 +2625,7 @@ Writing 'copy_exts' to SSL config temp-file failed"
 	confirm_bc_crit=
 	if [ "$EASYRSA_BC_CRIT" ]; then
 		crit_tmp=
-		easyrsa_mktemp crit_tmp || \
-			die "sign-req - easyrsa_mktemp BC crit_tmp"
+		easyrsa_mktemp crit_tmp
 
 		add_critical_attrib basicConstraints "$x509_type_file" \
 			"$crit_tmp" || die "sign-req - BC add_critical_attrib"
@@ -2660,8 +2640,7 @@ Writing 'copy_exts' to SSL config temp-file failed"
 	confirm_eku_crit=
 	if [ "$EASYRSA_EKU_CRIT" ]; then
 		crit_tmp=
-		easyrsa_mktemp crit_tmp || \
-			die "sign-req - easyrsa_mktemp EKU crit_tmp"
+		easyrsa_mktemp crit_tmp
 
 		add_critical_attrib extendedKeyUsage "$x509_type_file" \
 			"$crit_tmp" || die "sign-req - EKU add_critical_attrib"
@@ -2765,8 +2744,7 @@ subjectAltName = ${EASYRSA_SAN_CRIT}${EASYRSA_SAN}"
 
 	# Generate the extensions file for this cert:
 	ext_tmp=""
-	easyrsa_mktemp ext_tmp || \
-		die "sign_req - easyrsa_mktemp ext_tmp"
+	easyrsa_mktemp ext_tmp
 
 	# Begin output redirect
 	{
@@ -2888,8 +2866,7 @@ $confirm_details" # => confirm end
 
 	# Assign temp cert file
 	crt_out_tmp=""
-	easyrsa_mktemp crt_out_tmp || \
-		die "sign_req - easyrsa_mktemp crt_out_tmp"
+	easyrsa_mktemp crt_out_tmp
 
 	# sign request
 	easyrsa_openssl ca -utf8 -batch \
@@ -3659,8 +3636,7 @@ It is now possible to sign a new certificate for '$file_name_base'"
 forbid_selfsign() {
 	# cert temp-file
 	forbid_selfsign_tmp=
-	easyrsa_mktemp forbid_selfsign_tmp || \
-		die "easyrsa_mktemp forbid_selfsign_tmp"
+	easyrsa_mktemp forbid_selfsign_tmp
 
 	# SSL text
 	"$EASYRSA_OPENSSL" x509 -in "$1" -noout -text \
@@ -3677,8 +3653,7 @@ gen_crl() {
 	out_der="$EASYRSA_PKI/crl.der"
 
 	out_file_tmp=""
-	easyrsa_mktemp out_file_tmp || \
-		die "gen_crl - easyrsa_mktemp out_file_tmp"
+	easyrsa_mktemp out_file_tmp
 
 	if [ -r "$out_file" ]; then
 		cp -p "$out_file" "$out_file_tmp" || \
@@ -3961,7 +3936,7 @@ Missing User Certificate, expected at:
 
 		# BASE64 encode pkcs12
 		inline_tmp=
-		easyrsa_mktemp inline_tmp || die "export_pkcs - inline_tmp"
+		easyrsa_mktemp inline_tmp
 		if "$EASYRSA_OPENSSL" enc -a -in "$pkcs_out" > "$inline_tmp"
 		then
 			# make inline file
@@ -4082,8 +4057,7 @@ ${cipher:+You will then enter a new password for this key.$NL}"
 
 	# Set password
 	out_key_tmp=""
-	easyrsa_mktemp out_key_tmp || \
-		die "set_pass - easyrsa_mktemp out_key_tmp"
+	easyrsa_mktemp out_key_tmp
 
 	easyrsa_openssl pkey -in "$file" -out "$out_key_tmp" \
 		${cipher:+ "$cipher"} \
@@ -4174,8 +4148,7 @@ $tls_key_error_msg"
 	verify_openvpn
 
 	tls_key_tmp=
-	easyrsa_mktemp tls_key_tmp || \
-		die "tls_key_gen - easyrsa_mktemp tls_key_tmp"
+	easyrsa_mktemp tls_key_tmp
 
 	# Generate TLS Key
 	"$EASYRSA_OPENVPN" --genkey "$1" "$tls_key_tmp" || \
@@ -4779,8 +4752,7 @@ Use command 'revoke-renewed' to revoke this certificate."
 
 	# create temp-file for full cert text
 	full_crt_tmp=
-	easyrsa_mktemp full_crt_tmp || \
-		die "easyrsa_mktemp full_crt_tmp"
+	easyrsa_mktemp full_crt_tmp
 
 	# write full cert text tempfile data
 	"$EASYRSA_OPENSSL" x509 -in "$crt_in" \
@@ -5056,13 +5028,11 @@ $cmd does not support setting an external commonName."
 
 	# Assign new cert temp-file
 	out_cert_tmp=
-	easyrsa_mktemp out_cert_tmp || \
-		die "$f_name easyrsa_mktemp out_cert_tmp"
+	easyrsa_mktemp out_cert_tmp
 
 	# Assign old cert temp-file
 	old_cert_tmp=
-	easyrsa_mktemp old_cert_tmp || \
-		die "$f_name easyrsa_mktemp old_cert_tmp"
+	easyrsa_mktemp old_cert_tmp
 
 	# Write complete CA cert to old cert temp-file
 	"$EASYRSA_OPENSSL" x509 -in "$ca_cert_file" \
@@ -5083,8 +5053,7 @@ $cmd does not support setting an external commonName."
 	if grep -q 'Basic Constraints: critical' "$old_cert_tmp"
 	then
 		crit_tmp=
-		easyrsa_mktemp crit_tmp || \
-			die "$f_name easyrsa_mktemp BC crit_tmp"
+		easyrsa_mktemp crit_tmp
 
 		add_critical_attrib basicConstraints "$x509_type_file" \
 			"$crit_tmp" || die "$f_name BC add_critical_attrib"
@@ -5098,8 +5067,7 @@ $cmd does not support setting an external commonName."
 	if grep -q 'Key Usage: critical' "$old_cert_tmp"
 	then
 		crit_tmp=
-		easyrsa_mktemp crit_tmp || \
-			die "$f_name easyrsa_mktemp KU crit_tmp"
+		easyrsa_mktemp crit_tmp
 
 		add_critical_attrib keyUsage "$x509_type_file" \
 			"$crit_tmp" || die "$f_name KU add_critical_attrib"
@@ -5139,8 +5107,7 @@ Please update 'openssl-easyrsa.cnf' to the latest Easy-RSA release."
 
 	# Assign tmp-file for config
 	adjusted_ssl_cnf_tmp=""
-	easyrsa_mktemp adjusted_ssl_cnf_tmp || \
-		die "$f_name easyrsa_mktemp adjusted_ssl_cnf_tmp"
+	easyrsa_mktemp adjusted_ssl_cnf_tmp
 
 	# Insert x509-types COMMON and 'ca' and EASYRSA_EXTRA_EXTS
 	{
@@ -5193,8 +5160,7 @@ Please check the details above are correct, before continuing."
 
 	# Prepare header file for updated old CA list
 	header_tmp=
-	easyrsa_mktemp header_tmp || \
-		die "$f_name easyrsa_mktemp header_tmp"
+	easyrsa_mktemp header_tmp
 
 	# header and separator text
 	hdr='# Easy-RSA expired CA certificate list:'
@@ -5208,8 +5174,7 @@ Please check the details above are correct, before continuing."
 	if [ -f "$exp_ca_cert_list" ]; then
 		# Assign old cert list temp file
 		exp_cert_list_tmp=
-		easyrsa_mktemp exp_cert_list_tmp || \
-			die "$f_name easyrsa_mktemp exp_cert_list_tmp"
+		easyrsa_mktemp exp_cert_list_tmp
 
 		# write list to temp-fie, remove header not separators
 		sed -e s/"^${hdr}$"// \
@@ -5556,9 +5521,7 @@ verify_algo_params() {
 	ec)
 		# Verify Elliptic curve
 		EASYRSA_ALGO_PARAMS=""
-		easyrsa_mktemp EASYRSA_ALGO_PARAMS || \
-			die "\
-verify_algo_params - easyrsa_mktemp EASYRSA_ALGO_PARAMS"
+		easyrsa_mktemp EASYRSA_ALGO_PARAMS
 
 		# Create the required ecparams file, temp-file
 		# call openssl directly because error is expected
@@ -5948,8 +5911,9 @@ lock-file removed - Please try running the easyrsa command again."
 		# Verify PKI is initialised
 		verify_pki_init
 
-		# Temp dir session
+		# Temp dir session and throw-away temp-file
 		secure_session
+		easyrsa_mktemp test_temp_file
 
 		# global safe ssl cnf temp
 		write_global_safe_ssl_cnf_tmp
@@ -6023,8 +5987,7 @@ force_set_var() {
 # global Safe SSL conf file, for use by any SSL lib
 write_global_safe_ssl_cnf_tmp() {
 	global_safe_ssl_cnf_tmp=
-	easyrsa_mktemp global_safe_ssl_cnf_tmp || die "\
-verify_working_env - easyrsa_mktemp global_safe_ssl_cnf_tmp"
+	easyrsa_mktemp global_safe_ssl_cnf_tmp
 
 	write_legacy_file_v2 safe-cnf "$global_safe_ssl_cnf_tmp" || \
 		die "verify_working_env - write safe-cnf"
@@ -6132,8 +6095,7 @@ f97425686fa1976d436fa31f550641aa"
 	# SET and USE temp-file from here-doc Now
 	# Create temp-file
 	ssl_cnf_tmp=
-	easyrsa_mktemp ssl_cnf_tmp || die "\
-write_easyrsa_ssl_cnf_tmp - easyrsa_mktemp"
+	easyrsa_mktemp ssl_cnf_tmp
 
 	# Write SSL cnf to temp-file
 	write_legacy_file_v2 "$ssl_cnf_type" "$ssl_cnf_tmp" || die "\
@@ -6162,8 +6124,7 @@ write_x509_type_tmp() {
 	esac
 
 	write_x509_file_tmp=""
-	easyrsa_mktemp write_x509_file_tmp || \
-		die "write_x509_type_tmp - easyrsa_mktemp"
+	easyrsa_mktemp write_x509_file_tmp
 
 	write_legacy_file_v2 "$1" "$write_x509_file_tmp" || \
 		die "write_x509_type_tmp - write $1"
