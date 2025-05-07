@@ -810,6 +810,38 @@ easyrsa_random() {
 	die "easyrsa_random failed"
 } # => easyrsa_random()
 
+# Create lock-file
+create_lock_file() {
+	# Force noclobber
+	if [ "$easyrsa_host_os" = win ]; then
+		set -o noclobber
+	else
+		set -C
+	fi
+
+	# Create lock-file from PID
+	[ "$1" ] || die "create_lock_file - input"
+	print "$$" 2>/dev/null 1>"$1" || return 1
+
+	# unset noclobber
+	if [ "$easyrsa_host_os" = win ]; then
+		set +o noclobber
+	else
+		set +C
+	fi
+} # => create_lock_file()
+
+# Remove lock-file, if lock_data matches PID
+remove_lock_file() {
+	if [ "$2" = "$$" ]; then
+		rm "$1" 2>/dev/null || return 1
+	elif [ "$2" = FORCE ]; then
+		rm "$1" 2>/dev/null || return 1
+	else
+		return 1
+	fi
+} # => remove_lock_file()
+
 # Create session directory atomically or fail
 secure_session() {
 	# Session must not be defined
@@ -1039,14 +1071,46 @@ Temporary session not preserved."
 	# Clear traps
 	trap - 0 1 2 3 6 15
 
+	# Remove lock-file
+	if [ -f "$lock_file" ] || [ "$create_lock_file_error" ]
+	then
+		# Too test this, create a lock-file
+		# and uncomment the following line
+		#read -r -p "Continue.." keypress
+
+		lock_data="$(cat "$lock_file" 2>/dev/null)" || \
+			lock_data=error
+
+		if remove_lock_file "$lock_file" "$lock_data"; then
+			verbose "cleanup: lock-file REMOVED OK"
+		else
+			if [ "$lock_data" = error ]; then
+				error_description=READ
+			else
+				error_description=REMOVE
+			fi
+
+			# Print error message and set error code
+			print "\
+cleanup: Failed to ${error_description} lock-file!
+
+Please check that easyrsa is not being used by another process
+and then try running the easyrsa command again."
+			# Reserve exit-code 17 for lock-file error
+			easyrsa_exit_with_error=17
+		fi
+	else
+		verbose "cleanup: lock-file does not exist."
+	fi
+
 	# Exit: Known errors
 	# -> confirm(): aborted
 	# -> verify_cert(): verify failed --batch mode
 	# -> check_serial_unique(): not unique --batch mode
 	# -> user_error(): User errors but not die()
 	if [ "$easyrsa_exit_with_error" ]; then
-		verbose "Exit: Known errors = true"
-		exit 1
+		verbose "Exit: Known errors = true ($easyrsa_exit_with_error)"
+		exit "$easyrsa_exit_with_error"
 	elif [ "$1" = 2 ]; then
 		verbose "exit SIGINT = true"
 		kill -2 "$$" # Exit: SIGINT
@@ -5830,6 +5894,53 @@ ${unexpected_error}"
 # Verify working environment
 verify_working_env() {
 	verbose "verify_working_env: BEGIN"
+
+	# Create lock-file
+	create_lock_file_error=
+	if [ -d "${EASYRSA_PKI}" ]; then
+
+		lock_file="${EASYRSA_PKI}"/lock.file
+		if create_lock_file "$lock_file"; then
+			verbose "verify_working_env: lock-file CREATED OK"
+		else
+			easyrsa_exit_with_error=17
+			if [ -f "$lock_file" ]; then
+				# Do not remove existing lock-file in batch mode
+				if [ "$EASYRSA_BATCH" ]; then
+					create_lock_file_error=1
+					cleanup
+				fi
+
+				# Allow user to remove lock-file
+				confirm "Remove existing lock-file ? " yes "
+ERROR: lock-file exists!
+
+If you are certain that easyrsa is not being used by another
+process then you can safely delete the existing lock-file
+and try running the easyrsa command again."
+
+				confirm "
+    *** SECOND WARNING ***
+
+  Remove existing lock-file ? " yes "
+========================================${NL}"
+
+				# remove_lock_file by FORCE
+				remove_lock_file "$lock_file" FORCE || \
+					die "Failed to FORCE remove lock-file!"
+
+				# quit now, force retry
+				notice "\
+lock-file removed - Please try running the easyrsa command again."
+				cleanup
+			else
+				die "Failed to create lock-file (permissions?)"
+			fi
+		fi
+	else
+		verbose "verify_working_env: lock-file not required."
+	fi
+
 	# For commands which 'require a PKI' and PKI exists
 	if [ "$require_pki" ]; then
 		# Verify PKI is initialised

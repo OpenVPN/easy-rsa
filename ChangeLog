@@ -2,6 +2,8 @@ Easy-RSA 3 ChangeLog
 
 3.2.3 (TBD)
 
+   * Introduce "robust" lock-file mechanism (ff22f82) (#1313)
+     Original bug report: ARNOLD Somogyi (#1279)
    * Introduce command line options --umask|--no-umask (d1b030d) (#1312)
    * Fix shellcheck warnings:
      (e28a35c) (6082f6f) (e0ec835) (e0e798a) (85b1086) (#1311)
