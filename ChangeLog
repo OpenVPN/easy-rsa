@@ -2,6 +2,7 @@ Easy-RSA 3 ChangeLog
 
 3.2.3 (TBD)
 
+   * New function set_no_clobber() (e4c229c) (#1314)
    * Introduce "robust" lock-file mechanism (ff22f82) (#1313)
      Original bug report: ARNOLD Somogyi (#1279)
    * Introduce command line options --umask|--no-umask (d1b030d) (#1312)

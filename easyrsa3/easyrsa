@@ -810,25 +810,39 @@ easyrsa_random() {
 	die "easyrsa_random failed"
 } # => easyrsa_random()
 
+# Set clobber on|off
+set_no_clobber() {
+	case "$1" in
+		on)
+			if [ "$easyrsa_host_os" = win ]; then
+				set -o noclobber
+			else
+				set -C
+			fi
+		;;
+		off)
+			if [ "$easyrsa_host_os" = win ]; then
+				set +o noclobber
+			else
+				set +C
+			fi
+		;;
+		*)
+			die "set_no_clobber - input"
+	esac
+} # => set_no_clobber()
+
 # Create lock-file
 create_lock_file() {
 	# Force noclobber
-	if [ "$easyrsa_host_os" = win ]; then
-		set -o noclobber
-	else
-		set -C
-	fi
+	set_no_clobber on
 
 	# Create lock-file from PID
 	[ "$1" ] || die "create_lock_file - input"
 	print "$$" 2>/dev/null 1>"$1" || return 1
 
 	# unset noclobber
-	if [ "$easyrsa_host_os" = win ]; then
-		set +o noclobber
-	else
-		set +C
-	fi
+	set_no_clobber off
 } # => create_lock_file()
 
 # Remove lock-file, if lock_data matches PID
@@ -925,11 +939,7 @@ easyrsa_mktemp() {
 easyrsa_mktemp - Temporary session undefined (--tmp-dir)"
 
 	# Force noclobber
-	if [ "$easyrsa_host_os" = win ]; then
-		set -o noclobber
-	else
-		set -C
-	fi
+	set_no_clobber on
 
 	# Assign internal temp-file name
 	tmp_fname="${secured_session}/temp.${mktemp_counter}"
@@ -973,11 +983,7 @@ easyrsa_mktemp: temp-file EXISTS: $want_tmp_file"
 : easyrsa_mktemp: $1 OK: $want_tmp_file"
 
 							# unset noclobber
-							if [ "$easyrsa_host_os" = win ]; then
-								set +o noclobber
-							else
-								set +C
-							fi
+							set_no_clobber off
 
 							# Update counter
 							mktemp_counter="$((mktemp_counter+1))"
@@ -997,11 +1003,7 @@ easyrsa_mktemp - force_set_var $1 failed"
 	done
 
 	# unset noclobber
-	if [ "$easyrsa_host_os" = win ]; then
-		set +o noclobber
-	else
-		set +C
-	fi
+	set_no_clobber off
 
 	# In case of subshell abuse, report to error log
 	err_msg="\
