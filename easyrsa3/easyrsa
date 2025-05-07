@@ -1698,7 +1698,11 @@ build_ca() {
 			nopass)
 				[ "$prohibit_no_pass" ] || EASYRSA_NO_PASS=1
 				;;
-			raw*)
+			raw|raw-ca)
+				# option --raw-ca demands user interaction
+				# which forbids --batch
+				[ "$EASYRSA_BATCH" ] && user_error \
+					"--raw-ca is incompatible with --batch"
 				EASYRSA_RAW_CA=1
 				;;
 			*) user_error "Unknown command option: '$1'"
