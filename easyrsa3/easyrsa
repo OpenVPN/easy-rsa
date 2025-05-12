@@ -426,27 +426,21 @@ REQUIRED COMMANDS:
 	;;
 	write)
 		text="
-* write <type> [<filename>] ['overwrite']
+* write <type>
 
-      Write <type> data to stdout or <filename>
+      Write <type> data to stdout
 
       Types:
+      * vars     - Write vars.example file.
       * ssl-cnf  - Write EasyRSA SSL config file.
       * safe-cnf - Write expanded EasyRSA SSL config file for LibreSSL.
       * COMMON|ca|server|serverClient|client|codeSigning|email|kdc
                  - Write x509-type <type> file.
+
       * legacy   - Write ALL support files (above) to the PKI directory.
                    Will create '\$EASYRSA_PKI/x509-types' directory.
       * legacy-hard
-                 - Same as 'legacy' plus OVER-WRITE files.
-      * vars     - Write vars.example file."
-
-		opts="
-      * filename - If <filename> is specified then it is the output
-                   is directed to the named file.
-                   Otherwise, the data is sent to stdout
-      * overwrite - Overwrite the <filename>.
-                   <filename> is always preserved without 'overwrite'."
+                 - Same as 'legacy' plus OVER-WRITE files."
 	;;
 	--san|--subject-alt-name|altname|subjectaltname|san)
 		text_only=1
@@ -5953,14 +5947,16 @@ force_set_var() {
 
 # global Safe SSL conf file, for use by any SSL lib
 write_global_safe_ssl_cnf_tmp() {
+	fn_name="write_global_safe_ssl_cnf_tmp: "
 	global_safe_ssl_cnf_tmp=
 	easyrsa_mktemp global_safe_ssl_cnf_tmp
 
-	write_legacy_file_v2 safe-cnf "$global_safe_ssl_cnf_tmp" || \
-		die "verify_working_env - write safe-cnf"
+	write_legacy_file_v2 safe-cnf "$global_safe_ssl_cnf_tmp" \
+		overwrite || die "verify_working_env - write safe-cnf"
 
 	export OPENSSL_CONF="$global_safe_ssl_cnf_tmp"
-	verbose "GLOBAL - OPENSSL_CONF = $OPENSSL_CONF"
+	verbose "${fn_name}GLOBAL OPENSSL_CONF = $OPENSSL_CONF"
+	fn_name="${fn_name%write_global_safe_ssl_cnf_tmp: }"
 } # => write_global_safe_ssl_cnf_tmp()
 
 # Create as needed: $EASYRSA_SSL_CONF pki/openssl-easyrsa.cnf
@@ -6065,7 +6061,8 @@ f97425686fa1976d436fa31f550641aa"
 	easyrsa_mktemp ssl_cnf_tmp
 
 	# Write SSL cnf to temp-file
-	write_legacy_file_v2 "$ssl_cnf_type" "$ssl_cnf_tmp" || die "\
+	write_legacy_file_v2 "$ssl_cnf_type" "$ssl_cnf_tmp" \
+		overwrite || die "\
 write_easyrsa_ssl_cnf_tmp - write $ssl_cnf_type: $ssl_cnf_tmp"
 
 	# export SSL cnf tmp
@@ -6090,12 +6087,11 @@ write_x509_type_tmp() {
 		die "write_x509_type_tmp - unknown type '$1'"
 	esac
 
-	write_x509_file_tmp=""
+	write_x509_file_tmp=
 	easyrsa_mktemp write_x509_file_tmp
 
-	write_legacy_file_v2 "$1" "$write_x509_file_tmp" || \
-		die "write_x509_type_tmp - write $1"
-
+	write_legacy_file_v2 "$1" "$write_x509_file_tmp" \
+		overwrite || die "write_x509_type_tmp - write $1"
 
 	verbose ": write_x509_type_tmp: $1 COMPLETE"
 } # => write_x509_type_tmp()
@@ -6105,10 +6101,12 @@ write_x509_type_tmp() {
 # Create legacy files
 #
 
-# Write ALL legacy files to $1 or default
+# Write ALL legacy files to default name with optional 'overwrite'
 all_legacy_files_v2() {
+	fn_name="all_legacy_files_v2: "
+
 	# Confirm over write
-	if [ "$legacy_file_over_write" ]; then
+	if [ "$1" ]; then
 		confirm "${NL}  Confirm OVER-WRITE files ? " yes "
 Warning:
 'legacy-hard' will OVER-WRITE all legacy files to default settings.
@@ -6118,7 +6116,9 @@ Legacy files:
 * File: ${EASYRSA_PKI}/vars.example
 * Dir:  ${EASYRSA_PKI}/x509-types/*"
 
-		verbose "all_legacy_files_v2 - over-write ENABLED"
+		verbose "${fn_name}over-write ENABLED"
+	else
+		verbose "${fn_name}over-write DISABLED"
 	fi
 
 	# Output directories
@@ -6132,28 +6132,26 @@ Legacy files:
 		email codeSigning kdc
 	do
 		legacy_target="${x509_types_d}/${legacy_type}"
-		write_legacy_file_v2 "$legacy_type" "$legacy_target" \
-			"$legacy_file_over_write"
+		write_legacy_file_v2 "$legacy_type" "$legacy_target" "$1"
 	done
 
 	# vars.example
 	legacy_type=vars
 	legacy_target="$legacy_out_d"/vars.example
-	write_legacy_file_v2 "$legacy_type" "$legacy_target" \
-		"$legacy_file_over_write"
+	write_legacy_file_v2 "$legacy_type" "$legacy_target" "$1"
 
 	# openssl-easyrsa.cnf
 	legacy_type=ssl-cnf
 	legacy_target="$legacy_out_d"/openssl-easyrsa.cnf
-	write_legacy_file_v2 "$legacy_type" "$legacy_target" \
-		"$legacy_file_over_write"
+	write_legacy_file_v2 "$legacy_type" "$legacy_target" "$1"
 
 	# User notice
-	if [ "$legacy_file_over_write" ]; then
+	if [ "$1" ]; then
 		notice "legacy-hard has updated all files."
 	else
 		notice "legacy has updated missing files."
 	fi
+	fn_name="${fn_name%all_legacy_files_v2: }"
 } # => all_legacy_files_v2()
 
 # write legacy files to stdout or user defined file
@@ -6165,7 +6163,10 @@ write_legacy_file_v2() {
 		die "write recursion"
 	fi
 
+	fn_name="${fn_name}write_legacy_file_v2: "
+	# Always required 'type'
 	write_type="$1"
+	# Only allowed by internal callers
 	write_file="$2"
 	write_over=
 	[ "$3" = overwrite ] && write_over=1
@@ -6190,46 +6191,23 @@ write_legacy_file_v2() {
 	esac
 
 	# If $write_file is given then establish overwrite rules
-	if [ "$write_file" ]; then
-
-		# $write_file must not be a directory
-		[ -d "$write_file" ] && user_error \
-			"write: Target is a directory: '$write_file'"
-
-		# If $write_file exists then check for temp-file
-		if [ -f "$write_file" ]; then
-			# if this is a temp file then enable auto-overwrite
-			path="${write_file%%/temp.*}"
-			if [ "$path" = "${secured_session}" ]; then
-				verbose ": write_legacy_file_v2 - temp-file ACCEPTED"
-				write_over=1
-			else
-				# target is not a temp-file, overwrite not changed
-				verbose ": Target is not a temp-file: $write_file"
-			fi
-		else
-			verbose ": Create new file: $write_file"
-		fi
-	else
-		verbose ": No target file - output to stdout"
-	fi
-
 	# write legacy data stream to stdout or file
 	if [ -f "$write_file" ]; then
 		if [ "$write_over" ]; then
-			verbose ": write_legacy_file_v2 - over-write ENABLED"
+			verbose "${fn_name}over-write ENABLED for $write_type"
 			create_legacy_stream "$write_type" > "$write_file" || \
 				die "write failed"
 			[ "$EASYRSA_DEBUG" ] && print \
 				"### write OVERWRITE: $write_type to $write_file"
 		else
 			# Preserve existing file and continue
-			verbose "write_legacy_file_v2 - over-write DISABLED "
+			verbose "${fn_name}over-write BLOCKED for $write_type"
 			[ "$EASYRSA_DEBUG" ] && print \
 				"### write PRESERVE existing: $write_file"
 		fi
+	# $write_file does not exist, so create it
 	elif [ "$write_file" ]; then
-			verbose ": write_legacy_file_v2 - over-write DISABLED"
+			verbose "${fn_name}over-write IGNORED for $write_type"
 			create_legacy_stream "$write_type" > "$write_file" || \
 				die "write failed"
 			[ "$EASYRSA_DEBUG" ] && print \
@@ -6239,6 +6217,7 @@ write_legacy_file_v2() {
 		create_legacy_stream "$write_type"
 	fi
 
+	fn_name="${fn_name%write_legacy_file_v2: }"
 	write_recursion="$(( write_recursion - 1 ))"
 } # => write_legacy_file_v2()
 
@@ -7038,11 +7017,20 @@ case "$cmd" in
 	init-pki|clean-all)
 		: # ok
 		;;
+	write)
+		# Only when used on the command line
+		case "$1" in
+			legacy|legacy-hard) : ;; # ok
+			*)
+				unset -v EASYRSA_VERBOSE
+				quiet_vars=1
+		esac
+		;;
 	*)
 		require_pki=1
 		case "$cmd" in
 			gen-req|gen-dh|build-ca|show-req|export-p*| \
-			inline|self-sign-*|write)
+			inline|self-sign-*)
 				: ;; # ok
 			*) require_ca=1
 		esac
@@ -7256,24 +7244,23 @@ case "$cmd" in
 		;;
 	write)
 		verify_working_env
-
 		# Write legacy files to write_dir
 		# or EASYRSA_PKI or EASYRSA
 		case "$1" in
 		legacy)
 			# over-write NO
 			shift
-			legacy_file_over_write=
-			all_legacy_files_v2 "$@"
+			all_legacy_files_v2
 			;;
 		legacy-hard)
 			# over-write YES
 			shift
-			legacy_file_over_write=overwrite
-			all_legacy_files_v2 "$@"
+			all_legacy_files_v2 overwrite
 			;;
 		*)
-			write_legacy_file_v2 "$@"
+			# Only allow 'type' on command line
+			# Internally, overwrite and file-name is allowed
+			write_legacy_file_v2 "$1"
 		esac
 		;;
 	serial|check-serial)

@@ -2,6 +2,7 @@ Easy-RSA 3 ChangeLog
 
 3.2.3 (TBD)
 
+   * Command 'write': Remove options 'overwrite' and 'filename' (153ec6f) (#1318)
    * easyrsa_mktemp(): Change usage to not check for errors (64c201a) (#1315)
    * New function set_no_clobber() (e4c229c) (#1314)
    * Introduce "robust" lock-file mechanism (ff22f82) (#1313)
