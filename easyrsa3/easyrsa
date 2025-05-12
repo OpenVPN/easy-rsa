@@ -633,6 +633,7 @@ General options:
 
 Certificate & Request options: (these impact cert/req field values)
 
+--text          : Create certificate requests with human readable text
 --notext|no-text: Create certificates without human readable text
 --days=#        : Sets the signing validity to the specified number of days
                   Applies to other commands. For details, see: 'help days'
@@ -1999,6 +2000,7 @@ Please update 'openssl-easyrsa.cnf' to the latest Easy-RSA release."
 		-out "$out_file_tmp" \
 		${ssl_batch:+ -batch} \
 		${x509:+ -x509} \
+		${EASYRSA_TEXT_ON:+ -text} \
 		${date_stamp:+ -days "$EASYRSA_CA_EXPIRE"} \
 		${EASYRSA_DIGEST:+ -"$EASYRSA_DIGEST"} \
 		${EASYRSA_NO_PASS:+ "$no_password"} \
@@ -2199,6 +2201,7 @@ self-sign: Use ALGO:'$EASYRSA_ALGO' / CURVE:'$EASYRSA_CURVE'"
 		-keyout "$tmp_key_out" \
 		-out "$tmp_crt_out" \
 		-subj "/CN=$file_name_base" \
+		${EASYRSA_TEXT_ON:+ -text} \
 		${EASYRSA_NO_PASS:+ "$no_password"} \
 		${EASYRSA_PASSIN:+ -passin "$EASYRSA_PASSIN"} \
 		${EASYRSA_PASSOUT:+ -passout "$EASYRSA_PASSOUT"} \
@@ -2401,9 +2404,10 @@ $EASYRSA_EXTRA_EXTS"
 	if easyrsa_openssl req -utf8 -new -newkey "$algo_opts" \
 		-keyout "$key_out_tmp" \
 		-out "$req_out_tmp" \
-		${EASYRSA_NO_PASS:+ "$no_password"} \
-		${text:+ -text} \
 		${ssl_batch:+ -batch} \
+		${EASYRSA_TEXT_ON:+ -text} \
+		${text:+ -text} \
+		${EASYRSA_NO_PASS:+ "$no_password"} \
 		${EASYRSA_PASSOUT:+ -passout "$EASYRSA_PASSOUT"}
 	then
 		: # ok
@@ -2839,7 +2843,7 @@ $confirm_details" # => confirm end
 		${EASYRSA_PRESERVE_DN:+ -preserveDN} \
 		${force_subj:+ -subj "$force_subj"} \
 		${EASYRSA_PASSIN:+ -passin "$EASYRSA_PASSIN"} \
-		${EASYRSA_NO_TEXT:+ -notext} \
+		${EASYRSA_TEXT_OFF:+ -notext} \
 		${EASYRSA_CERT_EXPIRE:+ -days "$EASYRSA_CERT_EXPIRE"} \
 		${EASYRSA_START_DATE:+ -startdate "$EASYRSA_START_DATE"} \
 		${EASYRSA_END_DATE:+ -enddate "$EASYRSA_END_DATE"} \
@@ -6899,9 +6903,13 @@ while :; do
 			empty_ok=1
 			export EASYRSA_RAW_CA=1
 			;;
+		--text)
+			empty_ok=1
+			export EASYRSA_TEXT_ON=1
+			;;
 		--notext|--no-text)
 			empty_ok=1
-			export EASYRSA_NO_TEXT=1
+			export EASYRSA_TEXT_OFF=1
 			;;
 		--subca-len)
 			number_only=1
