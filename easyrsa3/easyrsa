@@ -933,77 +933,39 @@ easyrsa_mktemp() {
 	[ -d "$secured_session" ] || die "\
 easyrsa_mktemp - Temporary session undefined (--tmp-dir)"
 
-	# Force noclobber
-	set_no_clobber on
-
-	# Assign internal temp-file name
-	tmp_fname="${secured_session}/temp.${mktemp_counter}"
-
 	# Create shotfile
-	for shot_try in x y z; do
-		shotfile="${tmp_fname}.${shot_try}"
-		if [ -f "$shotfile" ]; then
-			verbose "\
-: easyrsa_mktemp: shotfile EXISTS: $shotfile"
-			continue
-		else
-			printf "" > "$shotfile" || die "\
-easyrsa_mktemp: create shotfile failed (1) $1"
+	for high in 0 1; do
+		for low in 0 1 2 3 4 5 6 7 8 9; do
+			shotfile="${secured_session}/temp.${high}${low}"
 
-			# Create temp-file or die
-			# subshells do not update mktemp_counter,
-			# which is why this extension is required.
-			# Current max required is 1 attempt
-			for ext_try in 1 2 3 4 5 6 7 8 9; do
-				want_tmp_file="${tmp_fname}.${ext_try}"
+			# Force noclobber
+			set_no_clobber on
 
-				# Warn to error log file for max reached
-				if [ "$EASYRSA_MAX_TEMP" -lt "$ext_try" ]; then
-					print "\
-Max temp-file limit $ext_try, hit for: $1" > "$easyrsa_err_log"
-					die "EASYRSA_MAX_TEMP exceeded"
-				fi
+			# atomic:
+			printf "" 2>/dev/null 1>"$shotfile" || continue
 
-				if [ -f "$want_tmp_file" ]; then
-					verbose "\
-: easyrsa_mktemp: temp-file EXISTS: $want_tmp_file"
-					continue
-				else
-					# atomic:
-					if mv "$shotfile" "$want_tmp_file"; then
-						# Assign external temp-file name
-						if force_set_var "$1" "$want_tmp_file"
-						then
-							verbose "\
-: easyrsa_mktemp: $1 OK: $want_tmp_file"
+			# unset noclobber
+			set_no_clobber off
 
-							# unset noclobber
-							set_no_clobber off
 
-							# Update counter
-							mktemp_counter="$((mktemp_counter+1))"
+			# Assign external temp-file name
+			if force_set_var "$1" "$shotfile"; then
+				verbose "\
+: easyrsa_mktemp: $1 :OK: $shotfile"
 
-							unset -v tmp_fname \
-								shotfile shot_try \
-								want_tmp_file ext_try
-							return
-						else
-							die "\
+				# Update counter
+				mktemp_counter="$((mktemp_counter+1))"
+
+				return
+			else
+				die "\
 easyrsa_mktemp - force_set_var $1 failed"
-						fi
-					fi
-				fi
-			done
-		fi
+			fi
+		done
 	done
 
-	# unset noclobber
-	set_no_clobber off
-
 	# In case of subshell abuse, report to error log
-	err_msg="\
-easyrsa_mktemp - failed for: $1 @ attempt=$ext_try
-want_tmp_file: $want_tmp_file"
+	err_msg="easyrsa_mktemp - failed for: $1"
 	print "$err_msg" > "$easyrsa_err_log"
 	die "$err_msg"
 } # => easyrsa_mktemp()
