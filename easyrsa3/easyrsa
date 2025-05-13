@@ -4326,15 +4326,14 @@ will_cert_be_valid() {
 
 	# is the cert still valid at this future date
 	ssl_out="$(
-		"$EASYRSA_OPENSSL" x509 -in "$1" -noout \
-			-checkend "$2"
+		"$EASYRSA_OPENSSL" x509 -in "$1" -checkend "$2"
 	)"
 
 	# analyse SSL output
 	case "$ssl_out" in
 		'Certificate will not expire') return 0 ;;
 		'Certificate will expire') return 1 ;;
-		*) die "will_cert_be_valid - Failure"
+		*) die "will_cert_be_valid - Failure: '$ssl_out'"
 	esac
 } # => will_cert_be_valid()
 
