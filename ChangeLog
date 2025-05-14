@@ -2,6 +2,7 @@ Easy-RSA 3 ChangeLog
 
 3.2.3 (TBD)
 
+   * easyrsa_mktemp(): Remove secondary atomic operation (1a44c33) (#1322)
    * will_cert_be_valid(): Remove SSL option -noout (9c8465e) (#1321)
    * New option --text: Create CSR files with human readable text (c152118) (#1319)
    * Command 'write': Remove options 'overwrite' and 'filename' (153ec6f) (#1318)
