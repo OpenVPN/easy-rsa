@@ -855,6 +855,7 @@ remove_lock_file() {
 secure_session() {
 	# Session must not be defined
 	[ -z "$secured_session" ] || die "session overload"
+	[ -d "$secured_session" ] && die "session exists"
 
 	# Temporary directory must exist
 	[ -d "$EASYRSA_TEMP_DIR" ] || die "\
@@ -872,14 +873,7 @@ secure_session - Missing temporary directory:
 		# of an atomic directory creation call.
 		# The "race condition" still exists but is minimized.
 		# What remains is equivalent to 32bit hash collision.
-		[ -d "$secured_session" ] && continue
-		if mkdir "$secured_session"; then
-			# Check mkdir.exe has created the directory
-			[ -d "$secured_session" ] || \
-				die "secure_session - mkdir FAILED"
-			[ -f "$secured_session"/temp.0.1 ] && \
-				die "secure_session - temp-file EXISTS"
-
+		if easyrsa_mkdir "$secured_session"; then
 			# New session requires safe-ssl conf
 			unset -v session OPENSSL_CONF \
 				working_safe_ssl_conf working_safe_org_conf
@@ -915,8 +909,13 @@ easyrsa_mkdir() {
 	[ "$2" ] && die "easyrsa_mkdir - excess input"
 	[ "$1" ] || die "easyrsa_mkdir - input"
 	[ -d "$1" ] && return
-	mkdir "$1" 2>/dev/null # win11 never errors here
-	[ -d "$1" ] && return
+
+	if [ "$easyrsa_host_os" = win ]; then
+		mkdir "$1" 2>/dev/null # win11 never errors here
+		[ -d "$1" ] && return
+	else
+		mkdir "$1" 2>/dev/null && return
+	fi
 	die "easyrsa_mkdir - FAIL: $1"
 } # => easyrsa_mkdir()
 
