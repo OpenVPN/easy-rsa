@@ -2,6 +2,8 @@ Easy-RSA 3 ChangeLog
 
 3.2.3 (TBD)
 
+   * secure_session(): Use new easyrsa_mkdir() to create session dir (41c154c) (#1324)
+   * easyrsa_mkdir(): Separate Windows from *nix (7c76540) (#1324)
    * easyrsa_mktemp(): Remove secondary atomic operation (1a44c33) (#1322)
    * will_cert_be_valid(): Remove SSL option -noout (9c8465e) (#1321)
    * New option --text: Create CSR files with human readable text (c152118) (#1319)
