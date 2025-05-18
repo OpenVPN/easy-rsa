@@ -173,4 +173,5 @@ short description is shown below:
  *  `EASYRSA_NO_UMASK` - disable safe umask. Files will be created using the
     system's default
  *  `EASYRSA_TEMP_DIR` (CLI: `--tmp-dir`) - a temp directory to use for temporary files
+
 **NOTE:** the global options must be provided before the commands.
