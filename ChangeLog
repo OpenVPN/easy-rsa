@@ -2,6 +2,7 @@ Easy-RSA 3 ChangeLog
 
 3.2.3 (TBD)
 
+   * Update Copyright 2025 (8586bcf) (#1327)
    * secure_session(): Use new easyrsa_mkdir() to create session dir (41c154c) (#1324)
    * easyrsa_mkdir(): Separate Windows from *nix (7c76540) (#1324)
    * easyrsa_mktemp(): Remove secondary atomic operation (1a44c33) (#1322)
