@@ -5,10 +5,97 @@ easy-rsa is a CLI utility to build and manage a PKI CA. In layman's terms,
 this means to create a root certificate authority, and request and sign
 certificates, including intermediate CAs and certificate revocation lists (CRL).
 
-# Downloads
+# Installation instructions
 
-If you are looking for release downloads, please see the releases section on
-GitHub. Releases are also available as source checkouts using named tags.
+Easy-RSA's main program is a script, supported by a couple of config files. As such, there is no formal "installation" required. Preparing to use Easy-RSA is as simple as downloading the compressed package (.tar.gz for Linux/Unix or .zip for Windows) and extract it to a location of your choosing. There is no compiling or OS-dependent setup required.
+
+You should install and run Easy-RSA as a non-root (non-Administrator) account as root access is not required.
+
+## *nix like OS
+
+1. **Download** the latest tarball from the [Releases page](https://github.com/OpenVPN/easy-rsa/releases):
+```bash
+wget https://github.com/OpenVPN/easy-rsa/releases/download/vX.X.X/EasyRSA-X.X.X.tgz
+```
+or
+```bash
+curl -LO https://github.com/OpenVPN/easy-rsa/releases/download/v.X.Y.Z/EasyRSA-X.Y.Z.tgz
+```
+2. **Extract** the archive and change into the directory:
+```bash
+$ tar xzf EasyRSA.tgz
+$ cd EasyRSA
+$ ls
+easyrsa  openssl-easyrsa.cnf  vars.example  x509-types
+# easyrsa is the binary, invoke the binary in the following way
+$ ./easyrsa help
+
+Easy-RSA 3 usage and overview
+
+Usage: easyrsa [ OPTIONS.. ] <COMMAND> <TARGET> [ cmd-opts.. ]
+
+To get detailed usage and help for a command, use:
+  ./easyrsa help COMMAND
+
+For a list of global-options, use:
+  ./easyrsa help options
+
+For a list of utility commands, use:
+  ./easyrsa help util
+
+A list of commands is shown below:
+  init-pki [ cmd-opts ]
+  self-sign-server <file_name_base> [ cmd-opts ]
+...
+...
+```
+Further more command line options and availability can be referred from [EasyRSA-Readme.md](https://github.com/OpenVPN/easy-rsa/blob/master/doc/EasyRSA-Readme.md#configuring-easy-rsa)
+
+## Windows 
+
+1. **Download** the latest ZIP from the [Releases page](https://github.com/OpenVPN/easy-rsa/releases).
+```bash
+Example: EasyRSA-X.X.X-win64 (must have -win64)
+```
+2. **Extract** to a folder, e.g., `C:\EasyRSA` (right-click → Extract All...).
+
+Invoking Easy-RSA is done through your preferred shell. Under Windows, you will use the `EasyRSA Start.bat` program to provide a POSIX-shell environment suitable for using Easy-RSA.
+
+After clicking on `EasyRSA-Start.bat` you will see something similar below
+
+```bash
+    Easy-RSA starting..
+
+    Welcome to the EasyRSA 3 Shell for Windows.
+    Easy-RSA 3 is available under a GNU GPLv2 license.
+
+    Invoke 'easyrsa' to call the program. Without commands, help is displayed.
+
+    Using directory: C:/Users/mp13/Downloads/EasyRSA-3.2.2-win64/EasyRSA-3.2.2
+
+    EasyRSA Shell
+    # easyrsa help
+
+    Easy-RSA 3 usage and overview
+
+    Usage: easyrsa [ OPTIONS.. ] <COMMAND> <TARGET> [ cmd-opts.. ]
+
+    To get detailed usage and help for a command, use:
+      ./easyrsa help COMMAND
+
+    For a list of global-options, use:
+      ./easyrsa help options
+
+    For a list of utility commands, use:
+      ./easyrsa help util
+
+    A list of commands is shown below:
+      init-pki [ cmd-opts ]
+      self-sign-server <file_name_base> [ cmd-opts ]
+    ...
+```
+
+Further more command line options and availability can be referred from [EasyRSA-Readme.md](https://github.com/OpenVPN/easy-rsa/blob/master/doc/EasyRSA-Readme.md#configuring-easy-rsa) & more information for windows can be found at [README-Windows.txt](https://github.com/OpenVPN/easy-rsa/blob/master/distro/windows/README-Windows.txt)
 
 # Documentation
 
