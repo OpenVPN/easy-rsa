@@ -3110,10 +3110,11 @@ $(cat "$ca_source")
 	fi
 
 	# dh params file, for RSA servers only
-	if [ "$EASYRSA_ALGO" = rsa ]; then
-		case "$crt_type" in
-		server|serverClient)
-			# Collect DH data
+	dh_params_data=
+	case "$crt_type" in
+	server|serverClient)
+		# Collect DH data
+		if [ "$EASYRSA_ALGO" = rsa ]; then
 			if [ -f "$dh_params_source" ]; then
 				dh_params_data="${NL}
 <dh>
@@ -3126,15 +3127,17 @@ $(cat "$dh_params_source")
 # * Paste your Diffie-Hellman parameters file here *
 # </dh>"
 			fi
-
-			# Append DH data to CA data
-			ca_data="${ca_data}${dh_params_data}"
+		else
+			# ok, not RSA
+			dh_params_data="${NL}
+# Diffie-Hellman parameters file not required
+dh none"
+		fi
 		;;
 		*) : # ok, not server
-		esac
-	else
-		: # ok, not RSA
-	fi
+	esac
+	# Append DH data to CA data
+	ca_data="${ca_data}${dh_params_data}"
 
 	# TLS KEY - Set TLS auth|crypt key inline label
 	if [ -f "$tls_source" ]; then
