@@ -4448,11 +4448,6 @@ read_db() {
 
 # Expire status
 expire_status_v2() {
-	# expiry seconds
-	pre_expire_window_s="$((
-		EASYRSA_PRE_EXPIRY_WINDOW * 60*60*24
-		))"
-
 	# The certificate for CN should exist but may not
 	if [ -f "$1" ]; then
 		verbose "expire_status: cert exists"
@@ -4567,6 +4562,11 @@ status() {
 
 	# test fix: https://github.com/OpenVPN/easy-rsa/issues/819
 	export LC_TIME=C.UTF-8
+
+	# expiry seconds
+	pre_expire_window_s="$((
+		EASYRSA_PRE_EXPIRY_WINDOW * 60*60*24
+		))"
 
 	# If no target file then add Notice
 	if [ -z "$target" ]; then
