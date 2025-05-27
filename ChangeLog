@@ -2,6 +2,8 @@ Easy-RSA 3 ChangeLog
 
 3.2.3 (TBD)
 
+   * show-expire: Move setting $pre_expire_window_s to status() (4b05181) (#1332)
+     Original bug report: Antonio Gurgel (#1331)
    * inine_file(): Correct logic and add 'dh none' for DH params file (7d5c52e) (#1330)
    * Update Copyright 2025 (8586bcf) (#1327)
    * secure_session(): Use new easyrsa_mkdir() to create session dir (41c154c) (#1324)
