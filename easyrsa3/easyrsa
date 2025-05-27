@@ -895,7 +895,7 @@ remove_secure_session() {
 remove_secure_session: DELETED: $secured_session"
 
 		# Restore original EASYRSA_SSL_CONF
-		EASYRSA_SSL_CONF="$original_ssl_cnf"
+		export EASYRSA_SSL_CONF="$original_ssl_cnf"
 
 		unset -v secured_session OPENSSL_CONF \
 			working_safe_ssl_conf working_safe_org_conf
@@ -1909,7 +1909,7 @@ Please update 'openssl-easyrsa.cnf' to the latest Easy-RSA release."
 	verbose "build-ca: insert x509 and extensions OK"
 
 	# Use this new SSL config for the rest of this function
-	EASYRSA_SSL_CONF="$adjusted_ssl_cnf_tmp"
+	export EASYRSA_SSL_CONF="$adjusted_ssl_cnf_tmp"
 
 	# Generate CA Key
 	case "$EASYRSA_ALGO" in
@@ -2147,7 +2147,7 @@ self-sign: Use ALGO:'$EASYRSA_ALGO' / CURVE:'$EASYRSA_CURVE'"
 	verbose "self_sign: insert x509 and extensions OK"
 
 	# Use this new SSL config for the rest of this function
-	EASYRSA_SSL_CONF="$adjusted_ssl_cnf_tmp"
+	export EASYRSA_SSL_CONF="$adjusted_ssl_cnf_tmp"
 
 	# Create temp-files for output
 	tmp_key_out=""
@@ -2336,7 +2336,7 @@ $EASYRSA_EXTRA_EXTS"
 			verbose "gen-req: SAN critical OK"
 
 		# Use this SSL config for the rest of this function
-		EASYRSA_SSL_CONF="$adjusted_ssl_cnf_tmp"
+		export EASYRSA_SSL_CONF="$adjusted_ssl_cnf_tmp"
 	fi
 
 	# Name temp files
@@ -2538,7 +2538,7 @@ to the latest Easy-RSA release."
 Writing 'copy_exts' to SSL config temp-file failed"
 
 		# Use this SSL config for the rest of this function
-		EASYRSA_SSL_CONF="$adjusted_ssl_cnf_tmp"
+		export EASYRSA_SSL_CONF="$adjusted_ssl_cnf_tmp"
 		verbose "sign_req: Using '$copy_exts'"
 		verbose "sign_req: EASYRSA_SSL_CONF = $EASYRSA_SSL_CONF"
 	fi
@@ -5052,7 +5052,7 @@ Please update 'openssl-easyrsa.cnf' to the latest Easy-RSA release."
 	verbose "$f_name insert x509 and extensions OK"
 
 	# Use this new SSL config for the rest of this function
-	EASYRSA_SSL_CONF="$adjusted_ssl_cnf_tmp"
+	export EASYRSA_SSL_CONF="$adjusted_ssl_cnf_tmp"
 
 	# Generate new CA cert:
 	easyrsa_openssl req -utf8 -new \
