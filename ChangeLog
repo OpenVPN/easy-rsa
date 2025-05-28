@@ -2,6 +2,7 @@ Easy-RSA 3 ChangeLog
 
 3.2.3 (TBD)
 
+   * Unit-test: Drop old *nix test (63f3869) (#1335)
    * Always export EASYRSA_SSL_CONF, when assigned (code standard) (e77240d (#1334)
    * show-expire: Move setting $pre_expire_window_s to status() (4b05181) (#1332)
      Original bug report: Antonio Gurgel (#1331)
