@@ -3056,16 +3056,16 @@ $(cat "$crt_source")
 
 		# Certificate type
 		if [ -z "$crt_type" ]; then
-			ssl_cert_x509v3_eku "$crt_source" crt_type || \
-				die "inline_file: Failed to set crt_type"
+			ssl_cert_x509v3_eku "$crt_source" inline_crt_type || \
+				die "inline_file: Failed to set inline_crt_type"
 		fi
 
 		# commonName
-		crt_CN="$(
+		inline_crt_CN="$(
 			display_dn x509 "$crt_source" | grep 'commonName'
-		)" || die "inline_file: Failed to set crt_CN"
+		)" || die "inline_file: Failed to set inline_crt_CN"
 		# strip prefix
-		crt_CN="${crt_CN#*= }"
+		inline_crt_CN="${inline_crt_CN#*= }"
 	else
 		inline_incomplete=1
 		crt_data="\
@@ -3077,8 +3077,8 @@ $(cat "$crt_source")
 # </cert>"
 
 		crt_fingerprint=unknown
-		crt_type=unknown
-		crt_CN=unknown
+		inline_crt_type=unknown
+		inline_crt_CN=unknown
 	fi
 
 	# Private key
@@ -3118,7 +3118,7 @@ $(cat "$ca_source")
 
 	# dh params file, for RSA servers only
 	dh_params_data=
-	case "$crt_type" in
+	case "$inline_crt_type" in
 	server|serverClient)
 		# Collect DH data
 		if [ "$EASYRSA_ALGO" = rsa ]; then
@@ -3192,7 +3192,7 @@ ${tls_key_data}
 	fi
 
 	# Only support inline TLS keys for OpenVPN server/client use
-	case "$crt_type" in
+	case "$inline_crt_type" in
 		server) key_direction="key-direction 0" ;;
 		client) key_direction="key-direction 1" ;;
 		*)
@@ -3214,8 +3214,8 @@ ${tls_key_data}
 	# Print data
 	print "\
 # Easy-RSA Inline file
-# Certificate type: $crt_type
-# commonName: $crt_CN
+# Certificate type: $inline_crt_type
+# commonName: $inline_crt_CN
 # SHA256 fingerprint:
 # $crt_fingerprint
 # Decimal serial number: $crt_serial_dec
