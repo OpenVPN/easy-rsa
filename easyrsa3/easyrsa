@@ -2401,8 +2401,12 @@ sign_req() {
 
 	# Verify $crt_type is valid
 	case "$crt_type" in
-		ca|server|serverClient|client|codeSigning|email|kdc)
-			: # All known types plus CA for sub-ca
+		ca)
+			# Inline file not required for signing a sub CA
+			EASYRSA_DISABLE_INLINE=1
+		;;
+		server|serverClient|client|codeSigning|email|kdc)
+			: # All known types
 		;;
 		*)
 			warn "\
