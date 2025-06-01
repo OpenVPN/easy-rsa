@@ -3059,10 +3059,8 @@ $(cat "$crt_source")
 		crt_fingerprint="${crt_fingerprint#*=}"
 
 		# Certificate type
-		if [ -z "$crt_type" ]; then
-			ssl_cert_x509v3_eku "$crt_source" inline_crt_type || \
-				die "inline_file: Failed to set inline_crt_type"
-		fi
+		ssl_cert_x509v3_eku "$crt_source" inline_crt_type || \
+			die "inline_file: Failed to set inline_crt_type"
 
 		# commonName
 		inline_crt_CN="$(
