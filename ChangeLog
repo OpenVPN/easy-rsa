@@ -2,6 +2,7 @@ Easy-RSA 3 ChangeLog
 
 3.2.3 (TBD)
 
+   * ssl_cert_x509v3_eku(): Localize variables and minor improvements (8c19a95) (#1337)
    * inline_file(): Always use ssl_cert_x509v3_eku() to set $inline_crt_type (e1a2880) (#1337)
    * sig-req: Disable inline for certificate type 'ca' (sub-ca) (f1252a3) (#1337)
    * inline_file(): Localize variables $inline_crt_type & $inline_crt_CN (692e20a) (#1337)
