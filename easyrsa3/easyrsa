@@ -60,7 +60,7 @@ A list of commands is shown below:
   export-p12 <file_name_base> [ cmd-opts ]
   set-pass <file_name_base> [ cmd-opts ]
   gen-tls-auth-key / gen-tls-crypt-key
-  write <type> [ cmd-opts ]"
+  write <type>"
 
 	# collect/show dir status:
 	text_only=1
@@ -5164,7 +5164,7 @@ display_dn - input error"
 
 	# Display DN
 	"$EASYRSA_OPENSSL" "$format" -in "$path" -noout -subject \
-	-nameopt utf8,sep_multiline,space_eq,lname,align
+		-nameopt utf8,sep_multiline,space_eq,lname,align
 } # => display_dn()
 
 # verify a file seems to be a valid req/X509
