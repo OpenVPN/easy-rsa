@@ -5275,98 +5275,92 @@ Showing details for CA certificate, at:
 } # => show_ca()
 
 # Certificate X509v3 Extended Key Usage
+# ''$ceku_*'' is Cert EKU, to localize function variables
 ssl_cert_x509v3_eku() {
-	[ "$1" ] || die "ssl_cert_x509v3_eku - Missing input"
+	fn_name="$fn_name; ssl_cert_x509v3_eku"
 
 	# check input file name
 	if [ -f "$1" ]; then
-		__crt="$1"
+		ceku_crt="$1"
 	else
-		__crt="${EASYRSA_PKI}/issued/${1}.crt"
-		[ -f "$__crt" ] || \
-			die "ssl_cert_x509v3_eku - Missing cert '$__crt'"
+		ceku_crt="${EASYRSA_PKI}/issued/${1}.crt"
+		[ -f "$ceku_crt" ] || \
+			die "$fn_name - Missing cert '$ceku_crt'"
 	fi
 
-	# Set output variable
-	__var="$2"
-	shift "$#"
-
 	# required variables
-	__pattern="X509v3 Extended Key Usage:"
-	__cli="TLS Web Client Authentication"
-	__srv="TLS Web Server Authentication"
-	__srv_cli="${__srv}, ${__cli}"
-	__codeSign="Code Signing"
-	unset -v __known
+	ceku_pattern='X509v3 Extended Key Usage:'
+	ceku_cli='TLS Web Client Authentication'
+	ceku_srv='TLS Web Server Authentication'
+	ceku_srv_cli="${ceku_srv}, ${ceku_cli}"
+	ceku_codeSign='Code Signing'
+	ceku_known=
 
 	# Extract certificate Extended Key Usage
 	if [ "$ssl_lib" = libressl ]; then
-		__eku="$(
-			"$EASYRSA_OPENSSL" x509 -in "${__crt}" -noout -text | \
-				sed -n "/${__pattern}/{n;s/^ *//g;p;}"
-			)"
+		ceku_eku="$(
+			"$EASYRSA_OPENSSL" x509 -in "$ceku_crt" -noout \
+				-text | \
+					sed -n "/${ceku_pattern}/{n;s/^ *//g;p;}"
+			)" || die "$fn_name - LibreSSL error"
 	else
-		__eku="$(
-			"$EASYRSA_OPENSSL" x509 -in "${__crt}" -noout \
+		ceku_eku="$(
+			"$EASYRSA_OPENSSL" x509 -in "$ceku_crt" -noout \
 				-ext extendedKeyUsage | \
-					sed -e /"${__pattern}"/d -e s/^\ *//
-			)"
+					sed -e /"${ceku_pattern}"/d -e s/^\ *//
+			)" || die "$fn_name - OpenSSL error"
 	fi
 
 	# Match EKU with supported usage
-	case "$__eku" in
-		"$__srv_cli")
-			__known=1
-			__type=serverClient
+	case "$ceku_eku" in
+		"$ceku_srv_cli")
+			ceku_known=1
+			ceku_type=serverClient
 			;;
-		"$__cli")
-			__known=1
-			__type=client
+		"$ceku_cli")
+			ceku_known=1
+			ceku_type=client
 			;;
-		"$__srv")
-			__known=1
-			__type=server
+		"$ceku_srv")
+			ceku_known=1
+			ceku_type=server
 			;;
-		"$__codeSign")
-			__known=1
-			__type=codeSign
+		"$ceku_codeSign")
+			ceku_known=1
+			# translate 'Code Signing' into x509-type file-name
+			ceku_type=codeSigning
 			;;
 		'')
-			__type=undefined
+			ceku_type=undefined
 			;;
 		*)
-			__type="'$__eku'"
+			ceku_type="'$ceku_eku'"
 	esac
 
 	# Check for self-sign
-	if "$EASYRSA_OPENSSL" x509 -in "$__crt" -noout -text | \
-		grep -q 'CA:TRUE'
+	if "$EASYRSA_OPENSSL" x509 -in "$ceku_crt" \
+		-noout -text | grep -q 'CA:TRUE'
 	then
-		__type="self-signed-$__type"
+		ceku_type="self-signed-$ceku_type"
 	fi
 
 	# Set variable to return
-	if [ "$__var" ]; then
-		verbose "ssl_cert_x509v3_eku - EKU: $__type"
-		force_set_var "$__var" "$__type"
-	elif [ "$__known" ]; then
-		information "
-* Known X509v3 Extended Key Usage: $__type"
+	if [ "$2" ]; then
+		force_set_var "$2" "$ceku_type" || \
+			die "$fn_name - force_set_var failed"
+		verbose "$fn_name: EKU='$ceku_type' [$2]"
+	elif [ "$ceku_known" ]; then
+		information "\
+* Known X509v3 Extended Key Usage: '$ceku_type'"
 	else
-		information "
-* Unknown X509v3 Extended Key Usage: $__type"
+		information "\
+* UNKNOWN X509v3 Extended Key Usage: '$ceku_type'"
 	fi
 
-	unset -v __crt __var __pattern __srv_cli __cli __srv \
-		__codeSign __eku __type
+	fn_name="${fn_name%; ssl_cert_x509v3_eku}"
 
-	if [ "$__known" ]; then
-		unset -v __known
-		return
-	fi
-
-	# Also, catch errors from SSL x509 command
-	# for '__eku' subshell+pipe
+	# Succeed for known types only
+	[ "$ceku_known" ] && return
 	return 1
 } # => ssl_cert_x509v3_eku()
 
