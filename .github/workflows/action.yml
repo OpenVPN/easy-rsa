@@ -50,6 +50,7 @@ jobs:
     env:
       EASYRSA_REMOTE_CI: 1
       EASYRSA_WIN: 1
+      EASYRSA_WIN_QUICK: 1
       TERM: xterm-256color
       EASYRSA_SILENT_SSL: 1
 
