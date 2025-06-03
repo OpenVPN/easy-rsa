@@ -60,7 +60,7 @@ A list of commands is shown below:
   export-p12 <file_name_base> [ cmd-opts ]
   set-pass <file_name_base> [ cmd-opts ]
   gen-tls-auth-key / gen-tls-crypt-key
-  write <type> [ cmd-opts ]"
+  write <type>"
 
 	# collect/show dir status:
 	text_only=1
@@ -2401,8 +2401,12 @@ sign_req() {
 
 	# Verify $crt_type is valid
 	case "$crt_type" in
-		ca|server|serverClient|client|codeSigning|email|kdc)
-			: # All known types plus CA for sub-ca
+		ca)
+			# Inline file not required for signing a sub CA
+			EASYRSA_DISABLE_INLINE=1
+		;;
+		server|serverClient|client|codeSigning|email|kdc)
+			: # All known types
 		;;
 		*)
 			warn "\
@@ -3055,17 +3059,15 @@ $(cat "$crt_source")
 		crt_fingerprint="${crt_fingerprint#*=}"
 
 		# Certificate type
-		if [ -z "$crt_type" ]; then
-			ssl_cert_x509v3_eku "$crt_source" crt_type || \
-				die "inline_file: Failed to set crt_type"
-		fi
+		ssl_cert_x509v3_eku "$crt_source" inline_crt_type || \
+			die "inline_file: Failed to set inline_crt_type"
 
 		# commonName
-		crt_CN="$(
+		inline_crt_CN="$(
 			display_dn x509 "$crt_source" | grep 'commonName'
-		)" || die "inline_file: Failed to set crt_CN"
+		)" || die "inline_file: Failed to set inline_crt_CN"
 		# strip prefix
-		crt_CN="${crt_CN#*= }"
+		inline_crt_CN="${inline_crt_CN#*= }"
 	else
 		inline_incomplete=1
 		crt_data="\
@@ -3077,8 +3079,8 @@ $(cat "$crt_source")
 # </cert>"
 
 		crt_fingerprint=unknown
-		crt_type=unknown
-		crt_CN=unknown
+		inline_crt_type=unknown
+		inline_crt_CN=unknown
 	fi
 
 	# Private key
@@ -3118,7 +3120,7 @@ $(cat "$ca_source")
 
 	# dh params file, for RSA servers only
 	dh_params_data=
-	case "$crt_type" in
+	case "$inline_crt_type" in
 	server|serverClient)
 		# Collect DH data
 		if [ "$EASYRSA_ALGO" = rsa ]; then
@@ -3192,7 +3194,7 @@ ${tls_key_data}
 	fi
 
 	# Only support inline TLS keys for OpenVPN server/client use
-	case "$crt_type" in
+	case "$inline_crt_type" in
 		server) key_direction="key-direction 0" ;;
 		client) key_direction="key-direction 1" ;;
 		*)
@@ -3214,8 +3216,8 @@ ${tls_key_data}
 	# Print data
 	print "\
 # Easy-RSA Inline file
-# Certificate type: $crt_type
-# commonName: $crt_CN
+# Certificate type: $inline_crt_type
+# commonName: $inline_crt_CN
 # SHA256 fingerprint:
 # $crt_fingerprint
 # Decimal serial number: $crt_serial_dec
@@ -5162,7 +5164,7 @@ display_dn - input error"
 
 	# Display DN
 	"$EASYRSA_OPENSSL" "$format" -in "$path" -noout -subject \
-	-nameopt utf8,sep_multiline,space_eq,lname,align
+		-nameopt utf8,sep_multiline,space_eq,lname,align
 } # => display_dn()
 
 # verify a file seems to be a valid req/X509
@@ -5273,98 +5275,92 @@ Showing details for CA certificate, at:
 } # => show_ca()
 
 # Certificate X509v3 Extended Key Usage
+# ''$ceku_*'' is Cert EKU, to localize function variables
 ssl_cert_x509v3_eku() {
-	[ "$1" ] || die "ssl_cert_x509v3_eku - Missing input"
+	fn_name="$fn_name; ssl_cert_x509v3_eku"
 
 	# check input file name
 	if [ -f "$1" ]; then
-		__crt="$1"
+		ceku_crt="$1"
 	else
-		__crt="${EASYRSA_PKI}/issued/${1}.crt"
-		[ -f "$__crt" ] || \
-			die "ssl_cert_x509v3_eku - Missing cert '$__crt'"
+		ceku_crt="${EASYRSA_PKI}/issued/${1}.crt"
+		[ -f "$ceku_crt" ] || \
+			die "$fn_name - Missing cert '$ceku_crt'"
 	fi
 
-	# Set output variable
-	__var="$2"
-	shift "$#"
-
 	# required variables
-	__pattern="X509v3 Extended Key Usage:"
-	__cli="TLS Web Client Authentication"
-	__srv="TLS Web Server Authentication"
-	__srv_cli="${__srv}, ${__cli}"
-	__codeSign="Code Signing"
-	unset -v __known
+	ceku_pattern='X509v3 Extended Key Usage:'
+	ceku_cli='TLS Web Client Authentication'
+	ceku_srv='TLS Web Server Authentication'
+	ceku_srv_cli="${ceku_srv}, ${ceku_cli}"
+	ceku_codeSign='Code Signing'
+	ceku_known=
 
 	# Extract certificate Extended Key Usage
 	if [ "$ssl_lib" = libressl ]; then
-		__eku="$(
-			"$EASYRSA_OPENSSL" x509 -in "${__crt}" -noout -text | \
-				sed -n "/${__pattern}/{n;s/^ *//g;p;}"
-			)"
+		ceku_eku="$(
+			"$EASYRSA_OPENSSL" x509 -in "$ceku_crt" -noout \
+				-text | \
+					sed -n "/${ceku_pattern}/{n;s/^ *//g;p;}"
+			)" || die "$fn_name - LibreSSL error"
 	else
-		__eku="$(
-			"$EASYRSA_OPENSSL" x509 -in "${__crt}" -noout \
+		ceku_eku="$(
+			"$EASYRSA_OPENSSL" x509 -in "$ceku_crt" -noout \
 				-ext extendedKeyUsage | \
-					sed -e /"${__pattern}"/d -e s/^\ *//
-			)"
+					sed -e /"${ceku_pattern}"/d -e s/^\ *//
+			)" || die "$fn_name - OpenSSL error"
 	fi
 
 	# Match EKU with supported usage
-	case "$__eku" in
-		"$__srv_cli")
-			__known=1
-			__type=serverClient
+	case "$ceku_eku" in
+		"$ceku_srv_cli")
+			ceku_known=1
+			ceku_type=serverClient
 			;;
-		"$__cli")
-			__known=1
-			__type=client
+		"$ceku_cli")
+			ceku_known=1
+			ceku_type=client
 			;;
-		"$__srv")
-			__known=1
-			__type=server
+		"$ceku_srv")
+			ceku_known=1
+			ceku_type=server
 			;;
-		"$__codeSign")
-			__known=1
-			__type=codeSign
+		"$ceku_codeSign")
+			ceku_known=1
+			# translate 'Code Signing' into x509-type file-name
+			ceku_type=codeSigning
 			;;
 		'')
-			__type=undefined
+			ceku_type=undefined
 			;;
 		*)
-			__type="'$__eku'"
+			ceku_type="'$ceku_eku'"
 	esac
 
 	# Check for self-sign
-	if "$EASYRSA_OPENSSL" x509 -in "$__crt" -noout -text | \
-		grep -q 'CA:TRUE'
+	if "$EASYRSA_OPENSSL" x509 -in "$ceku_crt" \
+		-noout -text | grep -q 'CA:TRUE'
 	then
-		__type="self-signed-$__type"
+		ceku_type="self-signed-$ceku_type"
 	fi
 
 	# Set variable to return
-	if [ "$__var" ]; then
-		verbose "ssl_cert_x509v3_eku - EKU: $__type"
-		force_set_var "$__var" "$__type"
-	elif [ "$__known" ]; then
-		information "
-* Known X509v3 Extended Key Usage: $__type"
+	if [ "$2" ]; then
+		force_set_var "$2" "$ceku_type" || \
+			die "$fn_name - force_set_var failed"
+		verbose "$fn_name: EKU='$ceku_type' [$2]"
+	elif [ "$ceku_known" ]; then
+		information "\
+* Known X509v3 Extended Key Usage: '$ceku_type'"
 	else
-		information "
-* Unknown X509v3 Extended Key Usage: $__type"
+		information "\
+* UNKNOWN X509v3 Extended Key Usage: '$ceku_type'"
 	fi
 
-	unset -v __crt __var __pattern __srv_cli __cli __srv \
-		__codeSign __eku __type
+	fn_name="${fn_name%; ssl_cert_x509v3_eku}"
 
-	if [ "$__known" ]; then
-		unset -v __known
-		return
-	fi
-
-	# Also, catch errors from SSL x509 command
-	# for '__eku' subshell+pipe
+	# Succeed for known types only
+	[ "$ceku_known" ] && return
 	return 1
 } # => ssl_cert_x509v3_eku()
 
