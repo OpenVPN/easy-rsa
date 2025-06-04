@@ -5789,10 +5789,8 @@ change these values.
 ${unexpected_error}"
 } # => validate_default_vars()
 
-# Verify working environment
-verify_working_env() {
-	verbose "verify_working_env: BEGIN"
-
+# Create PKI lock-file, as necessary
+request_lock_file() {
 	# Create lock-file
 	create_lock_file_error=
 	if [ -d "${EASYRSA_PKI}" ]; then
@@ -5838,6 +5836,14 @@ lock-file removed - Please try running the easyrsa command again."
 	else
 		verbose "verify_working_env: lock-file not required."
 	fi
+} # => request_lock_file()
+
+# Verify working environment
+verify_working_env() {
+	verbose "verify_working_env: BEGIN"
+
+	# Oppertunist PKI lock-file
+	request_lock_file
 
 	# For commands which 'require a PKI' and PKI exists
 	if [ "$require_pki" ]; then
