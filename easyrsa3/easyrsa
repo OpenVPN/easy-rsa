@@ -3584,17 +3584,30 @@ It is now possible to sign a new certificate for '$file_name_base'"
 # Forbid a self-signed cert from being expired/renewed/revoked
 # by a CA that has nothing to do with the cert
 forbid_selfsign() {
+	fn_name="$fn_name; forbid_selfsign"
 	# cert temp-file
-	forbid_selfsign_tmp=
-	easyrsa_mktemp forbid_selfsign_tmp
+	forbid_ss_tmp=
+	easyrsa_mktemp forbid_ss_tmp
+
+	forbid_serial=
+	ssl_cert_serial "$1" forbid_serial || \
+		die "$fn_name - ssl_cert_serial"
 
 	# SSL text
 	"$EASYRSA_OPENSSL" x509 -in "$1" -noout -text \
-		> "$forbid_selfsign_tmp" || \
-			die "forbid_selfsign - ssl text"
+		> "$forbid_ss_tmp" || die "$fn_name - ssl text"
 
-	# test for CA:TRUE
-	grep -q "^[[:blank:]]*CA:TRUE$" "$forbid_selfsign_tmp"
+	# Extract signing cert serial
+	signing_serial="$(
+			grep "^[[:blank:]]*serial:.*$" "$forbid_ss_tmp" | \
+				sed -e 's/^[[:blank:]]*serial//' -e 's/://g'
+		)" || die "$fn_name - signing_serial subshell"
+	[ "$signing_serial" ] || die "$fn_name - signing_serial"
+
+	verbose "$fn_name: $forbid_serial = $signing_serial"
+	fn_name="${fn_name%; forbid_selfsign}"
+	# Compare $ssl_cert_serial to $signing_serial
+	[ "$forbid_serial" = "$signing_serial" ]
 } # => forbid_selfsign()
 
 # gen-crl backend
