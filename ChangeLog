@@ -2,6 +2,7 @@ Easy-RSA 3 ChangeLog
 
 3.2.3 (TBD)
 
+   * inline_file(): Use ssl_cert_serial() (c0d2e82) (#1343)
    * forbid_selfsign(): Compare cert serial to signing cert serial (29b2779) (#1342)
    * Unit-test: Minimize Windows test (dc60c8b) (#1339)
    * ssl_cert_x509v3_eku(): Localize variables and minor improvements (8c19a95) (#1337)
