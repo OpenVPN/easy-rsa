@@ -1351,6 +1351,9 @@ Missing expected directory: $i
 $help_note"
 	done
 	unset -v help_note
+
+	# Always create 'issued' dir, useful for inline files
+	easyrsa_mkdir "$EASYRSA_PKI"/issued
 } # => verify_pki_init()
 
 # Verify core CA files present
