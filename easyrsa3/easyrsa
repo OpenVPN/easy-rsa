@@ -3038,13 +3038,11 @@ $(cat "$crt_source")
 		# for '--crl-verify /path/to/dir dir'
 		# For reasons unknown..
 		if which bc >/dev/null; then
-			crt_serial="$(
-				"$EASYRSA_OPENSSL" x509 -in "$crt_source" \
-					-noout -serial
-				)" || die "inline_file - SSL -serial failed"
-			crt_serial="${crt_serial#*=}"
+			inline_crt_serial=
+			ssl_cert_serial "$crt_source" inline_crt_serial || \
+				die "inline_file - ssl_cert_serial"
 			crt_serial_dec="$(
-					echo "ibase=16; $crt_serial" | bc
+					echo "ibase=16; $inline_crt_serial" | bc
 				)" || die "inline_file - HEX to DEC failed"
 		else
 			crt_serial_dec="Unavailable"
