@@ -910,6 +910,7 @@ easyrsa_mkdir() {
 	[ "$1" ] || die "easyrsa_mkdir - input"
 	[ -d "$1" ] && return
 
+	verbose "$fn_name; easyrsa_mkdir $1"
 	if [ "$easyrsa_host_os" = win ]; then
 		mkdir "$1" 2>/dev/null # win11 never errors here
 		[ -d "$1" ] && return
