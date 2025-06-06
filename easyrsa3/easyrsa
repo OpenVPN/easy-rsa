@@ -910,6 +910,7 @@ easyrsa_mkdir() {
 	[ "$1" ] || die "easyrsa_mkdir - input"
 	[ -d "$1" ] && return
 
+	verbose "$fn_name; easyrsa_mkdir $1"
 	if [ "$easyrsa_host_os" = win ]; then
 		mkdir "$1" 2>/dev/null # win11 never errors here
 		[ -d "$1" ] && return
@@ -1351,6 +1352,9 @@ Missing expected directory: $i
 $help_note"
 	done
 	unset -v help_note
+
+	# Always create 'issued' dir, useful for inline files
+	easyrsa_mkdir "$EASYRSA_PKI"/issued
 } # => verify_pki_init()
 
 # Verify core CA files present
@@ -3038,13 +3042,11 @@ $(cat "$crt_source")
 		# for '--crl-verify /path/to/dir dir'
 		# For reasons unknown..
 		if which bc >/dev/null; then
-			crt_serial="$(
-				"$EASYRSA_OPENSSL" x509 -in "$crt_source" \
-					-noout -serial
-				)" || die "inline_file - SSL -serial failed"
-			crt_serial="${crt_serial#*=}"
+			inline_crt_serial=
+			ssl_cert_serial "$crt_source" inline_crt_serial || \
+				die "inline_file - ssl_cert_serial"
 			crt_serial_dec="$(
-					echo "ibase=16; $crt_serial" | bc
+					echo "ibase=16; $inline_crt_serial" | bc
 				)" || die "inline_file - HEX to DEC failed"
 		else
 			crt_serial_dec="Unavailable"
