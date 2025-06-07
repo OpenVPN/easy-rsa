@@ -2,6 +2,8 @@ Easy-RSA 3 ChangeLog
 
 3.2.3 (TBD)
 
+   * TLS key generation: Allow 'gen-tls-auth/crypt-key' without a CA Cert (2580dc2) (#1345)
+   * Inline_file(): Improvements self-signed integration (bc72a21) (#1345)
    * verify_pki_init(): Always create 'issued' dir (f7e1b79) (#1343)
    * inline_file(): Use ssl_cert_serial() (c0d2e82) (#1343)
    * forbid_selfsign(): Compare cert serial to signing cert serial (29b2779) (#1342)
