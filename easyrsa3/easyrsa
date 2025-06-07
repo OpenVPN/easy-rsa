@@ -3104,23 +3104,40 @@ $(cat "$key_source")
 	fi
 
 	# CA certificate
-	if [ -f "$ca_source" ]; then
-		ca_data="\
+	ca_data=
+	case "$inline_crt_type" in
+		# OpenVPN 2.5 or older does not support --peer-fingerprint
+		# Easy-RSA does not support old OpenVPN because it is not
+		# possible to determine which self-siged-server cert to use.
+		self-signed-client)
+			ca_data="\
+# Since OpenVPN 2.6 --peer-fingerprint --client does not require a CA
+# OpenVPN 2.5 or older requires the self-siged-server certificate
+# placed here."
+		;;
+		self-signed-server)
+			ca_data="\
+# CA ceriticate not required for --peer-fingerprint server"
+		;;
+		*)
+			if [ -f "$ca_source" ]; then
+				ca_data="\
 <ca>
 $(cat "$ca_source")
 </ca>"
-	else
-		inline_incomplete=1
-		ca_data="\
+			else
+				inline_incomplete=1
+				ca_data="\
 # When you recieve your CA certificate place it in the
 # 'pki' sub-dir of your PKI and use command 'inline'
 # to rebuild this inline file with your CA certificate.
 # <ca>
 # * Paste your CA certificate here *
 # </ca>"
-	fi
+			fi
+	esac
 
-	# dh params file, for RSA servers only
+	# Diffie-Hellman parameters file
 	dh_params_data=
 	case "$inline_crt_type" in
 	server|serverClient)
@@ -3145,12 +3162,19 @@ $(cat "$dh_params_source")
 dh none"
 		fi
 		;;
+		self-signed-server)
+			# ok, self-sign
+			dh_params_data="${NL}
+# Diffie-Hellman parameters file not required
+dh none"
+		;;
 		*) : # ok, not server
 	esac
 	# Append DH data to CA data
 	ca_data="${ca_data}${dh_params_data}"
 
 	# TLS KEY - Set TLS auth|crypt key inline label
+	tls_key_data=
 	if [ -f "$tls_source" ]; then
 		tls_key_data="$(cat "$tls_source")"
 		case "$tls_key_data" in
@@ -3197,13 +3221,15 @@ ${tls_key_data}
 
 	# Only support inline TLS keys for OpenVPN server/client use
 	case "$inline_crt_type" in
-		server) key_direction="key-direction 0" ;;
-		client) key_direction="key-direction 1" ;;
+		server|self-signed-server)
+			key_direction="key-direction 0" ;;
+		client|self-signed-client)
+			key_direction="key-direction 1" ;;
 		*)
-		verbose "inline: Unsupported certificate type: $crt_type"
+		verbose "inline: Unsupported cert-type: $inline_crt_type"
 		tls_key_label=
 		key_direction=
-		tls_data="# No TLS Key support for cert-type: $crt_type"
+		tls_data="# No TLS Key support for cert-type: $inline_crt_type"
 	esac
 
 	# Add --key-direction for TLS-AUTH
@@ -7027,7 +7053,7 @@ case "$cmd" in
 		require_pki=1
 		case "$cmd" in
 			gen-req|gen-dh|build-ca|show-req|export-p*| \
-			inline|self-sign-*)
+			inline|self-sign-*|gen-tls-*)
 				: ;; # ok
 			*) require_ca=1
 		esac
