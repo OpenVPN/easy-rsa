@@ -7053,7 +7053,7 @@ case "$cmd" in
 		require_pki=1
 		case "$cmd" in
 			gen-req|gen-dh|build-ca|show-req|export-p*| \
-			inline|self-sign-*)
+			inline|self-sign-*|gen-tls-*)
 				: ;; # ok
 			*) require_ca=1
 		esac
