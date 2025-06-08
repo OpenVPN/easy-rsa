@@ -1644,6 +1644,11 @@ get_passphrase() {
 
 # build-ca backend:
 build_ca() {
+	# Only allow if peer-fingerprint mode file does not exist
+	if [ -f "$EASYRSA_PKI"/peer-fp.mode ]; then
+		user_error "Cannot create CA in a peer-fingerprint PKI"
+	fi
+
 	cipher="-aes256"
 	unset -v sub_ca date_stamp x509 error_info \
 		ca_password_via_cmdline
@@ -2005,6 +2010,13 @@ Build-ca completed successfully."
 
 # Build self signed key pair
 self_sign() {
+	# Only allow if CA does not exist
+	if [ -f "$EASYRSA_PKI"/ca.crt ] || \
+		[ -f "$EASYRSA_PKI"/private/ca.key ]
+	then
+		user_error "Cannot create self-signed certificate in a CA."
+	fi
+
 	# Define x509 type
 	case "$1" in
 		server)
@@ -2186,6 +2198,11 @@ self-sign: Use ALGO:'$EASYRSA_ALGO' / CURVE:'$EASYRSA_CURVE'"
 
 	# inline key/cert/fingerprint
 	inline_file "$file_name_base"
+
+	# Mark PKI as self-signed only
+	pfp_data='peer-fp-mode - Please DO NOT DELETE this file'
+	print "$pfp_data" > "$EASYRSA_PKI"/peer-fp.mode || \
+		die "Failed to setup peer-fingerprint mode."
 
 	# User info
 	notice "\
