@@ -2,6 +2,7 @@ Easy-RSA 3 ChangeLog
 
 3.2.3 (TBD)
 
+   * peer-fingerprint mode: Make CA mode mutually exclusive to PFP mode (8c1c435) (#1347)
    * TLS key generation: Allow 'gen-tls-auth/crypt-key' without a CA Cert (2580dc2) (#1345)
    * Inline_file(): Improvements self-signed integration (bc72a21) (#1345)
    * verify_pki_init(): Always create 'issued' dir (f7e1b79) (#1343)
@@ -10,7 +11,7 @@ Easy-RSA 3 ChangeLog
    * Unit-test: Minimize Windows test (dc60c8b) (#1339)
    * ssl_cert_x509v3_eku(): Localize variables and minor improvements (8c19a95) (#1337)
    * inline_file(): Always use ssl_cert_x509v3_eku() to set $inline_crt_type (e1a2880) (#1337)
-   * sig-req: Disable inline for certificate type 'ca' (sub-ca) (f1252a3) (#1337)
+   * sign-req: Disable inline for certificate type 'ca' (sub-ca) (f1252a3) (#1337)
    * inline_file(): Localize variables $inline_crt_type & $inline_crt_CN (692e20a) (#1337)
    * add_critical_attrib(): export temp-file name as input file (e5b8d97) (#1333)
    * Unit-test: Drop old *nix test (63f3869) (#1335)
