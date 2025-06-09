@@ -1661,7 +1661,7 @@ build_ca() {
 			nopass)
 				[ "$prohibit_no_pass" ] || EASYRSA_NO_PASS=1
 				;;
-			raw|raw-ca)
+			rawca|raw-ca)
 				# option --raw-ca demands user interaction
 				# which forbids --batch
 				[ "$EASYRSA_BATCH" ] && user_error \
@@ -6908,11 +6908,6 @@ while :; do
 			empty_ok=1
 			export EASYRSA_VERBOSE=1
 			;;
-		--days-margin)
-			# ONLY ALLOWED use by status reports
-			number_only=1
-			export EASYRSA_iso_8601_MARGIN="$val"
-			;;
 		-S|--silent-ssl)
 			empty_ok=1
 			export EASYRSA_SILENT_SSL=1
@@ -6931,7 +6926,7 @@ while :; do
 		--passout)
 			export EASYRSA_PASSOUT="$val"
 			;;
-		--raw-ca)
+		--rawca|--raw-ca)
 			empty_ok=1
 			export EASYRSA_RAW_CA=1
 			;;
