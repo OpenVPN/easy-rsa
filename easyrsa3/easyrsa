@@ -1398,23 +1398,6 @@ $verify_ca_help_note"
 
 # init-pki backend:
 init_pki() {
-	# Process command options
-	reset="hard"
-	while [ "$1" ]; do
-		case "$1" in
-			hard-reset|hard)
-				reset="hard"
-				confirm_msg=
-			;;
-			soft-reset|soft)
-				reset="soft"
-				confirm_msg='PARTIALLY '
-			;;
-			*) warn "Ignoring unknown command option: '$1'"
-		esac
-		shift
-	done
-
 	# EasyRSA will NOT do 'rm -rf /'
 	case "$EASYRSA_PKI" in
 		.|..|./|../|.//*|..//*|/|//*|\\|?:|'')
@@ -1426,115 +1409,21 @@ init_pki() {
 		confirm "Confirm removal: " "yes" "
 WARNING!!!
 
-You are about to ${confirm_msg}remove the EASYRSA_PKI at:
+You are about to remove the EASYRSA_PKI at:
 * $EASYRSA_PKI
 
 and initialize a fresh PKI here."
-
-		# now remove it:
-		case "$reset" in
-		hard)
-			# Promote use of 'init-pki soft':
-			confirm "
-  WARNING: COMPLETELY DESTROY current PKI (NOT recommended) ?
-
-    [yes/NO]: " yes "\
-         ******************************************
-         * SECOND WARNING - STOP - SECOND WARNING *
-         ******************************************
-
-  To keep your current 'pki/vars' settings use 'init-pki soft'.
-  To keep your current Request files use 'init-pki soft'
-  The Requests can then be signed by a new CA (Partial CA renewal)
-  To keep your current Easy-RSA TLS Key use 'init-pki soft'
-  This private key file is in use by your current VPN.
-
-       ** USE OF   'init-pki soft'   IS RECOMMENDED **${NL}"
-
-			# # # shellcheck disable=SC2115 # Use "${var:?}"
-			rm -rf "$EASYRSA_PKI" || \
-				die "init-pki hard reset failed."
-		;;
-		soft)
-		# There is no unit test for a soft reset
-		# Save existing TLS key
-			tls_key_file="$EASYRSA_PKI"/private/easyrsa-tls.key
-			old_tls_key_file="$EASYRSA_PKI"/easyrsa-keepsafe-tls.key
-
-			# If both keys exist then they must be the same
-			if [ -f "$old_tls_key_file" ]; then
-				if [ -f "$tls_key_file" ]; then
-					# Match by hash
-					tls_key_hash="$(
-						"$EASYRSA_OPENSSL" dgst -sha256 \
-							"$tls_key_file")"
-					tls_key_hash="${tls_key_hash##* }"
-					old_tls_key_hash="$(
-						"$EASYRSA_OPENSSL" dgst -sha256 \
-							"$old_tls_key_file")"
-					old_tls_key_hash="${old_tls_key_hash##* }"
-					[ "$tls_key_hash" = "$old_tls_key_hash" ] || \
-						user_error "\
-Easy-RSA TLS Keys do not match, only ONE of these files is valid:
-* $tls_key_file
-* $old_tls_key_file
-
-Please delete the key above that is no longer in use."
-				fi
-			fi
-
-			# Save existing TLS key
-			if [ -f "$tls_key_file" ]; then
-				tls_key_data="$(cat "$tls_key_file")"
-			else
-				tls_key_data=
-			fi
-
-			# Do NOT remove pki/reqs sub-dir, for "renew ca"
-			for i in ca.crt crl.pem \
-				issued private inline revoked renewed expired \
-				serial serial.old index.txt index.txt.old \
-				index.txt.attr index.txt.attr.old certs_by_serial
-			do
-				# # # shellcheck disable=SC2115 # Use "${var:?}"
-				target="$EASYRSA_PKI/$i"
-				if [ "${target%/*}" ]; then
-					rm -rf "$target" || \
-						die "init-pki soft reset(1) failed!"
-				else
-					die "init-pki soft reset(2) failed!"
-				fi
-			done
-		;;
-		*)
-			user_error "Unknown reset type: $reset"
-		esac
 	fi
+
+	# # # shellcheck disable=SC2115 # Use "${var:?}"
+	rm -rf "$EASYRSA_PKI" || \
+		die "init-pki hard reset failed."
 
 	# new dirs:
 	easyrsa_mkdir "$EASYRSA_PKI"
 	for i in issued private reqs; do
 		easyrsa_mkdir "${EASYRSA_PKI}/$i"
 	done
-
-	# If one existed then recreate old TLS key backup file
-	if [ "$tls_key_data" ]; then
-		header="# Easy-RSA TLS Key: $(date)${NL}# DO NOT DELETE"
-		printf '%s\n\n%s\n' "$header" "$tls_key_data" \
-			> "$old_tls_key_file"
-		tls_msg="${NL}
-Previous Easy-RSA TLS key saved to:
-* $old_tls_key_file${NL}"
-	else
-		# if an OLD TLS key still exists then notify user
-		if [ -f "$old_tls_key_file" ]; then
-			tls_msg="${NL}
-Existing Easy-RSA TLS key preserved:
-* $old_tls_key_file${NL}"
-		else
-			tls_msg=
-		fi
-	fi
 
 	# write pki/vars.example - no temp-file because no session
 	write_legacy_file_v2 \
@@ -1553,7 +1442,7 @@ Your newly created PKI dir is:
 	select_vars
 	information "\
 Using Easy-RSA configuration:
-* ${EASYRSA_VARS_FILE:-undefined}${tls_msg}"
+* ${EASYRSA_VARS_FILE:-undefined}"
 } # => init_pki()
 
 # Find support files from various sources
