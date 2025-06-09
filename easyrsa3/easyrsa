@@ -1622,40 +1622,6 @@ Unable to create necessary PKI files (permissions?)"
 		> "$EASYRSA_PKI/serial" || die "$err_msg"
 	unset -v err_msg
 
-	# If one exists then recreate TLS Key
-	tls_key_file="$EASYRSA_PKI"/private/easyrsa-tls.key
-	old_tls_key_file="$EASYRSA_PKI"/easyrsa-keepsafe-tls.key
-	if [ -f "$old_tls_key_file" ]; then
-		confirm "Re-install existing Easy-RSA TLS Key ? " yes "
-An Easy-RSA TLS Key, saved by 'init-pki soft', has been found.
-This TLS Key is in use by your VPN, it is recommended that you
-re-install this TLS Key.
-
-Note:
-This is a private key and will NOT be added to new inline files.
-
-To create a new Easy-RSA TLS Key, delete this old TLS Key above."
-		cp "$old_tls_key_file" "$tls_key_file" || \
-			warn "Failed to install TLS Key!"
-		tls_key_msg="${NL}
-NOTICE: The previous Easy-RSA TLS Key has been installed:
-* $tls_key_file
-
-This TLS Key will NOT be added to new inline files. These new
-inline files can then be easily distributed to your servers and
-clients. The TLS Key that your servers and clients have previously
-received, can be added to the inline file manually.
-
-To re-enable automatically adding this TLS Key to inline files,
-simply delete the backup TLS Key at:
-* $old_tls_key_file
-
-To create a new Easy-RSA TLS Key, delete both TLS Keys above."
-	else
-		tls_key_msg="${NL}
-Create an OpenVPN TLS-AUTH|TLS-CRYPT-V1 key now: See 'help gen-tls'"
-	fi
-
 	# Set ssl batch mode, as required
 	[ "$EASYRSA_BATCH" ] && ssl_batch=1
 
@@ -1891,7 +1857,7 @@ Prior to signing operations, place your resulting Sub-CA cert at:
 	else
 		notice "\
 CA creation complete. Your new CA certificate is at:
-* $out_file${tls_key_msg}
+* $out_file
 
 Build-ca completed successfully."
 	fi
