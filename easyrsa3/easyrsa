@@ -28,7 +28,7 @@ For a list of utility commands, use:
   ./easyrsa help util
 
 A list of commands is shown below:
-  init-pki [ cmd-opts ]
+  init-pki
   self-sign-server <file_name_base> [ cmd-opts ]
   self-sign-client <file_name_base> [ cmd-opts ]
   build-ca [ cmd-opts ]
@@ -123,12 +123,6 @@ Usage: easyrsa [ OPTIONS.. ] <COMMAND> <TARGET> [ cmd-opts.. ]"
 * init-pki [ cmd-opts ]
 
       Removes & re-initializes the PKI directory for a new PKI"
-
-		opts="
-      * hard    - Recursively delete the ENTIRE PKI directory (default).
-      * soft    - Keep the named PKI directory and PKI 'vars' file intact.
-                  Also keep the current Request files,
-                  to be signed by a new CA (Partial CA renewal)."
 	;;
 	self-sign*)
 		text="
