@@ -2,6 +2,8 @@ Easy-RSA 3 ChangeLog
 
 3.2.3 (TBD)
 
+   * build-ca: Remove TLS Key processing (c1c2a06) (#1351)
+   * init-pki: Remove option 'soft' and TLS Key processing (976f864) (#1351)
    * peer-fingerprint mode: Make CA mode mutually exclusive to PFP mode (8c1c435) (#1347)
    * TLS key generation: Allow 'gen-tls-auth/crypt-key' without a CA Cert (2580dc2) (#1345)
    * Inline_file(): Improvements self-signed integration (bc72a21) (#1345)
