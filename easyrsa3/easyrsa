@@ -52,6 +52,7 @@ A list of commands is shown below:
   show-cert <file_name_base> [ cmd-opts ]
   show-ca [ cmd-opts ]
   show-crl
+  show-expire
   verify-cert <file_name_base>
   import-req <request_file_path> <short_name_base>
   export-p1 <file_name_base> [ cmd-opts ]
@@ -315,6 +316,14 @@ REQUIRED COMMANDS:
 * show-crl
 
       Shows details of the current certificate revocation list (CRL)
+
+      Human-readable output is shown."
+	;;
+	show-expire)
+		text="
+* show-expire
+
+      Shows certificates which expire in less than 90 days
 
       Human-readable output is shown."
 	;;
