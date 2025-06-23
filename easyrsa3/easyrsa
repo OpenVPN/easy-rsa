@@ -3758,12 +3758,13 @@ Missing User Certificate, expected at:
 	fi
 
 	# Complete export
-	inline_out=
 	inline_msg=
 	case "$pkcs_type" in
 	p12)
-		pkcs_out="$EASYRSA_PKI/private/$file_name_base.p12"
-		inline_out="$EASYRSA_PKI/inline/$file_name_base-p12.inline"
+		pkcs_out="${EASYRSA_PKI}/private/${file_name_base}.p12"
+		# Only PKCS12 can be inlined for OpenVPN
+		inline_dir="$EASYRSA_PKI"/inline/private
+		inline_out="${inline_dir}/${file_name_base}".inline-p12
 
 		[ "$legacy" ] && \
 			error_info="SSL library may not support -legacy mode"
