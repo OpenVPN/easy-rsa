@@ -3615,11 +3615,12 @@ Run easyrsa without commands for usage and command help."
 	# OpenSSL 3.0 without needing '-legacy'.
 	if [ "$openssl_v3" ]; then
 		# No cipher opts required
-		p12_cipher_opts=""
+		unset -v p12_keypbe p12_certpbe p12_macalg
 	else
 		# Upgrade PBE & MAC opts - Reset by option 'legacy'
-		p12_cipher_opts="-keypbe AES-256-CBC -certpbe AES-256-CBC"
-		p12_cipher_opts="${p12_cipher_opts} -macalg sha256"
+		p12_keypbe=AES-256-CBC
+		p12_certpbe=AES-256-CBC
+		p12_macalg=sha256
 	fi
 
 	while [ "$1" ]; do
@@ -3642,10 +3643,12 @@ Run easyrsa without commands for usage and command help."
 				;;
 			legacy)
 				if [ "$openssl_v3" ]; then
+					# OpenSSL v3 requires providers/legacy.so
+					# EasyRSA can use OPENSSL_MODULES=/path-to/providers
 					legacy=-legacy
 				else
 					# Downgrade PBE & MAC opts
-					p12_cipher_opts=""
+					unset -v p12_keypbe p12_certpbe p12_macalg
 				fi
 				;;
 			*)
@@ -3769,15 +3772,19 @@ Missing User Certificate, expected at:
 		[ "$legacy" ] && \
 			error_info="SSL library may not support -legacy mode"
 
+		verbose "export-p12: cipher opts: \
+-keypbe=$p12_keypbe | -certpbe=$p12_certpbe | -macalg=$p12_macalg"
+
 		# export the p12:
-		# shellcheck disable=2086 # Double quote p12_cipher_opts
 		easyrsa_openssl pkcs12 -export \
 			-in "$crt_in" \
 			-out "$pkcs_out" \
 			-inkey "$key_in" \
 			${nokeys} \
 			${legacy} \
-			${p12_cipher_opts} \
+			${p12_keypbe:+ -keypbe "$p12_keypbe"} \
+			${p12_certpbe:+ -certpbe "$p12_certpbe"} \
+			${p12_macalg:+ -macalg "$p12_macalg"} \
 			${friendly_name:+ -name "$friendly_name"} \
 			${want_ca:+ -certfile "$crt_ca"} \
 			${EASYRSA_PASSIN:+ -passin "$EASYRSA_PASSIN"} \
