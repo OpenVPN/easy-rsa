@@ -2904,10 +2904,9 @@ $(cat "$crt_source")
 </cert>"
 
 		# Calculate decimal value for serial number
-		# because openvpn uses decimal serial ?!?
+		# because openvpn uses decimal serial
 		# for '--crl-verify /path/to/dir dir'
-		# For reasons unknown..
-		if which bc >/dev/null; then
+		if which bc 1>/dev/null 2>&1; then
 			inline_crt_serial=
 			ssl_cert_serial "$crt_source" inline_crt_serial || \
 				die "inline_file - ssl_cert_serial"
