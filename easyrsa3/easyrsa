@@ -5702,7 +5702,7 @@ request_lock_file() {
 	create_lock_file_error=
 	if [ -d "${EASYRSA_PKI}" ]; then
 
-		lock_file="${EASYRSA_PKI}"/lock.file
+		lock_file="${EASYRSA_TEMP_DIR}"/lock.file
 		if create_lock_file "$lock_file"; then
 			verbose "verify_working_env: lock-file CREATED OK"
 		else
