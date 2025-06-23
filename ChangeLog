@@ -1,5 +1,10 @@
 Easy-RSA 3 ChangeLog
 
+3.2.4 / 3.3.0 (TBD)
+
+   * export-p12: Move inline file to 'inline/private' folder (22cabcb) (#1356)
+   * export-p12: Rename inline file extension to '.inline-p12' (22cabcb) (#1356)
+
 3.2.3 (2025-06-12)
 
    * build-ca: Remove TLS Key processing (c1c2a06) (#1351)
