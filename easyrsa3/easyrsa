@@ -2926,6 +2926,7 @@ $(cat "$crt_source")
 		crt_fingerprint="${crt_fingerprint#*=}"
 
 		# Certificate type
+		inline_crt_type=
 		ssl_cert_x509v3_eku "$crt_source" inline_crt_type || \
 			die "inline_file: Failed to set inline_crt_type"
 
