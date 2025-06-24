@@ -1,5 +1,11 @@
 Easy-RSA 3 ChangeLog
 
+3.2.4 (TBD)
+
+   * export-p12: Split $p12_cipher_opts into respective parts (48bb8ee) (#1356)
+   * export-p12: Move inline file to 'inline/private' folder (22cabcb) (#1356)
+   * export-p12: Rename inline file extension to '.inline-p12' (22cabcb) (#1356)
+
 3.2.3 (2025-06-12)
 
    * build-ca: Remove TLS Key processing (c1c2a06) (#1351)
