@@ -560,49 +560,52 @@ REQUIRED COMMANDS:
 		text="
 * serial|check-serial <SERIAL>
 
-  Check certificate <SERIAL> number is unique."
+      Check certificate <SERIAL> number is unique."
 	;;
 	display-dn)
 		text_only=1
 		text="
 * display-dn <form> <DIR/FILE_NAME>
 
-  Display DN of request or certificate: <form> = req|x509"
+      Display DN of request or certificate: <form> = req|x509"
 	;;
 	show-eku)
 		text_only=1
 		text="
 * show-eku <file_name_base>|<DIR/FILE_NAME>
 
-  Display Extended Key Usage of certificate."
+      Display Extended Key Usage of certificate."
 	;;
 	rand|random)
 		text_only=1
 		text="
 * rand <decimal_number>
 
-  Generate random hex."
+      Generate random hex."
 	;;
 	show-expire|show-revoke|show-renew)
 		text_only=1
 		text="
 * show-expire <file_name_base> (Optional)
-    Show a list of certificates which will expire in
-    the number of --days. (Default: 90 days)
+
+      Show a list of certificates which will expire in
+      the number of --days. (Default: 90 days)
 
 * show-revoke <file_name_base> (Optional)
-    Show a list of revoked certificates.
+
+      Show a list of revoked certificates.
 
 * show-renew <file_name_base> (Optional)
-    Show a list of renewed certificates."
+
+      Show a list of renewed certificates."
 	;;
 	gen-tls*)
-		text_only=1
 		text="
 Generate TLS keys for use with OpenVPN:
 
-  gen-tls-auth-key    : Generate OpenVPN TLS-AUTH key
-  gen-tls-crypt-key   : Generate OpenVPN TLS-CRYPT-V1 key (Preferred)
+      gen-tls-auth-key    : Generate OpenVPN TLS-AUTH key
+
+      gen-tls-crypt-key   : Generate OpenVPN TLS-CRYPT-V1 key (Preferred)
 
 Only ONE TLS key is allowed to exist. (pki/private/easyrsa-tls.key)
 This TLS key will be automatically added to inline files."
