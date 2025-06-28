@@ -643,7 +643,7 @@ ${opts:-
 
 # default help
 default_overview() {
-	information "
+	print "
 Easy-RSA 3 Overview:
 
 To get a list of available options and commands, use:
@@ -667,7 +667,7 @@ Invalid vars setting for EASYRSA and/or EASYRSA_PKI${NL}"
 	fi
 
 	# Print details
-	information "
+	print "
 DIRECTORY STATUS (commands would take effect on these locations)
      EASYRSA: $work_dir
          PKI: $pki_dir
@@ -691,7 +691,13 @@ DIRECTORY STATUS (commands would take effect on these locations)
 			print "" # for a clean line
 		fi
 	else
-		information "   CA status: CA has not been built${NL}"
+		if [ -f "$EASYRSA_PKI"/peer-fp.mode ]; then
+			print "\
+   CA status: No CA, Peer-Fingerprint only PKI enabled${NL}"
+		else
+			print "\
+   CA status: CA has not been built${NL}"
+		fi
 	fi
 
 	# verbose info
