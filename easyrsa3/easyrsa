@@ -670,6 +670,14 @@ DIRECTORY STATUS (commands would take effect on these locations)
          PKI: $pki_dir
    vars-file: ${EASYRSA_VARS_FILE:-Missing or undefined}${ivmsg}"
 
+	# Print algo details
+	print "   Algorithm: $EASYRSA_ALGO"
+	case "$EASYRSA_ALGO" in
+		rsa) print "    Key size: $EASYRSA_KEY_SIZE" ;;
+		ec|ed) print "       Curve: $EASYRSA_CURVE" ;;
+		*) print "   Algorithm: UNKNOWN!"
+	esac
+
 	# CA Status
 	if verify_ca_init test; then
 		if [ -z "$EASYRSA_SILENT" ]; then
