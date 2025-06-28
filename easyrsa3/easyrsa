@@ -133,6 +133,9 @@ Command list:
   show-cert <file_name_base> [ cmd-opts ]
   show-ca [ cmd-opts ]
   show-crl
+  show-expire <file_name_base> (Optional)
+  show-revoke <file_name_base> (Optional)
+  show-renew <file_name_base> (Optional)
   verify-cert <file_name_base>
   import-req <request_file_path> <short_name_base>
   export-p1 <file_name_base> [ cmd-opts ]
@@ -141,7 +144,11 @@ Command list:
   export-p12 <file_name_base> [ cmd-opts ]
   set-pass <file_name_base> [ cmd-opts ]
   gen-tls-auth-key / gen-tls-crypt-key
-  write <type>"
+  write <type>
+  serial|check-serial <SERIAL>
+  display-dn <form> <DIR/FILE_NAME>
+  show-eku <file_name_base>|<DIR/FILE_NAME>
+  rand <decimal_number>"
 } # => usage()
 
 # Detailed command help
@@ -548,29 +555,46 @@ REQUIRED COMMANDS:
 
       See OpenSSL command 'ca', option -subj, for full details."
 	;;
-	tool*|util*|more)
-		# Test features
+	serial|check-serial)
 		text_only=1
 		text="
-NOTE:
-These commands are safe to test and will NOT effect your PKI.
+* serial|check-serial <SERIAL>
 
-  Check <SERIAL> number is unique:
-    serial|check-serial <SERIAL>
+  Check certificate <SERIAL> number is unique."
+	;;
+	display-dn)
+		text_only=1
+		text="
+* display-dn <form> <DIR/FILE_NAME>
 
-  Display DN of request or certificate: <form> = req|x509
-    display-dn <form> <DIR/FILE_NAME>
+  Display DN of request or certificate: <form> = req|x509"
+	;;
+	show-eku)
+		text_only=1
+		text="
+* show-eku <file_name_base>|<DIR/FILE_NAME>
 
-  Display EKU of certificate:
-    show-eku <file_name_base>|<DIR/FILE_NAME>
+  Display Extended Key Usage of certificate."
+	;;
+	rand|random)
+		text_only=1
+		text="
+* rand <decimal_number>
 
-  Generate random hex:
-    rand <decimal_number>
+  Generate random hex."
+	;;
+	show-expire|show-revoke|show-renew)
+		text_only=1
+		text="
+* show-expire <file_name_base> (Optional)
+    Show a list of certificates which will expire in
+    the number of --days. (Default: 90 days)
 
-  Reporting tools:
-    show-expire <file_name_base> (Optional)
-    show-revoke <file_name_base> (Optional)
-    show-renew <file_name_base> (Optional)"
+* show-revoke <file_name_base> (Optional)
+    Show a list of revoked certificates.
+
+* show-renew <file_name_base> (Optional)
+    Show a list of renewed certificates."
 	;;
 	gen-tls*)
 		text_only=1
