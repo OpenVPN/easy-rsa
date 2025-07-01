@@ -14,20 +14,101 @@
 usage() {
 	# command help:
 	information "
-Easy-RSA 3 usage and overview
+Easy-RSA 3 global option and command overview.
 
-$easyrsa_help_title
+Global options:
 
-To get detailed usage and help for a command, use:
-  ./easyrsa help COMMAND
+--version       : Prints EasyRSA version and build information
+--batch         : Set automatic (no-prompts when possible) mode
+--silent|-s     : Disable all warnings, notices and information
+--sbatch        : Combined --silent and --batch operating mode
+--silent-ssl|-S : Silence SSL output (Requires batch mode)
 
-For a list of global-options, use:
-  ./easyrsa help options
+--nopass|no-pass: Do not use passwords
+                  Can NOT be used with --passin or --passout
+--passin=ARG    : Set -passin ARG for openssl (eg: pass:xEasyRSAy)
+--passout=ARG   : Set -passout ARG for openssl (eg: pass:xEasyRSAy)
+--raw-ca        : Build CA with password via RAW SSL input
 
-For a list of utility commands, use:
-  ./easyrsa help util
+--vars=FILE     : Define a specific 'vars' file to use for Easy-RSA config
+                  (Default vars file is in the current working directory)
+--pki=DIR       : Declare the PKI directory
+                  (Default PKI directory is sub-directory 'pki')
+                  See Advanced.md for in depth usage.
 
-A list of commands is shown below:
+--umask=ARG     : Define a UMASK (Default 077)
+--no-umask      : Do not use a UMASK, fall back to file system default.
+--ssl-cnf=FILE  : Define a specific OpenSSL config file for Easy-RSA to use
+                  (Default config file is in the EasyRSA PKI directory)
+--force-safe-ssl: Always generate a safe SSL config file
+                  (Default: Generate Safe SSL config once per instance)
+
+--tmp-dir=DIR   : Declare the temporary directory
+                  (Default temporary directory is the EasyRSA PKI directory)
+--keep-tmp=NAME : Keep the original temporary session by name: NAME
+                  NAME is a sub-directory of the dir declared by --tmp-dir
+                  This option ALWAYS over-writes a sub-dir of the same name.
+
+Certificate & Request options: (these impact cert/req field values)
+
+--text          : Create certificate requests with human readable text
+--notext|no-text: Create certificates without human readable text
+--days=#        : Sets the signing validity to the specified number of days
+                  Applies to other commands. For details, see: 'help days'
+--startdate=DATE: Sets the SSL option '-startdate' (Format 'YYYYMMDDhhmmssZ')
+--enddate=DATE  : Sets the SSL option '-enddate' (Format 'YYYYMMDDhhmmssZ')
+
+--digest=ALG    : Digest to use in the requests & certificates
+--keysize=#     : Size in bits of keypair to generate (RSA Only)
+--use-algo=ALG  : Crypto alg to use: choose rsa (default), ec or ed
+--curve=NAME    : For elliptic curve, sets the named curve
+                  (Default: algo ec: secp384r1, algo ed: ed25519)
+
+--subca-len=#   : Path length of signed intermediate CA certificates
+--copy-ext      : Copy included request X509 extensions (namely subjAltName)
+                  For more info, see: 'easyrsa help copyext'
+
+--san|--subject-alt-name=SUBJECT_ALT_NAME
+                : Add a subjectAltName. Can be used multiple times.
+                  For more info and syntax, see: 'easyrsa help altname'
+--auto-san      : Use commonName as subjectAltName: 'DNS:commonName'
+                  If commonName is 'n.n.n.n' then set 'IP:commonName'
+
+--san-crit      : Mark X509v3 subjectAltName as critical
+--bc-crit       : Add X509 'basicContraints = critical' attribute.
+--ku-crit       : Add X509 'keyUsage = critical' attribute.
+--eku-crit      : Add X509 'extendedKeyUsage = critical' attribute.
+
+--new-subject='SUBJECT'
+                : Specify a new subject field to sign a request with.
+                  For more info and syntax, see: 'easyrsa help subject'
+
+--usefn=NAME    : export-p12, set 'friendlyName' to NAME
+                  For more, see: 'easyrsa help friendly'
+
+Distinguished Name mode:
+
+--dn-mode=MODE  : Distinguished Name mode to use 'cn_only' (Default) or 'org'
+
+--req-cn=NAME   : Request commonName
+
+  Distinguished Name Organizational options: (only used with '--dn-mode=org')
+  --req-c=CC           : Country code (2-letters)
+  --req-st=NAME        : State/Province
+  --req-city=NAME      : City/Locality
+  --req-org=NAME       : Organization
+  --req-email=NAME     : Email addresses
+  --req-ou=NAME        : Organizational Unit
+  --req-serial=VALUE   : Entity serial number (Only used when declared)
+
+Deprecated features:
+
+--ns-cert             : Include deprecated Netscape extensions
+--ns-comment=COMMENT  : Include deprecated Netscape comment (may be blank)
+
+
+Command list:
+
   init-pki
   self-sign-server <file_name_base> [ cmd-opts ]
   self-sign-client <file_name_base> [ cmd-opts ]
@@ -52,6 +133,9 @@ A list of commands is shown below:
   show-cert <file_name_base> [ cmd-opts ]
   show-ca [ cmd-opts ]
   show-crl
+  show-expire <file_name_base> (Optional)
+  show-revoke <file_name_base> (Optional)
+  show-renew <file_name_base> (Optional)
   verify-cert <file_name_base>
   import-req <request_file_path> <short_name_base>
   export-p1 <file_name_base> [ cmd-opts ]
@@ -60,50 +144,11 @@ A list of commands is shown below:
   export-p12 <file_name_base> [ cmd-opts ]
   set-pass <file_name_base> [ cmd-opts ]
   gen-tls-auth-key / gen-tls-crypt-key
-  write <type>"
-
-	# collect/show dir status:
-	text_only=1
-	work_dir="${EASYRSA:-undefined}"
-	pki_dir="${EASYRSA_PKI:-undefined}"
-
-	# check for vars changing PKI unexpectedly!
-	if [ "$invalid_vars" ]; then
-		ivmsg="
-   *WARNING*: \
-Invalid vars setting for EASYRSA and/or EASYRSA_PKI${NL}"
-	else
-		unset -v ivmsg
-	fi
-
-	# Print details
-	information "
-DIRECTORY STATUS (commands would take effect on these locations)
-     EASYRSA: $work_dir
-         PKI: $pki_dir
-   vars-file: ${EASYRSA_VARS_FILE:-Missing or undefined}${ivmsg}"
-
-	# CA Status
-	if verify_ca_init test; then
-		if [ -z "$EASYRSA_SILENT" ]; then
-			# Show SSL output directly, with easyrsa header
-			printf '%s' "   CA status: OK${NL}${NL}    "
-			"$EASYRSA_OPENSSL" x509 -in "$EASYRSA_PKI/ca.crt" \
-				-noout -subject -nameopt utf8,multiline
-			print "" # for a clean line
-		fi
-	else
-		information "   CA status: CA has not been built${NL}"
-	fi
-
-	# verbose info
-	verbose "ssl-cnf: ${EASYRSA_SSL_CONF:-built-in}"
-	verbose "x509-types: ${EASYRSA_EXT_DIR:-built-in}"
-	if [ -d "$EASYRSA_TEMP_DIR" ]; then
-		verbose "temp-dir: Found: $EASYRSA_TEMP_DIR"
-	else
-		verbose "temp-dir: Missing: ${EASYRSA_TEMP_DIR:-undefined}"
-	fi
+  write <type>
+  serial|check-serial <SERIAL>
+  display-dn <form> <DIR/FILE_NAME>
+  show-eku <file_name_base>|<DIR/FILE_NAME>
+  rand <decimal_number>"
 } # => usage()
 
 # Detailed command help
@@ -510,44 +555,60 @@ REQUIRED COMMANDS:
 
       See OpenSSL command 'ca', option -subj, for full details."
 	;;
-	tool*|util*|more)
-		# Test features
+	serial|check-serial)
 		text_only=1
 		text="
-NOTE:
-These commands are safe to test and will NOT effect your PKI.
+* serial|check-serial <SERIAL>
 
-  Check <SERIAL> number is unique:
-    serial|check-serial <SERIAL>
+      Check certificate <SERIAL> number is unique."
+	;;
+	display-dn)
+		text_only=1
+		text="
+* display-dn <form> <DIR/FILE_NAME>
 
-  Display DN of request or certificate: <form> = req|x509
-    display-dn <form> <DIR/FILE_NAME>
+      Display DN of request or certificate: <form> = req|x509"
+	;;
+	show-eku)
+		text_only=1
+		text="
+* show-eku <file_name_base>|<DIR/FILE_NAME>
 
-  Display EKU of certificate:
-    show-eku <file_name_base>|<DIR/FILE_NAME>
+      Display Extended Key Usage of certificate."
+	;;
+	rand|random)
+		text_only=1
+		text="
+* rand <decimal_number>
 
-  Generate random hex:
-    rand <decimal_number>
+      Generate random hex."
+	;;
+	show-expire|show-revoke|show-renew)
+		text_only=1
+		text="
+* show-expire <file_name_base> (Optional)
 
-  Reporting tools:
-    show-expire <file_name_base> (Optional)
-    show-revoke <file_name_base> (Optional)
-    show-renew <file_name_base> (Optional)"
+      Show a list of certificates which will expire in
+      the number of --days. (Default: 90 days)
+
+* show-revoke <file_name_base> (Optional)
+
+      Show a list of revoked certificates.
+
+* show-renew <file_name_base> (Optional)
+
+      Show a list of renewed certificates."
 	;;
 	gen-tls*)
-		text_only=1
 		text="
 Generate TLS keys for use with OpenVPN:
 
-  gen-tls-auth-key    : Generate OpenVPN TLS-AUTH key
-  gen-tls-crypt-key   : Generate OpenVPN TLS-CRYPT-V1 key (Preferred)
+      gen-tls-auth-key    : Generate OpenVPN TLS-AUTH key
+
+      gen-tls-crypt-key   : Generate OpenVPN TLS-CRYPT-V1 key (Preferred)
 
 Only ONE TLS key is allowed to exist. (pki/private/easyrsa-tls.key)
 This TLS key will be automatically added to inline files."
-	;;
-	opts|options)
-		opt_usage
-		cleanup ok
 	;;
 	"")
 		usage
@@ -580,108 +641,74 @@ ${opts:-
 	print
 } # => cmd_help()
 
-# Options usage
-opt_usage() {
+# default help
+default_overview() {
+	print "
+Easy-RSA 3 Overview:
+
+To get a list of available options and commands, use:
+  ./easyrsa help
+
+To get detailed usage and help for commands, use:
+  ./easyrsa help <COMMAND>"
+
+	# collect/show dir status:
 	text_only=1
-	information "
-Easy-RSA Global Option Flags
+	work_dir="${EASYRSA:-undefined}"
+	pki_dir="${EASYRSA_PKI:-undefined}"
 
-The following global-options may be provided before the command.
-Options specified at runtime override env-vars and any 'vars'
-file in use.
+	# check for vars changing PKI unexpectedly!
+	if [ "$invalid_vars" ]; then
+		ivmsg="
+   *WARNING*: \
+Invalid vars setting for EASYRSA and/or EASYRSA_PKI${NL}"
+	else
+		unset -v ivmsg
+	fi
 
-Unless noted, non-empty values to options are mandatory.
+	# Print details
+	print "
+DIRECTORY STATUS (commands would take effect on these locations)
+     EASYRSA: $work_dir
+         PKI: $pki_dir
+   vars-file: ${EASYRSA_VARS_FILE:-Missing or undefined}${ivmsg}"
 
-General options:
+	# Print algo details
+	print "   Algorithm: $EASYRSA_ALGO"
+	case "$EASYRSA_ALGO" in
+		rsa) print "    Key size: $EASYRSA_KEY_SIZE" ;;
+		ec|ed) print "       Curve: $EASYRSA_CURVE" ;;
+		*) print "   Algorithm: UNKNOWN!"
+	esac
 
---version       : Prints EasyRSA version and build information
---batch         : Set automatic (no-prompts when possible) mode
---silent|-s     : Disable all warnings, notices and information
---sbatch        : Combined --silent and --batch operating mode
---silent-ssl|-S : Silence SSL output (Requires batch mode)
+	# CA Status
+	if verify_ca_init test; then
+		if [ -z "$EASYRSA_SILENT" ]; then
+			# Show SSL output directly, with easyrsa header
+			printf '%s' "   CA status: OK${NL}${NL}    "
+			"$EASYRSA_OPENSSL" x509 -in "$EASYRSA_PKI/ca.crt" \
+				-noout -subject -nameopt utf8,multiline
+			print "" # for a clean line
+		fi
+	else
+		if [ -f "$EASYRSA_PKI"/peer-fp.mode ]; then
+			print "\
+   CA status: No CA, Peer-Fingerprint only PKI enabled${NL}"
+		else
+			print "\
+   CA status: CA has not been built${NL}"
+		fi
+	fi
 
---nopass|no-pass: Do not use passwords
-                  Can NOT be used with --passin or --passout
---passin=ARG    : Set -passin ARG for openssl (eg: pass:xEasyRSAy)
---passout=ARG   : Set -passout ARG for openssl (eg: pass:xEasyRSAy)
---raw-ca        : Build CA with password via RAW SSL input
-
---vars=FILE     : Define a specific 'vars' file to use for Easy-RSA config
-                  (Default vars file is in the current working directory)
---pki=DIR       : Declare the PKI directory
-                  (Default PKI directory is sub-directory 'pki')
-                  See Advanced.md for in depth usage.
-
---umask=ARG     : Define a UMASK (Default 077)
---no-umask      : Do not use a UMASK, fall back to file system default.
---ssl-cnf=FILE  : Define a specific OpenSSL config file for Easy-RSA to use
-                  (Default config file is in the EasyRSA PKI directory)
---force-safe-ssl: Always generate a safe SSL config file
-                  (Default: Generate Safe SSL config once per instance)
-
---tmp-dir=DIR   : Declare the temporary directory
-                  (Default temporary directory is the EasyRSA PKI directory)
---keep-tmp=NAME : Keep the original temporary session by name: NAME
-                  NAME is a sub-directory of the dir declared by --tmp-dir
-                  This option ALWAYS over-writes a sub-dir of the same name.
-
-Certificate & Request options: (these impact cert/req field values)
-
---text          : Create certificate requests with human readable text
---notext|no-text: Create certificates without human readable text
---days=#        : Sets the signing validity to the specified number of days
-                  Applies to other commands. For details, see: 'help days'
---startdate=DATE: Sets the SSL option '-startdate' (Format 'YYYYMMDDhhmmssZ')
---enddate=DATE  : Sets the SSL option '-enddate' (Format 'YYYYMMDDhhmmssZ')
-
---digest=ALG    : Digest to use in the requests & certificates
---keysize=#     : Size in bits of keypair to generate (RSA Only)
---use-algo=ALG  : Crypto alg to use: choose rsa (default), ec or ed
---curve=NAME    : For elliptic curve, sets the named curve
-                  (Default: algo ec: secp384r1, algo ed: ed25519)
-
---subca-len=#   : Path length of signed intermediate CA certificates
---copy-ext      : Copy included request X509 extensions (namely subjAltName)
-                  For more info, see: 'easyrsa help copyext'
-
---san|--subject-alt-name=SUBJECT_ALT_NAME
-                : Add a subjectAltName. Can be used multiple times.
-                  For more info and syntax, see: 'easyrsa help altname'
---auto-san      : Use commonName as subjectAltName: 'DNS:commonName'
-                  If commonName is 'n.n.n.n' then set 'IP:commonName'
-
---san-crit      : Mark X509v3 subjectAltName as critical
---bc-crit       : Add X509 'basicContraints = critical' attribute.
---ku-crit       : Add X509 'keyUsage = critical' attribute.
---eku-crit      : Add X509 'extendedKeyUsage = critical' attribute.
-
---new-subject='SUBJECT'
-                : Specify a new subject field to sign a request with.
-                  For more info and syntax, see: 'easyrsa help subject'
-
---usefn=NAME    : export-p12, set 'friendlyName' to NAME
-                  For more, see: 'easyrsa help friendly'
-
-Distinguished Name mode:
-
---dn-mode=MODE  : Distinguished Name mode to use 'cn_only' (Default) or 'org'
-
---req-cn=NAME   : Request commonName
-
-  Distinguished Name Organizational options: (only used with '--dn-mode=org')
-  --req-c=CC           : Country code (2-letters)
-  --req-st=NAME        : State/Province
-  --req-city=NAME      : City/Locality
-  --req-org=NAME       : Organization
-  --req-email=NAME     : Email addresses
-  --req-ou=NAME        : Organizational Unit
-  --req-serial=VALUE   : Entity serial number (Only used when declared)
-
-Deprecated features:
-
---ns-cert             : Include deprecated Netscape extensions
---ns-comment=COMMENT  : Include deprecated Netscape comment (may be blank)"
-} # => opt_usage()
+	# verbose info
+	verbose "ssl-cnf: ${EASYRSA_SSL_CONF:-built-in}"
+	verbose "x509-types: ${EASYRSA_EXT_DIR:-built-in}"
+	if [ -d "$EASYRSA_TEMP_DIR" ]; then
+		verbose "temp-dir: Found: $EASYRSA_TEMP_DIR"
+	else
+		verbose "temp-dir: Missing: ${EASYRSA_TEMP_DIR:-undefined}"
+	fi
+} # => default_overview()
 
 # Wrapper around printf - clobber print since it's not POSIX anyway
 # print() is used internally, so MUST NOT be silenced.
@@ -7175,9 +7202,12 @@ case "$cmd" in
 	rand|random)
 		easyrsa_random "$1"
 		;;
-	""|help)
-		verify_working_env
+	help)
 		cmd_help "$1"
+		;;
+	'')
+		verify_working_env
+		default_overview
 		;;
 	version)
 		print_version

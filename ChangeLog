@@ -2,6 +2,10 @@ Easy-RSA 3 ChangeLog
 
 3.2.4 (TBD)
 
+   * default_overview(): Add peer-fingerprint mode PKI identification (c9a0152) (#1363)
+   * help: Add in use algorithm and key-size/curve to top level status (10778cc) (#1363)
+   * help: Move 'utils' to command list and detailed help (e965234) (#1363)
+   * Restructure help (65c2bce) (#1363)
    * export-p12: Split $p12_cipher_opts into respective parts (48bb8ee) (#1356)
    * export-p12: Move inline file to 'inline/private' folder (22cabcb) (#1356)
    * export-p12: Rename inline file extension to '.inline-p12' (22cabcb) (#1356)
