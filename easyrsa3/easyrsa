@@ -43,6 +43,7 @@ Global options:
 --force-safe-ssl: Always generate a safe SSL config file
                   (Default: Generate Safe SSL config once per instance)
 
+--no-lockfile   : Disable lock-file (Useful for read-only PKI)
 --tmp-dir=DIR   : Declare the temporary directory
                   (Default temporary directory is the EasyRSA PKI directory)
 --keep-tmp=NAME : Keep the original temporary session by name: NAME
@@ -5785,7 +5786,7 @@ verify_working_env() {
 	verbose "verify_working_env: BEGIN"
 
 	# Oppertunist PKI lock-file
-	request_lock_file
+	[ "$EASYRSA_NO_LOCKFILE" ] || request_lock_file
 
 	# For commands which 'require a PKI' and PKI exists
 	if [ "$require_pki" ]; then
@@ -6702,6 +6703,10 @@ while :; do
 			;;
 		--pki-dir|--pki)
 			export EASYRSA_PKI="$val"
+			;;
+		--no-lockfile)
+			empty_ok=1
+			export EASYRSA_NO_LOCKFILE=1
 			;;
 		--tmp-dir)
 			export EASYRSA_TEMP_DIR="$val"
