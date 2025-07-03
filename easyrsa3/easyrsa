@@ -5785,7 +5785,7 @@ lock-file removed - Please try running the easyrsa command again."
 verify_working_env() {
 	verbose "verify_working_env: BEGIN"
 
-	# Oppertunist PKI lock-file
+	# Opportunist PKI lock-file
 	[ "$EASYRSA_NO_LOCKFILE" ] || request_lock_file
 
 	# For commands which 'require a PKI' and PKI exists
@@ -5813,8 +5813,9 @@ verify_working_env() {
 		# If there is a valid temp-dir:
 		# Create temp-session and openssl-easyrsa.cnf (Temp) now
 		if [ -d "$EASYRSA_TEMP_DIR" ]; then
-			# Temp dir session
+			# Temp dir session and throw-away temp-file
 			secure_session
+			easyrsa_mktemp test_temp_file
 
 			# global safe ssl cnf temp
 			write_global_safe_ssl_cnf_tmp
