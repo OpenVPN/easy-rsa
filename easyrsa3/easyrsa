@@ -13,7 +13,7 @@
 # Help/usage output to stdout
 usage() {
 	# command help:
-	information "
+	print "
 Easy-RSA 3 global option and command overview.
 
 Global options:
@@ -6955,61 +6955,30 @@ subjectAltName = ${EASYRSA_SAN_CRIT}${EASYRSA_SAN}"
 fi
 
 # Set cmd now
-# vars_setup needs to know if this is init-pki
 cmd="$1"
 [ "$1" ] && shift # scrape off command
-
-# Establish PKI and CA initialisation requirements
-unset -v require_pki require_ca quiet_vars
-
-case "$cmd" in
-	''|help|version|show-host|rand|random)
-		unset -v EASYRSA_SILENT
-		quiet_vars=1
-		;;
-	init-pki|clean-all)
-		: # ok
-		;;
-	write)
-		# Only when used on the command line
-		case "$1" in
-			legacy|legacy-hard) : ;; # ok
-			*)
-				unset -v EASYRSA_VERBOSE
-				quiet_vars=1
-		esac
-		;;
-	*)
-		require_pki=1
-		case "$cmd" in
-			gen-req|gen-dh|build-ca|show-req|export-p*| \
-			inline|self-sign-*|gen-tls-*)
-				: ;; # ok
-			*) require_ca=1
-		esac
-esac
 
 # Hand off to the function responsible
 # ONLY verify_working_env() for valid commands
 case "$cmd" in
 	init-pki|clean-all)
-		verify_working_env
+		require_pki=""; require_ca=""; verify_working_env
 		init_pki "$@"
 		;;
 	build-ca)
-		verify_working_env
+		require_pki=1; require_ca=""; verify_working_env
 		[ -z "$alias_days" ] || \
 			export EASYRSA_CA_EXPIRE="$alias_days"
 		build_ca "$@"
 		;;
 	self-sign-server)
-		verify_working_env
+		require_pki=1; require_ca=""; verify_working_env
 		[ -z "$alias_days" ] || \
 			export EASYRSA_CERT_EXPIRE="$alias_days"
 		self_sign server "$@"
 		;;
 	self-sign-client)
-		verify_working_env
+		require_pki=1; require_ca=""; verify_working_env
 		[ -z "$alias_days" ] || \
 			export EASYRSA_CERT_EXPIRE="$alias_days"
 		self_sign client "$@"
@@ -7018,167 +6987,168 @@ case "$cmd" in
 		user_error "Self-sign syntax example: 'self-sign-server foo'"
 		;;
 	gen-dh)
-		verify_working_env
+		require_pki=1; require_ca=""; verify_working_env
 		gen_dh
 		;;
 	gen-req)
-		verify_working_env
+		require_pki=1; require_ca=""; verify_working_env
 		gen_req "$@"
 		;;
 	sign|sign-req)
-		verify_working_env
+		require_pki=1; require_ca=1; verify_working_env
 		[ -z "$alias_days" ] || \
 			export EASYRSA_CERT_EXPIRE="$alias_days"
 		sign_req "$@"
 		;;
 	build-client-full)
-		verify_working_env
+		require_pki=1; require_ca=1; verify_working_env
 		[ -z "$alias_days" ] || \
 			export EASYRSA_CERT_EXPIRE="$alias_days"
 		build_full client "$@"
 		;;
 	build-server-full)
-		verify_working_env
+		require_pki=1; require_ca=1; verify_working_env
 		[ -z "$alias_days" ] || \
 			export EASYRSA_CERT_EXPIRE="$alias_days"
 		build_full server "$@"
 		;;
 	build-serverClient-full)
-		verify_working_env
+		require_pki=1; require_ca=1; verify_working_env
 		[ -z "$alias_days" ] || \
 			export EASYRSA_CERT_EXPIRE="$alias_days"
 		build_full serverClient "$@"
 		;;
 	gen-crl)
-		verify_working_env
+		require_pki=1; require_ca=1; verify_working_env
 		[ -z "$alias_days" ] || \
 			export EASYRSA_CRL_DAYS="$alias_days"
 		gen_crl
 		;;
 	revoke|revoke-issued)
-		verify_working_env
+		require_pki=1; require_ca=1; verify_working_env
 		revoke 'issued' "$@"
 		;;
 	revoke-expired)
-		verify_working_env
+		require_pki=1; require_ca=1; verify_working_env
 		revoke 'expired' "$@"
 		;;
 	revoke-renewed)
-		verify_working_env
+		require_pki=1; require_ca=1; verify_working_env
 		revoke 'renewed/issued' "$@"
 		;;
 	import-req)
-		verify_working_env
+		require_pki=1; require_ca=""; verify_working_env
 		import_req "$@"
 		;;
 	expire)
-		verify_working_env
+		require_pki=1; require_ca=1; verify_working_env
 		expire_cert "$@"
 		;;
 	inline)
-		verify_working_env
+		require_pki=1; require_ca=""; verify_working_env
 		inline_file "$@"
 		;;
 	export-p12)
-		verify_working_env
+		require_pki=1; require_ca=""; verify_working_env
 		export_pkcs p12 "$@"
 		;;
 	export-p7)
-		verify_working_env
+		require_pki=1; require_ca=""; verify_working_env
 		export_pkcs p7 "$@"
 		;;
 	export-p8)
-		verify_working_env
+		require_pki=1; require_ca=""; verify_working_env
 		export_pkcs p8 "$@"
 		;;
 	export-p1)
-		verify_working_env
+		require_pki=1; require_ca=""; verify_working_env
 		export_pkcs p1 "$@"
 		;;
 	set-pass|set-rsa-pass|set-ec-pass|set-ed-pass)
-		verify_working_env
+		require_pki=1; require_ca=""; verify_working_env
 		set_pass "$@"
 		;;
 	update-db)
-		verify_working_env
+		require_pki=1; require_ca=1; verify_working_env
 		update_db
 		;;
 	show-req)
-		verify_working_env
+		require_pki=1; require_ca=""; verify_working_env
 		show req "$@"
 		;;
 	show-cert)
-		verify_working_env
+		require_pki=1; require_ca=1; verify_working_env
 		show cert "$@"
 		;;
 	show-crl)
-		verify_working_env
+		require_pki=1; require_ca=1; verify_working_env
 		show crl crl
 		;;
 	show-ca)
-		verify_working_env
+		require_pki=1; require_ca=1; verify_working_env
 		show_ca "$@"
 		;;
 	show-host)
-		verify_working_env
+		require_pki=""; require_ca=""; verify_working_env
 		show_host "$@"
 		;;
 	renew-ca)
-		verify_working_env
+		require_pki=1; require_ca=1; verify_working_env
 		[ -z "$alias_days" ] || \
 			export EASYRSA_CA_EXPIRE="$alias_days"
 		renew_ca_cert "$@"
 		;;
 	renew)
-		verify_working_env
+		require_pki=1; require_ca=1; verify_working_env
 		[ -z "$alias_days" ] || \
 			export EASYRSA_CERT_EXPIRE="$alias_days"
 		renew "$@"
 		;;
 	show-expire)
-		verify_working_env
+		require_pki=1; require_ca=1; verify_working_env
 		[ -z "$alias_days" ] || \
 			export EASYRSA_PRE_EXPIRY_WINDOW="$alias_days"
 		status expire "$@"
 		;;
 	show-revoke)
-		verify_working_env
+		require_pki=1; require_ca=1; verify_working_env
 		status revoke "$@"
 		;;
 	show-renew)
-		verify_working_env
+		require_pki=1; require_ca=1; verify_working_env
 		status renew "$@"
 		;;
 	verify-cert)
-		verify_working_env
+		require_pki=1; require_ca=1; verify_working_env
 		# Called with --batch, this will return error
 		# when the certificate fails verification.
 		# Therefore, on error, exit with error.
 		verify_cert "$@" || easyrsa_exit_with_error=1
 		;;
 	gen-tls-auth|gen-tls-auth-*)
-		verify_working_env
+		require_pki=1; require_ca=""; verify_working_env
 		tls_key_gen tls-auth "$@"
 		;;
 	gen-tls-crypt|gen-tls-crypt-*)
-		verify_working_env
+		require_pki=1; require_ca=""; verify_working_env
 		tls_key_gen tls-crypt "$@"
 		;;
 	gen-tls-cryptv2|gen-tls-cryptv2-*)
-		verify_working_env
+		require_pki=1; require_ca=""; verify_working_env
 		tls_key_gen tls-crypt-v2 "$@"
 		;;
 	write)
-		verify_working_env
 		# Write legacy files to write_dir
 		# or EASYRSA_PKI or EASYRSA
 		case "$1" in
 		legacy)
+			require_pki=1; require_ca=""; verify_working_env
 			# over-write NO
 			shift
 			all_legacy_files_v2
 			;;
 		legacy-hard)
+			require_pki=1; require_ca=""; verify_working_env
 			# over-write YES
 			shift
 			all_legacy_files_v2 overwrite
@@ -7186,11 +7156,14 @@ case "$cmd" in
 		*)
 			# Only allow 'type' on command line
 			# Internally, overwrite and file-name is allowed
+			unset -v EASYRSA_VERBOSE
+			quiet_vars=1
+			require_pki=""; require_ca=""; verify_working_env
 			write_legacy_file_v2 "$1"
 		esac
 		;;
 	serial|check-serial)
-		verify_working_env
+		require_pki=1; require_ca=1; verify_working_env
 		# Called with --batch, this will return error
 		# when the serial number is not unique.
 		# Therefore, on error, exit with error.
@@ -7198,11 +7171,11 @@ case "$cmd" in
 			easyrsa_exit_with_error=1
 		;;
 	display-dn)
-		verify_working_env
+		require_pki=""; require_ca=""; verify_working_env
 		display_dn "$@"
 		;;
 	x509-eku|show-eku)
-		verify_working_env
+		require_pki=""; require_ca=""; verify_working_env
 		ssl_cert_x509v3_eku "$@" || \
 			easyrsa_exit_with_error=1
 		;;
@@ -7213,7 +7186,7 @@ case "$cmd" in
 		cmd_help "$1"
 		;;
 	'')
-		verify_working_env
+		require_pki=""; require_ca=""; verify_working_env
 		default_overview
 		;;
 	version)
