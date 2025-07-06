@@ -5785,6 +5785,33 @@ lock-file removed - Please try running the easyrsa command again."
 verify_working_env() {
 	verbose "verify_working_env: BEGIN"
 
+	# Intelligent env-var detection and auto-loading:
+	# Select vars file as EASYRSA_VARS_FILE
+	# then source the vars file, if found
+	# otherwise, ignore no vars file
+	if select_vars; then
+		[ "$quiet_vars" ] || information "\
+Using Easy-RSA 'vars' configuration:
+* $EASYRSA_VARS_FILE"
+		source_vars "$EASYRSA_VARS_FILE"
+	else
+		verbose "\
+No Easy-RSA 'vars' configuration file exists!"
+	fi
+
+	# then set defaults
+	default_vars
+
+	# Check for unexpected changes to EASYRSA or EASYRSA_PKI
+	# https://github.com/OpenVPN/easy-rsa/issues/1006
+	validate_default_vars
+
+	# Check for conflicting input options
+	mutual_exclusions
+
+	# Verify SSL Lib - One time ONLY
+	verify_ssl_lib
+
 	# Opportunist PKI lock-file
 	[ "$EASYRSA_NO_LOCKFILE" ] || request_lock_file
 
@@ -6960,33 +6987,6 @@ case "$cmd" in
 			*) require_ca=1
 		esac
 esac
-
-# Intelligent env-var detection and auto-loading:
-# Select vars file as EASYRSA_VARS_FILE
-# then source the vars file, if found
-# otherwise, ignore no vars file
-if select_vars; then
-	[ "$quiet_vars" ] || information "\
-Using Easy-RSA 'vars' configuration:
-* $EASYRSA_VARS_FILE"
-	source_vars "$EASYRSA_VARS_FILE"
-else
-	verbose "\
-No Easy-RSA 'vars' configuration file exists!"
-fi
-
-# then set defaults
-default_vars
-
-# Check for unexpected changes to EASYRSA or EASYRSA_PKI
-# https://github.com/OpenVPN/easy-rsa/issues/1006
-validate_default_vars
-
-# Check for conflicting input options
-mutual_exclusions
-
-# Verify SSL Lib - One time ONLY
-verify_ssl_lib
 
 # Hand off to the function responsible
 # ONLY verify_working_env() for valid commands
