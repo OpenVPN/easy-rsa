@@ -876,8 +876,7 @@ remove_lock_file() {
 # Create session directory atomically or fail
 secure_session() {
 	# Session must not be defined
-	[ -z "$secured_session" ] || die "session overload"
-	[ -d "$secured_session" ] && die "session exists"
+	[ "$secured_session" ] && die "session overload"
 
 	# Temporary directory must exist
 	[ -d "$EASYRSA_TEMP_DIR" ] || die "\
