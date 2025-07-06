@@ -5734,10 +5734,11 @@ ${unexpected_error}"
 
 # Create PKI lock-file, as necessary
 request_lock_file() {
+	[ "$EASYRSA_NO_LOCKFILE" ] && return
+
 	# Create lock-file
 	create_lock_file_error=
 	if [ -d "${EASYRSA_PKI}" ]; then
-
 		lock_file="${EASYRSA_PKI}"/lock.file
 		if create_lock_file "$lock_file"; then
 			verbose "verify_working_env: lock-file CREATED OK"
@@ -5812,13 +5813,13 @@ No Easy-RSA 'vars' configuration file exists!"
 	# Verify SSL Lib - One time ONLY
 	verify_ssl_lib
 
-	# Opportunist PKI lock-file
-	[ "$EASYRSA_NO_LOCKFILE" ] || request_lock_file
-
 	# For commands which 'require a PKI' and PKI exists
 	if [ "$require_pki" ]; then
 		# Verify PKI is initialised
 		verify_pki_init
+
+		# Opportunist PKI lock-file
+		request_lock_file
 
 		# Temp dir session and throw-away temp-file
 		secure_session
