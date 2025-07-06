@@ -6072,10 +6072,8 @@ Legacy files:
 	fi
 
 	# Output directories
-	legacy_out_d="$EASYRSA_PKI"
-		easyrsa_mkdir "$legacy_out_d"
-	x509_types_d="$legacy_out_d"/x509-types
-		easyrsa_mkdir "$x509_types_d"
+	x509_types_d="$EASYRSA_PKI"/x509-types
+	easyrsa_mkdir "$x509_types_d"
 
 	# Create x509-types
 	for legacy_type in COMMON ca server serverClient client \
@@ -6087,12 +6085,12 @@ Legacy files:
 
 	# vars.example
 	legacy_type=vars
-	legacy_target="$legacy_out_d"/vars.example
+	legacy_target="$EASYRSA_PKI"/vars.example
 	write_legacy_file_v2 "$legacy_type" "$legacy_target" "$1"
 
 	# openssl-easyrsa.cnf
 	legacy_type=ssl-cnf
-	legacy_target="$legacy_out_d"/openssl-easyrsa.cnf
+	legacy_target="$EASYRSA_PKI"/openssl-easyrsa.cnf
 	write_legacy_file_v2 "$legacy_type" "$legacy_target" "$1"
 
 	# User notice
