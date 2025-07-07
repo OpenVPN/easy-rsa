@@ -2,6 +2,12 @@ Easy-RSA 3 ChangeLog
 
 3.2.4 (TBD)
 
+   * CI: Add OpenSSL-3.5.1-LTS and LibreSSL-4.1.0 to private test suite
+   * secure_session(): Remove unnecessary check for existing directory (1322177) (#1367)
+   * all_legacy_files_v2(): Do not create PKI directory (b0260da) (#1367)
+   * Replace PKI and CA initialisation flags with command switch flags (2bdf582) (#1367)
+   * verify_working_env(): Move lock-file request to after PKI check (071405d) (#1367)
+   * Move basic sanity checks to verify_working_env() (509a36e) (#1367)
    * New global option: --no-lockfile = env-var: $EASYRSA_NO_LOCKFILE (46c8647) (#1364)
    * default_overview(): Add peer-fingerprint mode PKI identification (c9a0152) (#1363)
    * help: Add in use algorithm and key-size/curve to top level status (10778cc) (#1363)
