@@ -6170,7 +6170,7 @@ write_legacy_file_v2() {
 
 # set heredoc variables for openssl-easyrsa.cnf
 # shellcheck disable=SC2016 # (info): $ don't expand in ''
-set_openssl_easyrsa_cnf_vars(){
+set_openssl_easyrsa_cnf_vars() {
 	case "$1" in
 	expanded)
 		# fully expand ssl-cnf for safe-cnf
@@ -6689,7 +6689,7 @@ unset -v \
 	selfsign_eku \
 	internal_batch mv_temp_error \
 	easyrsa_exit_with_error error_info \
-	write_recursion tools_error tools_error_txt
+	write_recursion require_pki require_ca quiet_vars
 
 	# Used by build-ca->cleanup to restore prompt
 	# after user interrupt when using manual password
@@ -7141,22 +7141,17 @@ case "$cmd" in
 		legacy)
 			require_pki=1; require_ca=""; verify_working_env
 			# over-write NO
-			shift
 			all_legacy_files_v2
 			;;
 		legacy-hard)
 			require_pki=1; require_ca=""; verify_working_env
 			# over-write YES
-			shift
 			all_legacy_files_v2 overwrite
 			;;
 		*)
 			# Only allow 'type' on command line
 			# Internally, overwrite and file-name is allowed
-			unset -v EASYRSA_VERBOSE
-			quiet_vars=1
-			require_pki=""; require_ca=""; verify_working_env
-			write_legacy_file_v2 "$1"
+			write_legacy_file_v2 "$1" && unset -v EASYRSA_VERBOSE
 		esac
 		;;
 	serial|check-serial)
