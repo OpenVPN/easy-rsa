@@ -754,7 +754,7 @@ $*${NL}"
 # verbose information
 verbose() {
 	[ "$EASYRSA_VERBOSE" ] || return 0
-	print "  # $*"
+	print "  # $fn_name; $*"
 } # => verbose()
 
 # non-fatal warning output
@@ -900,8 +900,7 @@ secure_session - Missing temporary directory:
 				working_safe_ssl_conf working_safe_org_conf
 
 			easyrsa_err_log="$secured_session/error.log"
-			verbose "\
-secure_session: CREATED: $secured_session"
+			verbose "secure_session; CREATED $secured_session"
 			return
 		fi
 	done
@@ -912,8 +911,7 @@ secure_session: CREATED: $secured_session"
 remove_secure_session() {
 	[ -d "$secured_session" ] || return 0
 	if rm -rf "$secured_session"; then
-		verbose "\
-remove_secure_session: DELETED: $secured_session"
+		verbose "remove_secure_session; DELETED $secured_session"
 
 		# Restore original EASYRSA_SSL_CONF
 		export EASYRSA_SSL_CONF="$original_ssl_cnf"
@@ -931,7 +929,7 @@ easyrsa_mkdir() {
 	[ "$1" ] || die "easyrsa_mkdir - input"
 	[ -d "$1" ] && return
 
-	verbose "$fn_name; easyrsa_mkdir $1"
+	verbose "easyrsa_mkdir; $1"
 	if [ "$easyrsa_host_os" = win ]; then
 		mkdir "$1" 2>/dev/null # win11 never errors here
 		[ -d "$1" ] && return
@@ -971,16 +969,14 @@ easyrsa_mktemp - Temporary session undefined (--tmp-dir)"
 
 			# Assign external temp-file name
 			if force_set_var "$1" "$shotfile"; then
-				verbose "\
-: easyrsa_mktemp: $1 :OK: $shotfile"
+				verbose "easyrsa_mktemp; $1 $shotfile"
 
 				# Update counter
 				mktemp_counter="$((mktemp_counter+1))"
 
 				return
 			else
-				die "\
-easyrsa_mktemp - force_set_var $1 failed"
+				die "easyrsa_mktemp - force_set_var $1 failed"
 			fi
 		done
 	done
@@ -1238,9 +1234,9 @@ easyrsa_openssl() {
 	openssl_command="$1"; shift
 
 	if [ "$EASYRSA_DEBUG" ]; then
-		verbose "= easyrsa_openssl - BEGIN $openssl_command $*"
+		verbose "easyrsa_openssl; BEGIN $openssl_command $*"
 	else
-		verbose "= easyrsa_openssl - BEGIN $openssl_command"
+		verbose "easyrsa_openssl; BEGIN $openssl_command"
 	fi
 
 	# Do not allow 'rand' here, see easyrsa_random()
@@ -1256,21 +1252,20 @@ easyrsa_openssl() {
 	else
 		die "easyrsa_openssl - OPENSSL_CONF undefined"
 	fi
-	verbose "= easyrsa_openssl: OPENSSL_CONF = $OPENSSL_CONF"
+	verbose "easyrsa_openssl; OPENSSL_CONF = $OPENSSL_CONF"
 
 	# Exec SSL
 	if [ "$EASYRSA_SILENT_SSL" ] && [ "$EASYRSA_BATCH" ]
 	then
-		if "$EASYRSA_OPENSSL" "$openssl_command" "$@" \
-			2>/dev/null
+		if "$EASYRSA_OPENSSL" "$openssl_command" "$@" 2>/dev/null
 		then
-			verbose "= easyrsa_openssl - END $openssl_command"
+			verbose "easyrsa_openssl; END $openssl_command"
 			return
 		fi
 	else
 		if "$EASYRSA_OPENSSL" "$openssl_command" "$@"
 		then
-			verbose "= easyrsa_openssl - END $openssl_command"
+			verbose "easyrsa_openssl; END $openssl_command"
 			return
 		fi
 	fi
@@ -1343,7 +1338,7 @@ $error_msg"
 	esac
 
 	# Message
-	verbose "verify_ssl_lib(): $ssl_version ($EASYRSA_OPENSSL)"
+	verbose "verify_ssl_lib; $ssl_version ($EASYRSA_OPENSSL)"
 } # => verify_ssl_lib()
 
 # Basic sanity-check of PKI init and complain if missing
@@ -1498,9 +1493,10 @@ locate_support_files() {
 		fi
 	done
 
-	verbose ": EASYRSA_EXT_DIR: ${EASYRSA_EXT_DIR:-built-in}"
-	verbose ": EASYRSA_SSL_CONF: ${EASYRSA_SSL_CONF:-built-in}"
-	verbose "locate_support_files: COMPLETED"
+	verbose "\
+locate_support_files; EASYRSA_EXT_DIR: ${EASYRSA_EXT_DIR:-built-in}"
+	verbose "\
+locate_support_files; EASYRSA_SSL_CONF: ${EASYRSA_SSL_CONF:-built-in}"
 } # => locate_support_files()
 
 # Disable terminal echo, if possible, otherwise warn
@@ -1598,7 +1594,7 @@ build_ca() {
 	# RAW mode must take priority
 	if [ "$EASYRSA_RAW_CA" ]; then
 		unset -v EASYRSA_NO_PASS EASYRSA_PASSOUT EASYRSA_PASSIN
-		verbose "build-ca: CA password RAW method"
+		verbose "CA password RAW method"
 	else
 		# If encrypted then create the CA key with AES256 cipher
 		if [ "$EASYRSA_NO_PASS" ]; then
@@ -1737,7 +1733,7 @@ Raw CA mode
 		add_critical_attrib keyUsage \
 			"$x509_type_file" x509_type_file || \
 				die "build-ca - add_critical_attrib kU"
-		verbose "build_ca: keyUsage critical OK"
+		verbose "keyUsage critical OK"
 	fi
 
 	# basicConstraints critical
@@ -1745,7 +1741,7 @@ Raw CA mode
 		add_critical_attrib basicConstraints \
 			"$x509_type_file" x509_type_file || \
 				die "build-ca - add_critical_attrib bC"
-		verbose "build_ca: basicConstraints critical OK"
+		verbose "basicConstraints critical OK"
 	fi
 
 	# Find or create x509 COMMON file
@@ -1793,7 +1789,7 @@ Please update 'openssl-easyrsa.cnf' to the latest Easy-RSA release."
 	} | awk "$awkscript" "$EASYRSA_SSL_CONF" \
 			> "$adjusted_ssl_cnf_tmp" || \
 				die "Copying X509_TYPES to config file failed"
-	verbose "build-ca: insert x509 and extensions OK"
+	verbose "Insert x509 and extensions OK"
 
 	# Use this new SSL config for the rest of this function
 	export EASYRSA_SSL_CONF="$adjusted_ssl_cnf_tmp"
@@ -1833,13 +1829,13 @@ Please update 'openssl-easyrsa.cnf' to the latest Easy-RSA release."
 
 	# verbose notice
 	if [ "$EASYRSA_RAW_CA" ]; then
-		verbose "build_ca: CA key pass created via RAW"
+		verbose "CA key password created via RAW"
 	elif [ "$ca_password_via_cmdline" ]; then
-		verbose "build_ca: CA key pass created via command options"
+		verbose "CA key password created via command options"
 	elif [ "$EASYRSA_NO_PASS" ]; then
-		verbose "build_ca: CA key has no password"
+		verbose "CA key has no password"
 	else
-		verbose "build_ca: CA key pass created via temp-files"
+		verbose "CA key pass created via temp-files"
 	fi
 
 	# Generate the CA keypair:
@@ -1991,8 +1987,7 @@ Conflicting certificate exists at:
 			user_error "Unrecognised algorithm: '$EASYRSA_ALGO'"
 	esac
 
-	verbose "\
-self-sign: Use ALGO:'$EASYRSA_ALGO' / CURVE:'$EASYRSA_CURVE'"
+	verbose "Use ALGO:'$EASYRSA_ALGO' / CURVE:'$EASYRSA_CURVE'"
 
 	# Assign tmp-file for config
 	adjusted_ssl_cnf_tmp=""
@@ -2038,7 +2033,7 @@ self-sign: Use ALGO:'$EASYRSA_ALGO' / CURVE:'$EASYRSA_CURVE'"
 	} | awk "$awkscript" "$EASYRSA_SSL_CONF" \
 			> "$adjusted_ssl_cnf_tmp" || \
 				die "Copying X509_TYPES to config file failed"
-	verbose "self_sign: insert x509 and extensions OK"
+	verbose "Insert x509 and extensions OK"
 
 	# Use this new SSL config for the rest of this function
 	export EASYRSA_SSL_CONF="$adjusted_ssl_cnf_tmp"
@@ -2442,8 +2437,8 @@ Writing 'copy_exts' to SSL config temp-file failed"
 
 		# Use this SSL config for the rest of this function
 		export EASYRSA_SSL_CONF="$adjusted_ssl_cnf_tmp"
-		verbose "sign_req: Using '$copy_exts'"
-		verbose "sign_req: EASYRSA_SSL_CONF = $EASYRSA_SSL_CONF"
+		verbose "Using '$copy_exts'"
+		verbose "EASYRSA_SSL_CONF = $EASYRSA_SSL_CONF"
 	fi
 
 	# Find or create x509-type file
@@ -2463,7 +2458,7 @@ Writing 'copy_exts' to SSL config temp-file failed"
 			"$x509_type_file" x509_type_file || \
 				die "sign-req - add_critical_attrib kU"
 		confirm_ku_crit="  keyUsage:         'critical'${NL}"
-		verbose "sign_req: keyUsage critical OK"
+		verbose "keyUsage critical OK"
 	fi
 
 	# basicConstraints critical
@@ -2473,7 +2468,7 @@ Writing 'copy_exts' to SSL config temp-file failed"
 			"$x509_type_file" x509_type_file || \
 				die "sign-req - add_critical_attrib bC"
 		confirm_bc_crit="  basicConstraints: 'critical'${NL}"
-		verbose "sign_req: basicConstraints critical OK"
+		verbose "basicConstraints critical OK"
 	fi
 
 	# extendedKeyUsage critical
@@ -2483,7 +2478,7 @@ Writing 'copy_exts' to SSL config temp-file failed"
 			"$x509_type_file" x509_type_file || \
 				die "sign-req - add_critical_attrib eKU"
 		confirm_eku_crit="  extendedKeyUsage: 'critical'${NL}"
-		verbose "sign_req: extendedKeyUsage critical OK"
+		verbose "extendedKeyUsage critical OK"
 	fi
 
 	# Find or create x509 COMMON file
@@ -2513,7 +2508,7 @@ END { if (length(bC) == 0 ) exit 1; print bC }'
 basicConstraints is not defined, cannot use 'pathlen'"
 		confirm_pathlen="
   Path length:      '$EASYRSA_SUBCA_LEN'${NL}"
-		verbose "sign_req: Using basicConstraints pathlen"
+		verbose "Using basicConstraints pathlen"
 	fi
 
 	# Deprecated Netscape extension support
@@ -2536,7 +2531,7 @@ basicConstraints is not defined, cannot use 'pathlen'"
 			*)
 				ns_cert_type="nsCertType = $crt_type"
 		esac
-		verbose "sign_req: Using $ns_cert_type"
+		verbose "Using $ns_cert_type"
 		;;
 	*)
 		# ok No NS support required
@@ -2567,14 +2562,14 @@ basicConstraints is not defined, cannot use 'pathlen'"
 		EASYRSA_EXTRA_EXTS="\
 $EASYRSA_EXTRA_EXTS
 subjectAltName = ${EASYRSA_SAN_CRIT}${EASYRSA_SAN}"
-		verbose "sign-req: Auto SAN: ${EASYRSA_SAN}"
+		verbose "Auto SAN: ${EASYRSA_SAN}"
 	fi
 
 	# confirm SAN critical
 	confirm_san_crit=
 	if [ "${EASYRSA_SAN_CRIT}" ]; then
 		confirm_san_crit="  subjectAltName:   'critical'${NL}"
-		verbose "sign-req: SAN critical OK"
+		verbose "SAN critical OK"
 	fi
 
 	# Generate the extensions file for this cert:
@@ -2605,7 +2600,7 @@ subjectAltName = ${EASYRSA_SAN_CRIT}${EASYRSA_SAN}"
 	} > "$ext_tmp" || die "\
 Failed to create temp extension file (bad permissions?) at:
 * $ext_tmp"
-	verbose "sign_req: Generated extensions file OK"
+	verbose "Generated extensions file OK"
 
 	# Set confirm CN
 	confirm_CN="  Requested CN:     '$EASYRSA_REQ_CN'"
@@ -2716,7 +2711,7 @@ $confirm_details" # => confirm end
 		${EASYRSA_END_DATE:+ -enddate "$EASYRSA_END_DATE"} \
 			|| die "\
 Signing failed (openssl output above may have more detail)"
-	verbose "sign_req: signed cert '$file_name_base' OK"
+	verbose "signed cert '$file_name_base' OK"
 
 	# Move temp-files to target-files
 	mv "$crt_out_tmp" "$crt_out" || mv_temp_error=1
@@ -2736,7 +2731,6 @@ Certificate created at:
 
 # Add 'critical' attribute to X509-type file
 add_critical_attrib() {
-	fn_name="$fn_name; add_critical_attrib"
 	case "$1" in
 		basicConstraints|keyUsage|extendedKeyUsage) : ;; # ok
 		*) die "$fn_name - usage: '$1'"
@@ -2758,8 +2752,7 @@ add_critical_attrib() {
 	# Use the new tmp-file:$crit_tmp with critical attribute
 	force_set_var "$3" "$crit_tmp" || return 1
 
-	verbose "$fn_name: ${1}: force_set_var: ${3} = ${crit_tmp}"
-	fn_name="${fn_name%; add_critical_attrib}"
+	verbose "add_critical_attrib; ${1}: force_set_var: ${3} = ${crit_tmp}"
 	unset -v srch repl with crit_tmp
 } # => add_critical_attrib()
 
@@ -2781,7 +2774,7 @@ check_serial_unique() {
 	case "$check_serial" in
 		(*"not present in db"*)
 			unique_serial_true=1
-			verbose "check_serial_unique: unique_serial=true"
+			verbose "check_serial_unique; unique_serial=true"
 			;;
 		# This is caused by file:index.txt.attr being set to
 		# 'unique_subject = yes' AND a duplicate cert subject
@@ -2790,7 +2783,7 @@ check_serial_unique() {
 			;;
 		*)
 			unique_serial_true=
-			verbose "check_serial_unique: unique_serial=false"
+			verbose "check_serial_unique; unique_serial=false"
 	esac
 
 	# In batch mode return result only
@@ -2857,7 +2850,9 @@ Conflicting file found at:
 
 	# create request
 	verbose "build_full: BEGIN gen_req"
+	fn_name="$fn_name; gen_req"
 	gen_req "$name" batch
+	fn_name="${fn_name%; gen_req}"
 	verbose "build_full: END gen_req"
 
 	# Set to modify sign-req confirmation message
@@ -2875,6 +2870,7 @@ Conflicting file found at:
 
 	# Sign it
 	verbose "build_full: BEGIN sign_req"
+	fn_name="$fn_name; sign_req"
 	error_build_full_cleanup=1
 	if sign_req "$crt_type" "$name"; then
 		unset -v error_build_full_cleanup do_build_full
@@ -2883,6 +2879,7 @@ Conflicting file found at:
 Failed to sign '$name' - \
 See error messages above for details."
 	fi
+	fn_name="${fn_name%; sign_req}"
 	verbose "build_full: END sign_req"
 } # => build_full()
 
@@ -3505,7 +3502,6 @@ It is now possible to sign a new certificate for '$file_name_base'"
 # Forbid a self-signed cert from being expired/renewed/revoked
 # by a CA that has nothing to do with the cert
 forbid_selfsign() {
-	fn_name="$fn_name; forbid_selfsign"
 	# cert temp-file
 	forbid_ss_tmp=
 	easyrsa_mktemp forbid_ss_tmp
@@ -3525,7 +3521,7 @@ forbid_selfsign() {
 		)" || die "$fn_name - signing_serial subshell"
 	[ "$signing_serial" ] || die "$fn_name - signing_serial"
 
-	verbose "$fn_name: $forbid_serial = $signing_serial"
+	verbose "forbid_selfsign; $forbid_serial = $signing_serial"
 	fn_name="${fn_name%; forbid_selfsign}"
 	# Compare $ssl_cert_serial to $signing_serial
 	[ "$forbid_serial" = "$signing_serial" ]
@@ -4063,7 +4059,7 @@ $tls_key_error_msg"
 # Get certificate start date
 # shellcheck disable=2317 # Unreach - ssl_cert_not_before_date()
 ssl_cert_not_before_date() {
-	verbose "DEPRECATED: ssl_cert_not_before_date()"
+	verbose "ssl_cert_not_before_date; DEPRECATED"
 	[ "$#" = 2 ] || die "\
 ssl_cert_not_before_date - input error"
 	[ -f "$1" ] || die "\
@@ -4084,7 +4080,7 @@ ssl_cert_not_before_date - failed to set var '$*'"
 
 # Get certificate end date
 ssl_cert_not_after_date() {
-	verbose "DEPRECATED: ssl_cert_not_after_date()"
+	verbose "ssl_cert_not_after_date; DEPRECATED"
 	[ "$#" = 2 ] || die "\
 ssl_cert_not_after_date - input error"
 	[ -f "$1" ] || die "\
@@ -4106,7 +4102,7 @@ ssl_cert_not_after_date - failed to set var '$*'"
 # SSL -- v3 -- startdate iso_8601
 # shellcheck disable=2317 # Unreach - iso_8601_cert_startdate()
 iso_8601_cert_startdate() {
-	verbose "NEW: iso_8601_cert_startdate"
+	verbose "iso_8601_cert_startdate; NEW"
 	[ "$#" = 2 ] || die "\
 iso_8601_cert_startdate: input error"
 	[ -f "$1" ] || die "\
@@ -4121,8 +4117,7 @@ iso_8601_cert_startdate: missing cert"
 		: # ok
 	else
 		# The caller MUST assess this error
-		verbose "\
-iso_8601_cert_startdate: GENERATED ERROR"
+		verbose "iso_8601_cert_startdate; GENERATED ERROR"
 		return 1
 	fi
 
@@ -4136,7 +4131,7 @@ iso_8601_cert_startdate: failed to set var '$*'"
 
 # SSL -- v3 -- enddate iso_8601
 iso_8601_cert_enddate() {
-	verbose "NEW: iso_8601_cert_enddate"
+	verbose "iso_8601_cert_enddate; NEW"
 	[ "$#" = 2 ] || die "\
 iso_8601_cert_enddate: input error"
 	[ -f "$1" ] || die "\
@@ -4151,8 +4146,7 @@ iso_8601_cert_enddate: missing cert"
 		: # ok
 	else
 		# The caller MUST assess this error
-		verbose "\
-iso_8601_cert_enddate: GENERATED ERROR"
+		verbose "iso_8601_cert_enddate; GENERATED ERROR"
 		return 1
 	fi
 
@@ -4172,7 +4166,7 @@ db_date_to_iso_8601() {
 
 	# Expected format: '230612235959Z'
 	in_date="$1"
-	verbose "db_date_to_iso_8601: in_date=$in_date"
+	verbose "db_date_to_iso_8601; in_date=$in_date"
 
 	# Check length
 	[ "${#in_date}" = 13 ] || \
@@ -4215,7 +4209,7 @@ db_date_to_iso_8601() {
 
 	# Assign iso_8601 date
 	out_date="${yyyy}-${mm}-${dd} ${HH}:${MM}:${SS}${TZ}"
-	verbose "db_date_to_iso_8601: out_date=$out_date"
+	verbose "db_date_to_iso_8601; out_date=$out_date"
 
 	# Return out_date
 	force_set_var "$2" "$out_date" || \
@@ -4401,12 +4395,12 @@ read_db() {
 expire_status_v2() {
 	# The certificate for CN should exist but may not
 	if [ -f "$1" ]; then
-		verbose "expire_status: cert exists"
+		verbose "expire_status_v2; cert exists"
 
 		# Check if cert will be valid else print details
 		if will_cert_be_valid "$1" "$pre_expire_window_s"
 		then
-			verbose "cert will still be valid by expiry window"
+			verbose "expire_status_v2; cert will still be valid"
 		else
 			# cert expiry date
 			cert_not_after_date=
@@ -4423,7 +4417,7 @@ expire_status_v2() {
 				"$cert_not_after_date | CN: $db_cn"
 		fi
 	else
-		verbose "issued cert does not exist, ignore other certs"
+		verbose "expire_status_v2; issued cert does not exist"
 	fi
 } # => expire_status_v2()
 
@@ -4618,7 +4612,7 @@ Missing request file:
 	# For renew, cert_CN must match req_CN
 	[ "$cert_CN" = "$req_CN" ] || user_error \
 		"Certificate cannot be renewed due to commonName mismatch"
-	verbose "renew - cert_CN MATCH req_CN"
+	verbose "cert_CN MATCH req_CN"
 
 	# get the serial number of the certificate
 	ssl_cert_serial "$crt_in" cert_serial || \
@@ -4661,7 +4655,7 @@ Use command 'revoke-renewed' to revoke this certificate."
 						-e /'X509v3 Subject Alternative Name'/d \
 						-e s/'IP Address:'/'IP:'/g
 		)" || die "renew - EASYRSA_SAN: easyrsa_openssl subshell"
-		verbose "renew: EASYRSA_SAN: ${EASYRSA_SAN}"
+		verbose "EASYRSA_SAN: ${EASYRSA_SAN}"
 
 		# --san-crit
 		unset -v EASYRSA_SAN_CRIT
@@ -4669,13 +4663,13 @@ Use command 'revoke-renewed' to revoke this certificate."
 			"$full_crt_tmp"
 		then
 			export EASYRSA_SAN_CRIT='critical,'
-			verbose "renew: --san-crit ENABLED"
+			verbose "--san-crit ENABLED"
 		fi
 
 		export EASYRSA_EXTRA_EXTS="\
 $EASYRSA_EXTRA_EXTS
 subjectAltName = ${EASYRSA_SAN_CRIT}${EASYRSA_SAN}"
-		verbose "renew: EASYRSA_EXTRA_EXTS: ${EASYRSA_EXTRA_EXTS}"
+		verbose "EASYRSA_EXTRA_EXTS: ${EASYRSA_EXTRA_EXTS}"
 	fi
 
 	# --bc-crit
@@ -4683,7 +4677,7 @@ subjectAltName = ${EASYRSA_SAN_CRIT}${EASYRSA_SAN}"
 		"$full_crt_tmp"
 	then
 		export EASYRSA_BC_CRIT=1
-		verbose "renew: --bc-crit ENABLED"
+		verbose "--bc-crit ENABLED"
 	fi
 
 	# --ku-crit
@@ -4691,7 +4685,7 @@ subjectAltName = ${EASYRSA_SAN_CRIT}${EASYRSA_SAN}"
 		"$full_crt_tmp"
 	then
 		export EASYRSA_KU_CRIT=1
-		verbose "renew: --ku-crit ENABLED"
+		verbose "--ku-crit ENABLED"
 	fi
 
 	# --eku-crit
@@ -4699,7 +4693,7 @@ subjectAltName = ${EASYRSA_SAN_CRIT}${EASYRSA_SAN}"
 		"$full_crt_tmp"
 	then
 		export EASYRSA_EKU_CRIT=1
-		verbose "renew: --eku-crit ENABLED"
+		verbose "--eku-crit ENABLED"
 	fi
 
 	# Disable options not supported by renew
@@ -4737,8 +4731,10 @@ Required to create a new certificate with an existing name."
 
 	# renew certificate
 	# EASYRSA_BATCH=1
+	fn_name="$fn_name; sign_req"
 	if sign_req "$cert_type" "$file_name_base"
 	then
+		fn_name="${fn_name%; sign_req}"
 		unset -v error_undo_renew_move
 	else
 		# If renew failed then restore cert.
@@ -4946,7 +4942,7 @@ $cmd does not support setting an external commonName."
 		add_critical_attrib basicConstraints \
 			"$x509_type_file" x509_type_file || \
 				die "$f_name: add_critical_attrib bC"
-		verbose "renew_ca_cert: basicConstraints critical OK"
+		verbose "basicConstraints critical OK"
 	fi
 
 	# keyUsage critical
@@ -4955,7 +4951,7 @@ $cmd does not support setting an external commonName."
 		add_critical_attrib keyUsage \
 			"$x509_type_file" x509_type_file || \
 				die "$f_name: add_critical_attrib kU"
-		verbose "renew_ca_cert: keyUsage critical OK"
+		verbose "keyUsage critical OK"
 	fi
 
 	# Find or create x509 COMMON file
@@ -5002,7 +4998,7 @@ Please update 'openssl-easyrsa.cnf' to the latest Easy-RSA release."
 	} | awk "$awkscript" "$EASYRSA_SSL_CONF" \
 			> "$adjusted_ssl_cnf_tmp" || \
 				die "$f_name Copy X509_TYPES to config failed"
-	verbose "$f_name insert x509 and extensions OK"
+	verbose "Insert x509 and extensions OK"
 
 	# Use this new SSL config for the rest of this function
 	export EASYRSA_SSL_CONF="$adjusted_ssl_cnf_tmp"
@@ -5219,8 +5215,6 @@ Showing details for CA certificate, at:
 # Certificate X509v3 Extended Key Usage
 # ''$ceku_*'' is Cert EKU, to localize function variables
 ssl_cert_x509v3_eku() {
-	fn_name="$fn_name; ssl_cert_x509v3_eku"
-
 	# check input file name
 	if [ -f "$1" ]; then
 		ceku_crt="$1"
@@ -5290,7 +5284,7 @@ ssl_cert_x509v3_eku() {
 	if [ "$2" ]; then
 		force_set_var "$2" "$ceku_type" || \
 			die "$fn_name - force_set_var failed"
-		verbose "$fn_name: EKU='$ceku_type' [$2]"
+		verbose "ssl_cert_x509v3_eku; EKU='$ceku_type' [$2]"
 	elif [ "$ceku_known" ]; then
 		information "\
 * Known X509v3 Extended Key Usage: '$ceku_type'"
@@ -5417,8 +5411,7 @@ Edwards Curve '$EASYRSA_CURVE' not found."
 	*) user_error "\
 Unknown algorithm '$EASYRSA_ALGO': Must be 'rsa', 'ec' or 'ed'"
 	esac
-	verbose "\
-verify_algo_params: Params verified for algo '$EASYRSA_ALGO' OK"
+	verbose "verify_algo_params; OK: algo '$EASYRSA_ALGO'"
 } # => verify_algo_params()
 
 # Check for conflicting input options
@@ -5487,7 +5480,7 @@ To correct this problem, it is recommended that you either:
 		fi
 	fi
 
-	verbose "mutual_exclusions: COMPLETED"
+	verbose "mutual_exclusions; COMPLETED"
 } # => mutual_exclusions()
 
 # Select vars in order preference:
@@ -5497,8 +5490,7 @@ To correct this problem, it is recommended that you either:
 select_vars() {
 	# User specified vars file will be used ONLY
 	if [ "$EASYRSA_VARS_FILE" ]; then
-		# Takes priority, nothing to do
-		verbose "select_vars: EASYRSA_VARS_FILE"
+		: # Takes priority, nothing to do
 
 	# This is where auto-load goes bananas
 	else
@@ -5507,7 +5499,6 @@ select_vars() {
 		if [ "$EASYRSA_PKI" ]; then
 			if [ -f "$EASYRSA_PKI"/vars ]; then
 				set_var EASYRSA_VARS_FILE "$EASYRSA_PKI"/vars
-				verbose "select_vars: source EASYRSA_PKI/vars"
 			fi
 		fi
 
@@ -5515,36 +5506,32 @@ select_vars() {
 		if [ "$EASYRSA" ]; then
 			if [ -f "$EASYRSA"/vars ]; then
 				set_var EASYRSA_VARS_FILE "$EASYRSA"/vars
-				verbose "select_vars: EASYRSA/vars"
 			fi
 		fi
 
 		# Default PKI; if vars exists, use it ONLY
 		if [ -f "$PWD"/pki/vars ] && \
-			[ -z "$EASYRSA_PKI" ] && \
-			[ -z "$EASYRSA" ]
+			[ -z "$EASYRSA_PKI" ] && [ -z "$EASYRSA" ]
 		then
 			# Prevent vars from changing 'expected' PKI.
 			# A vars in the PKI MUST always imply EASYRSA_PKI
 			expected_EASYRSA="$PWD"
 			expected_EASYRSA_PKI="$PWD"/pki
-
 			set_var EASYRSA_VARS_FILE "$PWD"/pki/vars
-			verbose "select_vars: PWD/pki/vars"
 		fi
 
 		# Default working dir; if vars exists, use it ONLY
 		if [ -f "$PWD"/vars ]; then
 			set_var EASYRSA_VARS_FILE "$PWD"/vars
-			verbose "select_vars: PWD/vars"
 		fi
 	fi
 
 	# if select_vars failed to find a vars file
 	if [ -z "$EASYRSA_VARS_FILE" ]; then
-		verbose "select_vars: No vars"
+		verbose "select_vars; No vars"
 		return 1
 	fi
+	verbose "select_vars; selected $EASYRSA_VARS_FILE"
 } # => select_vars()
 
 # Source a vars file
@@ -5613,8 +5600,6 @@ These problems have been found in your 'vars' settings:${NL}"
 		user_error "${err_msg}${NL}
 Please, correct these errors and try again."
 
-	else
-		verbose "source_vars: CLEAN '$target_file'"
 	fi
 
 	# Enable sourcing target_file
@@ -5632,7 +5617,7 @@ Please, correct these errors and try again."
 		die "Failed to dry-run the '$target_file' file."
 	fi
 
-	verbose "source_vars: sourced OK '$target_file'"
+	verbose "source_vars; sourced $target_file"
 	unset -v EASYRSA_CALLER target_file
 } # => source_vars()
 
@@ -5740,7 +5725,7 @@ request_lock_file() {
 	if [ -d "${EASYRSA_PKI}" ]; then
 		lock_file="${EASYRSA_PKI}"/lock.file
 		if create_lock_file "$lock_file"; then
-			verbose "verify_working_env: lock-file CREATED OK"
+			verbose "request_lock_file; lock-file CREATED $lock_file"
 		else
 			easyrsa_exit_with_error=17
 			if [ -f "$lock_file" ]; then
@@ -5777,13 +5762,13 @@ lock-file removed - Please try running the easyrsa command again."
 			fi
 		fi
 	else
-		verbose "verify_working_env: lock-file not required."
+		verbose "request_lock_file; lock-file not required."
 	fi
 } # => request_lock_file()
 
 # Verify working environment
 verify_working_env() {
-	verbose "verify_working_env: BEGIN"
+	fn_name="$cmd: verify_working_env"
 
 	# Intelligent env-var detection and auto-loading:
 	# Select vars file as EASYRSA_VARS_FILE
@@ -5794,9 +5779,6 @@ verify_working_env() {
 Using Easy-RSA 'vars' configuration:
 * $EASYRSA_VARS_FILE"
 		source_vars "$EASYRSA_VARS_FILE"
-	else
-		verbose "\
-No Easy-RSA 'vars' configuration file exists!"
 	fi
 
 	# then set defaults
@@ -5855,8 +5837,7 @@ No Easy-RSA 'vars' configuration file exists!"
 
 	# Save original EASYRSA_SSL_CONF
 	original_ssl_cnf="$EASYRSA_SSL_CONF"
-
-	verbose "verify_working_env: COMPLETED Handover-to: $cmd"
+	fn_name="$cmd"
 } # => verify_working_env()
 
 # variable assignment by indirection.
@@ -5896,7 +5877,6 @@ force_set_var() {
 
 # global Safe SSL conf file, for use by any SSL lib
 write_global_safe_ssl_cnf_tmp() {
-	fn_name="write_global_safe_ssl_cnf_tmp: "
 	global_safe_ssl_cnf_tmp=
 	easyrsa_mktemp global_safe_ssl_cnf_tmp
 
@@ -5904,8 +5884,8 @@ write_global_safe_ssl_cnf_tmp() {
 		overwrite || die "verify_working_env - write safe-cnf"
 
 	export OPENSSL_CONF="$global_safe_ssl_cnf_tmp"
-	verbose "${fn_name}GLOBAL OPENSSL_CONF = $OPENSSL_CONF"
-	fn_name="${fn_name%write_global_safe_ssl_cnf_tmp: }"
+	verbose "\
+write_global_safe_ssl_cnf_tmp; GLOBAL OPENSSL_CONF = $OPENSSL_CONF"
 } # => write_global_safe_ssl_cnf_tmp()
 
 # Create as needed: $EASYRSA_SSL_CONF pki/openssl-easyrsa.cnf
@@ -5917,7 +5897,7 @@ write_easyrsa_ssl_cnf_tmp() {
 		EASYRSA_SSL_CONF "$EASYRSA_PKI"/openssl-easyrsa.cnf
 
 	if [ -f "$EASYRSA_SSL_CONF" ]; then
-		verbose "write_easyrsa_ssl_cnf_tmp: SSL config EXISTS"
+		verbose "write_easyrsa_ssl_cnf_tmp; SSL config EXISTS"
 
 		# Set known hashes
 		# 3.1.7 -> Current
@@ -5987,7 +5967,7 @@ f97425686fa1976d436fa31f550641aa"
 		if [ "$hash_is_unknown" ] || [ "$EASYRSA_FORCE_SAFE_SSL" ]
 		then
 			unset -v hash_is_unknown
-			verbose "write_easyrsa_ssl_cnf_tmp: SSL config UNKNOWN!"
+			verbose "write_easyrsa_ssl_cnf_tmp; SSL config UNKNOWN!"
 
 			# Auto-escape hazardous characters
 			escape_hazard || \
@@ -6001,7 +5981,7 @@ f97425686fa1976d436fa31f550641aa"
 		fi
 
 		# Ignore existing file, prefer to use a temp-file
-		verbose "write_easyrsa_ssl_cnf_tmp: SSL config KNOWN"
+		verbose "write_easyrsa_ssl_cnf_tmp; SSL config KNOWN"
 	fi
 
 	# SET and USE temp-file from here-doc Now
@@ -6017,11 +5997,13 @@ write_easyrsa_ssl_cnf_tmp - write $ssl_cnf_type: $ssl_cnf_tmp"
 	# export SSL cnf tmp
 	export EASYRSA_SSL_CONF="$ssl_cnf_tmp"
 	verbose "\
-write_easyrsa_ssl_cnf_tmp: $ssl_cnf_type \
+write_easyrsa_ssl_cnf_tmp; $ssl_cnf_type \
 - EASYRSA_SSL_CONF = $EASYRSA_SSL_CONF"
 
 	export OPENSSL_CONF="$EASYRSA_SSL_CONF"
-	verbose "LOCAL - OPENSSL_CONF = $OPENSSL_CONF"
+	verbose "\
+write_easyrsa_ssl_cnf_tmp; LOCAL \
+- OPENSSL_CONF = $OPENSSL_CONF"
 } # => write_easyrsa_ssl_cnf_tmp()
 
 # Write x509 type file to a temp file
@@ -6042,7 +6024,7 @@ write_x509_type_tmp() {
 	write_legacy_file_v2 "$1" "$write_x509_file_tmp" \
 		overwrite || die "write_x509_type_tmp - write $1"
 
-	verbose ": write_x509_type_tmp: $1 COMPLETE"
+	verbose "write_x509_type_tmp; $1 COMPLETE"
 } # => write_x509_type_tmp()
 
 ############################################################################
@@ -6052,8 +6034,6 @@ write_x509_type_tmp() {
 
 # Write ALL legacy files to default name with optional 'overwrite'
 all_legacy_files_v2() {
-	fn_name="all_legacy_files_v2: "
-
 	# Confirm over write
 	if [ "$1" ]; then
 		confirm "${NL}  Confirm OVER-WRITE files ? " yes "
@@ -6065,9 +6045,9 @@ Legacy files:
 * File: ${EASYRSA_PKI}/vars.example
 * Dir:  ${EASYRSA_PKI}/x509-types/*"
 
-		verbose "${fn_name}over-write ENABLED"
+		verbose "all_legacy_files_v2; over-write ENABLED"
 	else
-		verbose "${fn_name}over-write DISABLED"
+		verbose "all_legacy_files_v2; over-write DISABLED"
 	fi
 
 	# Output directories
@@ -6098,7 +6078,6 @@ Legacy files:
 	else
 		notice "legacy has updated missing files."
 	fi
-	fn_name="${fn_name%all_legacy_files_v2: }"
 } # => all_legacy_files_v2()
 
 # write legacy files to stdout or user defined file
@@ -6110,7 +6089,6 @@ write_legacy_file_v2() {
 		die "write recursion"
 	fi
 
-	fn_name="${fn_name}write_legacy_file_v2: "
 	# Always required 'type'
 	write_type="$1"
 	# Only allowed by internal callers
@@ -6141,20 +6119,20 @@ write_legacy_file_v2() {
 	# write legacy data stream to stdout or file
 	if [ -f "$write_file" ]; then
 		if [ "$write_over" ]; then
-			verbose "${fn_name}over-write ENABLED for $write_type"
+			verbose "write_legacy_file_v2; over-write ENABLED for $write_type"
 			create_legacy_stream "$write_type" > "$write_file" || \
 				die "write failed"
 			[ "$EASYRSA_DEBUG" ] && print \
 				"### write OVERWRITE: $write_type to $write_file"
 		else
 			# Preserve existing file and continue
-			verbose "${fn_name}over-write BLOCKED for $write_type"
+			verbose "write_legacy_file_v2; over-write BLOCKED for $write_type"
 			[ "$EASYRSA_DEBUG" ] && print \
 				"### write PRESERVE existing: $write_file"
 		fi
 	# $write_file does not exist, so create it
 	elif [ "$write_file" ]; then
-			verbose "${fn_name}over-write IGNORED for $write_type"
+			verbose "write_legacy_file_v2; over-write IGNORED for $write_type"
 			create_legacy_stream "$write_type" > "$write_file" || \
 				die "write failed"
 			[ "$EASYRSA_DEBUG" ] && print \
@@ -6164,7 +6142,6 @@ write_legacy_file_v2() {
 		create_legacy_stream "$write_type"
 	fi
 
-	fn_name="${fn_name%write_legacy_file_v2: }"
 	write_recursion="$(( write_recursion - 1 ))"
 } # => write_legacy_file_v2()
 
