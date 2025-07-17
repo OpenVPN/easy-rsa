@@ -3104,7 +3104,7 @@ ${tls_key_data}
 				tls_data="# Easy-RSA TLS Key not recognised!"
 			fi
 		else
-			#inline_incomplete=1
+			inline_incomplete=1
 			tls_data="# Easy-RSA TLS Key not found!"
 		fi
 	fi
