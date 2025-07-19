@@ -56,8 +56,8 @@ Certificate & Request options: (these impact cert/req field values)
 --notext|no-text: Create certificates without human readable text
 --days=#        : Sets the signing validity to the specified number of days
                   Applies to other commands. For details, see: 'help days'
---startdate=DATE: Sets the SSL option '-startdate' (Format 'YYYYMMDDhhmmssZ')
---enddate=DATE  : Sets the SSL option '-enddate' (Format 'YYYYMMDDhhmmssZ')
+--startdate=DATE: Sets the SSL option '-startdate' (Format '[YY]YYMMDDhhmmssZ')
+--enddate=DATE  : Sets the SSL option '-enddate' (Format '[YY]YYMMDDhhmmssZ')
 
 --digest=ALG    : Digest to use in the requests & certificates
 --keysize=#     : Size in bits of keypair to generate (RSA Only)
@@ -5445,6 +5445,19 @@ Option --silent-ssl requires batch mode --batch."
 		[ "$EASYRSA_END_DATE" ] || user_error "\
 Use of --startdate requires use of --enddate."
 	fi
+
+	# Basic --startdate/--enddate check
+	case "${#EASYRSA_START_DATE}" in
+		0|13|15) : ;; # ok
+		*) user_error "\
+Format of --startdate/--enddate must be [YY]YYMMDDhhmmssZ"
+	esac
+
+	case "${#EASYRSA_END_DATE}" in
+		0|13|15) : ;; # ok
+		*) user_error "\
+Format of --startdate/--enddate must be [YY]YYMMDDhhmmssZ"
+	esac
 
 	# --enddate may over-rule EASYRSA_CERT_EXPIRE
 	if [ "$EASYRSA_END_DATE" ]; then
