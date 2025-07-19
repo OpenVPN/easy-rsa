@@ -2,6 +2,7 @@ Easy-RSA 3 ChangeLog
 
 3.2.4 (TBD)
 
+   * Windows easyrsa-shell-init.sh: Replace 'read -p' (49b2181) (#1371)
    * inline: Include missing OpenVPN TLS key to cause INCOMPLETE warning (d98eee6) (#1368)
    * Verbose: Make verbose messages command and function aware (7634b94) (#1368)
    * CI: Add OpenSSL-3.5.1-LTS and LibreSSL-4.1.0 to private test suite
