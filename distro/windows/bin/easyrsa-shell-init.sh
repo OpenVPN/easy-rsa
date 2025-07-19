@@ -27,7 +27,8 @@ for f in $extern_list; do
 		echo "  files."
 		echo ""
 		#shellcheck disable=SC2162
-		read -p "Press Enter or CTRL-C to exit."
+		echo "Press Enter to exit."
+		read
 		exit 1
 	fi
 done
@@ -55,7 +56,8 @@ full administrator privileges via Windows User Access Control."
 	echo ""
 
 	#shellcheck disable=SC2162
-	read -p "Press Enter or CTRL-C to exit."
+	echo "Press Enter to exit."
+	read
 	exit 1
 }
 
@@ -128,8 +130,9 @@ fi
 
 [ -f "$setup_path/easyrsa" ] || {
 	echo "Missing easyrsa script. Expected to find it at: $setup_path/easyrsa"
-	read -p "Press Enter or CTRL-C to exit."
-	exit 2
+	echo "Press Enter to exit."
+	read
+	exit 1
 }
 
 # Set prompt and welcome message
