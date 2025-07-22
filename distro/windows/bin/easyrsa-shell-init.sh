@@ -1,12 +1,103 @@
 #!/bin/sh
-# shellcheck disable=SC2161,SC1091,SC2028
 
 # This script is a frontend designed to create & launch a POSIX shell
 # environment suitable for use with Easy-RSA. mksh/Win32 is used with this
 # project; use with other POSIX shells for Windows may require modification to
 # this wrapper script.
 
-echo "Easy-RSA starting.."
+# SC2162 - read without -r will mangle backslashes
+# SC1091 - Not following source file
+# shellcheck disable=SC2162,SC1091
+
+# Access denied error
+access_denied() {
+	case "$1" in
+	1)
+		error_msg="\
+To use Easy-RSA in a protected system directory, you must have
+full administrator privileges via Windows User Access Control."
+		;;
+	2)
+		error_msg="Cannot locate or use a User-Home directory."
+		;;
+	*)
+		error_msg="Unknown error."
+	esac
+
+	echo "
+$error_msg
+
+Press [Enter] to exit."
+	read
+	exit 1
+} # => access_denied()
+
+# Administrator access Required tests
+admin_access() {
+	mkdir "$1" 2>/dev/null || return 1
+	[ -d "$1" ] || return 1
+	echo 1 >"$1"/1 2>/dev/null || return 1
+	[ -f "$1"/1 ] || return 1
+	rm -rf "$1" 2>/dev/null || return 1
+	[ ! -d "$1" ] || return 1
+	sec_lev='#'
+} # => admin_access()
+
+# Setup "$HOMEDRIVE\$HOMEPATH\OpenVPN\easy-rsa" directory
+use_home_dir() {
+	if [ "$USERPROFILE" ]; then
+		# Use $USERPROFILE
+		user_home="$USERPROFILE"
+	elif [ "$HOMEDRIVE" ]; then
+		if [ "$HOMEPATH" ]; then
+			# Use $HOMEDRIVE and $HOMEPATH
+			user_home="${HOMEDRIVE}/${HOMEPATH}"
+		else
+			user_home=
+		fi
+	else
+		user_home=
+	fi
+
+	# If no $user_home was identified
+	[ "$user_home" ] || access_denied 2
+
+	# Use $user_home/openvpn directory
+	cd "$user_home"/openvpn || access_denied 2
+
+	# Create $user_home/openvpn/easy-rsa directory
+	if [ ! -d easy-rsa ]; then
+		mkdir easy-rsa 2>/dev/null || access_denied 2
+		# Required test
+		[ -d easy-rsa ] || access_denied 2
+	fi
+
+	# Use $user_home/openvpn/easy-rsa directory
+	cd easy-rsa 2>/dev/null || access_denied 2
+
+	export HOME="$PWD"
+	export PATH="$HOME;$PATH"
+	sec_lev='$'
+	unset -v user_home
+
+	echo "
+NOTICE:
+Easy-RSA has been auto-configured to run in your User-home directory."
+} # => use_home_dir()
+
+# set_var is defined as any vars file needs it.
+# This is the same as in easyrsa, but we _don't_ export
+set_var() {
+        var="$1"
+        shift
+        value="$*"
+        eval "$var=\"\${$var-$value}\""
+} #=> set_var()
+
+########################################
+# Invocation entry point:
+
+echo "Starting Easy-RSA shell.."
 
 setup_path="${EASYRSA:-$PWD}"
 export PATH="$setup_path;$setup_path/bin;$PATH"
@@ -17,14 +108,14 @@ export HOME="$setup_path"
 export ENV="/disable-env"
 
 # Verify required externals are present
-extern_list="which awk cat cp mkdir printf rm"
+extern_list="which awk cat cp mkdir printf rm grep sed"
 for f in $extern_list; do
 	if ! which "${f}.exe" >/dev/null 2>&1; then
 		echo ""
 		echo "FATAL: EasyRSA Shell init is missing a required external file:"
 		echo "  ${f}.exe"
-		echo "  Your installation is incomplete and cannot function without the required"
-		echo "  files."
+		echo "  Your installation is incomplete and cannot function without"
+		echo "  the required files."
 		echo ""
 		#shellcheck disable=SC2162
 		echo "Press Enter to exit."
@@ -33,92 +124,9 @@ for f in $extern_list; do
 	fi
 done
 
-# Allow options
-non_admin=""
-while [ "$1" ]; do
-	case "$1" in
-		/[Nn][Aa]|/no-adm*|--no-adm*)
-			non_admin=1
-			echo "Using no-admin mode"
-		;;
-		*)
-			echo "Ignoring unknown option: '$1'"
-	esac
-	shift
-done
-
-# Access denied
-access_denied() {
-	echo "Access error: $1"
-	echo "\
-To use Easy-RSA in a protected system directory, you must have
-full administrator privileges via Windows User Access Control."
-	echo ""
-
-	#shellcheck disable=SC2162
-	echo "Press Enter to exit."
-	read
-	exit 1
-}
-
-# Use home directory/easy-rsa
-if [ "$non_admin" ]; then
-	[ "${HOMEDRIVE}" ] || \
-		access_denied "Undefined: HOMEDRIVE"
-	user_home_drv="${HOMEDRIVE}"
-
-	[ "${HOMEPATH}" ] || \
-		access_denied "Undefined: HOMEPATH"
-	eval "user_home_dir='\\${HOMEPATH}'"
-
-	# shellcheck disable=SC2154 # user_home_dir is not assigned
-	user_home="${user_home_drv}${user_home_dir}"
-
-	[ -d "$user_home" ] || \
-		access_denied "Missing: $user_home"
-
-	cd "$user_home" 2>/dev/null || \
-		access_denied "Access: $user_home"
-
-	if [ ! -d easy-rsa ]; then
-		mkdir easy-rsa 2>/dev/null || \
-			access_denied "mkdir: easy-rsa"
-		# Required test
-		[ -d easy-rsa ] || \
-			access_denied "Missing: easy-rsa"
-	fi
-
-	cd easy-rsa 2>/dev/null || \
-		access_denied "Access: easy-rsa"
-
-	export HOME="$PWD"
-	export PATH="$HOME;$PATH"
-	unset -v user_home_drv user_home_dir user_home
-fi
-
 # Check for broken administrator access
 # https://github.com/OpenVPN/easy-rsa/issues/1072
-[ -d "$HOME" ] || access_denied "-d HOME"
-win_tst_d="$HOME"/easyrsa-write-test
-
-# Required tests
-mkdir "$win_tst_d" 2>/dev/null || access_denied "mkdir"
-[ -d "$win_tst_d" ] || access_denied "-d"
-echo 1 >"$win_tst_d"/1 2>/dev/null || access_denied "write"
-[ -f "$win_tst_d"/1 ] || access_denied "-f"
-rm -rf "$win_tst_d" 2>/dev/null || access_denied "rm"
-[ ! -d "$win_tst_d" ] || access_denied "! -d"
-unset -v win_tst_d
-unset -f access_denied
-
-# set_var is defined as any vars file needs it.
-# This is the same as in easyrsa, but we _don't_ export
-set_var() {
-        var="$1"
-        shift
-        value="$*"
-        eval "$var=\"\${$var-$value}\""
-} #=> set_var()
+admin_access "$HOME"/easyrsa-write-test || use_home_dir
 
 # Check for a usable openssl bin, referencing vars if present
 [ -r "vars" ] && EASYRSA_CALLER=1 . "vars" 2>/dev/null
@@ -136,17 +144,14 @@ fi
 }
 
 # Set prompt and welcome message
-export PS1='
-EasyRSA Shell
-# '
+export PS1="
+EasyRSA Shell:
+$USERNAME@$COMPUTERNAME $HOME $sec_lev "
 echo ""
 echo "Welcome to the EasyRSA 3 Shell for Windows."
 echo "Easy-RSA 3 is available under a GNU GPLv2 license."
 echo ""
 echo "Invoke 'easyrsa' to call the program. Without commands, help is displayed."
-echo ""
-echo "Using directory: $HOME"
-echo ""
 
 # Drop to a shell and await input
 sh.exe
