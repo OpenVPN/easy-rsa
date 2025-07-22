@@ -2,6 +2,7 @@ Easy-RSA 3 ChangeLog
 
 3.2.4 (TBD)
 
+   * Windows easyrsa-shell-init.sh: Allow Easy-RSA to use '\User\$HOME' (f194da5) (#1374)
    * mutual_exclusions(): Include basic checks for --startdate/--enddate (e1478c3) (#1372)
    * Windows easyrsa-shell-init.sh: Replace 'read -p' (49b2181) (#1371)
    * inline: Include missing OpenVPN TLS key to cause INCOMPLETE warning (d98eee6) (#1368)
