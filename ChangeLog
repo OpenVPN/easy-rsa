@@ -2,6 +2,7 @@ Easy-RSA 3 ChangeLog
 
 3.2.4 (TBD)
 
+   * verify_openvpn(): Windows, add check for 'openvpn.exe' (10c6267) (#1374)
    * gen-crl: Replace file-move with file-copy-preserve-attribs (4cc1d48) (#1374)
    * Windows easyrsa-shell-init.sh: Add non-fatal check for 'openvpn.exe' (bb78615) (#1374)
    * Windows easyrsa-shell-init.sh: Require confirmation for User-Home mode (bfa6cfd) (#1374)
