@@ -3546,11 +3546,7 @@ gen_crl() {
 			die "CRL Generation failed."
 
 	# Move temp-files to target-files
-	mv "$out_file_tmp" "$out_file" || mv_temp_error=1
-	if [ "$mv_temp_error" ]; then
-		#rm -f "$out_file"
-		die "Failed to move temp CRL file."
-	fi
+	cp -p "$out_file_tmp" "$out_file" || die "Failed to move temp CRL file."
 
 	# Copy to DER - As published by OpenSSL
 	if "$EASYRSA_OPENSSL" crl -in "$out_file" -out "$out_der" \
