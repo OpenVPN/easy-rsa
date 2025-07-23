@@ -3968,14 +3968,21 @@ ${cipher:+You will then enter a new password for this key.$NL}"
 
 # Verify OpenVPN binary
 verify_openvpn() {
-	# Try to find openvpn
-	set_var EASYRSA_OPENVPN "$(which openvpn)"
-	if [ -f "$EASYRSA_OPENVPN" ]; then
-		verbose \
-			"verify_openvpn - EASYRSA_OPENVPN='$EASYRSA_OPENVPN'"
+	[ -f "$EASYRSA_OPENVPN" ] && return
+	# Try to find openvpn *nix
+	if which openvpn >/dev/null 2>&1; then
+		set_var EASYRSA_OPENVPN "$(which openvpn)"
 	else
-		user_error "Cannot find an OpenVPN binary."
+		# Try to find openvpn.exe, specifically for Windows
+		if which openvpn.exe >/dev/null 2>&1; then
+			set_var EASYRSA_OPENVPN "$(which openvpn.exe)"
+		else
+			user_error "\
+An 'openvpn' binary is not in your system PATH.
+EasyRSA can not generate OpenVPN TLS keys."
+		fi
 	fi
+	verbose "verify_openvpn - EASYRSA_OPENVPN='$EASYRSA_OPENVPN'"
 } # => verify_openvpn()
 
 # OpenVPN TLS Auth/Crypt Key
