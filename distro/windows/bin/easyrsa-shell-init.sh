@@ -157,6 +157,15 @@ fi
 	exit 1
 }
 
+# Check for openvpn executable
+if which openvpn.exe >/dev/null 2>&1; then
+	EASYRSA_OPENVPN="$(which openvpn.exe)"
+	export EASYRSA_OPENVPN="$EASYRSA_OPENVPN"
+else
+	echo "WARNING: openvpn.exe is not in your system PATH."
+	echo "EasyRSA will not be able to generate OpenVPN TLS keys."
+fi
+
 # Set prompt and welcome message
 export PS1="
 EasyRSA Shell:
