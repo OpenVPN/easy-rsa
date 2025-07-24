@@ -7,7 +7,8 @@
 
 # SC2162 - read without -r will mangle backslashes
 # SC1091 - Not following source file
-# shellcheck disable=SC2162,SC1091
+# SC1003 - (info): Want to escape a single quote?
+# shellcheck disable=SC2162,SC1091,SC1003
 
 # intent confirmation helper func
 # modified from easyrsa
@@ -25,7 +26,6 @@ Type the word '$value' to continue, or any other input to abort."
 	read input
 	printf '\n'
 	[ "$input" = "$value" ] && return
-	easyrsa_exit_with_error=1
 	unset -v EASYRSA_SILENT
 	notice "Aborting without confirmation."
 	exit 1
@@ -159,7 +159,12 @@ fi
 
 # Check for openvpn executable
 if which openvpn.exe >/dev/null 2>&1; then
-	EASYRSA_OPENVPN="$(which openvpn.exe)"
+	EASYRSA_OPENVPN="$(which openvpn.exe | sed s/'\\'/'\/'/g)" || {
+		echo "verify_openvpn - Failed to convert openvpn path."
+		echo "Press Enter to exit."
+		read
+		exit 1
+	}
 	export EASYRSA_OPENVPN="$EASYRSA_OPENVPN"
 else
 	echo "WARNING: openvpn.exe is not in your system PATH."

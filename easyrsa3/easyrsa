@@ -3968,21 +3968,32 @@ ${cipher:+You will then enter a new password for this key.$NL}"
 
 # Verify OpenVPN binary
 verify_openvpn() {
-	[ -f "$EASYRSA_OPENVPN" ] && return
+	if [ -f "$EASYRSA_OPENVPN" ]; then
+		verbose "verify_openvpn; Preset EASYRSA_OPENVPN='$EASYRSA_OPENVPN'"
+		return
+	fi
+
 	# Try to find openvpn *nix
 	if which openvpn >/dev/null 2>&1; then
 		set_var EASYRSA_OPENVPN "$(which openvpn)"
 	else
 		# Try to find openvpn.exe, specifically for Windows
-		if which openvpn.exe >/dev/null 2>&1; then
-			set_var EASYRSA_OPENVPN "$(which openvpn.exe)"
+		# Assign temp-file for Windows path name
+		ovpn_path_tmp=""
+		easyrsa_mktemp ovpn_path_tmp
+
+		if which openvpn.exe > "$ovpn_path_tmp"; then
+			# shellcheck disable=SC1003 # (info): Want to escape a single quote?
+			ovpn_path="$(sed s/'\\'/'\/'/ "$ovpn_path_tmp")" || \
+				die "verify_openvpn - Failed to convert openvpn path."
+			set_var EASYRSA_OPENVPN "$ovpn_path"
 		else
 			user_error "\
 An 'openvpn' binary is not in your system PATH.
 EasyRSA can not generate OpenVPN TLS keys."
 		fi
 	fi
-	verbose "verify_openvpn - EASYRSA_OPENVPN='$EASYRSA_OPENVPN'"
+	verbose "verify_openvpn; Set EASYRSA_OPENVPN='$EASYRSA_OPENVPN'"
 } # => verify_openvpn()
 
 # OpenVPN TLS Auth/Crypt Key
