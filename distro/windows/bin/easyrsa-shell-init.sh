@@ -35,6 +35,7 @@ Type the word '$value' to continue, or any other input to abort."
 access_denied() {
 		echo "Cannot locate or use a User-Home directory."
 		echo "Press [Enter] to exit."
+		read
 		exit 1
 } # => access_denied()
 
