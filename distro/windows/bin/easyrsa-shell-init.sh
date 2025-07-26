@@ -173,14 +173,15 @@ else
 fi
 
 # Set prompt and welcome message
-export PS1="
-EasyRSA Shell:
-$USERNAME@$COMPUTERNAME $HOME $sec_lev "
+export PS1="$USERNAME@$COMPUTERNAME $HOME
+EasyRSA-Shell: $sec_lev "
+
 echo ""
 echo "Welcome to the EasyRSA 3 Shell for Windows."
 echo "Easy-RSA 3 is available under a GNU GPLv2 license."
 echo ""
 echo "Invoke 'easyrsa' to call the program. Without commands, help is displayed."
+echo ""
 
 # Drop to a shell and await input
 sh.exe
