@@ -149,7 +149,8 @@ Command list:
   serial|check-serial <SERIAL>
   display-dn <form> <DIR/FILE_NAME>
   show-eku <file_name_base>|<DIR/FILE_NAME>
-  rand <decimal_number>"
+  rand <decimal_number>
+"
 } # => usage()
 
 # Detailed command help
@@ -187,8 +188,8 @@ Usage: easyrsa [ OPTIONS.. ] <COMMAND> <TARGET> [ cmd-opts.. ]"
       Creates a new CA"
 
 		opts="
-      * raw-ca  - ONLY use SSL binary to input CA password
-        raw       (Equivalent to global option '--raw-ca')
+      * rawca   - ONLY use SSL binary to input CA password
+                  (Equivalent to global option '--rawca|--raw-ca')
 
       * nopass  - Do not encrypt the private key (Default: encrypted)
                   (Equivalent to global option '--nopass|--no-pass')
@@ -1567,7 +1568,7 @@ build_ca() {
 			nopass)
 				[ "$prohibit_no_pass" ] || EASYRSA_NO_PASS=1
 				;;
-			rawca|raw-ca)
+			rawca)
 				# option --raw-ca demands user interaction
 				# which forbids --batch
 				[ "$EASYRSA_BATCH" ] && user_error \
