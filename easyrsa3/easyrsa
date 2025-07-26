@@ -149,7 +149,8 @@ Command list:
   serial|check-serial <SERIAL>
   display-dn <form> <DIR/FILE_NAME>
   show-eku <file_name_base>|<DIR/FILE_NAME>
-  rand <decimal_number>"
+  rand <decimal_number>
+"
 } # => usage()
 
 # Detailed command help
@@ -187,8 +188,8 @@ Usage: easyrsa [ OPTIONS.. ] <COMMAND> <TARGET> [ cmd-opts.. ]"
       Creates a new CA"
 
 		opts="
-      * raw-ca  - ONLY use SSL binary to input CA password
-        raw       (Equivalent to global option '--raw-ca')
+      * rawca   - ONLY use SSL binary to input CA password
+                  (Equivalent to global option '--rawca|--raw-ca')
 
       * nopass  - Do not encrypt the private key (Default: encrypted)
                   (Equivalent to global option '--nopass|--no-pass')
@@ -1567,7 +1568,7 @@ build_ca() {
 			nopass)
 				[ "$prohibit_no_pass" ] || EASYRSA_NO_PASS=1
 				;;
-			rawca|raw-ca)
+			rawca)
 				# option --raw-ca demands user interaction
 				# which forbids --batch
 				[ "$EASYRSA_BATCH" ] && user_error \
@@ -3546,11 +3547,7 @@ gen_crl() {
 			die "CRL Generation failed."
 
 	# Move temp-files to target-files
-	mv "$out_file_tmp" "$out_file" || mv_temp_error=1
-	if [ "$mv_temp_error" ]; then
-		#rm -f "$out_file"
-		die "Failed to move temp CRL file."
-	fi
+	cp -p "$out_file_tmp" "$out_file" || die "Failed to move temp CRL file."
 
 	# Copy to DER - As published by OpenSSL
 	if "$EASYRSA_OPENSSL" crl -in "$out_file" -out "$out_der" \
@@ -3972,14 +3969,32 @@ ${cipher:+You will then enter a new password for this key.$NL}"
 
 # Verify OpenVPN binary
 verify_openvpn() {
-	# Try to find openvpn
-	set_var EASYRSA_OPENVPN "$(which openvpn)"
 	if [ -f "$EASYRSA_OPENVPN" ]; then
-		verbose \
-			"verify_openvpn - EASYRSA_OPENVPN='$EASYRSA_OPENVPN'"
-	else
-		user_error "Cannot find an OpenVPN binary."
+		verbose "verify_openvpn; Preset EASYRSA_OPENVPN='$EASYRSA_OPENVPN'"
+		return
 	fi
+
+	# Try to find openvpn *nix
+	if which openvpn >/dev/null 2>&1; then
+		set_var EASYRSA_OPENVPN "$(which openvpn)"
+	else
+		# Try to find openvpn.exe, specifically for Windows
+		# Assign temp-file for Windows path name
+		ovpn_path_tmp=""
+		easyrsa_mktemp ovpn_path_tmp
+
+		if which openvpn.exe > "$ovpn_path_tmp"; then
+			# shellcheck disable=SC1003 # (info): Want to escape a single quote?
+			ovpn_path="$(sed s/'\\'/'\/'/ "$ovpn_path_tmp")" || \
+				die "verify_openvpn - Failed to convert openvpn path."
+			set_var EASYRSA_OPENVPN "$ovpn_path"
+		else
+			user_error "\
+An 'openvpn' binary is not in your system PATH.
+EasyRSA can not generate OpenVPN TLS keys."
+		fi
+	fi
+	verbose "verify_openvpn; Set EASYRSA_OPENVPN='$EASYRSA_OPENVPN'"
 } # => verify_openvpn()
 
 # OpenVPN TLS Auth/Crypt Key

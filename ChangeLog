@@ -2,6 +2,15 @@ Easy-RSA 3 ChangeLog
 
 3.2.4 (TBD)
 
+   * help: Correct build-ca 'rawca' command option (0447f42) (#1374)
+   * Windows easyrsa-shell-init.sh: Modernize prompt (5bf2e99) (#1374)
+   * Windows UT: Update 'wop-test.sh' to latest 'easyrsa-shell-init.sh' (ea5b168) (#1374)
+   * verify_openvpn(): Convert Windows path '\' to *nix path '/' (75a8fdd) (#1374)
+   * verify_openvpn(): Windows, add check for 'openvpn.exe' (10c6267) (#1374)
+   * gen-crl: Replace file-move with file-copy-preserve-attribs (4cc1d48) (#1374)
+   * Windows easyrsa-shell-init.sh: Add non-fatal check for 'openvpn.exe' (bb78615) (#1374)
+   * Windows easyrsa-shell-init.sh: Require confirmation for User-Home mode (bfa6cfd) (#1374)
+   * Windows easyrsa-shell-init.sh: Allow Easy-RSA to use '\User\$HOME' (f194da5) (#1374)
    * mutual_exclusions(): Include basic checks for --startdate/--enddate (e1478c3) (#1372)
    * Windows easyrsa-shell-init.sh: Replace 'read -p' (49b2181) (#1371)
    * inline: Include missing OpenVPN TLS key to cause INCOMPLETE warning (d98eee6) (#1368)
