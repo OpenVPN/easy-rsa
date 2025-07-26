@@ -2,6 +2,8 @@ Easy-RSA 3 ChangeLog
 
 3.2.4 (TBD)
 
+   * help: Correct build-ca 'rawca' command option (0447f42) (#1374)
+   * Windows easyrsa-shell-init.sh: Modernize prompt (5bf2e99) (#1374)
    * Windows UT: Update 'wop-test.sh' to latest 'easyrsa-shell-init.sh' (ea5b168) (#1374)
    * verify_openvpn(): Convert Windows path '\' to *nix path '/' (75a8fdd) (#1374)
    * verify_openvpn(): Windows, add check for 'openvpn.exe' (10c6267) (#1374)
