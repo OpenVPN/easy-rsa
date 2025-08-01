@@ -890,12 +890,7 @@ secure_session - Missing temporary directory:
 		secured_session="${EASYRSA_TEMP_DIR}/${session}"
 
 		# atomic:
-		# ONLY effects Windows 11 "broken" mkdir.exe
-		# The procedure now is a "poor man's" version
-		# of an atomic directory creation call.
-		# The "race condition" still exists but is minimized.
-		# What remains is equivalent to 32bit hash collision.
-		if easyrsa_mkdir "$secured_session"; then
+		if mkdir "$secured_session"; then
 			# New session requires safe-ssl conf
 			unset -v session OPENSSL_CONF \
 				working_safe_ssl_conf working_safe_org_conf
@@ -923,22 +918,6 @@ remove_secure_session() {
 	fi
 	die "remove_secure_session Failed: $secured_session"
 } # => remove_secure_session()
-
-# 'mkdir' wrapper, broken by win11, which fails without error
-easyrsa_mkdir() {
-	[ "$2" ] && die "easyrsa_mkdir - excess input"
-	[ "$1" ] || die "easyrsa_mkdir - input"
-	[ -d "$1" ] && return
-
-	verbose "easyrsa_mkdir; $1"
-	if [ "$easyrsa_host_os" = win ]; then
-		mkdir "$1" 2>/dev/null # win11 never errors here
-		[ -d "$1" ] && return
-	else
-		mkdir "$1" 2>/dev/null && return
-	fi
-	die "easyrsa_mkdir - FAIL: $1"
-} # => easyrsa_mkdir()
 
 # Create temp-file atomically or fail
 # WARNING: Running easyrsa_openssl in a subshell
@@ -1016,8 +995,9 @@ Temporary session not preserved."
 			else
 				# create temp-snapshot
 				keep_tmp="$EASYRSA_TEMP_DIR/tmp/$EASYRSA_KEEP_TEMP"
-				easyrsa_mkdir "$EASYRSA_TEMP_DIR"/tmp
-				easyrsa_mkdir "$keep_tmp"
+				mkdir -p "${EASYRSA_TEMP_DIR}/tmp/${keep_tmp}" || die \
+					"cleanup() - Failed to create '${keep_tmp}' directory."
+
 				rm -rf "$keep_tmp"
 				mv -f "$secured_session" "$keep_tmp"
 				information "Temp session preserved: $keep_tmp"
@@ -1369,9 +1349,6 @@ Missing expected directory: $i
 $help_note"
 	done
 	unset -v help_note
-
-	# Always create 'issued' dir, useful for inline files
-	easyrsa_mkdir "$EASYRSA_PKI"/issued
 } # => verify_pki_init()
 
 # Verify core CA files present
@@ -1437,15 +1414,15 @@ and initialize a fresh PKI here."
 		die "init-pki hard reset failed."
 
 	# new dirs:
-	easyrsa_mkdir "$EASYRSA_PKI"
 	for i in issued private reqs; do
-		easyrsa_mkdir "${EASYRSA_PKI}/$i"
+		mkdir -p "${EASYRSA_PKI}/${i}" || \
+			die "init_pki() - Failed to create '$i' directory."
 	done
 
 	# write pki/vars.example - no temp-file because no session
 	write_legacy_file_v2 \
 		vars "$EASYRSA_PKI"/vars.example overwrite || \
-			warn "init-pki - Failed to create vars.example"
+			warn "init_pki() - Failed to create vars.example"
 
 	# User notice
 	notice "\
@@ -1625,15 +1602,16 @@ current CA. To start a new CA, run init-pki first."
 	fi
 
 	# create necessary dirs:
+	mkdir -p \
+		"${EASYRSA_PKI}"/certs_by_serial \
+		"${EASYRSA_PKI}"/revoked/certs_by_serial \
+		"${EASYRSA_PKI}"/revoked/private_by_serial || \
+			die "build_ca() - Failed to create PKI sub-directories."
+
+	# create necessary files:
 	err_msg="\
 Unable to create necessary PKI files (permissions?)"
 
-	easyrsa_mkdir "${EASYRSA_PKI}"/certs_by_serial
-	easyrsa_mkdir "${EASYRSA_PKI}"/revoked
-	easyrsa_mkdir "${EASYRSA_PKI}"/revoked/certs_by_serial
-	easyrsa_mkdir "${EASYRSA_PKI}"/revoked/private_by_serial
-
-	# create necessary files:
 	printf "" > \
 		"$EASYRSA_PKI/index.txt" || die "$err_msg"
 	printf '%s\n' "01" \
@@ -2893,8 +2871,8 @@ inline_file() {
 	[ "$1" ] || die "inline_file - Missing file_name_base"
 
 	# make inline dirs
-	easyrsa_mkdir "$EASYRSA_PKI"/inline
-	easyrsa_mkdir "$EASYRSA_PKI"/inline/private
+	mkdir -p "$EASYRSA_PKI"/inline/private || \
+		die "inline_file() - failed to create 'inline' directory."
 
 	# Source files
 	crt_source="${EASYRSA_PKI}/issued/${1}.crt"
@@ -3353,10 +3331,11 @@ certificate from being accepted."
 # moves revoked certificates to the 'revoked' folder
 # allows reissuing certificates with the same name
 revoke_move() {
-	easyrsa_mkdir "$EASYRSA_PKI"/revoked
-	easyrsa_mkdir "$EASYRSA_PKI"/revoked/reqs_by_serial
-	easyrsa_mkdir "$EASYRSA_PKI"/revoked/certs_by_serial
-	easyrsa_mkdir "$EASYRSA_PKI"/revoked/private_by_serial
+	mkdir -p \
+		"$EASYRSA_PKI"/revoked/reqs_by_serial \
+		"$EASYRSA_PKI"/revoked/certs_by_serial \
+		"$EASYRSA_PKI"/revoked/private_by_serial || \
+			die "revoke_move() - Failed to create 'revoked' directory."
 
 	# only move the req when revoking an issued cert
 	# and if we have the req
@@ -3408,15 +3387,14 @@ Run easyrsa without commands for usage and command help."
 	# input
 	in_dir="$EASYRSA_PKI/issued"
 	crt_in="$in_dir/$file_name_base.crt"
-	#key_in="$in_dir/private/$file_name_base.key"
-	#req_in="$in_dir/reqs/$file_name_base.req"
 
 	# output
 	out_dir="$EASYRSA_PKI/expired"
 	crt_out="$out_dir/$file_name_base.crt"
 
 	# make output folder
-	easyrsa_mkdir "$EASYRSA_PKI"/expired
+	mkdir -p "$EASYRSA_PKI"/expired || \
+		die "expire_cert() - Failed to create 'expired' directory."
 
 	# Do not over write existing cert
 	if [ -f "$crt_out" ]; then
@@ -4795,8 +4773,8 @@ Renew FAILED but files have been successfully restored."
 # allows reissuing certificates with the same name
 renew_move() {
 	# make sure renewed dirs exist
-	easyrsa_mkdir "$out_dir"
-	easyrsa_mkdir "$out_dir"/issued
+	mkdir -p "$out_dir"/issued || \
+		die "renew_move() - Failed to create '$out_dir/issued' directory."
 
 	# move crt to renewed folders
 	# After this point, renew is possible!
@@ -6080,7 +6058,8 @@ Legacy files:
 
 	# Output directories
 	x509_types_d="$EASYRSA_PKI"/x509-types
-	easyrsa_mkdir "$x509_types_d"
+	mkdir -p "$x509_types_d" || die \
+		"all_legacy_files_v2() - Failed to create '$x509_types_d' directory."
 
 	# Create x509-types
 	for legacy_type in COMMON ca server serverClient client \
