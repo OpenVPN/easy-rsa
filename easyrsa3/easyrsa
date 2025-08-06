@@ -256,9 +256,6 @@ Usage: easyrsa [ OPTIONS.. ] <COMMAND> <TARGET> [ cmd-opts.. ]"
 		text="
 * revoke <file_name_base> [ reason ]
 
-Commmand 'revoke' is DEPRECATED and can ONLY be used in batch mode.
-Commmand 'revoke-issued' REPLACES command 'revoke'.
-
       Revoke a certificate specified by the <file_name_base>,
       with an optional revocation [ reason ].
 
@@ -274,21 +271,27 @@ Commmand 'revoke-issued' REPLACES command 'revoke'.
       Commands 'revoke-expired' and 'revoke-renewed' are functionally
       equivalent to 'revoke-issued', however, they are used to revoke
       certificates which have been either 'expired' or 'renewed' by
-      other EasyRSA commands.
+      Easy-RSA commands 'expire' or 'renew'.
 
-Commmand 'revoke' is DEPRECATED and can ONLY be used in batch mode.
-Commmand 'revoke-issued' REPLACES command 'revoke'.
+      Commmand 'revoke' is DEPRECATED and can ONLY be used in batch mode.
+      Commmand 'revoke-issued' REPLACES command 'revoke'.
 
-REQUIRED COMMANDS:
+      REQUIRED COMMANDS:
 
-* 'revoke-issued' <file_name_base> [ reason ]
-  Revoke a current, issued certificate.
+      * 'revoke-issued' <file_name_base> [ reason ]
+        Revoke a current, issued certificate.
+        Archives the original request and private key files.
 
-* 'revoke-expired' <file_name_base> [ reason ]
-  Revoke an old, expired certificate.
+      * 'revoke-expired' <file_name_base> [ reason ]
+        Revoke an old, expired certificate.
+        Preserves the original request and private key files.
 
-* 'revoke-renewed' <file_name_base> [ reason ]
-  Revoke an old, renewed certificate."
+      * 'revoke-renewed' <file_name_base> [ reason ]
+        Revoke an old, renewed certificate.
+        Preserves the original request and private key files.
+
+        All 'revoke' commands archive the specified certificate
+        by serial number."
 		opts="
       * [ reason ]${NL}
       Values accepted for option [ reason ]: Details above."
@@ -3219,7 +3222,9 @@ Conflicting file(s) found:${msg}
 Please select which type of 'revoke' command is required:
 * 'revoke-issued' will revoke a current certificate.
 * 'revoke-expired' will revoke an old cert, which has been expired.
-* 'revoke-renewed' will revoke an old cert, which has been renewed."
+* 'revoke-renewed' will revoke an old cert, which has been renewed.
+
+Please see 'help revoke' for full details."
 		fi
 	fi
 	# Clear variables no longer in use
@@ -3269,12 +3274,12 @@ Cannot revoke this certificate, a conflicting file exists.
 
 	# Check for key and request files
 	unset -v if_exist_key_in if_exist_req_in
-	if [ "$move_req_and_key" ] && [ -f "$key_in" ]; then
+	if [ "$revoke_move_req_and_key" ] && [ -f "$key_in" ]; then
 		if_exist_key_in="
 * $key_in"
 	fi
 
-	if [ "$move_req_and_key" ] && [ -f "$req_in" ]; then
+	if [ "$revoke_move_req_and_key" ] && [ -f "$req_in" ]; then
 		if_exist_req_in="
 * $req_in"
 	fi
@@ -3339,7 +3344,7 @@ revoke_move() {
 
 	# only move the req when revoking an issued cert
 	# and if we have the req
-	if [ "$move_req_and_key" ] && [ -f "$req_in" ]; then
+	if [ "$revoke_move_req_and_key" ] && [ -f "$req_in" ]; then
 		mv "$req_in" "$req_out" || warn "Failed to move: $req_in"
 	fi
 
@@ -3348,7 +3353,7 @@ revoke_move() {
 
 	# only move the key when revoking an issued cert
 	# and if we have the key
-	if [ "$move_req_and_key" ] && [ -f "$key_in" ]; then
+	if [ "$revoke_move_req_and_key" ] && [ -f "$key_in" ]; then
 		mv "$key_in" "$key_out" || warn "Failed to move: $key_in"
 	fi
 
@@ -7007,14 +7012,20 @@ case "$cmd" in
 		;;
 	revoke|revoke-issued)
 		require_pki=1; require_ca=1; verify_working_env
+		# Only move req and key if revoking an issued cert
+		# renewed certs want to keep the req/key for further renewal
+		# manually expired certs are intended to be renewed
+		revoke_move_req_and_key=1
 		revoke 'issued' "$@"
 		;;
 	revoke-expired)
 		require_pki=1; require_ca=1; verify_working_env
+		revoke_move_req_and_key=
 		revoke 'expired' "$@"
 		;;
 	revoke-renewed)
 		require_pki=1; require_ca=1; verify_working_env
+		revoke_move_req_and_key=
 		revoke 'renewed/issued' "$@"
 		;;
 	import-req)
