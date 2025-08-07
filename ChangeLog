@@ -2,6 +2,7 @@ Easy-RSA 3 ChangeLog
 
 3.2.4 (TBD)
 
+   * set_no_clobber(): Add simple error detection (0f93880) (#1379)
    * revoke: Archive request and private key files and expand help (79754da) (#1378)
      Original bug report: github-user spacefreak86 (#1377)
    * Remove 'easyrsa_mkdir()', use only 'mkdir' (5738f3d) (#1376)
