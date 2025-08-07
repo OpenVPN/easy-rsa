@@ -836,21 +836,22 @@ set_no_clobber() {
 	case "$1" in
 		on)
 			if [ "$easyrsa_host_os" = win ]; then
-				set -o noclobber
+				set -o noclobber && return
 			else
-				set -C
+				set -C && return
 			fi
 		;;
 		off)
 			if [ "$easyrsa_host_os" = win ]; then
-				set +o noclobber
+				set +o noclobber && return
 			else
-				set +C
+				set +C && return
 			fi
 		;;
 		*)
-			die "set_no_clobber - input"
+			: # drop to error
 	esac
+	die "set_no_clobber() $1, Failed"
 } # => set_no_clobber()
 
 # Create lock-file
