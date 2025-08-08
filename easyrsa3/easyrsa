@@ -7168,6 +7168,7 @@ case "$cmd" in
 			easyrsa_exit_with_error=1
 		;;
 	rand|random)
+		require_pki=""; require_ca=""; verify_working_env
 		easyrsa_random "$1"
 		;;
 	help)
