@@ -1969,7 +1969,6 @@ Conflicting certificate exists at:
 		*)
 			user_error "Unrecognised algorithm: '$EASYRSA_ALGO'"
 	esac
-
 	verbose "Use ALGO:'$EASYRSA_ALGO' / CURVE:'$EASYRSA_CURVE'"
 
 	# Assign tmp-file for config
@@ -1984,30 +1983,14 @@ Conflicting certificate exists at:
  {print}
 }'
 
-	# Find or create x509 selfsign file
-	if [ -f "$EASYRSA_EXT_DIR/selfsign" ]; then
-		# Use the x509-types/selfsign file
-		x509_selfsign_file="$EASYRSA_EXT_DIR/selfsign"
-	else
-		# Use a temp file
-		write_x509_type_tmp selfsign
-		x509_selfsign_file="$write_x509_file_tmp"
-	fi
-
-	# Find or create x509 COMMON file
-	if [ -f "$EASYRSA_EXT_DIR/COMMON" ]; then
-		# Use the x509-types/COMMON file
-		x509_COMMON_file="$EASYRSA_EXT_DIR/COMMON"
-	else
-		# Use a temp file
-		write_x509_type_tmp COMMON
-		x509_COMMON_file="$write_x509_file_tmp"
-	fi
+	# create X509 'selfsign' temp-file, Only allowed internally
+	write_x509_type_tmp selfsign batch
+	x509_selfsign_file="$write_x509_file_tmp"
 
 	# Insert x509-types COMMON and 'selfsign' and EASYRSA_EXTRA_EXTS
 	{
 		# X509 files
-		cat "$x509_selfsign_file" "$x509_COMMON_file"
+		cat "$x509_selfsign_file"
 
 		# User extensions
 		[ "$EASYRSA_EXTRA_EXTS" ] && \
@@ -6022,21 +6005,24 @@ write_easyrsa_ssl_cnf_tmp; LOCAL \
 write_x509_type_tmp() {
 	# Verify x509-type before redirect
 	case "$1" in
-		COMMON|ca|server|serverClient|client|email| \
-		codeSigning|kdc|selfsign)
+		COMMON|ca|server|serverClient|client|email|codeSigning|kdc)
 			: # ok
 		;;
-	*)
-		die "write_x509_type_tmp - unknown type '$1'"
+		selfsign)
+			[ "$2" = batch ] || die "X509 selfsign only allowed internally"
+		;;
+		*)
+			die "write_x509_type_tmp - unknown type '$1'"
 	esac
 
+	# $write_x509_file_tmp is returned as the new temp-file, to the caller
 	write_x509_file_tmp=
 	easyrsa_mktemp write_x509_file_tmp
 
-	write_legacy_file_v2 "$1" "$write_x509_file_tmp" \
-		overwrite || die "write_x509_type_tmp - write $1"
+	write_legacy_file_v2 "$1" "$write_x509_file_tmp" overwrite || \
+		die "write_x509_type_tmp - write $1"
 
-	verbose "write_x509_type_tmp; $1 COMPLETE"
+	verbose "write_x509_type_tmp; '$1' COMPLETE"
 } # => write_x509_type_tmp()
 
 ############################################################################
@@ -6067,7 +6053,7 @@ Legacy files:
 	mkdir -p "$x509_types_d" || die \
 		"all_legacy_files_v2() - Failed to create '$x509_types_d' directory."
 
-	# Create x509-types
+	# Create x509-types, except selfsign
 	for legacy_type in COMMON ca server serverClient client \
 		email codeSigning kdc
 	do
