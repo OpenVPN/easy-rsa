@@ -3467,8 +3467,11 @@ It can be revoked with command 'revoke-expired'.
 It is now possible to sign a new certificate for '$file_name_base'"
 } # => expire_cert()
 
-# Forbid a self-signed cert from being expired/renewed/revoked
+# Forbid an EasyRSA self-signed cert from being expired/renewed/revoked
 # by a CA that has nothing to do with the cert
+# EasyRSA built self signed certs are forced to always specify
+# the issuer cert serial, using built-in X509-type file 'selfsign'.
+# All other certs pass this test, even without a signing serial.
 forbid_selfsign() {
 	# cert temp-file
 	forbid_ss_tmp=
@@ -3479,18 +3482,16 @@ forbid_selfsign() {
 		die "$fn_name - ssl_cert_serial"
 
 	# SSL text
-	"$EASYRSA_OPENSSL" x509 -in "$1" -noout -text \
-		> "$forbid_ss_tmp" || die "$fn_name - ssl text"
+	"$EASYRSA_OPENSSL" x509 -in "$1" -noout -text > "$forbid_ss_tmp" || \
+		die "$fn_name - ssl text"
 
 	# Extract signing cert serial
 	signing_serial="$(
 			grep "^[[:blank:]]*serial:.*$" "$forbid_ss_tmp" | \
 				sed -e 's/^[[:blank:]]*serial//' -e 's/://g'
 		)" || die "$fn_name - signing_serial subshell"
-	[ "$signing_serial" ] || die "$fn_name - signing_serial"
-
 	verbose "forbid_selfsign; $forbid_serial = $signing_serial"
-	fn_name="${fn_name%; forbid_selfsign}"
+
 	# Compare $ssl_cert_serial to $signing_serial
 	[ "$forbid_serial" = "$signing_serial" ]
 } # => forbid_selfsign()
