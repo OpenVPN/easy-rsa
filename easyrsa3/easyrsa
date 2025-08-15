@@ -1987,15 +1987,10 @@ Conflicting certificate exists at:
 	write_x509_type_tmp selfsign batch
 	x509_selfsign_file="$write_x509_file_tmp"
 
-	# Insert x509-types COMMON and 'selfsign' and EASYRSA_EXTRA_EXTS
+	# Insert x509-type 'selfsign' and EASYRSA_EXTRA_EXTS
 	{
-		# X509 files
 		cat "$x509_selfsign_file"
-
-		# User extensions
-		[ "$EASYRSA_EXTRA_EXTS" ] && \
-			print "$EASYRSA_EXTRA_EXTS"
-
+		[ "$EASYRSA_EXTRA_EXTS" ] && print "$EASYRSA_EXTRA_EXTS"
 	} | awk "$awkscript" "$EASYRSA_SSL_CONF" \
 			> "$adjusted_ssl_cnf_tmp" || \
 				die "Copying X509_TYPES to config file failed"
