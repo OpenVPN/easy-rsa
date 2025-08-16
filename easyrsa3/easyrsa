@@ -6231,6 +6231,7 @@ create_legacy_stream() {
 	selfsign)
 	# selfsign
 		cat <<- "CREATE_X509_TYPE_SELFSIGN"
+		# WARNING: 'selfsign' is NOT a user configurable X509-type file.
 		subjectKeyIdentifier = hash
 		authorityKeyIdentifier = keyid:always,issuer:always
 		basicConstraints = CA:TRUE
