@@ -1969,7 +1969,6 @@ Conflicting certificate exists at:
 		*)
 			user_error "Unrecognised algorithm: '$EASYRSA_ALGO'"
 	esac
-
 	verbose "Use ALGO:'$EASYRSA_ALGO' / CURVE:'$EASYRSA_CURVE'"
 
 	# Assign tmp-file for config
@@ -1984,35 +1983,14 @@ Conflicting certificate exists at:
  {print}
 }'
 
-	# Find or create x509 selfsign file
-	if [ -f "$EASYRSA_EXT_DIR/selfsign" ]; then
-		# Use the x509-types/selfsign file
-		x509_selfsign_file="$EASYRSA_EXT_DIR/selfsign"
-	else
-		# Use a temp file
-		write_x509_type_tmp selfsign
-		x509_selfsign_file="$write_x509_file_tmp"
-	fi
+	# create X509 'selfsign' temp-file, Only allowed internally
+	write_x509_type_tmp selfsign batch
+	x509_selfsign_file="$write_x509_file_tmp"
 
-	# Find or create x509 COMMON file
-	if [ -f "$EASYRSA_EXT_DIR/COMMON" ]; then
-		# Use the x509-types/COMMON file
-		x509_COMMON_file="$EASYRSA_EXT_DIR/COMMON"
-	else
-		# Use a temp file
-		write_x509_type_tmp COMMON
-		x509_COMMON_file="$write_x509_file_tmp"
-	fi
-
-	# Insert x509-types COMMON and 'selfsign' and EASYRSA_EXTRA_EXTS
+	# Insert x509-type 'selfsign' and EASYRSA_EXTRA_EXTS
 	{
-		# X509 files
-		cat "$x509_selfsign_file" "$x509_COMMON_file"
-
-		# User extensions
-		[ "$EASYRSA_EXTRA_EXTS" ] && \
-			print "$EASYRSA_EXTRA_EXTS"
-
+		cat "$x509_selfsign_file"
+		[ "$EASYRSA_EXTRA_EXTS" ] && print "$EASYRSA_EXTRA_EXTS"
 	} | awk "$awkscript" "$EASYRSA_SSL_CONF" \
 			> "$adjusted_ssl_cnf_tmp" || \
 				die "Copying X509_TYPES to config file failed"
@@ -3484,8 +3462,11 @@ It can be revoked with command 'revoke-expired'.
 It is now possible to sign a new certificate for '$file_name_base'"
 } # => expire_cert()
 
-# Forbid a self-signed cert from being expired/renewed/revoked
+# Forbid an EasyRSA self-signed cert from being expired/renewed/revoked
 # by a CA that has nothing to do with the cert
+# EasyRSA built self signed certs are forced to always specify
+# the issuer cert serial, using built-in X509-type file 'selfsign'.
+# All other certs pass this test, even without a signing serial.
 forbid_selfsign() {
 	# cert temp-file
 	forbid_ss_tmp=
@@ -3496,18 +3477,16 @@ forbid_selfsign() {
 		die "$fn_name - ssl_cert_serial"
 
 	# SSL text
-	"$EASYRSA_OPENSSL" x509 -in "$1" -noout -text \
-		> "$forbid_ss_tmp" || die "$fn_name - ssl text"
+	"$EASYRSA_OPENSSL" x509 -in "$1" -noout -text > "$forbid_ss_tmp" || \
+		die "$fn_name - ssl text"
 
 	# Extract signing cert serial
 	signing_serial="$(
 			grep "^[[:blank:]]*serial:.*$" "$forbid_ss_tmp" | \
 				sed -e 's/^[[:blank:]]*serial//' -e 's/://g'
 		)" || die "$fn_name - signing_serial subshell"
-	[ "$signing_serial" ] || die "$fn_name - signing_serial"
-
 	verbose "forbid_selfsign; $forbid_serial = $signing_serial"
-	fn_name="${fn_name%; forbid_selfsign}"
+
 	# Compare $ssl_cert_serial to $signing_serial
 	[ "$forbid_serial" = "$signing_serial" ]
 } # => forbid_selfsign()
@@ -6022,21 +6001,24 @@ write_easyrsa_ssl_cnf_tmp; LOCAL \
 write_x509_type_tmp() {
 	# Verify x509-type before redirect
 	case "$1" in
-		COMMON|ca|server|serverClient|client|email| \
-		codeSigning|kdc|selfsign)
+		COMMON|ca|server|serverClient|client|email|codeSigning|kdc)
 			: # ok
 		;;
-	*)
-		die "write_x509_type_tmp - unknown type '$1'"
+		selfsign)
+			[ "$2" = batch ] || die "X509 selfsign only allowed internally"
+		;;
+		*)
+			die "write_x509_type_tmp - unknown type '$1'"
 	esac
 
+	# $write_x509_file_tmp is returned as the new temp-file, to the caller
 	write_x509_file_tmp=
 	easyrsa_mktemp write_x509_file_tmp
 
-	write_legacy_file_v2 "$1" "$write_x509_file_tmp" \
-		overwrite || die "write_x509_type_tmp - write $1"
+	write_legacy_file_v2 "$1" "$write_x509_file_tmp" overwrite || \
+		die "write_x509_type_tmp - write $1"
 
-	verbose "write_x509_type_tmp; $1 COMPLETE"
+	verbose "write_x509_type_tmp; '$1' COMPLETE"
 } # => write_x509_type_tmp()
 
 ############################################################################
@@ -6067,7 +6049,7 @@ Legacy files:
 	mkdir -p "$x509_types_d" || die \
 		"all_legacy_files_v2() - Failed to create '$x509_types_d' directory."
 
-	# Create x509-types
+	# Create x509-types, except selfsign
 	for legacy_type in COMMON ca server serverClient client \
 		email codeSigning kdc
 	do
@@ -6249,6 +6231,7 @@ create_legacy_stream() {
 	selfsign)
 	# selfsign
 		cat <<- "CREATE_X509_TYPE_SELFSIGN"
+		# WARNING: 'selfsign' is NOT a user configurable X509-type file.
 		subjectKeyIdentifier = hash
 		authorityKeyIdentifier = keyid:always,issuer:always
 		basicConstraints = CA:TRUE

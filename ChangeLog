@@ -2,6 +2,11 @@ Easy-RSA 3 ChangeLog
 
 3.2.4 (TBD)
 
+   * create_legacy_stream(): Designate 'selfsign' as NOT user configurable (f564b1c) (#1383)
+   * self_sign(): awk action, correct comment and reduce script (8e23ba3) (#1383)
+   * forbid_selfsign(): Allow issuer certificate serial to be absent (09dffec) (#1383)
+     Original bug report: github-user topical (#1382)
+   * self_sign(): Force use of Easy-RSA X509-type file 'selfsign' (7e39cc6) (#1383)
    * random: Use verify_working_env() to configure EASYRSA_OPENSSL (32eb73d) (#1381)
    * set_no_clobber(): Add simple error detection (0f93880) (#1379)
    * revoke: Archive request and private key files and expand help (79754da) (#1378)
