@@ -2,6 +2,7 @@ Easy-RSA 3 ChangeLog
 
 3.2.4 (TBD)
 
+   * build-ca: get_passphrase(), write passphrase directly to temp-file (0cb9cdd)
    * create_legacy_stream(): Designate 'selfsign' as NOT user configurable (f564b1c) (#1383)
    * self_sign(): awk action, correct comment and reduce script (8e23ba3) (#1383)
    * forbid_selfsign(): Allow issuer certificate serial to be absent (09dffec) (#1383)
