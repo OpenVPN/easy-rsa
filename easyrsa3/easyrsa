@@ -1508,26 +1508,21 @@ Could not disable echo. Password will be shown on screen!"
 
 # Get passphrase
 get_passphrase() {
-	t="$1"; shift || die "password malfunction"
 	while :; do
 		r=""
-		printf '\n%s' "$*"
+		printf '\n%s' "$2"
 		hide_read_pass r
 
 		if [ "${#r}" -lt 4 ]; then
 			printf '\n%s\n' \
 				"Passphrase must be at least 4 characters!"
 		else
-			# shellcheck disable=SC2229 # does not read 't'
-			read -r "$t" <<- SECRET
-				$r
-				SECRET
-
-			unset -v r t
+			printf '%s' "$r" > "$1" || die "get_passphrase() malfunction"
 			print
 			return 0
 		fi
 	done
+	return 1
 } # => get_passphrase()
 
 # build-ca backend:
@@ -1670,34 +1665,28 @@ Raw CA mode
 		ca_password_via_cmdline=1
 
 	else
-		# Assign passphrase vars
-		# Heed shellcheck SC2154
-		p=""
-		q=""
-
 		# Get passphrase p
-		get_passphrase p \
-			"Enter New CA Key Passphrase: "
+		in_key_pass_tmp=
+		easyrsa_mktemp in_key_pass_tmp
+		get_passphrase "$in_key_pass_tmp" \
+			"Enter New CA Key Passphrase: " || \
+				die "get_passphrase in failed."
 
 		# Confirm passphrase q
-		get_passphrase q \
-			"Confirm New CA Key Passphrase: "
+		out_key_pass_tmp=
+		easyrsa_mktemp out_key_pass_tmp
+		get_passphrase "$out_key_pass_tmp" \
+			"Confirm New CA Key Passphrase: " || \
+				die "get_passphrase out failed."
 
 		# Validate passphrase
-		if [ "$p" ] && [ "$p" = "$q" ]; then
-			# CA password via temp-files
-			in_key_pass_tmp=""
-			easyrsa_mktemp in_key_pass_tmp
-			out_key_pass_tmp=""
-			easyrsa_mktemp out_key_pass_tmp
-			printf "%s" "$p" > "$in_key_pass_tmp" || \
-				die "in_key_pass_tmp: write"
-			printf "%s" "$p" > "$out_key_pass_tmp" || \
-				die "out_key_pass_tmp: write"
-			unset -v p q
+		p="$(cat "$in_key_pass_tmp")" || die "passphrase in malfunction"
+		q="$(cat "$out_key_pass_tmp")" || die "passphrase out malfunction"
+		if [ "$p" = "$q" ]; then
+			# Clear possible conflicts and use temp-files not vars
+			unset -v EASYRSA_PASSOUT EASYRSA_PASSIN p q r
 		else
-			unset -v p q
-			user_error "Passphrases do not match!"
+			user_error "Passphrase mismatch!"
 		fi
 	fi
 
