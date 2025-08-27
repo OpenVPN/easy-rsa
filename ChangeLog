@@ -1,6 +1,6 @@
 Easy-RSA 3 ChangeLog
 
-3.2.4 (TBD)
+3.2.4 (2025-08-27)
 
    * build-ca: get_passphrase(), write passphrase directly to temp-file (0cb9cdd)
    * create_legacy_stream(): Designate 'selfsign' as NOT user configurable (f564b1c) (#1383)
