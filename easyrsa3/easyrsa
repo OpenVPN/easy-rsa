@@ -1229,6 +1229,14 @@ easyrsa_openssl() {
 		rand) die "easyrsa_openssl: Illegal SSL command: rand"
 	esac
 
+	# Expand SSL config file for LibreSSL or --force-safe-ssl
+	if [ "$EASYRSA_FORCE_SAFE_SSL" ]; then
+		write_easyrsa_ssl_cnf_tmp || \
+			die "easyrsa_openssl; write_easyrsa_ssl_cnf_tmp"
+		# Update OPENSSL_CONF
+		export OPENSSL_CONF="$EASYRSA_SSL_CONF"
+	fi
+
 	# Use $EASYRSA_SSL_CONF (local) or $OPENSSL_CONF (global)
 	if [ -f "$EASYRSA_SSL_CONF" ]; then
 		export OPENSSL_CONF="$EASYRSA_SSL_CONF"
@@ -1289,6 +1297,7 @@ verify_ssl_lib() {
 		LibreSSL)
 			ssl_lib=libressl
 			ssl_cnf_type=safe-cnf
+			export EASYRSA_FORCE_SAFE_SSL=1
 			;;
 		*)
 			error_msg="$("$EASYRSA_OPENSSL" version 2>&1)"
