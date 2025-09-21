@@ -6069,11 +6069,17 @@ write_legacy_file_v2() {
 
 	# Select by type
 	case "$write_type" in
-	ssl-cnf)
-		set_openssl_easyrsa_cnf_vars unexpanded
-		;;
-	safe-cnf)
-		set_openssl_easyrsa_cnf_vars expanded
+	ssl-cnf|safe-cnf)
+		# Select or enforce expansion
+		if [ "$write_type" = safe-cnf ] || [ "$EASYRSA_FORCE_SAFE_SSL" ]
+		then
+			expansion=expanded
+		else
+			expansion=unexpanded
+		fi
+
+		# Set SSL config vars as per required expansion
+		set_openssl_easyrsa_cnf_vars "$expansion"
 		;;
 	vars)
 		;;
