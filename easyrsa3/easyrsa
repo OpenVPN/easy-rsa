@@ -1092,16 +1092,6 @@ and then try running the easyrsa command again."
 # This is required for all SSL libs, otherwise,
 # there are unacceptable differences in behavior
 escape_hazard() {
-	if [ "$EASYRSA_FORCE_SAFE_SSL" ]; then # Always run
-		verbose "escape_hazard: FORCED"
-	elif [ "$working_safe_org_conf" ]; then # Has run once
-		verbose "escape_hazard: BYPASSED"
-		return
-	else # Run once
-		verbose "escape_hazard: RUN-ONCE"
-		working_safe_org_conf=1 # Set run once
-	fi
-
 	# Assign temp-file
 	escape_hazard_tmp=""
 	easyrsa_mktemp escape_hazard_tmp
