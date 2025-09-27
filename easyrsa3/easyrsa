@@ -1272,6 +1272,30 @@ sed_expand_ssl_config() {
 		fi
 } # => sed_expand_ssl_config()
 
+# generate safe ssl config via here-doc or sed
+expand_safe_ssl_cnf() {
+	# check params
+	[ -f "$1" ] && [ -f "$2" ] || die "expand_safe_ssl_cnf - files"
+
+	# is source file-hash known?
+	if ! check_ssl_cnf_known_hash "$1" || [ "$EASYRSA_FORCE_SAFE_SSL" ]
+	then
+		# expand via sed
+		# Use subshell to preserve cn_org values,
+		# otherwise they become double esaped
+		(
+			escape_hazard || return 1
+			sed_expand_ssl_config "$1" "$2" || return 1
+		) || die "expand_safe_ssl_cnf - subshell action"
+		verbose "expand_safe_ssl_cnf; expand via sed COMPLETED"
+	else
+		# write here-doc
+		write_legacy_file_v2 safe-cnf "$2" overwrite || \
+			die "expand_safe_ssl_cnf - write_legacy_file_v2 safe-cnf"
+		verbose "expand_safe_ssl_cnf; write here-doc COMPLETED"
+	fi
+} # => gen_safe_ssl_cnf()
+
 # Easy-RSA meta-wrapper for SSL
 # WARNING: Running easyrsa_openssl in a subshell
 # will hide error message and verbose messages
