@@ -1178,7 +1178,11 @@ sed_expand_ssl_config() {
 # generate safe ssl config via here-doc or sed
 expand_safe_ssl_cnf() {
 	# check params
-	[ -f "$1" ] && [ -f "$2" ] || die "expand_safe_ssl_cnf - files"
+	if [ -f "$1" ] && [ -f "$2" ]; then
+		: # ok
+	else
+		die "expand_safe_ssl_cnf - files"
+	fi
 
 	# is source file-hash known?
 	if ! check_ssl_cnf_known_hash "$1" || [ "$EASYRSA_FORCE_SAFE_SSL" ]
