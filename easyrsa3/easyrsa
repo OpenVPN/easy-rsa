@@ -1714,9 +1714,6 @@ Unable to create necessary PKI files (permissions?)"
 		fi
 	fi
 
-	# create local SSL cnf
-	write_easyrsa_ssl_cnf_tmp
-
 	# Assign cert and key temp files
 	out_key_tmp=""
 	easyrsa_mktemp out_key_tmp
@@ -1977,9 +1974,6 @@ Option conflict --req-cn:
 	# Enforce commonName
 	export EASYRSA_REQ_CN="$file_name_base"
 
-	# create local SSL cnf
-	write_easyrsa_ssl_cnf_tmp
-
 	# Refuse option as name
 	case "$file_name_base" in
 		nopass)
@@ -2180,9 +2174,6 @@ Run easyrsa without commands for usage and commands."
 		export EASYRSA_REQ_CN="$file_name_base"
 	fi
 
-	# create local SSL cnf
-	write_easyrsa_ssl_cnf_tmp
-
 	# Output files
 	key_out="$EASYRSA_PKI/private/${file_name_base}.key"
 	req_out="$EASYRSA_PKI/reqs/${file_name_base}.req"
@@ -2351,9 +2342,6 @@ expected 2, got $# (see command help for usage)"
 	req_in="$EASYRSA_PKI/reqs/$file_name_base.req"
 	crt_out="$EASYRSA_PKI/issued/$file_name_base.crt"
 	shift 2
-
-	# create local SSL cnf
-	write_easyrsa_ssl_cnf_tmp
 
 	# Check optional subject
 	force_subj=
@@ -3210,9 +3198,6 @@ Run easyrsa without commands for usage and command help."
 	# Assign file_name_base and dust off!
 	file_name_base="$1"
 	shift
-
-	# create local SSL cnf
-	write_easyrsa_ssl_cnf_tmp
 
 	in_dir="$EASYRSA_PKI"
 	key_in="$in_dir/private/${file_name_base}.key"
@@ -4962,9 +4947,6 @@ $cmd does not support setting an external commonName."
 	# Set ssl batch mode, as required
 	[ "$EASYRSA_BATCH" ] && ssl_batch=1
 
-	# create local SSL cnf
-	write_easyrsa_ssl_cnf_tmp
-
 	# Assign new cert temp-file
 	out_cert_tmp=
 	easyrsa_mktemp out_cert_tmp
@@ -5991,124 +5973,6 @@ check_ssl_cnf_known_hash() {
 		return 1
 	esac
 } # => check_ssl_cnf_known_hash()
-
-# Create as needed: $EASYRSA_SSL_CONF pki/openssl-easyrsa.cnf
-# If the existing file has a known hash then use temp-file.
-# Otherwise, use the file in place.
-write_easyrsa_ssl_cnf_tmp() {
-	# If EASYRSA_SSL_CONF is undefined then use default
-	[ "$EASYRSA_SSL_CONF" ] || set_var \
-		EASYRSA_SSL_CONF "$EASYRSA_PKI"/openssl-easyrsa.cnf
-
-	if [ -f "$EASYRSA_SSL_CONF" ]; then
-		verbose "write_easyrsa_ssl_cnf_tmp; SSL config EXISTS"
-
-		# Set known hashes
-		# 3.1.7 -> Current
-		known_file_317="\
-13ca05f031d58c5e2912652b33099ce9\
-ac05f49595e5d5fe96367229e3ce070c"
-
-		# 3.1.5 -> 3.1.6
-		known_file_315="\
-87d51ca0db1cc0ac3cc2634792fc5576\
-e0034ebf9d546de11674b897514f3afb"
-
-		# 3.1.0 -> 3.1.4
-		known_file_310="\
-5455947df40f01f845bf79c1e89f102c\
-628faaa65d71a6512d0e17bdd183feb0"
-
-		# 3.0.8 -> 3.0.9
-		known_file_308="\
-1cc6a1de93ca357b5c364aa0fa2c4bea\
-f97425686fa1976d436fa31f550641aa"
-
-		# Built-in here-doc 3.2.0
-		known_heredoc_320="\
-82439f1860838e28f6270d5d06b17717\
-56db777861e19bf9edc21222f86a310d"
-
-		# Get file hash
-		file_hash="$(
-			"$EASYRSA_OPENSSL" dgst -sha256 -r \
-				"$EASYRSA_SSL_CONF" 2>/dev/null
-		)" || die "write_easyrsa_ssl_cnf_tmp - hash malfunction!"
-
-		# Strip excess SSL info
-		file_hash="${file_hash%% *}"
-
-		# Compare SSL output
-		case "$file_hash" in
-		*[!1234567890abcdef]*|'')
-			die "write_easyrsa_ssl_cnf_tmp - hash failure!"
-		esac
-
-		# Check file hash against known hash
-		hash_is_unknown=""
-
-		case "$file_hash" in
-			"$known_file_317") ;;
-			"$known_file_315") ;;
-			"$known_file_310") ;;
-			"$known_file_308") ;;
-			"$known_heredoc_320") ;;
-
-			*)
-				# File is unknown or has been changed
-				# leave in place
-				hash_is_unknown=1
-		esac
-
-		# Cleanup
-		unset -v file_hash known_heredoc_320 \
-				known_file_317 \
-				known_file_315 \
-				known_file_310 \
-				known_file_308
-
-		# Use the existing file ONLY
-		if [ "$hash_is_unknown" ] || [ "$EASYRSA_FORCE_SAFE_SSL" ]
-		then
-			unset -v hash_is_unknown
-			verbose "write_easyrsa_ssl_cnf_tmp; SSL config UNKNOWN!"
-
-			# Auto-escape hazardous characters
-			escape_hazard || \
-				die "easyrsa_openssl - escape_hazard failed"
-
-			# Rewrite SSL config
-			expand_ssl_config || \
-				die "easyrsa_openssl - expand_ssl_config failed"
-
-			return 0
-		fi
-
-		# Ignore existing file, prefer to use a temp-file
-		verbose "write_easyrsa_ssl_cnf_tmp; SSL config KNOWN"
-	fi
-
-	# SET and USE temp-file from here-doc Now
-	# Create temp-file
-	ssl_cnf_tmp=
-	easyrsa_mktemp ssl_cnf_tmp
-
-	# Write SSL cnf to temp-file
-	write_legacy_file_v2 "$ssl_cnf_type" "$ssl_cnf_tmp" \
-		overwrite || die "\
-write_easyrsa_ssl_cnf_tmp - write $ssl_cnf_type: $ssl_cnf_tmp"
-
-	# export SSL cnf tmp
-	export EASYRSA_SSL_CONF="$ssl_cnf_tmp"
-	verbose "\
-write_easyrsa_ssl_cnf_tmp; $ssl_cnf_type \
-- EASYRSA_SSL_CONF = $EASYRSA_SSL_CONF"
-
-	export OPENSSL_CONF="$EASYRSA_SSL_CONF"
-	verbose "\
-write_easyrsa_ssl_cnf_tmp; LOCAL \
-- OPENSSL_CONF = $OPENSSL_CONF"
-} # => write_easyrsa_ssl_cnf_tmp()
 
 # Write x509 type file to a temp file
 write_x509_type_tmp() {
