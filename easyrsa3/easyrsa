@@ -5964,7 +5964,7 @@ check_ssl_cnf_known_hash() {
 	# Get file hash
 	file_hash="$(
 		"$EASYRSA_OPENSSL" dgst -sha256 -r "$1" 2>/dev/null
-	)" || die "write_easyrsa_ssl_cnf_tmp - hash malfunction!"
+	)" || die "check_ssl_cnf_known_hash - hash malfunction!"
 
 	# Strip excess SSL info
 	file_hash="${file_hash%% *}"
@@ -5972,7 +5972,7 @@ check_ssl_cnf_known_hash() {
 	# Compare SSL output
 	case "$file_hash" in
 	*[!1234567890abcdef]*|'')
-		die "write_easyrsa_ssl_cnf_tmp - hash failure!"
+		die "check_ssl_cnf_known_hash - hash failure!"
 		;;
 	# known hashes
 	# 3.1.7 -> Current
