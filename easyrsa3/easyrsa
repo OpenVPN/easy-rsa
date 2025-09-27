@@ -1107,7 +1107,7 @@ export EASYRSA_REQ_SERIAL=\"$EASYRSA_REQ_SERIAL\"\
 
 	# Reload fields from fully escaped temp-file
 	# shellcheck disable=1090 # Non-constant source
-	. "$escape_hazard_tmp"
+	. "$escape_hazard_tmp" || return 1
 	verbose "escape_hazard: COMPLETED"
 } # => escape_hazard()
 
