@@ -911,13 +911,9 @@ secure_session - Missing temporary directory:
 remove_secure_session() {
 	[ -d "$secured_session" ] || return 0
 	if rm -rf "$secured_session"; then
-		verbose "remove_secure_session; DELETED $secured_session"
-
-		# Restore original EASYRSA_SSL_CONF
-		export EASYRSA_SSL_CONF="$original_ssl_cnf"
-
-		unset -v secured_session OPENSSL_CONF \
+		unset -v secured_session EASYRSA_SSL_CONF OPENSSL_CONF \
 			working_safe_ssl_conf working_safe_org_conf
+		verbose "remove_secure_session; DELETED $secured_session"
 		return
 	fi
 	die "remove_secure_session Failed: $secured_session"
@@ -5792,10 +5788,9 @@ Using Easy-RSA 'vars' configuration:
 
 		# Verify selected algorithm and parameters
 		verify_algo_params
+	else
+		: # No EASYRSA_TEMP_DIR is configured AND No EASYRSA_PKI exists
 	fi
-
-	# Save original EASYRSA_SSL_CONF
-	original_ssl_cnf="$EASYRSA_SSL_CONF"
 
 	# Set command name for verbose messages
 	fn_name="$cmd"
