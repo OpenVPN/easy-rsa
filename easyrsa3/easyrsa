@@ -1229,6 +1229,8 @@ easyrsa_openssl() {
 		rand) die "easyrsa_openssl: Illegal SSL command: rand"
 	esac
 
+		
+
 	# Use $EASYRSA_SSL_CONF (local) or $OPENSSL_CONF (global)
 	if [ -f "$EASYRSA_SSL_CONF" ]; then
 		export OPENSSL_CONF="$EASYRSA_SSL_CONF"
@@ -5748,17 +5750,17 @@ lock-file removed - Please try running the easyrsa command again."
 
 # Verify working environment
 verify_working_env() {
-	fn_name="$cmd: verify_working_env"
+	fn_name="verify_working_env"
 
 	# Intelligent env-var detection and auto-loading:
 	# Select vars file as EASYRSA_VARS_FILE
 	# then source the vars file, if found
 	# otherwise, ignore no vars file
 	if select_vars; then
+		source_vars "$EASYRSA_VARS_FILE"
 		[ "$quiet_vars" ] || information "\
 Using Easy-RSA 'vars' configuration:
 * $EASYRSA_VARS_FILE"
-		source_vars "$EASYRSA_VARS_FILE"
 	fi
 
 	# then set defaults
@@ -5771,52 +5773,55 @@ Using Easy-RSA 'vars' configuration:
 	# Check for conflicting input options
 	mutual_exclusions
 
+	# Find x509-types, openssl-easyrsa.cnf
+	locate_support_files
+
 	# Verify SSL Lib - One time ONLY
 	verify_ssl_lib
+
+	# Opportunist PKI lock-file
+	request_lock_file
 
 	# For commands which 'require a PKI' and PKI exists
 	if [ "$require_pki" ]; then
 		# Verify PKI is initialised
 		verify_pki_init
 
-		# Opportunist PKI lock-file
-		request_lock_file
+		# Verify CA is initialised
+		if [ "$require_ca" ]; then
+			verify_ca_init
+		fi
+	fi
 
-		# Temp dir session and throw-away temp-file
+	# If there is a valid temp-dir:
+	# Create temp-session and global safe ssl config tmp-file
+	# if required, openssl-easyrsa.cnf tmp-file
+	if [ -d "$EASYRSA_TEMP_DIR" ]; then
+		# Temp dir session
 		secure_session
-		easyrsa_mktemp test_temp_file
+
+		# if openssl-easyrsa.cnf does not exist then
+		# provide default as tmp-file via $EASYRSA_SSL_CONF
+		if [ ! -f "$EASYRSA_SSL_CONF" ]; then
+			unset -v EASYRSA_SSL_CONF
+			easyrsa_mktemp EASYRSA_SSL_CONF
+			write_legacy_file_v2 ssl-cnf "$EASYRSA_SSL_CONF" overwrite || \
+				die "verify_working_env - write ssl-cnf to EASYRSA_SSL_CONF"
+			export EASYRSA_SSL_CONF
+			verbose "Created EASYRSA_SSL_CONF: '$EASYRSA_SSL_CONF'"
+		fi
 
 		# global safe ssl cnf temp
 		write_global_safe_ssl_cnf_tmp
 
 		# Verify selected algorithm and parameters
 		verify_algo_params
-
-		# Verify CA is initialised
-		if [ "$require_ca" ]; then
-			verify_ca_init
-		fi
-	else
-		# For commands that do not require a PKI
-		# but do require a temp-dir, eg. 'write'
-		# If there is a valid temp-dir:
-		# Create temp-session and openssl-easyrsa.cnf (Temp) now
-		if [ -d "$EASYRSA_TEMP_DIR" ]; then
-			# Temp dir session and throw-away temp-file
-			secure_session
-			easyrsa_mktemp test_temp_file
-
-			# global safe ssl cnf temp
-			write_global_safe_ssl_cnf_tmp
-		fi
 	fi
-
-	# Find x509-types, openssl-easyrsa.cnf
-	# and easyrsa-tools.lib
-	locate_support_files
 
 	# Save original EASYRSA_SSL_CONF
 	original_ssl_cnf="$EASYRSA_SSL_CONF"
+
+	# Set command name for verbose messages
 	fn_name="$cmd"
 } # => verify_working_env()
 
