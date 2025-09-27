@@ -1117,93 +1117,6 @@ export EASYRSA_REQ_SERIAL=\"$EASYRSA_REQ_SERIAL\"\
 
 # Replace environment variable names with current value
 # and write to temp-file or return error from sed
-expand_ssl_config() {
-	if [ "$EASYRSA_FORCE_SAFE_SSL" ]; then # Always run
-		verbose "expand_ssl_config: FORCED"
-	elif [ "$working_safe_ssl_conf" ]; then # Has run once
-		verbose "expand_ssl_config: BYPASSED"
-		return
-	elif [ "$ssl_lib" = libressl ]; then # LibreSSL Always run
-		verbose "expand_ssl_config: REQUIRED"
-	elif [ "$ssl_lib" = openssl ]; then # OpenSSL not required
-		verbose "expand_ssl_config: IGNORED"
-		return
-	else
-		die "expand_ssl_config: EXCEPTION" # do NOT Run
-	fi
-
-	# Set run once
-	working_safe_ssl_conf=1
-	verbose "expand_ssl_config: RUN-ONCE"
-
-	# Assign temp-file
-	safe_ssl_cnf_tmp=""
-	easyrsa_mktemp safe_ssl_cnf_tmp
-
-	# Rewrite
-	# shellcheck disable=SC2016 # No expand ''
-	if sed \
-\
--e s\`'$dir'\`\
-\""$EASYRSA_PKI"\"\`g \
-\
--e s\`'$ENV::EASYRSA_PKI'\`\
-\""$EASYRSA_PKI"\"\`g \
-\
--e s\`'$ENV::EASYRSA_CERT_EXPIRE'\`\
-\""$EASYRSA_CERT_EXPIRE"\"\`g \
-\
--e s\`'$ENV::EASYRSA_CRL_DAYS'\`\
-\""$EASYRSA_CRL_DAYS"\"\`g \
-\
--e s\`'$ENV::EASYRSA_DIGEST'\`\
-\""$EASYRSA_DIGEST"\"\`g \
-\
--e s\`'$ENV::EASYRSA_KEY_SIZE'\`\
-\""$EASYRSA_KEY_SIZE"\"\`g \
-\
--e s\`'$ENV::EASYRSA_DN'\`\
-\""$EASYRSA_DN"\"\`g \
-\
--e s\`'$ENV::EASYRSA_REQ_CN'\`\
-\""$EASYRSA_REQ_CN"\"\`g \
-\
--e s\`'$ENV::EASYRSA_REQ_COUNTRY'\`\
-\""$EASYRSA_REQ_COUNTRY"\"\`g \
-\
--e s\`'$ENV::EASYRSA_REQ_PROVINCE'\`\
-\""$EASYRSA_REQ_PROVINCE"\"\`g \
-\
--e s\`'$ENV::EASYRSA_REQ_CITY'\`\
-\""$EASYRSA_REQ_CITY"\"\`g \
-\
--e s\`'$ENV::EASYRSA_REQ_ORG'\`\
-\""$EASYRSA_REQ_ORG"\"\`g \
-\
--e s\`'$ENV::EASYRSA_REQ_OU'\`\
-\""$EASYRSA_REQ_OU"\"\`g \
-\
--e s\`'$ENV::EASYRSA_REQ_EMAIL'\`\
-\""$EASYRSA_REQ_EMAIL"\"\`g \
-\
--e s\`'$ENV::EASYRSA_REQ_SERIAL'\`\
-\""$EASYRSA_REQ_SERIAL"\"\`g \
-\
-			"$EASYRSA_SSL_CONF" > "$safe_ssl_cnf_tmp"
-		then
-			verbose "expand_ssl_config: via 'sed' COMPLETED"
-		else
-			return 1
-		fi
-
-	export EASYRSA_SSL_CONF="$safe_ssl_cnf_tmp"
-	unset -v safe_ssl_cnf_tmp
-	verbose \
-		"expand_ssl_config: EASYRSA_SSL_CONF = $EASYRSA_SSL_CONF"
-} # => expand_ssl_config()
-
-# Replace environment variable names with current value
-# and write to temp-file or return error from sed
 sed_expand_ssl_config() {
 	# Rewrite
 	# shellcheck disable=SC2016 # No expand ''
@@ -1284,7 +1197,7 @@ expand_safe_ssl_cnf() {
 			die "expand_safe_ssl_cnf - write_legacy_file_v2 safe-cnf"
 		verbose "expand_safe_ssl_cnf; write here-doc COMPLETED"
 	fi
-} # => gen_safe_ssl_cnf()
+} # => expand_safe_ssl_cnf()
 
 # Easy-RSA meta-wrapper for SSL
 # WARNING: Running easyrsa_openssl in a subshell
