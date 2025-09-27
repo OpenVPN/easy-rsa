@@ -5873,6 +5873,42 @@ write_global_safe_ssl_cnf_tmp() {
 write_global_safe_ssl_cnf_tmp; GLOBAL OPENSSL_CONF = $OPENSSL_CONF"
 } # => write_global_safe_ssl_cnf_tmp()
 
+# Check if 'openssl-easyrsa.cnf' hash is known
+check_ssl_cnf_known_hash() {
+	# Get file hash
+	file_hash="$(
+		"$EASYRSA_OPENSSL" dgst -sha256 -r "$1" 2>/dev/null
+	)" || die "write_easyrsa_ssl_cnf_tmp - hash malfunction!"
+
+	# Strip excess SSL info
+	file_hash="${file_hash%% *}"
+
+	# Compare SSL output
+	case "$file_hash" in
+	*[!1234567890abcdef]*|'')
+		die "write_easyrsa_ssl_cnf_tmp - hash failure!"
+		;;
+	# known hashes
+	# 3.1.7 -> Current
+	"13ca05f031d58c5e2912652b33099ce9ac05f49595e5d5fe96367229e3ce070c")
+		;;
+	# 3.1.5 -> 3.1.6
+	"87d51ca0db1cc0ac3cc2634792fc5576e0034ebf9d546de11674b897514f3afb")
+		;;
+	# 3.1.0 -> 3.1.4
+	"5455947df40f01f845bf79c1e89f102c628faaa65d71a6512d0e17bdd183feb0")
+		;;
+	# 3.0.8 -> 3.0.9
+	"1cc6a1de93ca357b5c364aa0fa2c4beaf97425686fa1976d436fa31f550641aa")
+		;;
+	# Built-in here-doc 3.2.0
+	"82439f1860838e28f6270d5d06b1771756db777861e19bf9edc21222f86a310d")
+		;;
+	*)
+		return 1
+	esac
+} # => check_ssl_cnf_known_hash()
+
 # Create as needed: $EASYRSA_SSL_CONF pki/openssl-easyrsa.cnf
 # If the existing file has a known hash then use temp-file.
 # Otherwise, use the file in place.
