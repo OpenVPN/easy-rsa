@@ -1313,7 +1313,19 @@ easyrsa_openssl() {
 		rand) die "easyrsa_openssl: Illegal SSL command: rand"
 	esac
 
-		
+	# expand EASYRSA_SSL_CONF and export to OPENSSL_CONF
+	if [ "$ssl_cnf_type" = safe-cnf ] || [ "$EASYRSA_FORCE_SAFE_SSL" ]; then
+		final_safe_ssl_cnf=
+		easyrsa_mktemp final_safe_ssl_cnf || \
+			die "easyrsa_openssl - easyrsa_mktemp final_safe_ssl_cnf"
+
+		expand_safe_ssl_cnf "$EASYRSA_SSL_CONF" "$final_safe_ssl_cnf" || \
+			die "easyrsa_openssl - expand_safe_ssl_cnf final_safe_ssl_cnf"
+
+		# export OPENSSL_CONF as new tmp-file
+		export OPENSSL_CONF="$final_safe_ssl_cnf"
+	fi
+	verbose "easyrsa_openssl; OPENSSL_CONF = $OPENSSL_CONF"
 
 	# Use $EASYRSA_SSL_CONF (local) or $OPENSSL_CONF (global)
 	if [ -f "$EASYRSA_SSL_CONF" ]; then
