@@ -1304,6 +1304,9 @@ easyrsa_openssl() {
 	esac
 
 	# expand EASYRSA_SSL_CONF and export to OPENSSL_CONF
+	[ -f "$EASYRSA_SSL_CONF" ] || \
+			die "easyrsa_openssl - Missing EASYRSA_SSL_CONF"
+
 	if [ "$ssl_cnf_type" = safe-cnf ] || [ "$EASYRSA_FORCE_SAFE_SSL" ]; then
 		final_safe_ssl_cnf=
 		easyrsa_mktemp final_safe_ssl_cnf || \
@@ -1314,8 +1317,12 @@ easyrsa_openssl() {
 
 		# export OPENSSL_CONF as new tmp-file
 		export OPENSSL_CONF="$final_safe_ssl_cnf"
+		verbose "easyrsa_openssl; OPENSSL_CONF (expanded) = $OPENSSL_CONF"
+	else
+		# use current EASYRSA_SSL_CONF and export to OPENSSL_CONF
+		export OPENSSL_CONF="$EASYRSA_SSL_CONF"
+		verbose "easyrsa_openssl; OPENSSL_CONF (original) = $OPENSSL_CONF"
 	fi
-	verbose "easyrsa_openssl; OPENSSL_CONF = $OPENSSL_CONF"
 
 	# Use $EASYRSA_SSL_CONF (local) or $OPENSSL_CONF (global)
 	if [ -f "$EASYRSA_SSL_CONF" ]; then
