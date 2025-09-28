@@ -5761,15 +5761,14 @@ Using Easy-RSA 'vars' configuration:
 	# Opportunist PKI lock-file
 	request_lock_file
 
-	# For commands which 'require a PKI' and PKI exists
+	# Verify PKI is initialised
 	if [ "$require_pki" ]; then
-		# Verify PKI is initialised
 		verify_pki_init
+	fi
 
-		# Verify CA is initialised
-		if [ "$require_ca" ]; then
-			verify_ca_init
-		fi
+	# Verify CA is initialised
+	if [ "$require_ca" ]; then
+		verify_ca_init
 	fi
 
 	# If there is a valid temp-dir:
