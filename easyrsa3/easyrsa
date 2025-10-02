@@ -887,8 +887,7 @@ secure_session - Missing temporary directory:
 		# atomic:
 		if mkdir "$secured_session"; then
 			# New session requires safe-ssl conf
-			unset -v session OPENSSL_CONF \
-				working_safe_ssl_conf working_safe_org_conf
+			unset -v session OPENSSL_CONF
 
 			easyrsa_err_log="$secured_session/error.log"
 			verbose "secure_session; CREATED $secured_session"
@@ -902,8 +901,7 @@ secure_session - Missing temporary directory:
 remove_secure_session() {
 	[ -d "$secured_session" ] || return 0
 	if rm -rf "$secured_session"; then
-		unset -v secured_session EASYRSA_SSL_CONF OPENSSL_CONF \
-			working_safe_ssl_conf working_safe_org_conf
+		unset -v secured_session EASYRSA_SSL_CONF OPENSSL_CONF
 		verbose "remove_secure_session; DELETED $secured_session"
 		return
 	fi
@@ -6544,7 +6542,6 @@ unset -v \
 	OPENSSL_CONF \
 	verify_ssl_lib_ok ssl_batch \
 	secured_session \
-	working_safe_ssl_conf working_safe_org_conf \
 	alias_days text \
 	prohibit_no_pass \
 	invalid_vars \
