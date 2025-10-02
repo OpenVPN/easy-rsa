@@ -704,15 +704,6 @@ DIRECTORY STATUS (commands would take effect on these locations)
    CA status: CA has not been built${NL}"
 		fi
 	fi
-
-	# verbose info
-	verbose "ssl-cnf: ${EASYRSA_SSL_CONF:-built-in}"
-	verbose "x509-types: ${EASYRSA_EXT_DIR:-built-in}"
-	if [ -d "$EASYRSA_TEMP_DIR" ]; then
-		verbose "temp-dir: Found: $EASYRSA_TEMP_DIR"
-	else
-		verbose "temp-dir: Missing: ${EASYRSA_TEMP_DIR:-undefined}"
-	fi
 } # => default_overview()
 
 # Wrapper around printf - clobber print since it's not POSIX anyway
@@ -946,14 +937,11 @@ easyrsa_mktemp - Temporary session undefined (--tmp-dir)"
 			# unset noclobber
 			set_no_clobber off
 
-
 			# Assign external temp-file name
 			if force_set_var "$1" "$shotfile"; then
-				verbose "easyrsa_mktemp; $1 $shotfile"
-
 				# Update counter
 				mktemp_counter="$((mktemp_counter+1))"
-
+				verbose "easyrsa_mktemp; $1 CREATED: $shotfile"
 				return
 			else
 				die "easyrsa_mktemp - force_set_var $1 failed"
@@ -969,6 +957,7 @@ easyrsa_mktemp - Temporary session undefined (--tmp-dir)"
 
 # remove temp files and do terminal cleanups
 cleanup() {
+	fn_name=cleanup
 	# In case of subshell abuse, display error log file
 	if [ -f "$easyrsa_err_log" ]; then
 		print; cat "$easyrsa_err_log"; print
@@ -1039,7 +1028,7 @@ Temporary session not preserved."
 			lock_data=error
 
 		if remove_lock_file "$lock_file" "$lock_data"; then
-			verbose "cleanup: lock-file REMOVED OK"
+			verbose "lock-file REMOVED: $lock_file"
 		else
 			if [ "$lock_data" = error ]; then
 				error_description=READ
@@ -1057,7 +1046,7 @@ and then try running the easyrsa command again."
 			easyrsa_exit_with_error=17
 		fi
 	else
-		verbose "cleanup: lock-file does not exist."
+		verbose "lock-file does not exist."
 	fi
 
 	# Exit: Known errors
@@ -1108,7 +1097,7 @@ export EASYRSA_REQ_SERIAL=\"$EASYRSA_REQ_SERIAL\"\
 	# Reload fields from fully escaped temp-file
 	# shellcheck disable=1090 # Non-constant source
 	. "$escape_hazard_tmp" || return 1
-	verbose "escape_hazard: COMPLETED"
+	verbose "escape_hazard; COMPLETED"
 } # => escape_hazard()
 
 # Replace environment variable names with current value
@@ -1165,7 +1154,7 @@ sed_expand_ssl_config() {
 \
 			"$1" > "$2"
 		then
-			verbose "expand_ssl_config: via 'sed' COMPLETED"
+			verbose "sed_expand_ssl_config; via 'sed' COMPLETED"
 		else
 			return 1
 		fi
@@ -1189,13 +1178,13 @@ expand_safe_ssl_cnf() {
 		(
 			escape_hazard || return 1
 			sed_expand_ssl_config "$1" "$2" || return 1
-		) || die "expand_safe_ssl_cnf - subshell action"
+		) || die "expand_safe_ssl_cnf - subshell error"
 		verbose "expand_safe_ssl_cnf; expand via sed COMPLETED"
 	else
 		# write here-doc
 		write_legacy_file_v2 safe-cnf "$2" overwrite || \
 			die "expand_safe_ssl_cnf - write_legacy_file_v2 safe-cnf"
-		verbose "expand_safe_ssl_cnf; write here-doc COMPLETED"
+		verbose "expand_safe_ssl_cnf; write safe-cnf here-doc COMPLETED"
 	fi
 } # => expand_safe_ssl_cnf()
 
@@ -2535,7 +2524,7 @@ subjectAltName = ${EASYRSA_SAN_CRIT}${EASYRSA_SAN}"
 	} > "$ext_tmp" || die "\
 Failed to create temp extension file (bad permissions?) at:
 * $ext_tmp"
-	verbose "Generated extensions file OK"
+	verbose "Generated extensions file OK: '$ext_tmp'"
 
 	# Set confirm CN
 	confirm_CN="  Requested CN:     '$EASYRSA_REQ_CN'"
@@ -2646,7 +2635,7 @@ $confirm_details" # => confirm end
 		${EASYRSA_END_DATE:+ -enddate "$EASYRSA_END_DATE"} \
 			|| die "\
 Signing failed (openssl output above may have more detail)"
-	verbose "signed cert '$file_name_base' OK"
+	verbose "signed cert OK: '$file_name_base'"
 
 	# Move temp-files to target-files
 	mv "$crt_out_tmp" "$crt_out" || mv_temp_error=1
@@ -2657,6 +2646,7 @@ Signing failed (openssl output above may have more detail)"
 
 	# inline file
 	inline_file "$file_name_base"
+	verbose "inline_file CREATED: $inline_out"
 
 	# Success messages
 	notice "\
@@ -2822,7 +2812,10 @@ See error messages above for details."
 # Generate inline file V2
 inline_file() {
 	# Allow complete disable
-	[ "$EASYRSA_DISABLE_INLINE" ] && return
+	if [ "$EASYRSA_DISABLE_INLINE" ]; then
+		verbose "inline_file; DISABLED"
+		return
+	fi
 
 	# definitive source
 	[ "$1" ] || die "inline_file - Missing file_name_base"
@@ -5632,6 +5625,8 @@ Algorithm '$EASYRSA_ALGO' is invalid: Must be 'rsa', 'ec' or 'ed'"
 	set_var EASYRSA_KDC_REALM		"CHANGEME.EXAMPLE.COM"
 
 	set_var EASYRSA_MAX_TEMP		1
+
+	verbose "default_vars; COMPLETED"
 } # => default_vars()
 
 # Validate expected values for EASYRSA and EASYRSA_PKI
@@ -5679,14 +5674,17 @@ ${unexpected_error}"
 
 # Create PKI lock-file, as necessary
 request_lock_file() {
-	[ "$EASYRSA_NO_LOCKFILE" ] && return
+	if [ "$EASYRSA_NO_LOCKFILE" ]; then
+		verbose "request_lock_file; DISABLED"
+		return
+	fi
 
 	# Create lock-file
 	create_lock_file_error=
 	if [ -d "${EASYRSA_PKI}" ]; then
 		lock_file="${EASYRSA_PKI}"/lock.file
 		if create_lock_file "$lock_file"; then
-			verbose "request_lock_file; lock-file CREATED $lock_file"
+			verbose "request_lock_file; lock-file CREATED: $lock_file"
 		else
 			easyrsa_exit_with_error=17
 			if [ -f "$lock_file" ]; then
@@ -5775,6 +5773,7 @@ Using Easy-RSA 'vars' configuration:
 	# Create temp-session and global safe ssl config tmp-file
 	# if required, openssl-easyrsa.cnf tmp-file
 	if [ -d "$EASYRSA_TEMP_DIR" ]; then
+		verbose "temp-dir: Found: $EASYRSA_TEMP_DIR"
 		# Temp dir session
 		secure_session
 
@@ -5788,10 +5787,11 @@ Using Easy-RSA 'vars' configuration:
 		# Verify selected algorithm and parameters
 		verify_algo_params
 	else
-		: # No EASYRSA_TEMP_DIR is configured AND No EASYRSA_PKI exists
+		verbose "temp-dir: Missing: ${EASYRSA_TEMP_DIR:-undefined}"
 	fi
 
 	# Set command name for verbose messages
+	verbose "COMPLETED Handover-to: $cmd"
 	fn_name="$cmd"
 } # => verify_working_env()
 
@@ -5834,10 +5834,8 @@ force_set_var() {
 write_global_safe_ssl_cnf_tmp() {
 	global_safe_ssl_cnf_tmp=
 	easyrsa_mktemp global_safe_ssl_cnf_tmp
-
 	write_legacy_file_v2 safe-cnf "$global_safe_ssl_cnf_tmp" \
 		overwrite || die "verify_working_env - write safe-cnf"
-
 	export OPENSSL_CONF="$global_safe_ssl_cnf_tmp"
 	verbose "\
 write_global_safe_ssl_cnf_tmp; GLOBAL OPENSSL_CONF = $OPENSSL_CONF"
@@ -5846,13 +5844,15 @@ write_global_safe_ssl_cnf_tmp; GLOBAL OPENSSL_CONF = $OPENSSL_CONF"
 # if openssl-easyrsa.cnf does not exist then
 # provide default as tmp-file via $EASYRSA_SSL_CONF
 provide_EASYRSA_SSL_CONF_tmp() {
-	[ -f "$EASYRSA_SSL_CONF" ] && return
-	unset -v EASYRSA_SSL_CONF
-	easyrsa_mktemp EASYRSA_SSL_CONF
-	write_legacy_file_v2 ssl-cnf "$EASYRSA_SSL_CONF" overwrite || \
-		die "provide_EASYRSA_SSL_CONF_tmp - write_legacy_file_v2 ssl-cnf"
+	if [ ! -f "$EASYRSA_SSL_CONF" ]; then
+		unset -v EASYRSA_SSL_CONF
+		easyrsa_mktemp EASYRSA_SSL_CONF
+		write_legacy_file_v2 ssl-cnf "$EASYRSA_SSL_CONF" overwrite || \
+			die "provide_EASYRSA_SSL_CONF_tmp - write_legacy_file_v2 ssl-cnf"
+	fi
 	export EASYRSA_SSL_CONF
-	verbose "provide_EASYRSA_SSL_CONF_tmp: '$EASYRSA_SSL_CONF'"
+	verbose "\
+provide_EASYRSA_SSL_CONF_tmp: EASYRSA_SSL_CONF = '$EASYRSA_SSL_CONF'"
 } # => provide_EASYRSA_SSL_CONF_tmp()
 
 # Check if 'openssl-easyrsa.cnf' hash is known
@@ -5887,8 +5887,10 @@ check_ssl_cnf_known_hash() {
 	"82439f1860838e28f6270d5d06b1771756db777861e19bf9edc21222f86a310d")
 		;;
 	*)
+		verbose "check_ssl_cnf_known_hash; UNKNOWN $file_hash"
 		return 1
 	esac
+	verbose "check_ssl_cnf_known_hash; KNOWN $file_hash"
 } # => check_ssl_cnf_known_hash()
 
 # Write x509 type file to a temp file
@@ -6010,22 +6012,16 @@ write_legacy_file_v2() {
 		if [ "$write_over" ]; then
 			verbose "write_legacy_file_v2; over-write ENABLED for $write_type"
 			create_legacy_stream "$write_type" > "$write_file" || \
-				die "write failed"
-			[ "$EASYRSA_DEBUG" ] && print \
-				"### write OVERWRITE: $write_type to $write_file"
+				die "write over-write failed"
 		else
-			# Preserve existing file and continue
-			verbose "write_legacy_file_v2; over-write BLOCKED for $write_type"
-			[ "$EASYRSA_DEBUG" ] && print \
-				"### write PRESERVE existing: $write_file"
+			# Preserve existing file and fail
+			die "write_legacy_file_v2; over-write BLOCKED for $write_type"
 		fi
 	# $write_file does not exist, so create it
 	elif [ "$write_file" ]; then
 			verbose "write_legacy_file_v2; over-write IGNORED for $write_type"
 			create_legacy_stream "$write_type" > "$write_file" || \
 				die "write failed"
-			[ "$EASYRSA_DEBUG" ] && print \
-				"### write NEWFILE: $write_type to $write_file"
 	else
 		# write stream to stdout ONLY
 		create_legacy_stream "$write_type"
@@ -7052,6 +7048,7 @@ case "$cmd" in
 		cmd_help "$1"
 		;;
 	'')
+		cmd=overview
 		require_pki=""; require_ca=""; verify_working_env
 		default_overview
 		;;
@@ -7067,6 +7064,7 @@ esac
 # shellcheck disable=SC2181 # Quote expand - pre-cleanup $?
 if [ $? = 0 ]; then
 	# Do 'cleanup ok' on successful completion
+	verbose "COMPLETED"
 	cleanup ok
 fi
 
