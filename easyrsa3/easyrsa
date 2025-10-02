@@ -1408,9 +1408,8 @@ and initialize a fresh PKI here."
 	done
 
 	# write pki/vars.example - no temp-file because no session
-	write_legacy_file_v2 \
-		vars "$EASYRSA_PKI"/vars.example overwrite || \
-			warn "init_pki() - Failed to create vars.example"
+	write_legacy_file_v2 vars "$EASYRSA_PKI"/vars.example || \
+		warn "init_pki() - Failed to create vars.example"
 
 	# User notice
 	notice "\
