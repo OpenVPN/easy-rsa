@@ -1,5 +1,29 @@
 Easy-RSA 3 ChangeLog
 
+3.2.5 (TBD)
+
+   * Replace "local" openssl-easyrsa.cnf (80702d6..b31443d) (#1394)
+
+     Original bug report: #1390 'OpenBSD/LibreSSL failure'
+
+     With these changes, Easy-RSA now does the following:
+
+     Create a global safe SSL config file exactly as before and export it
+     to $OPENSSL_CONF, for use by any SSL library. This file is specifically
+     required by check_serial_unique(), which must have the Easy-RSA CA
+     configured file.
+
+     Use either an existing openssl-easyrsa.cnf file OR provide a default,
+     unexpanded tmp-file, which is exported to $EASYRSA_SSL_CONF, for use
+     ONLY by Easy-RSA. This must be unexpanded to allow $EASYRSA_REQ_CN to
+     be configured by the Easy-RSA command in use (eg. sign-req) once the
+     Easy-RSA command line has been fully parsed.
+
+     When calling easyrsa_openssl(), for LibreSSL or --force-safe-ssl,
+     expand the current $EASYRSA_SSL_CONF and export that to $OPENSSL_CONF,
+     for use by the called SSL command. Otherwise, use the current, unexpanded
+     file and export that.
+
 3.2.4 (2025-08-27)
 
    * build-ca: get_passphrase(), write passphrase directly to temp-file (0cb9cdd)
