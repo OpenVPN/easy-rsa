@@ -1436,7 +1436,7 @@ init_pki() {
 	esac
 
 	# Verify user settings
-	verbose "TRY: algo: '$EASYRSA_ALGO' | curve: '$EASYRSA_CURVE'"
+	verbose "TRY: Algo: '$EASYRSA_ALGO' - Curve: '$EASYRSA_CURVE'"
 	verify_algo_params
 
 	# EasyRSA will NOT do 'rm -rf /'
@@ -2253,13 +2253,16 @@ $EASYRSA_EXTRA_EXTS"
 	# Set algorithm options
 	algo_opts=""
 	case "$EASYRSA_ALGO" in
-		rsa|ec)
-			# Set elliptic curve parameters-file
-			# or RSA bit-length
+		rsa)
+			# RSA bit-length
+			algo_opts="$EASYRSA_ALGO:$EASYRSA_ALGO_PARAMS"
+			;;
+		ec)
+			# Elliptic curve parameters-file
 			algo_opts="$EASYRSA_ALGO:$EASYRSA_ALGO_PARAMS"
 			;;
 		ed)
-			# Set Edwards curve name
+			# Edwards curve name
 			algo_opts="$EASYRSA_CURVE"
 			;;
 		*)
@@ -5415,47 +5418,35 @@ Elliptic curve cryptography cannot be use with algo '$EASYRSA_ALGO'"
 		EASYRSA_ALGO_PARAMS="$EASYRSA_KEY_SIZE"
 		;;
 	ec)
-		case "$cmd" in
-		build-ca|gen-req|build-*-full)
-			# build ec-params file as $EASYRSA_ALGO_PARAMS
-			build_ecparam_file
-			;;
-		*)
-			# Verify Elliptic curve
-			"$EASYRSA_OPENSSL" ecparam \
-				-name "$EASYRSA_CURVE" \
-				>/dev/null 2>&1 || user_error "\
-Failed to generate ecparam file for curve '$EASYRSA_CURVE'"
-		esac
+		if [ -f "$EASYRSA_ALGO_PARAMS" ]; then
+			# User supplied file
+			verbose "External ecparams file '$EASYRSA_ALGO_PARAMS'"
+		elif [ -d "$EASYRSA_TEMP_DIR" ]; then
+			# generate file
+			unset -v EASYRSA_ALGO_PARAMS
+			easyrsa_mktemp EASYRSA_ALGO_PARAMS
+			"$EASYRSA_OPENSSL" ecparam -name "$EASYRSA_CURVE" \
+				-out "$EASYRSA_ALGO_PARAMS" >/dev/null 2>&1 || user_error \
+					"Failed to generate ecparams for curve '$EASYRSA_CURVE'"
+		else
+			# Verify only
+			"$EASYRSA_OPENSSL" ecparam -name "$EASYRSA_CURVE" \
+				>/dev/null 2>&1 || user_error \
+					"Failed to verify ecparams for curve '$EASYRSA_CURVE'"
+		fi
 		;;
 	ed)
 		# Verify Edwards curve
-		"$EASYRSA_OPENSSL" genpkey \
-			-algorithm "$EASYRSA_CURVE" \
-			>/dev/null 2>&1 || user_error "\
-Edwards Curve '$EASYRSA_CURVE' not found."
+		"$EASYRSA_OPENSSL" genpkey -algorithm "$EASYRSA_CURVE" \
+			>/dev/null 2>&1 || user_error \
+				"Edwards Curve '$EASYRSA_CURVE' not found."
 		;;
 	*) user_error "\
 Unknown algorithm '$EASYRSA_ALGO': Must be 'rsa', 'ec' or 'ed'"
 	esac
 	verbose "\
-verify_algo_params; OK: algo '$EASYRSA_ALGO' | curve '$EASYRSA_CURVE'"
+verify_algo_params; OK: Algo '$EASYRSA_ALGO' - Curve '${EASYRSA_CURVE:-None}'"
 } # => verify_algo_params()
-
-# build ecparam file
-build_ecparam_file() {
-	# Only valid for algo ec
-	[ "$EASYRSA_ALGO" = ec ] || return 0
-
-	# User specified algo params file exists
-	[ "$EASYRSA_ALGO_PARAMS" ] && [ -f "$EASYRSA_ALGO_PARAMS" ] && return
-	easyrsa_mktemp EASYRSA_ALGO_PARAMS
-
-	# Create the required ecparams file, temp-file
-	"$EASYRSA_OPENSSL" ecparam -name "$EASYRSA_CURVE" \
-		-out "$EASYRSA_ALGO_PARAMS" >/dev/null 2>&1 || user_error \
-			"Failed to generate ecparam file for curve '$EASYRSA_CURVE'"
-} # => build_ec_param_file()
 
 # Check for conflicting input options
 mutual_exclusions() {
@@ -5878,7 +5869,7 @@ Using Easy-RSA 'vars' configuration:
 	# Create temp-session and global safe ssl config tmp-file
 	# if required, openssl-easyrsa.cnf tmp-file
 	if [ -d "$EASYRSA_TEMP_DIR" ]; then
-		verbose "temp-dir: Found: $EASYRSA_TEMP_DIR"
+		verbose "temp-dir: FOUND: $EASYRSA_TEMP_DIR"
 		# Temp dir session
 		secure_session
 
