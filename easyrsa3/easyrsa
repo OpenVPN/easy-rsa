@@ -914,8 +914,8 @@ secure_session - Missing temporary directory:
 remove_secure_session() {
 	[ -d "$secured_session" ] || return 0
 	if rm -rf "$secured_session"; then
-		unset -v secured_session EASYRSA_SSL_CONF OPENSSL_CONF
 		verbose "remove_secure_session; DELETED $secured_session"
+		unset -v secured_session EASYRSA_SSL_CONF OPENSSL_CONF
 		return
 	fi
 	die "remove_secure_session Failed: $secured_session"
