@@ -7044,7 +7044,7 @@ case "$cmd" in
 		show req "$@"
 		;;
 	show-cert)
-		require_pki=1; require_ca=1; verify_working_env
+		require_pki=1; require_ca=""; verify_working_env
 		show cert "$@"
 		;;
 	show-crl)
