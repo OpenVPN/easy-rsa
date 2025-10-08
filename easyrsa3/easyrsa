@@ -1445,6 +1445,14 @@ init_pki() {
 			user_error "Invalid PKI: $EASYRSA_PKI"
 	esac
 
+	#  Auto-configuration $pki/vars for ec/ed
+	case "$EASYRSA_ALGO" in
+		rsa) auto_algo= ;; # ok
+		ec) auto_algo="Auto-configured for Elliptic curve '$EASYRSA_CURVE'" ;;
+		ed) auto_algo="Auto-configured for Edwards curve '$EASYRSA_CURVE'" ;;
+		*) die "Auto-configuration, Unknown EASYRSA_ALGO: '$EASYRSA_ALGO'"
+	esac
+
 	# If EASYRSA_PKI exists, confirm before deletion
 	if [ -d "$EASYRSA_PKI" ]; then
 		confirm "Confirm removal: " "yes" "
@@ -1472,14 +1480,7 @@ and initialize a fresh PKI here. $auto_algo"
 
 	#  Auto-configuration $pki/vars for ec/ed
 	case "$EASYRSA_ALGO" in
-	rsa) : ;; # ok
 	ec|ed)
-		# Set comment for vars file
-		case "$EASYRSA_ALGO" in
-		ec) auto_algo="Auto-configured for Elliptic curve '$EASYRSA_CURVE'" ;;
-		ed) auto_algo="Auto-configured for Edwards curve '$EASYRSA_CURVE'"
-		esac
-
 		# sed search and replace regex
 		s_alg='#set_var[[:blank:]]*EASYRSA_ALGO[[:blank:]]*rsa'
 		r_alg="set_var EASYRSA_ALGO $EASYRSA_ALGO   # -->  $auto_algo"
@@ -1491,8 +1492,6 @@ and initialize a fresh PKI here. $auto_algo"
 		sed -e s/"$s_alg"/"$r_alg"/ -e s/"$s_crv"/"$r_crv"/ \
 			"$EASYRSA_PKI"/vars.example > "$EASYRSA_PKI"/vars || \
 				die "sed auto-vars"
-		;;
-	*) die "Auto-configuration, Unknown EASYRSA_ALGO: '$EASYRSA_ALGO'"
 	esac
 
 	# User notice
