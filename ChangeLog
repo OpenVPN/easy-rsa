@@ -2,6 +2,9 @@ Easy-RSA 3 ChangeLog
 
 3.2.5 (TBD)
 
+   * peer-fingerprint: Allow 'show-cert' to be used (7cf55e0) (#1397)
+   * init-pki: Introduce configurable cryptography (a8da392) (#1397)
+
    * Replace "local" openssl-easyrsa.cnf (80702d6..b31443d) (#1394)
 
      Original bug report: #1390 'OpenBSD/LibreSSL failure'
