@@ -491,7 +491,7 @@ Usage: easyrsa [ OPTIONS.. ] <COMMAND> <TARGET> [ cmd-opts.. ]"
       * vars     - Write vars.example file.
       * ssl-cnf  - Write EasyRSA SSL config file.
       * safe-cnf - Write expanded EasyRSA SSL config file for LibreSSL.
-      * COMMON|ca|server|serverClient|client|codeSigning|email|kdc
+      * COMMON|ca|server|serverClient|client|codeSigning|email
                  - Write x509-type <type> file.
 
       * legacy   - Write ALL support files (above) to the PKI directory.
@@ -2310,7 +2310,7 @@ sign_req() {
 			# Inline file not required for signing a sub CA
 			EASYRSA_DISABLE_INLINE=1
 		;;
-		server|serverClient|client|codeSigning|email|kdc)
+		server|serverClient|client|codeSigning|email)
 			: # All known types
 		;;
 		*)
@@ -5717,8 +5717,6 @@ Algorithm '$EASYRSA_ALGO' is invalid: Must be 'rsa', 'ec' or 'ed'"
 	set_var EASYRSA_REQ_CN			ChangeMe
 	set_var EASYRSA_DIGEST			sha256
 
-	set_var EASYRSA_KDC_REALM		"CHANGEME.EXAMPLE.COM"
-
 	set_var EASYRSA_MAX_TEMP		1
 
 	verbose "default_vars; COMPLETED"
@@ -5992,7 +5990,7 @@ check_ssl_cnf_known_hash() {
 write_x509_type_tmp() {
 	# Verify x509-type before redirect
 	case "$1" in
-		COMMON|ca|server|serverClient|client|email|codeSigning|kdc)
+		COMMON|ca|server|serverClient|client|email|codeSigning)
 			: # ok
 		;;
 		selfsign)
@@ -6042,7 +6040,7 @@ Legacy files:
 
 	# Create x509-types, except selfsign
 	for legacy_type in COMMON ca server serverClient client \
-		email codeSigning kdc
+		email codeSigning
 	do
 		legacy_target="${x509_types_d}/${legacy_type}"
 		write_legacy_file_v2 "$legacy_type" "$legacy_target" "$1"
@@ -6093,7 +6091,7 @@ write_legacy_file_v2() {
 	vars)
 		;;
 	# This correctly renames 'code-signing' to 'codeSigning'
-	COMMON|ca|server|serverClient|client|codeSigning|email|kdc)
+	COMMON|ca|server|serverClient|client|codeSigning|email)
 		;;
 	selfsign)
 		;;
@@ -6244,30 +6242,6 @@ create_legacy_stream() {
 		extendedKeyUsage = emailProtection
 		keyUsage = digitalSignature,keyEncipherment,nonRepudiation
 		CREATE_X509_TYPE_EMAIL
-		;;
-	kdc)
-	# kdc
-		cat <<- "CREATE_X509_TYPE_KDC"
-basicConstraints = CA:FALSE
-subjectKeyIdentifier = hash
-authorityKeyIdentifier = keyid,issuer:always
-extendedKeyUsage = 1.3.6.1.5.2.3.5
-keyUsage = nonRepudiation,digitalSignature,keyEncipherment,keyAgreement
-issuerAltName = issuer:copy
-subjectAltName = otherName:1.3.6.1.5.2.2;SEQUENCE:kdc_princ_name
-
-[kdc_princ_name]
-realm = EXP:0,GeneralString:${ENV::EASYRSA_KDC_REALM}
-principal_name = EXP:1,SEQUENCE:kdc_principal_seq
-
-[kdc_principal_seq]
-name_type = EXP:0,INTEGER:1
-name_string = EXP:1,SEQUENCE:kdc_principals
-
-[kdc_principals]
-princ1 = GeneralString:krbtgt
-princ2 = GeneralString:${ENV::EASYRSA_KDC_REALM}
-CREATE_X509_TYPE_KDC
 		;;
 	vars)
 	# vars
