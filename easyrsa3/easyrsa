@@ -64,6 +64,7 @@ Certificate & Request options: (these impact cert/req field values)
 --use-algo=ALG  : Crypto alg to use: choose rsa (default), ec or ed
 --curve=NAME    : For elliptic curve, sets the named curve
                   (Default: algo ec: secp384r1, algo ed: ed25519)
+                  (--use-algo and --curve can be used to configure 'init-pki')
 
 --subca-len=#   : Path length of signed intermediate CA certificates
 --copy-ext      : Copy included request X509 extensions (namely subjAltName)
@@ -110,7 +111,7 @@ Deprecated features:
 
 Command list:
 
-  init-pki
+  init-pki [ cmd-opts ]
   self-sign-server <file_name_base> [ cmd-opts ]
   self-sign-client <file_name_base> [ cmd-opts ]
   build-ca [ cmd-opts ]
@@ -169,7 +170,19 @@ Usage: easyrsa [ OPTIONS.. ] <COMMAND> <TARGET> [ cmd-opts.. ]"
 		text="
 * init-pki [ cmd-opts ]
 
-      Removes & re-initializes the PKI directory for a new PKI"
+      Removes & re-initializes the PKI directory for a new PKI
+
+      The new PKI can be auto-configured to use alternative cryptography.
+
+      The following command line examples are equivalent:
+        $ easyrsa init-pki ed448
+        $ easyrsa init-pki ed ed448
+        $ easyrsa --use-algo=ed --curve=ed448 init-pki
+
+      Note: cmd-opts take priority over '--' global options"
+		opts="
+      * Optional algorithm 'ec' or 'ed'  (Default: rsa)
+      * Optional curve name (Default: None, secp384r1 or ed25519)"
 	;;
 	self-sign*)
 		text="
@@ -901,8 +914,8 @@ secure_session - Missing temporary directory:
 remove_secure_session() {
 	[ -d "$secured_session" ] || return 0
 	if rm -rf "$secured_session"; then
-		unset -v secured_session EASYRSA_SSL_CONF OPENSSL_CONF
 		verbose "remove_secure_session; DELETED $secured_session"
+		unset -v secured_session EASYRSA_SSL_CONF OPENSSL_CONF
 		return
 	fi
 	die "remove_secure_session Failed: $secured_session"
@@ -1380,10 +1393,64 @@ $verify_ca_help_note"
 
 # init-pki backend:
 init_pki() {
+	verbose "BEGIN: algo: '$EASYRSA_ALGO' | curve: '$EASYRSA_CURVE'"
+
+	# Parse options for algo/curve - overwrite defaults
+	while [ "$1" ]; do
+		case "$1" in
+			rsa)
+				export EASYRSA_ALGO="$1"
+				unset -v EASYRSA_CURVE
+			;;
+			ec)
+				export EASYRSA_ALGO="$1"
+				export EASYRSA_CURVE=secp384r1
+			;;
+			ed)
+				export EASYRSA_ALGO="$1"
+				export EASYRSA_CURVE=ed25519
+			;;
+			*)
+				export EASYRSA_CURVE="$1"
+				case "$EASYRSA_CURVE" in
+					ed*) export EASYRSA_ALGO=ed ;;
+					*) export EASYRSA_ALGO=ec
+				esac
+		esac
+		shift
+	done
+
+	# Set default curve based on algo
+	case "$EASYRSA_ALGO" in
+		rsa) : ;; # ok
+		ec) set_var EASYRSA_CURVE secp384r1 ;;
+		ed) set_var EASYRSA_CURVE ed25519 ;;
+		*) die "Unknown EASYRSA_ALGO: '$EASYRSA_ALGO'"
+	esac
+
+	# Set default algo based on curve
+	case "$EASYRSA_CURVE" in
+		'') : ;; # ok
+		ed*) set_var EASYRSA_ALGO ed ;;
+		*) set_var EASYRSA_ALGO ec
+	esac
+
+	# Verify user settings
+	verbose "TRY: Algo: '$EASYRSA_ALGO' - Curve: '$EASYRSA_CURVE'"
+	verify_algo_params
+
 	# EasyRSA will NOT do 'rm -rf /'
 	case "$EASYRSA_PKI" in
 		.|..|./|../|.//*|..//*|/|//*|\\|?:|'')
 			user_error "Invalid PKI: $EASYRSA_PKI"
+	esac
+
+	#  Auto-configuration $pki/vars for ec/ed
+	case "$EASYRSA_ALGO" in
+		rsa) auto_algo= ;; # ok
+		ec) auto_algo="Auto-configured for Elliptic curve '$EASYRSA_CURVE'" ;;
+		ed) auto_algo="Auto-configured for Edwards curve '$EASYRSA_CURVE'" ;;
+		*) die "Auto-configuration, Unknown EASYRSA_ALGO: '$EASYRSA_ALGO'"
 	esac
 
 	# If EASYRSA_PKI exists, confirm before deletion
@@ -1394,12 +1461,12 @@ WARNING!!!
 You are about to remove the EASYRSA_PKI at:
 * $EASYRSA_PKI
 
-and initialize a fresh PKI here."
-	fi
+and initialize a fresh PKI here. $auto_algo"
 
-	# # # shellcheck disable=SC2115 # Use "${var:?}"
-	rm -rf "$EASYRSA_PKI" || \
-		die "init-pki hard reset failed."
+		# Remove existing PKI
+		rm -rf "$EASYRSA_PKI" || \
+			die "Failed to remove existing PKI: '$EASYRSA_PKI'"
+	fi
 
 	# new dirs:
 	for i in issued private reqs; do
@@ -1409,7 +1476,23 @@ and initialize a fresh PKI here."
 
 	# write pki/vars.example - no temp-file because no session
 	write_legacy_file_v2 vars "$EASYRSA_PKI"/vars.example || \
-		warn "init_pki() - Failed to create vars.example"
+		die "init_pki() - Failed to create vars.example"
+
+	#  Auto-configuration $pki/vars for ec/ed
+	case "$EASYRSA_ALGO" in
+	ec|ed)
+		# sed search and replace regex
+		s_alg='#set_var[[:blank:]]*EASYRSA_ALGO[[:blank:]]*rsa'
+		r_alg="set_var EASYRSA_ALGO $EASYRSA_ALGO   # -->  $auto_algo"
+		s_crv='#set_var[[:blank:]]*EASYRSA_CURVE[[:blank:]]*secp384r1'
+		r_crv="set_var EASYRSA_CURVE $EASYRSA_CURVE   # -->  $auto_algo"
+
+		# Create Auto-configured vars file
+		# Note: pki/vars.example is Always created by Easy-RSA above
+		sed -e s/"$s_alg"/"$r_alg"/ -e s/"$s_crv"/"$r_crv"/ \
+			"$EASYRSA_PKI"/vars.example > "$EASYRSA_PKI"/vars || \
+				die "sed auto-vars"
+	esac
 
 	# User notice
 	notice "\
@@ -1418,12 +1501,15 @@ and initialize a fresh PKI here."
 Your newly created PKI dir is:
 * $EASYRSA_PKI"
 
-	# Select and show vars file
-	unset -v EASYRSA_VARS_FILE
+	# Select and show Auto-configured vars file
+	unset -v ignore_vars EASYRSA_VARS_FILE
 	select_vars
-	information "\
-Using Easy-RSA configuration:
-* ${EASYRSA_VARS_FILE:-undefined}"
+	if [ "$EASYRSA_VARS_FILE" ]; then
+		information "\
+IMPORTANT: PKI algorithm is $auto_algo${NL}
+Using Easy-RSA Auto-configured 'vars' file:
+* ${EASYRSA_VARS_FILE}${NL}"
+	fi
 } # => init_pki()
 
 # Find support files from various sources
@@ -2166,13 +2252,16 @@ $EASYRSA_EXTRA_EXTS"
 	# Set algorithm options
 	algo_opts=""
 	case "$EASYRSA_ALGO" in
-		rsa|ec)
-			# Set elliptic curve parameters-file
-			# or RSA bit-length
+		rsa)
+			# RSA bit-length
+			algo_opts="$EASYRSA_ALGO:$EASYRSA_ALGO_PARAMS"
+			;;
+		ec)
+			# Elliptic curve parameters-file
 			algo_opts="$EASYRSA_ALGO:$EASYRSA_ALGO_PARAMS"
 			;;
 		ed)
-			# Set Edwards curve name
+			# Edwards curve name
 			algo_opts="$EASYRSA_CURVE"
 			;;
 		*)
@@ -5322,34 +5411,40 @@ show_host() {
 verify_algo_params() {
 	case "$EASYRSA_ALGO" in
 	rsa)
+		[ "$EASYRSA_CURVE" ] && user_error "\
+Elliptic curve cryptography cannot be use with algo '$EASYRSA_ALGO'"
 		# Set RSA key size
 		EASYRSA_ALGO_PARAMS="$EASYRSA_KEY_SIZE"
 		;;
 	ec)
-		# Verify Elliptic curve
-		EASYRSA_ALGO_PARAMS=""
-		easyrsa_mktemp EASYRSA_ALGO_PARAMS
-
-		# Create the required ecparams file, temp-file
-		# call openssl directly because error is expected
-			"$EASYRSA_OPENSSL" ecparam \
-				-name "$EASYRSA_CURVE" \
-				-out "$EASYRSA_ALGO_PARAMS" \
-				>/dev/null 2>&1 || user_error "\
-Failed to generate ecparam file for curve '$EASYRSA_CURVE'"
+		if [ -f "$EASYRSA_ALGO_PARAMS" ]; then
+			# User supplied file
+			verbose "External ecparams file '$EASYRSA_ALGO_PARAMS'"
+		elif [ -d "$EASYRSA_TEMP_DIR" ]; then
+			# generate file
+			unset -v EASYRSA_ALGO_PARAMS
+			easyrsa_mktemp EASYRSA_ALGO_PARAMS
+			"$EASYRSA_OPENSSL" ecparam -name "$EASYRSA_CURVE" \
+				-out "$EASYRSA_ALGO_PARAMS" >/dev/null 2>&1 || user_error \
+					"Failed to generate ecparams for curve '$EASYRSA_CURVE'"
+		else
+			# Verify only
+			"$EASYRSA_OPENSSL" ecparam -name "$EASYRSA_CURVE" \
+				>/dev/null 2>&1 || user_error \
+					"Failed to verify ecparams for curve '$EASYRSA_CURVE'"
+		fi
 		;;
 	ed)
 		# Verify Edwards curve
-		# call openssl directly because error is expected
-			"$EASYRSA_OPENSSL" genpkey \
-				-algorithm "$EASYRSA_CURVE" \
-				>/dev/null 2>&1 || user_error "\
-Edwards Curve '$EASYRSA_CURVE' not found."
+		"$EASYRSA_OPENSSL" genpkey -algorithm "$EASYRSA_CURVE" \
+			>/dev/null 2>&1 || user_error \
+				"Edwards Curve '$EASYRSA_CURVE' not found."
 		;;
 	*) user_error "\
 Unknown algorithm '$EASYRSA_ALGO': Must be 'rsa', 'ec' or 'ed'"
 	esac
-	verbose "verify_algo_params; OK: algo '$EASYRSA_ALGO'"
+	verbose "\
+verify_algo_params; OK: Algo '$EASYRSA_ALGO' - Curve '${EASYRSA_CURVE:-None}'"
 } # => verify_algo_params()
 
 # Check for conflicting input options
@@ -5439,6 +5534,9 @@ To correct this problem, it is recommended that you either:
 # If not present, defaults are used to support
 # running without a sourced config format.
 select_vars() {
+	# Deliberately ignore vars
+	[ "$ignore_vars" ] && return 1
+
 	# User specified vars file will be used ONLY
 	if [ "$EASYRSA_VARS_FILE" ]; then
 		: # Takes priority, nothing to do
@@ -5770,7 +5868,7 @@ Using Easy-RSA 'vars' configuration:
 	# Create temp-session and global safe ssl config tmp-file
 	# if required, openssl-easyrsa.cnf tmp-file
 	if [ -d "$EASYRSA_TEMP_DIR" ]; then
-		verbose "temp-dir: Found: $EASYRSA_TEMP_DIR"
+		verbose "temp-dir: FOUND: $EASYRSA_TEMP_DIR"
 		# Temp dir session
 		secure_session
 
@@ -6543,6 +6641,7 @@ unset -v \
 	secured_session \
 	alias_days text \
 	prohibit_no_pass \
+	ignore_vars \
 	invalid_vars \
 	local_request error_build_full_cleanup \
 	selfsign_eku \
@@ -6618,6 +6717,10 @@ while :; do
 			;;
 		--curve)
 			export EASYRSA_CURVE="$val"
+			case "$EASYRSA_CURVE" in
+				ed*) set_var EASYRSA_ALGO ed ;;
+				*) set_var EASYRSA_ALGO ec
+			esac
 			;;
 		--dn-mode)
 			export EASYRSA_DN="$val"
@@ -6818,6 +6921,7 @@ cmd="$1"
 # ONLY verify_working_env() for valid commands
 case "$cmd" in
 	init-pki|clean-all)
+		ignore_vars=1 # Deliberately ignore vars
 		require_pki=""; require_ca=""; verify_working_env
 		init_pki "$@"
 		;;
@@ -6939,7 +7043,7 @@ case "$cmd" in
 		show req "$@"
 		;;
 	show-cert)
-		require_pki=1; require_ca=1; verify_working_env
+		require_pki=1; require_ca=""; verify_working_env
 		show cert "$@"
 		;;
 	show-crl)
