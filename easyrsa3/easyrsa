@@ -1012,7 +1012,7 @@ Temporary session not preserved."
 
 	# When prompt is disabled then restore prompt
 	case "$prompt_restore" in
-		0) : ;; # Not required
+		''|0) : ;; # Not required
 		1)
 			[ -t 1 ] && stty echo
 			[ "$EASYRSA_SILENT" ] || print
@@ -6612,22 +6612,15 @@ detect_host
 unset -v \
 	OPENSSL_CONF \
 	verify_ssl_lib_ok ssl_batch \
-	secured_session \
-	alias_days text \
-	prohibit_no_pass \
-	ignore_vars \
-	invalid_vars \
+	secured_session write_recursion \
+	alias_days text prohibit_no_pass \
+	quiet_vars ignore_vars invalid_vars \
 	local_request error_build_full_cleanup \
 	selfsign_eku \
 	internal_batch mv_temp_error \
 	easyrsa_exit_with_error error_info \
-	write_recursion require_pki require_ca quiet_vars
-
-	# Used by build-ca->cleanup to restore prompt
-	# after user interrupt when using manual password
-	prompt_restore=0
-	# Sequential temp-file counter
-	mktemp_counter=0
+	require_pki require_ca \
+	prompt_restore mktemp_counter
 
 # Parse options
 while :; do
