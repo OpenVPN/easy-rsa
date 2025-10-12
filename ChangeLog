@@ -2,6 +2,8 @@ Easy-RSA 3 ChangeLog
 
 3.2.5 (TBD)
 
+   * inline_file(): Make unknown certificate type non-fatal (b2373e2) (#1399)
+   * Remove 'kdc' as a 'built-in' X509-type (13e37d9) (#1399)
    * peer-fingerprint: Allow 'show-cert' to be used (7cf55e0) (#1397)
    * init-pki: Introduce configurable cryptography (a8da392) (#1397)
 

@@ -1,3 +1,4 @@
+# Easy-RSA does NOT explicitly support X509 type 'KDC'
 # X509 extensions for a KDC server certificate
 
 basicConstraints = CA:FALSE
