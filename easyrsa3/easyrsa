@@ -2874,8 +2874,8 @@ Conflicting file found at:
 	remove_secure_session
 	secure_session
 	locate_support_files
+	select_ssl_cnf_tmp
 	write_global_safe_ssl_cnf_tmp
-	#provide_EASYRSA_SSL_CONF_tmp
 
 	# Require --copy-ext
 	export EASYRSA_CP_EXT=1
@@ -4299,8 +4299,8 @@ read_db() {
 		remove_secure_session
 		secure_session
 		locate_support_files
+		select_ssl_cnf_tmp
 		write_global_safe_ssl_cnf_tmp
-		#provide_EASYRSA_SSL_CONF_tmp
 
 		# Interpret the db/certificate record
 		unset -v db_serial db_cn db_revoke_date db_reason
@@ -5872,7 +5872,7 @@ Using Easy-RSA 'vars' configuration:
 
 		# if openssl-easyrsa.cnf does not exist then
 		# provide default as tmp-file via $EASYRSA_SSL_CONF
-		#provide_EASYRSA_SSL_CONF_tmp
+		select_ssl_cnf_tmp
 
 		# global safe ssl cnf temp
 		write_global_safe_ssl_cnf_tmp
@@ -5934,8 +5934,38 @@ write_global_safe_ssl_cnf_tmp() {
 write_global_safe_ssl_cnf_tmp; GLOBAL OPENSSL_CONF = $OPENSSL_CONF"
 } # => write_global_safe_ssl_cnf_tmp()
 
-# if openssl-easyrsa.cnf does not exist then
-# provide default as tmp-file via $EASYRSA_SSL_CONF
+# if openssl-easyrsa.cnf does exist and it is customised then
+# copy it to tmp-file. Otherwise, provide default as tmp-file
+# Always export tmpfile to $EASYRSA_SSL_CONF
+# No expansion required for safe SSL config
+select_ssl_cnf_tmp() {
+	# Always write a temp-file
+	ssl_conf_tmp=
+	easyrsa_mktemp ssl_conf_tmp
+	copy_ssl_conf_tmp=
+
+	if [ -f "$EASYRSA_SSL_CONF" ]; then
+		if ! check_ssl_cnf_known_hash "$EASYRSA_SSL_CONF"; then
+			copy_ssl_conf_tmp=1
+		fi
+	fi
+
+	if [ "$copy_ssl_conf_tmp" ]; then
+		# copy existing, custom openssl-easyrsa.cnf file
+		verbose "select_ssl_cnf_tmp; copy existing ssl-cnf to tmp-file"
+		cp "$EASYRSA_SSL_CONF" "$ssl_conf_tmp" || \
+			die "select_ssl_cnf_tmp - copy existing SSL config"
+	else
+		# create EasyRSA default SSL config file
+		verbose "select_ssl_cnf_tmp; write built-in ssl-cnf to tmp-file"
+		write_legacy_file_v2 ssl-cnf "$ssl_conf_tmp" overwrite || \
+			die "select_ssl_cnf_tmp - write_legacy_file_v2 ssl-cnf"
+	fi
+
+	export EASYRSA_SSL_CONF="$ssl_conf_tmp"
+	verbose "select_ssl_cnf_tmp; EASYRSA_SSL_CONF = '$EASYRSA_SSL_CONF'"
+	unset -v ssl_conf_tmp copy_ssl_conf_tmp
+} # => select_ssl_cnf_tmp()
 
 # Check if 'openssl-easyrsa.cnf' hash is known
 check_ssl_cnf_known_hash() {
