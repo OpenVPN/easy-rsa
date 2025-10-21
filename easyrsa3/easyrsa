@@ -2741,11 +2741,11 @@ Certificate created at:
 add_critical_attrib() {
 	case "$1" in
 		basicConstraints|keyUsage|extendedKeyUsage) : ;; # ok
-		*) die "$fn_name - usage: '$1'"
+		*) die "add_critical_attrib - usage: '$1'"
 	esac
 
-	[ -f "$2" ] || die "$fn_name - missing input file"
-	[ "$3" ] || die "$fn_name - missing variable"
+	[ -f "$2" ] || die "add_critical_attrib - missing input file"
+	[ "$3" ] || die "add_critical_attrib - missing variable"
 
 	crit_tmp=
 	easyrsa_mktemp crit_tmp
