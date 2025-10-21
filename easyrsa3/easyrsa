@@ -1757,14 +1757,11 @@ Raw CA mode
 	fi
 
 	# Find or create x509 CA file
-	if [ -f "$EASYRSA_EXT_DIR/ca" ]; then
-		# Use the x509-types/ca file
-		x509_type_file="$EASYRSA_EXT_DIR/ca"
-	else
-		# Use a temp file
-		write_x509_type_tmp ca
-		x509_type_file="$write_x509_file_tmp"
-	fi
+	# Note: $new_x509_type_file_tmp is non-local
+	# set by select_x509_type_tmp()
+	select_x509_type_tmp ca
+	x509_type_tmp_file_ca="$new_x509_type_file_tmp"
+	verbose "x509_type_tmp_file_ca = '$x509_type_tmp_file_ca'"
 
 	# keyUsage critical
 	if [ "$EASYRSA_KU_CRIT" ]; then
@@ -1818,7 +1815,7 @@ Please update 'openssl-easyrsa.cnf' to the latest Easy-RSA release."
 	# Insert x509-types COMMON and 'ca' and EASYRSA_EXTRA_EXTS
 	{
 		# X509 files
-		cat "$x509_type_file" "$x509_COMMON_file"
+		cat "$x509_type_tmp_file_ca" "$x509_COMMON_file"
 
 		# User extensions
 		[ "$EASYRSA_EXTRA_EXTS" ] && \
@@ -6004,6 +6001,31 @@ check_ssl_cnf_known_hash() {
 	esac
 	verbose "check_ssl_cnf_known_hash; KNOWN $file_hash"
 } # => check_ssl_cnf_known_hash()
+
+# Select ANY existing X509-type file or
+# create a tmp-file for supported types
+# copy the selected file to a new tmp-file
+select_x509_type_tmp() {
+	[ "$1" ] || die "create_x509_type_tmp - input: type"
+	x509_type_source="${EASYRSA_EXT_DIR}/${1}"
+
+	# If no X509-type file exists then provide known types or fail
+	if [ ! -f "$x509_type_source" ]; then
+		# Use a temp file
+		write_x509_type_tmp "$1"
+		x509_type_source="$write_x509_file_tmp"
+	fi
+
+	# Copy the x509-types/$x509_type file to tmp-file
+	new_x509_type_file_tmp=
+	easyrsa_mktemp new_x509_type_file_tmp
+
+	cp "$x509_type_source" "$new_x509_type_file_tmp" || \
+		die "create_x509_type_tmp; copy x509-type failed"
+
+	verbose "\
+create_x509_type_tmp; new_x509_type_file_tmp = '$new_x509_type_file_tmp'"
+} # => select_x509_type_tmp()
 
 # Write x509 type file to a temp file
 write_x509_type_tmp() {
