@@ -4938,21 +4938,18 @@ $cmd does not support setting an external commonName."
 			die "$f_name Write CA cert to temp-file"
 
 	# Find or create x509 CA file
-	if [ -f "$EASYRSA_EXT_DIR/ca" ]; then
-		# Use the x509-types/ca file
-		x509_type_file="$EASYRSA_EXT_DIR/ca"
-	else
-		# Use a temp file
-		write_x509_type_tmp ca
-		x509_type_file="$write_x509_file_tmp"
-	fi
+	# Note: $new_x509_type_file_tmp is non-local
+	# set by select_x509_type_tmp()
+	select_x509_type_tmp ca
+	x509_type_tmp_file_ca="$new_x509_type_file_tmp"
+	verbose "x509_type_tmp_file_ca = '$x509_type_tmp_file_ca'"
 
 	# basicConstraints critical
 	if grep -q 'Basic Constraints: critical' "$old_cert_tmp"
 	then
 		add_critical_attrib basicConstraints \
-			"$x509_type_file" x509_type_file || \
-				die "$f_name: add_critical_attrib bC"
+			"$x509_type_tmp_file_ca" x509_type_tmp_file_ca || \
+				die "add_critical_attrib bC"
 		verbose "basicConstraints critical OK"
 	fi
 
@@ -4960,20 +4957,15 @@ $cmd does not support setting an external commonName."
 	if grep -q 'Key Usage: critical' "$old_cert_tmp"
 	then
 		add_critical_attrib keyUsage \
-			"$x509_type_file" x509_type_file || \
-				die "$f_name: add_critical_attrib kU"
+			"$x509_type_tmp_file_ca" x509_type_tmp_file_ca || \
+				die "add_critical_attrib kU"
 		verbose "keyUsage critical OK"
 	fi
 
 	# Find or create x509 COMMON file
-	if [ -f "$EASYRSA_EXT_DIR/COMMON" ]; then
-		# Use the x509-types/COMMON file
-		x509_COMMON_file="$EASYRSA_EXT_DIR/COMMON"
-	else
-		# Use a temp file
-		write_x509_type_tmp COMMON
-		x509_COMMON_file="$write_x509_file_tmp"
-	fi
+	select_x509_type_tmp COMMON
+	x509_type_tmp_file_COMMON="$new_x509_type_file_tmp"
+	verbose "x509_type_tmp_file_COMMON = '$x509_type_tmp_file_COMMON'"
 
 	# Check for insert-marker in ssl config file
 	if ! grep -q '^#%CA_X509_TYPES_EXTRA_EXTS%' \
@@ -5000,7 +4992,7 @@ Please update 'openssl-easyrsa.cnf' to the latest Easy-RSA release."
 	# Insert x509-types COMMON and 'ca' and EASYRSA_EXTRA_EXTS
 	{
 		# X509 files
-		cat "$x509_type_file" "$x509_COMMON_file"
+		cat "$x509_type_tmp_file_ca" "$x509_type_tmp_file_COMMON"
 
 		# User extensions
 		[ "$EASYRSA_EXTRA_EXTS" ] && \
