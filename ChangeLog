@@ -2,6 +2,8 @@ Easy-RSA 3 ChangeLog
 
 3.2.5 (TBD)
 
+   * select_x509_type_tmp(): This compliments select_ssl_cnf_tmp() (dc754e4) (#1401)
+   * select_ssl_cnf_tmp(): Replace provide_EASYRSA_SSL_CONF_tmp() (538ad3d) (#1401)
    * inline_file(): Make unknown certificate type non-fatal (b2373e2) (#1399)
    * Remove 'kdc' as a 'built-in' X509-type (13e37d9) (#1399)
    * peer-fingerprint: Allow 'show-cert' to be used (7cf55e0) (#1397)
