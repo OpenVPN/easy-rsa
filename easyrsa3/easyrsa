@@ -1780,14 +1780,9 @@ Raw CA mode
 	fi
 
 	# Find or create x509 COMMON file
-	if [ -f "$EASYRSA_EXT_DIR/COMMON" ]; then
-		# Use the x509-types/COMMON file
-		x509_COMMON_file="$EASYRSA_EXT_DIR/COMMON"
-	else
-		# Use a temp file
-		write_x509_type_tmp COMMON
-		x509_COMMON_file="$write_x509_file_tmp"
-	fi
+	select_x509_type_tmp COMMON
+	x509_type_tmp_file_COMMON="$new_x509_type_file_tmp"
+	verbose "x509_type_tmp_file_COMMON = '$x509_type_tmp_file_COMMON'"
 
 	# Check for insert-marker in ssl config file
 	if ! grep -q '^#%CA_X509_TYPES_EXTRA_EXTS%' \
@@ -1815,7 +1810,7 @@ Please update 'openssl-easyrsa.cnf' to the latest Easy-RSA release."
 	# Insert x509-types COMMON and 'ca' and EASYRSA_EXTRA_EXTS
 	{
 		# X509 files
-		cat "$x509_type_tmp_file_ca" "$x509_COMMON_file"
+		cat "$x509_type_tmp_file_ca" "$x509_type_tmp_file_COMMON"
 
 		# User extensions
 		[ "$EASYRSA_EXTRA_EXTS" ] && \
