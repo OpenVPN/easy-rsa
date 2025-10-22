@@ -2444,20 +2444,17 @@ Writing 'copy_exts' to SSL config temp-file failed"
 	fi
 
 	# Find or create x509-type file
-	if [ -f "$EASYRSA_EXT_DIR/$crt_type" ]; then
-		# Use the x509-types/$crt_type file
-		x509_type_file="$EASYRSA_EXT_DIR/$crt_type"
-	else
-		# Use a temp file
-		write_x509_type_tmp "$crt_type"
-		x509_type_file="$write_x509_file_tmp"
-	fi
+	# Note: $new_x509_type_file_tmp is non-local
+	# set by select_x509_type_tmp()
+	select_x509_type_tmp "$crt_type"
+	x509_type_tmp_file_USER="$new_x509_type_file_tmp"
+	verbose "x509_type_tmp_file_USER = '$x509_type_tmp_file_USER'"
 
 	# keyUsage critical
 	confirm_ku_crit=
 	if [ "$EASYRSA_KU_CRIT" ]; then
 		add_critical_attrib keyUsage \
-			"$x509_type_file" x509_type_file || \
+			"$x509_type_tmp_file_USER" x509_type_tmp_file_USER || \
 				die "sign-req - add_critical_attrib kU"
 		confirm_ku_crit="  keyUsage:         'critical'${NL}"
 		verbose "keyUsage critical OK"
@@ -2467,7 +2464,7 @@ Writing 'copy_exts' to SSL config temp-file failed"
 	confirm_bc_crit=
 	if [ "$EASYRSA_BC_CRIT" ]; then
 		add_critical_attrib basicConstraints \
-			"$x509_type_file" x509_type_file || \
+			"$x509_type_tmp_file_USER" x509_type_tmp_file_USER || \
 				die "sign-req - add_critical_attrib bC"
 		confirm_bc_crit="  basicConstraints: 'critical'${NL}"
 		verbose "basicConstraints critical OK"
@@ -2477,21 +2474,16 @@ Writing 'copy_exts' to SSL config temp-file failed"
 	confirm_eku_crit=
 	if [ "$EASYRSA_EKU_CRIT" ]; then
 		add_critical_attrib extendedKeyUsage \
-			"$x509_type_file" x509_type_file || \
+			"$x509_type_tmp_file_USER" x509_type_tmp_file_USER || \
 				die "sign-req - add_critical_attrib eKU"
 		confirm_eku_crit="  extendedKeyUsage: 'critical'${NL}"
 		verbose "extendedKeyUsage critical OK"
 	fi
 
 	# Find or create x509 COMMON file
-	if [ -f "$EASYRSA_EXT_DIR/COMMON" ]; then
-		# Use the x509-types/COMMON file
-		x509_COMMON_file="$EASYRSA_EXT_DIR/COMMON"
-	else
-		# Use a temp file
-		write_x509_type_tmp COMMON
-		x509_COMMON_file="$write_x509_file_tmp"
-	fi
+	select_x509_type_tmp COMMON
+	x509_type_tmp_file_COMMON="$new_x509_type_file_tmp"
+	verbose "x509_type_tmp_file_COMMON = '$x509_type_tmp_file_COMMON'"
 
 	# Support a dynamic CA path length when present:
 	unset -v basicConstraints confirm_bc_len
@@ -2505,7 +2497,7 @@ Writing 'copy_exts' to SSL config temp-file failed"
 /^[[:blank:]]*basicConstraints[[:blank:]]*=/ { bC=$0 }
 END { if (length(bC) == 0 ) exit 1; print bC }'
 		basicConstraints="$(
-			awk "$awkscript" "$x509_type_file"
+			awk "$awkscript" "$x509_type_tmp_file_USER"
 			)" || die "\
 basicConstraints is not defined, cannot use 'pathlen'"
 		confirm_pathlen="
@@ -2581,7 +2573,7 @@ subjectAltName = ${EASYRSA_SAN_CRIT}${EASYRSA_SAN}"
 	# Begin output redirect
 	{
 		# Append $cert-type extensions
-		cat "$x509_COMMON_file" "$x509_type_file"
+		cat "$x509_type_tmp_file_USER" "$x509_type_tmp_file_COMMON"
 
 		# Support a dynamic CA path length when present:
 		if [ "$basicConstraints" ]; then
