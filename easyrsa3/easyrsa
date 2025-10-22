@@ -1766,7 +1766,7 @@ Raw CA mode
 	# keyUsage critical
 	if [ "$EASYRSA_KU_CRIT" ]; then
 		add_critical_attrib keyUsage \
-			"$x509_type_file" x509_type_file || \
+			"$x509_type_tmp_file_ca" x509_type_tmp_file_ca || \
 				die "build-ca - add_critical_attrib kU"
 		verbose "keyUsage critical OK"
 	fi
@@ -1774,7 +1774,7 @@ Raw CA mode
 	# basicConstraints critical
 	if [ "$EASYRSA_BC_CRIT" ]; then
 		add_critical_attrib basicConstraints \
-			"$x509_type_file" x509_type_file || \
+			"$x509_type_tmp_file_ca" x509_type_tmp_file_ca || \
 				die "build-ca - add_critical_attrib bC"
 		verbose "basicConstraints critical OK"
 	fi
