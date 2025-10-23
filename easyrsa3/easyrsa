@@ -3509,17 +3509,17 @@ forbid_selfsign() {
 
 	forbid_serial=
 	ssl_cert_serial "$1" forbid_serial || \
-		die "$fn_name - ssl_cert_serial"
+		die "forbid_selfsign - ssl_cert_serial"
 
 	# SSL text
 	"$EASYRSA_OPENSSL" x509 -in "$1" -noout -text > "$forbid_ss_tmp" || \
-		die "$fn_name - ssl text"
+		die "forbid_selfsign - ssl text"
 
 	# Extract signing cert serial
 	signing_serial="$(
 			grep "^[[:blank:]]*serial:.*$" "$forbid_ss_tmp" | \
 				sed -e 's/^[[:blank:]]*serial//' -e 's/://g'
-		)" || die "$fn_name - signing_serial subshell"
+		)" || die "forbid_selfsign - signing_serial subshell"
 	verbose "forbid_selfsign; $forbid_serial = $signing_serial"
 
 	# Compare $ssl_cert_serial to $signing_serial
@@ -5224,7 +5224,7 @@ ssl_cert_x509v3_eku() {
 	else
 		ceku_crt="${EASYRSA_PKI}/issued/${1}.crt"
 		[ -f "$ceku_crt" ] || \
-			die "$fn_name - Missing cert '$ceku_crt'"
+			die "ssl_cert_x509v3_eku - Missing cert '$ceku_crt'"
 	fi
 
 	# required variables
@@ -5241,13 +5241,13 @@ ssl_cert_x509v3_eku() {
 			"$EASYRSA_OPENSSL" x509 -in "$ceku_crt" -noout \
 				-text | \
 					sed -n "/${ceku_pattern}/{n;s/^ *//g;p;}"
-			)" || die "$fn_name - LibreSSL error"
+			)" || die "ssl_cert_x509v3_eku - LibreSSL error"
 	else
 		ceku_eku="$(
 			"$EASYRSA_OPENSSL" x509 -in "$ceku_crt" -noout \
 				-ext extendedKeyUsage | \
 					sed -e /"${ceku_pattern}"/d -e s/^\ *//
-			)" || die "$fn_name - OpenSSL error"
+			)" || die "ssl_cert_x509v3_eku - OpenSSL error"
 	fi
 
 	# Match EKU with supported usage
@@ -5286,7 +5286,7 @@ ssl_cert_x509v3_eku() {
 	# Set variable to return
 	if [ "$2" ]; then
 		force_set_var "$2" "$ceku_type" || \
-			die "$fn_name - force_set_var failed"
+			die "ssl_cert_x509v3_eku - force_set_var failed"
 		verbose "ssl_cert_x509v3_eku; EKU='$ceku_type' [$2]"
 	elif [ "$ceku_known" ]; then
 		information "\
@@ -5295,8 +5295,6 @@ ssl_cert_x509v3_eku() {
 		information "\
 * UNKNOWN X509v3 Extended Key Usage: '$ceku_type'"
 	fi
-
-	fn_name="${fn_name%; ssl_cert_x509v3_eku}"
 
 	# Succeed for known types only
 	[ "$ceku_known" ] && return
