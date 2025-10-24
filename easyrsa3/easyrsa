@@ -1757,19 +1757,16 @@ Raw CA mode
 	fi
 
 	# Find or create x509 CA file
-	if [ -f "$EASYRSA_EXT_DIR/ca" ]; then
-		# Use the x509-types/ca file
-		x509_type_file="$EASYRSA_EXT_DIR/ca"
-	else
-		# Use a temp file
-		write_x509_type_tmp ca
-		x509_type_file="$write_x509_file_tmp"
-	fi
+	# Note: $new_x509_type_file_tmp is non-local
+	# set by select_x509_type_tmp()
+	select_x509_type_tmp ca
+	x509_type_tmp_file_ca="$new_x509_type_file_tmp"
+	verbose "x509_type_tmp_file_ca = '$x509_type_tmp_file_ca'"
 
 	# keyUsage critical
 	if [ "$EASYRSA_KU_CRIT" ]; then
 		add_critical_attrib keyUsage \
-			"$x509_type_file" x509_type_file || \
+			"$x509_type_tmp_file_ca" x509_type_tmp_file_ca || \
 				die "build-ca - add_critical_attrib kU"
 		verbose "keyUsage critical OK"
 	fi
@@ -1777,20 +1774,15 @@ Raw CA mode
 	# basicConstraints critical
 	if [ "$EASYRSA_BC_CRIT" ]; then
 		add_critical_attrib basicConstraints \
-			"$x509_type_file" x509_type_file || \
+			"$x509_type_tmp_file_ca" x509_type_tmp_file_ca || \
 				die "build-ca - add_critical_attrib bC"
 		verbose "basicConstraints critical OK"
 	fi
 
 	# Find or create x509 COMMON file
-	if [ -f "$EASYRSA_EXT_DIR/COMMON" ]; then
-		# Use the x509-types/COMMON file
-		x509_COMMON_file="$EASYRSA_EXT_DIR/COMMON"
-	else
-		# Use a temp file
-		write_x509_type_tmp COMMON
-		x509_COMMON_file="$write_x509_file_tmp"
-	fi
+	select_x509_type_tmp COMMON
+	x509_type_tmp_file_COMMON="$new_x509_type_file_tmp"
+	verbose "x509_type_tmp_file_COMMON = '$x509_type_tmp_file_COMMON'"
 
 	# Check for insert-marker in ssl config file
 	if ! grep -q '^#%CA_X509_TYPES_EXTRA_EXTS%' \
@@ -1818,7 +1810,7 @@ Please update 'openssl-easyrsa.cnf' to the latest Easy-RSA release."
 	# Insert x509-types COMMON and 'ca' and EASYRSA_EXTRA_EXTS
 	{
 		# X509 files
-		cat "$x509_type_file" "$x509_COMMON_file"
+		cat "$x509_type_tmp_file_ca" "$x509_type_tmp_file_COMMON"
 
 		# User extensions
 		[ "$EASYRSA_EXTRA_EXTS" ] && \
@@ -2452,20 +2444,17 @@ Writing 'copy_exts' to SSL config temp-file failed"
 	fi
 
 	# Find or create x509-type file
-	if [ -f "$EASYRSA_EXT_DIR/$crt_type" ]; then
-		# Use the x509-types/$crt_type file
-		x509_type_file="$EASYRSA_EXT_DIR/$crt_type"
-	else
-		# Use a temp file
-		write_x509_type_tmp "$crt_type"
-		x509_type_file="$write_x509_file_tmp"
-	fi
+	# Note: $new_x509_type_file_tmp is non-local
+	# set by select_x509_type_tmp()
+	select_x509_type_tmp "$crt_type"
+	x509_type_tmp_file_USER="$new_x509_type_file_tmp"
+	verbose "x509_type_tmp_file_USER = '$x509_type_tmp_file_USER'"
 
 	# keyUsage critical
 	confirm_ku_crit=
 	if [ "$EASYRSA_KU_CRIT" ]; then
 		add_critical_attrib keyUsage \
-			"$x509_type_file" x509_type_file || \
+			"$x509_type_tmp_file_USER" x509_type_tmp_file_USER || \
 				die "sign-req - add_critical_attrib kU"
 		confirm_ku_crit="  keyUsage:         'critical'${NL}"
 		verbose "keyUsage critical OK"
@@ -2475,7 +2464,7 @@ Writing 'copy_exts' to SSL config temp-file failed"
 	confirm_bc_crit=
 	if [ "$EASYRSA_BC_CRIT" ]; then
 		add_critical_attrib basicConstraints \
-			"$x509_type_file" x509_type_file || \
+			"$x509_type_tmp_file_USER" x509_type_tmp_file_USER || \
 				die "sign-req - add_critical_attrib bC"
 		confirm_bc_crit="  basicConstraints: 'critical'${NL}"
 		verbose "basicConstraints critical OK"
@@ -2485,21 +2474,16 @@ Writing 'copy_exts' to SSL config temp-file failed"
 	confirm_eku_crit=
 	if [ "$EASYRSA_EKU_CRIT" ]; then
 		add_critical_attrib extendedKeyUsage \
-			"$x509_type_file" x509_type_file || \
+			"$x509_type_tmp_file_USER" x509_type_tmp_file_USER || \
 				die "sign-req - add_critical_attrib eKU"
 		confirm_eku_crit="  extendedKeyUsage: 'critical'${NL}"
 		verbose "extendedKeyUsage critical OK"
 	fi
 
 	# Find or create x509 COMMON file
-	if [ -f "$EASYRSA_EXT_DIR/COMMON" ]; then
-		# Use the x509-types/COMMON file
-		x509_COMMON_file="$EASYRSA_EXT_DIR/COMMON"
-	else
-		# Use a temp file
-		write_x509_type_tmp COMMON
-		x509_COMMON_file="$write_x509_file_tmp"
-	fi
+	select_x509_type_tmp COMMON
+	x509_type_tmp_file_COMMON="$new_x509_type_file_tmp"
+	verbose "x509_type_tmp_file_COMMON = '$x509_type_tmp_file_COMMON'"
 
 	# Support a dynamic CA path length when present:
 	unset -v basicConstraints confirm_bc_len
@@ -2513,7 +2497,7 @@ Writing 'copy_exts' to SSL config temp-file failed"
 /^[[:blank:]]*basicConstraints[[:blank:]]*=/ { bC=$0 }
 END { if (length(bC) == 0 ) exit 1; print bC }'
 		basicConstraints="$(
-			awk "$awkscript" "$x509_type_file"
+			awk "$awkscript" "$x509_type_tmp_file_USER"
 			)" || die "\
 basicConstraints is not defined, cannot use 'pathlen'"
 		confirm_pathlen="
@@ -2589,7 +2573,7 @@ subjectAltName = ${EASYRSA_SAN_CRIT}${EASYRSA_SAN}"
 	# Begin output redirect
 	{
 		# Append $cert-type extensions
-		cat "$x509_COMMON_file" "$x509_type_file"
+		cat "$x509_type_tmp_file_USER" "$x509_type_tmp_file_COMMON"
 
 		# Support a dynamic CA path length when present:
 		if [ "$basicConstraints" ]; then
@@ -2744,11 +2728,11 @@ Certificate created at:
 add_critical_attrib() {
 	case "$1" in
 		basicConstraints|keyUsage|extendedKeyUsage) : ;; # ok
-		*) die "$fn_name - usage: '$1'"
+		*) die "add_critical_attrib - usage: '$1'"
 	esac
 
-	[ -f "$2" ] || die "$fn_name - missing input file"
-	[ "$3" ] || die "$fn_name - missing variable"
+	[ -f "$2" ] || die "add_critical_attrib - missing input file"
+	[ "$3" ] || die "add_critical_attrib - missing variable"
 
 	crit_tmp=
 	easyrsa_mktemp crit_tmp
@@ -2874,8 +2858,8 @@ Conflicting file found at:
 	remove_secure_session
 	secure_session
 	locate_support_files
+	select_ssl_cnf_tmp
 	write_global_safe_ssl_cnf_tmp
-	provide_EASYRSA_SSL_CONF_tmp
 
 	# Require --copy-ext
 	export EASYRSA_CP_EXT=1
@@ -3525,17 +3509,17 @@ forbid_selfsign() {
 
 	forbid_serial=
 	ssl_cert_serial "$1" forbid_serial || \
-		die "$fn_name - ssl_cert_serial"
+		die "forbid_selfsign - ssl_cert_serial"
 
 	# SSL text
 	"$EASYRSA_OPENSSL" x509 -in "$1" -noout -text > "$forbid_ss_tmp" || \
-		die "$fn_name - ssl text"
+		die "forbid_selfsign - ssl text"
 
 	# Extract signing cert serial
 	signing_serial="$(
 			grep "^[[:blank:]]*serial:.*$" "$forbid_ss_tmp" | \
 				sed -e 's/^[[:blank:]]*serial//' -e 's/://g'
-		)" || die "$fn_name - signing_serial subshell"
+		)" || die "forbid_selfsign - signing_serial subshell"
 	verbose "forbid_selfsign; $forbid_serial = $signing_serial"
 
 	# Compare $ssl_cert_serial to $signing_serial
@@ -4299,8 +4283,8 @@ read_db() {
 		remove_secure_session
 		secure_session
 		locate_support_files
+		select_ssl_cnf_tmp
 		write_global_safe_ssl_cnf_tmp
-		provide_EASYRSA_SSL_CONF_tmp
 
 		# Interpret the db/certificate record
 		unset -v db_serial db_cn db_revoke_date db_reason
@@ -4954,21 +4938,18 @@ $cmd does not support setting an external commonName."
 			die "$f_name Write CA cert to temp-file"
 
 	# Find or create x509 CA file
-	if [ -f "$EASYRSA_EXT_DIR/ca" ]; then
-		# Use the x509-types/ca file
-		x509_type_file="$EASYRSA_EXT_DIR/ca"
-	else
-		# Use a temp file
-		write_x509_type_tmp ca
-		x509_type_file="$write_x509_file_tmp"
-	fi
+	# Note: $new_x509_type_file_tmp is non-local
+	# set by select_x509_type_tmp()
+	select_x509_type_tmp ca
+	x509_type_tmp_file_ca="$new_x509_type_file_tmp"
+	verbose "x509_type_tmp_file_ca = '$x509_type_tmp_file_ca'"
 
 	# basicConstraints critical
 	if grep -q 'Basic Constraints: critical' "$old_cert_tmp"
 	then
 		add_critical_attrib basicConstraints \
-			"$x509_type_file" x509_type_file || \
-				die "$f_name: add_critical_attrib bC"
+			"$x509_type_tmp_file_ca" x509_type_tmp_file_ca || \
+				die "add_critical_attrib bC"
 		verbose "basicConstraints critical OK"
 	fi
 
@@ -4976,20 +4957,15 @@ $cmd does not support setting an external commonName."
 	if grep -q 'Key Usage: critical' "$old_cert_tmp"
 	then
 		add_critical_attrib keyUsage \
-			"$x509_type_file" x509_type_file || \
-				die "$f_name: add_critical_attrib kU"
+			"$x509_type_tmp_file_ca" x509_type_tmp_file_ca || \
+				die "add_critical_attrib kU"
 		verbose "keyUsage critical OK"
 	fi
 
 	# Find or create x509 COMMON file
-	if [ -f "$EASYRSA_EXT_DIR/COMMON" ]; then
-		# Use the x509-types/COMMON file
-		x509_COMMON_file="$EASYRSA_EXT_DIR/COMMON"
-	else
-		# Use a temp file
-		write_x509_type_tmp COMMON
-		x509_COMMON_file="$write_x509_file_tmp"
-	fi
+	select_x509_type_tmp COMMON
+	x509_type_tmp_file_COMMON="$new_x509_type_file_tmp"
+	verbose "x509_type_tmp_file_COMMON = '$x509_type_tmp_file_COMMON'"
 
 	# Check for insert-marker in ssl config file
 	if ! grep -q '^#%CA_X509_TYPES_EXTRA_EXTS%' \
@@ -5016,7 +4992,7 @@ Please update 'openssl-easyrsa.cnf' to the latest Easy-RSA release."
 	# Insert x509-types COMMON and 'ca' and EASYRSA_EXTRA_EXTS
 	{
 		# X509 files
-		cat "$x509_type_file" "$x509_COMMON_file"
+		cat "$x509_type_tmp_file_ca" "$x509_type_tmp_file_COMMON"
 
 		# User extensions
 		[ "$EASYRSA_EXTRA_EXTS" ] && \
@@ -5248,7 +5224,7 @@ ssl_cert_x509v3_eku() {
 	else
 		ceku_crt="${EASYRSA_PKI}/issued/${1}.crt"
 		[ -f "$ceku_crt" ] || \
-			die "$fn_name - Missing cert '$ceku_crt'"
+			die "ssl_cert_x509v3_eku - Missing cert '$ceku_crt'"
 	fi
 
 	# required variables
@@ -5265,13 +5241,13 @@ ssl_cert_x509v3_eku() {
 			"$EASYRSA_OPENSSL" x509 -in "$ceku_crt" -noout \
 				-text | \
 					sed -n "/${ceku_pattern}/{n;s/^ *//g;p;}"
-			)" || die "$fn_name - LibreSSL error"
+			)" || die "ssl_cert_x509v3_eku - LibreSSL error"
 	else
 		ceku_eku="$(
 			"$EASYRSA_OPENSSL" x509 -in "$ceku_crt" -noout \
 				-ext extendedKeyUsage | \
 					sed -e /"${ceku_pattern}"/d -e s/^\ *//
-			)" || die "$fn_name - OpenSSL error"
+			)" || die "ssl_cert_x509v3_eku - OpenSSL error"
 	fi
 
 	# Match EKU with supported usage
@@ -5310,7 +5286,7 @@ ssl_cert_x509v3_eku() {
 	# Set variable to return
 	if [ "$2" ]; then
 		force_set_var "$2" "$ceku_type" || \
-			die "$fn_name - force_set_var failed"
+			die "ssl_cert_x509v3_eku - force_set_var failed"
 		verbose "ssl_cert_x509v3_eku; EKU='$ceku_type' [$2]"
 	elif [ "$ceku_known" ]; then
 		information "\
@@ -5319,8 +5295,6 @@ ssl_cert_x509v3_eku() {
 		information "\
 * UNKNOWN X509v3 Extended Key Usage: '$ceku_type'"
 	fi
-
-	fn_name="${fn_name%; ssl_cert_x509v3_eku}"
 
 	# Succeed for known types only
 	[ "$ceku_known" ] && return
@@ -5872,7 +5846,7 @@ Using Easy-RSA 'vars' configuration:
 
 		# if openssl-easyrsa.cnf does not exist then
 		# provide default as tmp-file via $EASYRSA_SSL_CONF
-		provide_EASYRSA_SSL_CONF_tmp
+		select_ssl_cnf_tmp
 
 		# global safe ssl cnf temp
 		write_global_safe_ssl_cnf_tmp
@@ -5934,19 +5908,38 @@ write_global_safe_ssl_cnf_tmp() {
 write_global_safe_ssl_cnf_tmp; GLOBAL OPENSSL_CONF = $OPENSSL_CONF"
 } # => write_global_safe_ssl_cnf_tmp()
 
-# if openssl-easyrsa.cnf does not exist then
-# provide default as tmp-file via $EASYRSA_SSL_CONF
-provide_EASYRSA_SSL_CONF_tmp() {
-	if [ ! -f "$EASYRSA_SSL_CONF" ]; then
-		unset -v EASYRSA_SSL_CONF
-		easyrsa_mktemp EASYRSA_SSL_CONF
-		write_legacy_file_v2 ssl-cnf "$EASYRSA_SSL_CONF" overwrite || \
-			die "provide_EASYRSA_SSL_CONF_tmp - write_legacy_file_v2 ssl-cnf"
+# if openssl-easyrsa.cnf does exist and it is customised then
+# copy it to tmp-file. Otherwise, provide default as tmp-file
+# Always export tmpfile to $EASYRSA_SSL_CONF
+# No expansion required for safe SSL config
+select_ssl_cnf_tmp() {
+	# Always write a temp-file
+	ssl_conf_tmp=
+	easyrsa_mktemp ssl_conf_tmp
+	copy_ssl_conf_tmp=
+
+	if [ -f "$EASYRSA_SSL_CONF" ]; then
+		if ! check_ssl_cnf_known_hash "$EASYRSA_SSL_CONF"; then
+			copy_ssl_conf_tmp=1
+		fi
 	fi
-	export EASYRSA_SSL_CONF
-	verbose "\
-provide_EASYRSA_SSL_CONF_tmp: EASYRSA_SSL_CONF = '$EASYRSA_SSL_CONF'"
-} # => provide_EASYRSA_SSL_CONF_tmp()
+
+	if [ "$copy_ssl_conf_tmp" ]; then
+		# copy existing, custom openssl-easyrsa.cnf file
+		verbose "select_ssl_cnf_tmp; copy existing ssl-cnf to tmp-file"
+		cp "$EASYRSA_SSL_CONF" "$ssl_conf_tmp" || \
+			die "select_ssl_cnf_tmp - copy existing SSL config"
+	else
+		# create EasyRSA default SSL config file
+		verbose "select_ssl_cnf_tmp; write built-in ssl-cnf to tmp-file"
+		write_legacy_file_v2 ssl-cnf "$ssl_conf_tmp" overwrite || \
+			die "select_ssl_cnf_tmp - write_legacy_file_v2 ssl-cnf"
+	fi
+
+	export EASYRSA_SSL_CONF="$ssl_conf_tmp"
+	verbose "select_ssl_cnf_tmp; EASYRSA_SSL_CONF = '$EASYRSA_SSL_CONF'"
+	unset -v ssl_conf_tmp copy_ssl_conf_tmp
+} # => select_ssl_cnf_tmp()
 
 # Check if 'openssl-easyrsa.cnf' hash is known
 check_ssl_cnf_known_hash() {
@@ -5985,6 +5978,31 @@ check_ssl_cnf_known_hash() {
 	esac
 	verbose "check_ssl_cnf_known_hash; KNOWN $file_hash"
 } # => check_ssl_cnf_known_hash()
+
+# Select ANY existing X509-type file or
+# create a tmp-file for supported types
+# copy the selected file to a new tmp-file
+select_x509_type_tmp() {
+	[ "$1" ] || die "create_x509_type_tmp - input: type"
+	x509_type_source="${EASYRSA_EXT_DIR}/${1}"
+
+	# If no X509-type file exists then provide known types or fail
+	if [ ! -f "$x509_type_source" ]; then
+		# Use a temp file
+		write_x509_type_tmp "$1"
+		x509_type_source="$write_x509_file_tmp"
+	fi
+
+	# Copy the x509-types/$x509_type file to tmp-file
+	new_x509_type_file_tmp=
+	easyrsa_mktemp new_x509_type_file_tmp
+
+	cp "$x509_type_source" "$new_x509_type_file_tmp" || \
+		die "create_x509_type_tmp; copy x509-type failed"
+
+	verbose "\
+create_x509_type_tmp; new_x509_type_file_tmp = '$new_x509_type_file_tmp'"
+} # => select_x509_type_tmp()
 
 # Write x509 type file to a temp file
 write_x509_type_tmp() {
