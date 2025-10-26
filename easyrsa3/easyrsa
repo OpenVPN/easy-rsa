@@ -1286,6 +1286,7 @@ verify_ssl_lib() {
 		LibreSSL)
 			ssl_lib=libressl
 			ssl_cnf_type=safe-cnf
+			export EASYRSA_FORCE_SAFE_SSL=1
 			;;
 		*)
 			error_msg="$("$EASYRSA_OPENSSL" version 2>&1)"
