@@ -1220,7 +1220,7 @@ easyrsa_openssl() {
 	[ -f "$EASYRSA_SSL_CONF" ] || \
 			die "easyrsa_openssl - Missing EASYRSA_SSL_CONF"
 
-	if [ "$ssl_cnf_type" = safe-cnf ] || [ "$EASYRSA_FORCE_SAFE_SSL" ]; then
+	if [ "$EASYRSA_FORCE_SAFE_SSL" ]; then
 		final_safe_ssl_cnf=
 		easyrsa_mktemp final_safe_ssl_cnf
 
@@ -1276,16 +1276,9 @@ verify_ssl_lib() {
 	case "${val%% *}" in
 		OpenSSL)
 			ssl_lib=openssl
-			# Honor EASYRSA_FORCE_SAFE_SSL
-			if [ "$EASYRSA_FORCE_SAFE_SSL" ]; then
-				ssl_cnf_type=safe-cnf
-			else
-				ssl_cnf_type=ssl-cnf
-			fi
 			;;
 		LibreSSL)
 			ssl_lib=libressl
-			ssl_cnf_type=safe-cnf
 			export EASYRSA_FORCE_SAFE_SSL=1
 			;;
 		*)
