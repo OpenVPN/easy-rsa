@@ -1275,10 +1275,10 @@ verify_ssl_lib() {
 	# SSL lib name
 	case "${val%% *}" in
 		OpenSSL)
-			ssl_lib=openssl
+			ssl_lib_name=openssl
 			;;
 		LibreSSL)
-			ssl_lib=libressl
+			ssl_lib_name=libressl
 			export EASYRSA_FORCE_SAFE_SSL=1
 			;;
 		*)
@@ -1299,7 +1299,7 @@ $error_msg"
 		1) no_password='-nodes' ;;
 		2) no_password='-nodes' ;;
 		3|4)
-			case "$ssl_lib" in
+			case "$ssl_lib_name" in
 				openssl)
 					openssl_v3=1
 					no_password='-noenc'
@@ -1307,7 +1307,7 @@ $error_msg"
 				libressl)
 					no_password='-nodes'
 					;;
-				*) die "Unexpected SSL library: $ssl_lib"
+				*) die "Unexpected SSL library: $ssl_lib_name"
 			esac
 			;;
 		*) die "Unexpected SSL version: $osslv_major"
@@ -5230,7 +5230,7 @@ ssl_cert_x509v3_eku() {
 	ceku_known=
 
 	# Extract certificate Extended Key Usage
-	if [ "$ssl_lib" = libressl ]; then
+	if [ "$ssl_lib_name" = libressl ]; then
 		ceku_eku="$(
 			"$EASYRSA_OPENSSL" x509 -in "$ceku_crt" -noout \
 				-text | \
