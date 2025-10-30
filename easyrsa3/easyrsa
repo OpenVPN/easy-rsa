@@ -1496,7 +1496,7 @@ Your newly created PKI dir is:
 * $EASYRSA_PKI"
 
 	# Select and show Auto-configured vars file
-	unset -v ignore_vars EASYRSA_VARS_FILE
+	unset -v EASYRSA_NO_VARS EASYRSA_VARS_FILE
 	select_vars
 	if [ "$EASYRSA_VARS_FILE" ]; then
 		information "\
@@ -5503,7 +5503,7 @@ To correct this problem, it is recommended that you either:
 # running without a sourced config format.
 select_vars() {
 	# Deliberately ignore vars
-	[ "$ignore_vars" ] && return 1
+	[ "$EASYRSA_NO_VARS" ] && return 1
 
 	# User specified vars file will be used ONLY
 	if [ "$EASYRSA_VARS_FILE" ]; then
@@ -6626,7 +6626,7 @@ unset -v \
 	verify_ssl_lib_ok ssl_batch \
 	secured_session write_recursion \
 	alias_days text prohibit_no_pass \
-	quiet_vars ignore_vars invalid_vars \
+	quiet_vars invalid_vars \
 	local_request error_build_full_cleanup \
 	selfsign_eku \
 	internal_batch mv_temp_error \
@@ -6900,7 +6900,7 @@ cmd="$1"
 # ONLY verify_working_env() for valid commands
 case "$cmd" in
 	init-pki|clean-all)
-		ignore_vars=1 # Deliberately ignore vars
+		export EASYRSA_NO_VARS=1 # Deliberately ignore vars
 		require_pki=""; require_ca=""; verify_working_env
 		init_pki "$@"
 		;;
