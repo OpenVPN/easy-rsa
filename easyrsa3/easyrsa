@@ -2876,7 +2876,9 @@ See error messages above for details."
 # Generate inline file V2
 inline_file() {
 	# Allow complete disable
-	if [ "$EASYRSA_DISABLE_INLINE" ]; then
+	if [ "$EASYRSA_NO_INLINE" ] || [ "$EASYRSA_DISABLE_INLINE" ]; then
+		[ -z "$EASYRSA_DISABLE_INLINE" ] || \
+			warn 'Use $EASYRSA_NO_INLINE not $EASYRSA_DISABLE_INLINE'
 		verbose "inline_file; DISABLED"
 		return
 	fi
@@ -6419,7 +6421,7 @@ fi
 
 # Disable automatic inline files
 #
-#set_var	EASYRSA_DISABLE_INLINE	1
+#set_var	EASYRSA_NO_INLINE	1
 CREATE_VARS_EXAMPLE
 		;;
 	ssl-cnf|safe-cnf)
