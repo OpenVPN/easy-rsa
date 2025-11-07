@@ -44,6 +44,7 @@ Global options:
                   (Default: Generate Safe SSL config once per instance)
 
 --no-lockfile   : Disable lock-file (Useful for read-only PKI)
+--no-inline     : Disable inline file creation
 --tmp-dir=DIR   : Declare the temporary directory
                   (Default temporary directory is the EasyRSA PKI directory)
 --keep-tmp=NAME : Keep the original temporary session by name: NAME
@@ -6672,6 +6673,10 @@ while :; do
 		--no-lockfile)
 			empty_ok=1
 			export EASYRSA_NO_LOCKFILE=1
+			;;
+		--no-inline)
+			empty_ok=1
+			export EASYRSA_NO_INLINE=1
 			;;
 		--tmp-dir)
 			export EASYRSA_TEMP_DIR="$val"
