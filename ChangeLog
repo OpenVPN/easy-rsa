@@ -2,6 +2,7 @@ Easy-RSA 3 ChangeLog
 
 3.2.5 (TBD)
 
+   * Update EasyRSA-Advanced.md (276eaa5) (#1403)
    * Introduce global option --no-inline (75e52f7) (#1403)
    * Replace $ignore_vars with $EASYRSA_NO_VARS (Revert 3c0ca17) (5879488) (#1403)
    * Libressl: Use ONLY $EASYRSA_FORCE_SAFE_SSL (25b7485) (#1402)
