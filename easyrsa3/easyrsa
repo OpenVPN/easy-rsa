@@ -16,9 +16,12 @@ usage() {
 	print "
 Easy-RSA 3 global option and command overview.
 
+NOTE: Global options MUST be provided before the command.
+
 Global options:
 
 --version       : Prints EasyRSA version and build information
+--verbose|-v    : Enable verbose output
 --batch         : Set automatic (no-prompts when possible) mode
 --silent|-s     : Disable all warnings, notices and information
 --sbatch        : Combined --silent and --batch operating mode
@@ -6767,7 +6770,7 @@ while :; do
 			export EASYRSA_SILENT=1
 			export EASYRSA_BATCH=1
 			;;
-		--verbose)
+		-v|--verbose)
 			empty_ok=1
 			export EASYRSA_VERBOSE=1
 			;;
