@@ -48,7 +48,7 @@ Configuration Reference
 #### Use of `--pki` verses `--vars`
 
   It is recommended to use option `--pki=DIR` to define your PKI at runtime.
-  This method will always auto-load the `vars` file found in defined PKI.
+  This method will always auto-load the `vars` file found in the defined PKI.
 
   In a multi-PKI installation, use of `--vars` can potentially lead to
   a vars file that is configured to set a PKI which cannot be verified
@@ -90,12 +90,13 @@ Advanced configuration files
 
 The following files are used by Easy-RSA to configure the SSL library:
 * openssl-easyrsa.cnf - Configuration for Certificate Authority [CA]
-* x509-types: COMMON, ca, server, serverClient, client, codeSigning, email, kdc.
+* x509-types: COMMON, ca, server, serverClient, client, codeSigning, email.
   Each type is used to define an X509 purpose.
 
 Since Easy-RSA version 3.2.0, these files are created on-demand by each command
 that requires them.  However, if these files are found in one of the supported
-locations then those files are used instead, no temporary files are created.
+locations then those files are used instead, they are copied to temporary files.
+X509-type 'kdc' is only supported as an external file.
 
 The supported locations are listed, in order of preference, as follows:
 * `EASYRSA_PKI` - Always preferred.
@@ -106,18 +107,12 @@ The supported locations are listed, in order of preference, as follows:
 * `/usr/share/easy-rsa`
 * `/etc/easy-rsa`
 
-The files above can all be created by using command: `easyrsa write legacy <DIR>`
-To OVER-WRITE any existing files use command: `eaysrsa write legacy-hard <DIR>`
-`<DIR>` is optional, the default is `EASYRSA_PKI`. This will create the files in
-the current PKI or `<DIR>`.  If created then these new files may take priority
-over system wide versions of the same files.  See `help write` for further details.
+The x509-type files can be created by using command: `easyrsa write legacy`.
+To OVER-WRITE any existing files use command: `eaysrsa write legacy-hard`.
+This will create the files in the current PKI.  If created then these new
+files take priority over system wide versions of the same files.
 
-Note, Over-writing files:
-Only command `write legacy-hard` will over-write files. All other uses of `write`
-will leave an existing file intact, without error. If you want to over-write an
-existing file using `write` then you must redirect `>foo` the output manually.
 
-Example command: `easyrsa write vars >vars` - This will over-write `./vars`.
 
 Environmental Variables Reference
 ---------------------------------
@@ -129,8 +124,8 @@ short description is shown below:
     script is located.
  *  `EASYRSA_OPENSSL` - command to invoke openssl
  *  `EASYRSA_SSL_CONF` - the openssl config file to use
- *  `EASYRSA_PKI` (CLI: `--pki-dir`) - dir to use to hold all PKI-specific
-    files, defaults to `$PWD/pki`.
+ *  `EASYRSA_PKI` (CLI: `--pki`) - dir to use to hold all PKI-specific files,
+     defaults to `$PWD/pki`.
  *  `EASYRSA_VARS_FILE` (CLI: `--vars`) - Set the `vars` file to use
  *  `EASYRSA_DN` (CLI: `--dn-mode`) - set to the string `cn_only` or `org` to
     alter the fields to include in the req DN
@@ -145,14 +140,19 @@ short description is shown below:
     mode
  *  `EASYRSA_REQ_SERIAL` (CLI: `--req-serial`) - set the DN serialNumber with
     org mode (OID 2.5.4.5)
- *  `EASYRSA_KEY_SIZE` (CLI: `--keysize`) - set the key size in bits to
-    generate
- *  `EASYRSA_ALGO` (CLI: `--use-algo`) - set the crypto alg to use: rsa, ec or
-    ed
+ *  `EASYRSA_AUTO_SAN` (CLI: `--auto-san`) - use CN for SAN
+ *  `EASYRSA_SAN` (CLI: `--san`) - Set subjectAltName for certificate
+ *  `EASYRSA_SAN_CRIT` (CLI: `--san-crit`) - set the certificate SAN as 'critical'
+ *  `EASYRSA_BC_CRIT` (CLI: `--bc-crit`) - set the certificate BC as 'critical'
+ *  `EASYRSA_KU_CRIT` (CLI: `--ku-crit`) - set the certificate KU as 'critical'
+ *  `EASYRSA_EKU_CRIT` (CLI: `--eku-crit`) - set the certificate EKU as 'critical'
+ *  `EASYRSA_EXTRA_EXTS` - user defined extensions to add to the request or cert
+ *  `EASYRSA_CP_EXT` (CLI: `--copy-ext`) - copy extensions from request to cert
+ *  `EASYRSA_KEY_SIZE` (CLI: `--keysize`) - set the key size in bits to generate
+ *  `EASYRSA_ALGO` (CLI: `--use-algo`) - set the crypto alg to use: rsa, ec or ed
  *  `EASYRSA_CURVE` (CLI: `--curve`) - define the named EC curve to use
  *  `EASYRSA_CA_EXPIRE` (CLI: `--days`) - set the CA expiration time in days
- *  `EASYRSA_CERT_EXPIRE` (CLI: `--days`) - set the issued cert expiration time
-    in days
+ *  `EASYRSA_CERT_EXPIRE` (CLI: `--days`) - set the cert expiration time in days
  *  `EASYRSA_CRL_DAYS` (CLI: `--days`) - set the CRL 'next publish' time in days
  *  `EASYRSA_NS_SUPPORT` (CLI: `--ns-cert`) - string 'yes' or 'no' fields to
     include the **deprecated** Netscape extensions
@@ -164,14 +164,22 @@ short description is shown below:
     signing
  *  `EASYRSA_BATCH` (CLI: `--batch`) - enable batch (no-prompt) mode; set
     env-var to non-zero string to enable (CLI takes no options)
+ *  `EASYRSA_VERBOSE` (CLI: `-v`) - Enable verbose output
  *  `EASYRSA_PASSIN` (CLI: `--passin`) - allows to specify a source for
     password using any openssl password options like pass:1234 or env:var
  *  `EASYRSA_PASSOUT` (CLI: `--passout`) - allows to specify a source for
     password using any openssl password options like pass:1234 or env:var
  *  `EASYRSA_NO_PASS` (CLI: `--nopass`) - disable use of passwords
- *  `EASYRSA_UMASK` - safe umask to use for file creation. Defaults to `077`
- *  `EASYRSA_NO_UMASK` - disable safe umask. Files will be created using the
-    system's default
- *  `EASYRSA_TEMP_DIR` (CLI: `--tmp-dir`) - a temp directory to use for temporary files
+ *  `EASYRSA_UMASK` (CLI: `--umask`) - safe umask to use for file creation.
+    Defaults to `077`
+ *  `EASYRSA_NO_UMASK` (CLI: `--no-umask`) - disable safe umask. Files will be
+    created using the system's default
+ *  `EASYRSA_TEMP_DIR` (CLI: `--tmp-dir`) - an existing directory to use for
+    temporary files
+ *  `EASYRSA_NO_INLINE` (CLI: `--no-inline`) - disable creation of inline files
+ *  `EASYRSA_TEXT_ON` (CLI: `--text`) - include human readable text in SSL output
+ *  `EASYRSA_TEXT_OFF` (CLI: `--notext`) - exclude human readable text from SSL
+    output
+
 
 **NOTE:** the global options must be provided before the commands.
