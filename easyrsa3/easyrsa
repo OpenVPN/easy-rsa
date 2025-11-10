@@ -2882,7 +2882,7 @@ inline_file() {
 	# Allow complete disable
 	if [ "$EASYRSA_NO_INLINE" ] || [ "$EASYRSA_DISABLE_INLINE" ]; then
 		[ -z "$EASYRSA_DISABLE_INLINE" ] || \
-			warn 'Use $EASYRSA_NO_INLINE not $EASYRSA_DISABLE_INLINE'
+			warn "Use \$EASYRSA_NO_INLINE not \$EASYRSA_DISABLE_INLINE"
 		verbose "inline_file; DISABLED"
 		return
 	fi
@@ -5568,12 +5568,13 @@ Missing vars file:
 * $target_file"
 
 	# Sanitize target_file
-	if grep -q \
+	if grep -v '^[[:blank:]]*#' "$target_file" | grep -q \
 		-e 'EASYRSA_PASSIN' -e 'EASYRSA_PASSOUT' \
 		-e '[^(]`[^)]' \
+		-e 'EASYRSA_[[_[:upper:]]*=.*' \
 		-e 'export ' \
 		-e 'unset ' \
-			"$target_file"
+		# EOL
 	then
 		# here we go ..
 		err_msg="\
@@ -5597,6 +5598,16 @@ These problems have been found in your 'vars' settings:${NL}"
 			err_msg="${err_msg}
   Use of unsupported characters:
   These characters are not supported: \` backtick"
+		fi
+
+		# No standard assignment by '='
+		if grep -q \
+			-e 'EASYRSA_[_[:upper:]]*=.*' \
+			"$target_file"
+		then
+			err_msg="${err_msg}
+  Assignment by '=':
+  Remove '=' and replace it with 'set_var'."
 		fi
 
 		# No export
@@ -6773,6 +6784,7 @@ while :; do
 		-v|--verbose)
 			empty_ok=1
 			export EASYRSA_VERBOSE=1
+			fn_name="Easy-RSA version" verbose "$EASYRSA_version"
 			;;
 		-S|--silent-ssl)
 			empty_ok=1
