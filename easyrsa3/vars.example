@@ -164,7 +164,7 @@ fi
 
 # Disable automatic inline files
 #
-#set_var	EASYRSA_DISABLE_INLINE	1
+#set_var	EASYRSA_NO_INLINE	1
 
 # Support deprecated "Netscape" extensions? (choices "yes" or "no").
 # The default is "no", to discourage use of deprecated extensions.
