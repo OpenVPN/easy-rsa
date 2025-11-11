@@ -5570,10 +5570,10 @@ Missing vars file:
 	# Sanitize target_file
 	if grep -v '^[[:blank:]]*#' "$target_file" | grep -q \
 		-e 'EASYRSA_PASSIN' -e 'EASYRSA_PASSOUT' \
-		-e '[^(]`[^)]' \
+		-e '`' \
 		-e 'EASYRSA_[[_[:upper:]]*=.*' \
-		-e 'export ' \
-		-e 'unset ' \
+		-e 'export[[:blank:]]*EASYRSA_[[_[:upper:]]*' \
+		-e 'unset[[:blank:]]*EASYRSA_[[_[:upper:]]*' \
 		# EOL
 	then
 		# here we go ..
@@ -5612,7 +5612,7 @@ These problems have been found in your 'vars' settings:${NL}"
 
 		# No export
 		if grep -q \
-			-e 'export ' \
+			-e 'export[[:blank:]]*EASYRSA_[[_[:upper:]]*' \
 			"$target_file"
 		then
 			err_msg="${err_msg}
@@ -5622,7 +5622,7 @@ These problems have been found in your 'vars' settings:${NL}"
 
 		# No unset
 		if grep -q \
-			-e 'unset ' \
+			-e 'unset[[:blank:]]*EASYRSA_[[_[:upper:]]*' \
 			"$target_file"
 		then
 			err_msg="${err_msg}
