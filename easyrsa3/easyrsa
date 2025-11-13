@@ -5586,7 +5586,7 @@ These problems have been found in your 'vars' settings:
 			-e 'EASYRSA_PASSIN' -e 'EASYRSA_PASSOUT' \
 			"$target_file"
 		then
-			err_msg="${err_msg}
+			err_msg="${err_msg}${NL}
   Use of 'EASYRSA_PASSIN' or 'EASYRSA_PASSOUT':
   Storing password information in the 'vars' file is not permitted."
 		fi
@@ -5596,7 +5596,7 @@ These problems have been found in your 'vars' settings:
 			-e '[^(]`[^)]' \
 			"$target_file"
 		then
-			err_msg="${err_msg}
+			err_msg="${err_msg}${NL}
   Use of unsupported characters:
   These characters are not supported: \` backtick"
 		fi
@@ -5606,7 +5606,7 @@ These problems have been found in your 'vars' settings:
 			-e 'EASYRSA_[_[:upper:]]*=.*' \
 			"$target_file"
 		then
-			err_msg="${err_msg}
+			err_msg="${err_msg}${NL}
   Assignment by '=':
   Remove '=' and replace it with 'set_var'."
 		fi
@@ -5616,7 +5616,7 @@ These problems have been found in your 'vars' settings:
 			-e 'export[[:blank:]]*EASYRSA_[[_[:upper:]]*' \
 			"$target_file"
 		then
-			err_msg="${err_msg}
+			err_msg="${err_msg}${NL}
   Use of 'export':
   Remove 'export' or replace it with 'set_var'."
 		fi
@@ -5626,7 +5626,7 @@ These problems have been found in your 'vars' settings:
 			-e 'unset[[:blank:]]*EASYRSA_[[_[:upper:]]*' \
 			"$target_file"
 		then
-			err_msg="${err_msg}
+			err_msg="${err_msg}${NL}
   Use of 'unset':
   Remove 'unset' ('force_set_var' may also work)."
 		fi
