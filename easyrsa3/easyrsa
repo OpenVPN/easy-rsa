@@ -5571,9 +5571,9 @@ Missing vars file:
 	if grep -v '^[[:blank:]]*#' "$target_file" | grep -q \
 		-e 'EASYRSA_PASSIN' -e 'EASYRSA_PASSOUT' \
 		-e '`' \
-		-e 'EASYRSA_[[_[:upper:]]*=.*' \
-		-e 'export[[:blank:]]*EASYRSA_[[_[:upper:]]*' \
-		-e 'unset[[:blank:]]*EASYRSA_[[_[:upper:]]*' \
+		-e 'EASYRSA_[_[:upper:]]*=.*' \
+		-e 'export[[:blank:]]' \
+		-e 'unset[[:blank:]]' \
 		# EOL
 	then
 		# here we go ..
@@ -5582,9 +5582,8 @@ These problems have been found in your 'vars' settings:
 * $target_file"
 
 		# No passwords!
-		if grep -q \
-			-e 'EASYRSA_PASSIN' -e 'EASYRSA_PASSOUT' \
-			"$target_file"
+		if grep -v '^[[:blank:]]*#' "$target_file" | \
+			grep -q -e 'EASYRSA_PASSIN' -e 'EASYRSA_PASSOUT'
 		then
 			err_msg="${err_msg}${NL}
   Use of 'EASYRSA_PASSIN' or 'EASYRSA_PASSOUT':
@@ -5592,9 +5591,8 @@ These problems have been found in your 'vars' settings:
 		fi
 
 		# No backticks
-		if grep -q \
-			-e '[^(]`[^)]' \
-			"$target_file"
+		if grep -v '^[[:blank:]]*#' "$target_file" | \
+			grep -q -e '`'
 		then
 			err_msg="${err_msg}${NL}
   Use of unsupported characters:
@@ -5602,9 +5600,8 @@ These problems have been found in your 'vars' settings:
 		fi
 
 		# No standard assignment by '='
-		if grep -q \
-			-e 'EASYRSA_[_[:upper:]]*=.*' \
-			"$target_file"
+		if grep -v '^[[:blank:]]*#' "$target_file" | \
+			grep -q -e 'EASYRSA_[_[:upper:]]*='
 		then
 			err_msg="${err_msg}${NL}
   Assignment by '=':
@@ -5612,9 +5609,8 @@ These problems have been found in your 'vars' settings:
 		fi
 
 		# No export
-		if grep -q \
-			-e 'export[[:blank:]]*EASYRSA_[[_[:upper:]]*' \
-			"$target_file"
+		if grep -v '^[[:blank:]]*#' "$target_file" | \
+			grep -q -e 'export[[:blank:]]'
 		then
 			err_msg="${err_msg}${NL}
   Use of 'export':
@@ -5622,9 +5618,8 @@ These problems have been found in your 'vars' settings:
 		fi
 
 		# No unset
-		if grep -q \
-			-e 'unset[[:blank:]]*EASYRSA_[[_[:upper:]]*' \
-			"$target_file"
+		if grep -v '^[[:blank:]]*#' "$target_file" | \
+			grep -q -e 'unset[[:blank:]]'
 		then
 			err_msg="${err_msg}${NL}
   Use of 'unset':
@@ -5634,7 +5629,6 @@ These problems have been found in your 'vars' settings:
 		# Fatal error
 		user_error "${err_msg}${NL}
 Please, correct these errors and try again."
-
 	fi
 
 	# Enable sourcing target_file
