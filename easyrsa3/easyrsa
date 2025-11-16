@@ -45,7 +45,7 @@ Global options:
                   (Default config file is in the EasyRSA PKI directory)
 --force-safe-ssl: Always generate a safe SSL config file
                   (Default: Generate Safe SSL config once per instance)
-
+--force-vars    : Ignore known errors in 'vars' file
 --no-lockfile   : Disable lock-file (Useful for read-only PKI)
 --no-inline     : Disable inline file creation
 --tmp-dir=DIR   : Declare the temporary directory
@@ -5627,8 +5627,12 @@ These problems have been found in your 'vars' settings:
 		fi
 
 		# Fatal error
-		user_error "${err_msg}${NL}
+		if [ "$EASYRSA_FORCE_VARS" ]; then
+			verbose "source_vars; ignore 'vars' errors"
+		else
+			user_error "${err_msg}${NL}
 Please, correct these errors and try again."
+		fi
 	fi
 
 	# Enable sourcing target_file
@@ -6794,6 +6798,10 @@ while :; do
 		--force-safe-ssl)
 			empty_ok=1
 			export EASYRSA_FORCE_SAFE_SSL=1
+			;;
+		--force-vars)
+			empty_ok=1
+			export EASYRSA_FORCE_VARS=1
 			;;
 		--nopass|--no-pass)
 			empty_ok=1
