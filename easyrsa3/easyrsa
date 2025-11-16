@@ -5641,7 +5641,7 @@ Please, correct these errors and try again."
 
 	# Test sourcing target_file in a subshell
 	# shellcheck disable=1090 # can't follow - source_vars()
-	if ( set -x; . "$target_file" 2>/dev/null ); then
+	if ( set -e; . "$target_file" 2>/dev/null ); then
 		# Source target_file now
 		# shellcheck disable=1090 # can't follow - source_vars()
 		. "$target_file" || \
