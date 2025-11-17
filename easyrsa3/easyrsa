@@ -5588,6 +5588,8 @@ These problems have been found in your 'vars' settings:
 			err_msg="${err_msg}${NL}
   Use of 'EASYRSA_PASSIN' or 'EASYRSA_PASSOUT':
   Storing password information in the 'vars' file is not permitted."
+			# enforce this rule
+			unset -v EASYRSA_FORCE_VARS
 		fi
 
 		# No backticks
@@ -5628,6 +5630,7 @@ These problems have been found in your 'vars' settings:
 
 		# Fatal error
 		if [ "$EASYRSA_FORCE_VARS" ]; then
+			warn "${err_msg}"
 			verbose "source_vars; ignore 'vars' errors"
 		else
 			user_error "${err_msg}${NL}
@@ -5654,7 +5657,7 @@ Please, correct these errors and try again."
 	[ "$EASYRSA_ALIAS_DAYS" = undefined ] && unset -v EASYRSA_ALIAS_DAYS
 
 	verbose "source_vars; sourced $target_file"
-	unset -v EASYRSA_CALLER target_file
+	unset -v EASYRSA_CALLER target_file err_msg
 } # => source_vars()
 
 # Set defaults
@@ -6653,8 +6656,10 @@ trap "exit 15" 15
 # Get host details - No configurable input allowed
 detect_host
 
-	# Protect EASYRSA_ALIAS_DAYS from alteration by sourcing vars file
-	export EASYRSA_ALIAS_DAYS=undefined
+# Protect variables from alteration by sourcing vars file
+# undocumented, not designed for use
+export EASYRSA_ALIAS_DAYS=undefined # protect from sourcing vars
+unset -v EASYRSA_FORCE_VARS # has no effect after sourcing vars
 
 # Parse options
 while :; do
