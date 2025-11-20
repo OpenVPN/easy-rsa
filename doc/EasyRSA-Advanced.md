@@ -180,6 +180,8 @@ short description is shown below:
  *  `EASYRSA_TEXT_ON` (CLI: `--text`) - include human readable text in SSL output
  *  `EASYRSA_TEXT_OFF` (CLI: `--notext`) - exclude human readable text from SSL
     output
-
+ *  `EASYRSA_FORCE_SAFE_SSL` (CLI: `--force-safe-ssl`) - expand environment
+    variables in SSL config
+ *  `EASYRSA_FORCE_VARS` (CLI: `--force-vars`) - ignore known errors in 'vars' file
 
 **NOTE:** the global options must be provided before the commands.
