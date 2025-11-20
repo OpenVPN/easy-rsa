@@ -45,7 +45,7 @@ Global options:
                   (Default config file is in the EasyRSA PKI directory)
 --force-safe-ssl: Always generate a safe SSL config file
                   (Default: Generate Safe SSL config once per instance)
-
+--force-vars    : Ignore known errors in 'vars' file
 --no-lockfile   : Disable lock-file (Useful for read-only PKI)
 --no-inline     : Disable inline file creation
 --tmp-dir=DIR   : Declare the temporary directory
@@ -2882,7 +2882,7 @@ inline_file() {
 	# Allow complete disable
 	if [ "$EASYRSA_NO_INLINE" ] || [ "$EASYRSA_DISABLE_INLINE" ]; then
 		[ -z "$EASYRSA_DISABLE_INLINE" ] || \
-			warn 'Use $EASYRSA_NO_INLINE not $EASYRSA_DISABLE_INLINE'
+			warn "Use \$EASYRSA_NO_INLINE not \$EASYRSA_DISABLE_INLINE"
 		verbose "inline_file; DISABLED"
 		return
 	fi
@@ -5433,7 +5433,7 @@ Option --passout cannot be used with --nopass|nopass."
 	fi
 
 	# Restrict --days=0 to 'show-expire'
-	if [ "$alias_days" = 0 ]; then
+	if [ "$EASYRSA_ALIAS_DAYS" = 0 ]; then
 		case "$cmd" in
 			show-expire) : ;; # ok
 			*) user_error "Cannot use --days=0 for command $cmd"
@@ -5470,12 +5470,12 @@ Format of --startdate/--enddate must be [YY]YYMMDDhhmmssZ"
 	if [ "$EASYRSA_END_DATE" ]; then
 		case "$cmd" in
 			sign-req|build-*-full|renew)
-				# User specified alias_days IS over-ruled
-				if [ "$alias_days" ]; then
+				# User specified EASYRSA_ALIAS_DAYS IS over-ruled
+				if [ "$EASYRSA_ALIAS_DAYS" ]; then
 					warn "\
 Option --days is over-ruled by option --enddate."
 				fi
-				unset -v EASYRSA_CERT_EXPIRE alias_days
+				unset -v EASYRSA_CERT_EXPIRE EASYRSA_ALIAS_DAYS
 				;;
 			*)
 				warn "\
@@ -5568,61 +5568,74 @@ Missing vars file:
 * $target_file"
 
 	# Sanitize target_file
-	if grep -q \
+	if grep -v '^[[:blank:]]*#' "$target_file" | grep -q \
 		-e 'EASYRSA_PASSIN' -e 'EASYRSA_PASSOUT' \
-		-e '[^(]`[^)]' \
-		-e 'export ' \
-		-e 'unset ' \
-			"$target_file"
+		-e '`' \
+		-e 'EASYRSA_[_[:upper:]]*=.*' \
+		-e 'export[[:blank:]]' \
+		-e 'unset[[:blank:]]' \
+		# EOL
 	then
 		# here we go ..
 		err_msg="\
-These problems have been found in your 'vars' settings:${NL}"
+These problems have been found in your 'vars' settings:
+* $target_file"
 
 		# No passwords!
-		if grep -q \
-			-e 'EASYRSA_PASSIN' -e 'EASYRSA_PASSOUT' \
-			"$target_file"
+		if grep -v '^[[:blank:]]*#' "$target_file" | \
+			grep -q -e 'EASYRSA_PASSIN' -e 'EASYRSA_PASSOUT'
 		then
-			err_msg="${err_msg}
+			err_msg="${err_msg}${NL}
   Use of 'EASYRSA_PASSIN' or 'EASYRSA_PASSOUT':
   Storing password information in the 'vars' file is not permitted."
+			# enforce this rule
+			unset -v EASYRSA_FORCE_VARS
 		fi
 
 		# No backticks
-		if grep -q \
-			-e '[^(]`[^)]' \
-			"$target_file"
+		if grep -v '^[[:blank:]]*#' "$target_file" | \
+			grep -q -e '`'
 		then
-			err_msg="${err_msg}
+			err_msg="${err_msg}${NL}
   Use of unsupported characters:
   These characters are not supported: \` backtick"
 		fi
 
-		# No export
-		if grep -q \
-			-e 'export ' \
-			"$target_file"
+		# No standard assignment by '='
+		if grep -v '^[[:blank:]]*#' "$target_file" | \
+			grep -q -e 'EASYRSA_[_[:upper:]]*='
 		then
-			err_msg="${err_msg}
+			err_msg="${err_msg}${NL}
+  Assignment by '=':
+  Remove '=' and replace it with 'set_var'."
+		fi
+
+		# No export
+		if grep -v '^[[:blank:]]*#' "$target_file" | \
+			grep -q -e 'export[[:blank:]]'
+		then
+			err_msg="${err_msg}${NL}
   Use of 'export':
   Remove 'export' or replace it with 'set_var'."
 		fi
 
 		# No unset
-		if grep -q \
-			-e 'unset ' \
-			"$target_file"
+		if grep -v '^[[:blank:]]*#' "$target_file" | \
+			grep -q -e 'unset[[:blank:]]'
 		then
-			err_msg="${err_msg}
+			err_msg="${err_msg}${NL}
   Use of 'unset':
   Remove 'unset' ('force_set_var' may also work)."
 		fi
 
 		# Fatal error
-		user_error "${err_msg}${NL}
+		if [ "$EASYRSA_FORCE_VARS" ]; then
+			warn "${err_msg}"
+			verbose "source_vars; ignore 'vars' errors"
+		else
+			user_error "${err_msg}${NL}
 Please, correct these errors and try again."
-
+		fi
 	fi
 
 	# Enable sourcing target_file
@@ -5631,7 +5644,7 @@ Please, correct these errors and try again."
 
 	# Test sourcing target_file in a subshell
 	# shellcheck disable=1090 # can't follow - source_vars()
-	if ( . "$target_file" ); then
+	if ( set -e; . "$target_file" 2>/dev/null ); then
 		# Source target_file now
 		# shellcheck disable=1090 # can't follow - source_vars()
 		. "$target_file" || \
@@ -5640,8 +5653,11 @@ Please, correct these errors and try again."
 		die "Failed to dry-run the '$target_file' file."
 	fi
 
+	# Protect $EASYRSA_ALIAS_DAYS from vars abuse
+	[ "$EASYRSA_ALIAS_DAYS" = undefined ] && unset -v EASYRSA_ALIAS_DAYS
+
 	verbose "source_vars; sourced $target_file"
-	unset -v EASYRSA_CALLER target_file
+	unset -v EASYRSA_CALLER target_file err_msg
 } # => source_vars()
 
 # Set defaults
@@ -5806,6 +5822,20 @@ verify_working_env() {
 Using Easy-RSA 'vars' configuration:
 * $EASYRSA_VARS_FILE"
 	fi
+
+	# Initialisation requirements
+	unset -v \
+		OPENSSL_CONF \
+		verify_ssl_lib_ok ssl_batch \
+		secured_session write_recursion \
+		text prohibit_no_pass \
+		quiet_vars invalid_vars \
+		local_request error_build_full_cleanup \
+		selfsign_eku \
+		internal_batch mv_temp_error \
+		easyrsa_exit_with_error error_info \
+		require_pki require_ca \
+		prompt_restore mktemp_counter
 
 	# then set defaults
 	default_vars
@@ -6626,19 +6656,10 @@ trap "exit 15" 15
 # Get host details - No configurable input allowed
 detect_host
 
-# Initialisation requirements
-unset -v \
-	OPENSSL_CONF \
-	verify_ssl_lib_ok ssl_batch \
-	secured_session write_recursion \
-	alias_days text prohibit_no_pass \
-	quiet_vars invalid_vars \
-	local_request error_build_full_cleanup \
-	selfsign_eku \
-	internal_batch mv_temp_error \
-	easyrsa_exit_with_error error_info \
-	require_pki require_ca \
-	prompt_restore mktemp_counter
+# Protect variables from alteration by sourcing vars file
+# undocumented, not designed for use
+export EASYRSA_ALIAS_DAYS=undefined # protect from sourcing vars
+unset -v EASYRSA_FORCE_VARS # has no effect after sourcing vars
 
 # Parse options
 while :; do
@@ -6662,7 +6683,7 @@ while :; do
 			zero_allowed=1
 			# Set the appropriate date variable
 			# when called by command later
-			alias_days="$val"
+			export EASYRSA_ALIAS_DAYS="$val"
 			;;
 		--startdate)
 			export EASYRSA_START_DATE="$val"
@@ -6773,6 +6794,7 @@ while :; do
 		-v|--verbose)
 			empty_ok=1
 			export EASYRSA_VERBOSE=1
+			fn_name="Easy-RSA version" verbose "$EASYRSA_version"
 			;;
 		-S|--silent-ssl)
 			empty_ok=1
@@ -6781,6 +6803,10 @@ while :; do
 		--force-safe-ssl)
 			empty_ok=1
 			export EASYRSA_FORCE_SAFE_SSL=1
+			;;
+		--force-vars)
+			empty_ok=1
+			export EASYRSA_FORCE_VARS=1
 			;;
 		--nopass|--no-pass)
 			empty_ok=1
@@ -6916,20 +6942,20 @@ case "$cmd" in
 		;;
 	build-ca)
 		require_pki=1; require_ca=""; verify_working_env
-		[ -z "$alias_days" ] || \
-			export EASYRSA_CA_EXPIRE="$alias_days"
+		[ -z "$EASYRSA_ALIAS_DAYS" ] || \
+			export EASYRSA_CA_EXPIRE="$EASYRSA_ALIAS_DAYS"
 		build_ca "$@"
 		;;
 	self-sign-server)
 		require_pki=1; require_ca=""; verify_working_env
-		[ -z "$alias_days" ] || \
-			export EASYRSA_CERT_EXPIRE="$alias_days"
+		[ -z "$EASYRSA_ALIAS_DAYS" ] || \
+			export EASYRSA_CERT_EXPIRE="$EASYRSA_ALIAS_DAYS"
 		self_sign server "$@"
 		;;
 	self-sign-client)
 		require_pki=1; require_ca=""; verify_working_env
-		[ -z "$alias_days" ] || \
-			export EASYRSA_CERT_EXPIRE="$alias_days"
+		[ -z "$EASYRSA_ALIAS_DAYS" ] || \
+			export EASYRSA_CERT_EXPIRE="$EASYRSA_ALIAS_DAYS"
 		self_sign client "$@"
 		;;
 	self*)
@@ -6945,32 +6971,32 @@ case "$cmd" in
 		;;
 	sign|sign-req)
 		require_pki=1; require_ca=1; verify_working_env
-		[ -z "$alias_days" ] || \
-			export EASYRSA_CERT_EXPIRE="$alias_days"
+		[ -z "$EASYRSA_ALIAS_DAYS" ] || \
+			export EASYRSA_CERT_EXPIRE="$EASYRSA_ALIAS_DAYS"
 		sign_req "$@"
 		;;
 	build-client-full)
 		require_pki=1; require_ca=1; verify_working_env
-		[ -z "$alias_days" ] || \
-			export EASYRSA_CERT_EXPIRE="$alias_days"
+		[ -z "$EASYRSA_ALIAS_DAYS" ] || \
+			export EASYRSA_CERT_EXPIRE="$EASYRSA_ALIAS_DAYS"
 		build_full client "$@"
 		;;
 	build-server-full)
 		require_pki=1; require_ca=1; verify_working_env
-		[ -z "$alias_days" ] || \
-			export EASYRSA_CERT_EXPIRE="$alias_days"
+		[ -z "$EASYRSA_ALIAS_DAYS" ] || \
+			export EASYRSA_CERT_EXPIRE="$EASYRSA_ALIAS_DAYS"
 		build_full server "$@"
 		;;
 	build-serverClient-full)
 		require_pki=1; require_ca=1; verify_working_env
-		[ -z "$alias_days" ] || \
-			export EASYRSA_CERT_EXPIRE="$alias_days"
+		[ -z "$EASYRSA_ALIAS_DAYS" ] || \
+			export EASYRSA_CERT_EXPIRE="$EASYRSA_ALIAS_DAYS"
 		build_full serverClient "$@"
 		;;
 	gen-crl)
 		require_pki=1; require_ca=1; verify_working_env
-		[ -z "$alias_days" ] || \
-			export EASYRSA_CRL_DAYS="$alias_days"
+		[ -z "$EASYRSA_ALIAS_DAYS" ] || \
+			export EASYRSA_CRL_DAYS="$EASYRSA_ALIAS_DAYS"
 		gen_crl
 		;;
 	revoke|revoke-issued)
@@ -7049,20 +7075,20 @@ case "$cmd" in
 		;;
 	renew-ca)
 		require_pki=1; require_ca=1; verify_working_env
-		[ -z "$alias_days" ] || \
-			export EASYRSA_CA_EXPIRE="$alias_days"
+		[ -z "$EASYRSA_ALIAS_DAYS" ] || \
+			export EASYRSA_CA_EXPIRE="$EASYRSA_ALIAS_DAYS"
 		renew_ca_cert "$@"
 		;;
 	renew)
 		require_pki=1; require_ca=1; verify_working_env
-		[ -z "$alias_days" ] || \
-			export EASYRSA_CERT_EXPIRE="$alias_days"
+		[ -z "$EASYRSA_ALIAS_DAYS" ] || \
+			export EASYRSA_CERT_EXPIRE="$EASYRSA_ALIAS_DAYS"
 		renew "$@"
 		;;
 	show-expire)
 		require_pki=1; require_ca=1; verify_working_env
-		[ -z "$alias_days" ] || \
-			export EASYRSA_PRE_EXPIRY_WINDOW="$alias_days"
+		[ -z "$EASYRSA_ALIAS_DAYS" ] || \
+			export EASYRSA_PRE_EXPIRY_WINDOW="$EASYRSA_ALIAS_DAYS"
 		status expire "$@"
 		;;
 	show-revoke)
