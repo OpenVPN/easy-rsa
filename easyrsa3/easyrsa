@@ -3810,34 +3810,54 @@ Missing User Certificate, expected at:
 				|| die "Failed to export PKCS#12"
 
 		# Inline .p12 only
-		# Get cert CN
-		inline_CN="$(
-			"$EASYRSA_OPENSSL" x509 -in "$crt_in" -noout -subject \
-				-nameopt multiline,-esc_msb | grep 'commonName'
-		)" || die "export_pkcs - inline_CN FAILED"
-		inline_CN="${inline_CN##*= }"
+		if [ "$EASYRSA_NO_INLINE" ] || [ "$EASYRSA_DISABLE_INLINE" ]; then
+			[ -z "$EASYRSA_DISABLE_INLINE" ] || \
+				warn "Use \$EASYRSA_NO_INLINE not \$EASYRSA_DISABLE_INLINE"
+			verbose "inline_file; DISABLED"
+		else
+			# make inline dirs
+			mkdir -p "$EASYRSA_PKI"/inline/private || \
+				die "inline_file() - failed to create 'inline' directory."
 
-		# BASE64 encode pkcs12
-		inline_tmp=
-		easyrsa_mktemp inline_tmp
-		if "$EASYRSA_OPENSSL" enc -a -in "$pkcs_out" > "$inline_tmp"
-		then
-			# make inline file
-			{
+			readme="$EASYRSA_PKI"/inline/private/README.inline.private
+			if [ ! -f "$readme" ]; then
 				print "\
+# Inline files in the 'private' directory contain security keys
+# which MUST ONLY be transmitted over a SECURE connection.
+# eg. 'https' or 'scp'." > "$readme" || \
+					warn "inline_file - Failed to create README"
+			fi
+			unset -v readme
+
+			# Get cert CN
+			inline_CN="$(
+				"$EASYRSA_OPENSSL" x509 -in "$crt_in" -noout -subject \
+					-nameopt multiline,-esc_msb | grep 'commonName'
+			)" || die "export_pkcs - inline_CN FAILED"
+			inline_CN="${inline_CN##*= }"
+
+			# BASE64 encode pkcs12
+			inline_tmp=
+			easyrsa_mktemp inline_tmp
+			if "$EASYRSA_OPENSSL" enc -a -in "$pkcs_out" > "$inline_tmp"
+			then
+				# make inline file
+				{
+					print "\
 # Easy-RSA inline file: pkcs12
 # commonName: ${inline_CN}${NL}"
-				print "<pkcs12>"
-				cat "$inline_tmp"
-				print "</pkcs12>"
-			} > "$inline_out" || die "export_pkcs - make inline"
+					print "<pkcs12>"
+					cat "$inline_tmp"
+					print "</pkcs12>"
+				} > "$inline_out" || die "export_pkcs - make inline"
 
-			inline_msg="\
+				inline_msg="\
 A BASE64 encoded inline file has also been created at:
 * ${inline_out}${NL}"
-		else
-			inline_msg="\
+			else
+				inline_msg="\
 Failed to create a BASE64 encoded inline file${NL}"
+			fi
 		fi
 		;;
 	p7)
