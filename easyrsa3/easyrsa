@@ -2071,7 +2071,7 @@ Conflicting certificate exists at:
 	fi
 
 	# inline key/cert/fingerprint
-	inline_file "$file_name_base"
+	inline_file std "$file_name_base"
 
 	# Mark PKI as self-signed only
 	pfp_data='peer-fp-mode - Please DO NOT DELETE this file'
@@ -2713,7 +2713,7 @@ Signing failed (openssl output above may have more detail)"
 	fi
 
 	# inline file
-	inline_file "$file_name_base"
+	inline_file std "$file_name_base"
 	verbose "inline_file CREATED: $inline_out"
 
 	# Success messages
@@ -2887,12 +2887,12 @@ inline_file() {
 		return
 	fi
 
-	# definitive source
-	[ "$1" ] || die "inline_file - Missing file_name_base"
-
-	# make inline dirs
-	mkdir -p "$EASYRSA_PKI"/inline/private || \
-		die "inline_file() - failed to create 'inline' directory."
+	# Set inline type
+	case "$1" in
+		std|p12) inline_type="$1" ;;
+		*) die "unknown inline type"
+	esac
+	shift # scrape off inline_type
 
 	# Source files
 	crt_source="${EASYRSA_PKI}/issued/${1}.crt"
@@ -2902,8 +2902,10 @@ inline_file() {
 	old_tls_key_file="$EASYRSA_PKI"/easyrsa-keepsafe-tls.key
 	dh_params_source="$EASYRSA_PKI"/dh.pem
 
-	# output
-	inline_out="${EASYRSA_PKI}/inline/${1}.inline"
+	# make inline dir
+	mkdir -p "$EASYRSA_PKI"/inline/private || \
+		die "inline_file() - failed to create 'inline' directory."
+
 	readme="$EASYRSA_PKI"/inline/private/README.inline.private
 	if [ ! -f "$readme" ]; then
 		print "\
@@ -2914,9 +2916,43 @@ inline_file() {
 	fi
 	unset -v readme
 
+	# Use inline type
+	case "$inline_type" in
+	p12)
+		inline_out="${EASYRSA_PKI}/inline/private/${1}.p12-inline"
+
+		# Get cert CN
+		inline_CN="$(
+			"$EASYRSA_OPENSSL" x509 -in "$crt_source" -noout -subject \
+				-nameopt multiline,-esc_msb | grep 'commonName'
+		)" || return 1
+		inline_CN="${inline_CN##*= }"
+
+		# BASE64 encode pkcs12 source file
+		inline_tmp=
+		easyrsa_mktemp inline_tmp
+		"$EASYRSA_OPENSSL" enc -a -in "$2" > "$inline_tmp" || return 1
+
+		# make inline file
+		print "\
+# Easy-RSA Inline file
+# Inline type: BASE64 pkcs12
+# commonName: ${inline_CN}
+
+<pkcs12>
+$(cat "$inline_tmp")
+</pkcs12>" > "$inline_out" || return 1
+
+		# p12 inline file completed
+		return
+	esac
+
 	# flags
 	inline_incomplete=
 	inline_private=
+
+	# output
+	inline_out="${EASYRSA_PKI}/inline/${1}.inline"
 
 	# Generate Inline data
 	# Certificate
@@ -3779,7 +3815,6 @@ Missing User Certificate, expected at:
 	fi
 
 	# Complete export
-	inline_msg=
 	case "$pkcs_type" in
 	p12)
 		pkcs_out="${EASYRSA_PKI}/private/${file_name_base}.p12"
@@ -3807,57 +3842,15 @@ Missing User Certificate, expected at:
 			${want_ca:+ -certfile "$crt_ca"} \
 			${EASYRSA_PASSIN:+ -passin "$EASYRSA_PASSIN"} \
 			${EASYRSA_PASSOUT:+ -passout "$EASYRSA_PASSOUT"} \
-				|| die "Failed to export PKCS#12"
+				|| die "Failed to export PKCS#12 - $error_info"
 
-		# Inline .p12 only
-		if [ "$EASYRSA_NO_INLINE" ] || [ "$EASYRSA_DISABLE_INLINE" ]; then
-			[ -z "$EASYRSA_DISABLE_INLINE" ] || \
-				warn "Use \$EASYRSA_NO_INLINE not \$EASYRSA_DISABLE_INLINE"
-			verbose "inline_file; DISABLED"
-		else
-			# make inline dirs
-			mkdir -p "$EASYRSA_PKI"/inline/private || \
-				die "inline_file() - failed to create 'inline' directory."
-
-			readme="$EASYRSA_PKI"/inline/private/README.inline.private
-			if [ ! -f "$readme" ]; then
-				print "\
-# Inline files in the 'private' directory contain security keys
-# which MUST ONLY be transmitted over a SECURE connection.
-# eg. 'https' or 'scp'." > "$readme" || \
-					warn "inline_file - Failed to create README"
-			fi
-			unset -v readme
-
-			# Get cert CN
-			inline_CN="$(
-				"$EASYRSA_OPENSSL" x509 -in "$crt_in" -noout -subject \
-					-nameopt multiline,-esc_msb | grep 'commonName'
-			)" || die "export_pkcs - inline_CN FAILED"
-			inline_CN="${inline_CN##*= }"
-
-			# BASE64 encode pkcs12
-			inline_tmp=
-			easyrsa_mktemp inline_tmp
-			if "$EASYRSA_OPENSSL" enc -a -in "$pkcs_out" > "$inline_tmp"
-			then
-				# make inline file
-				{
-					print "\
-# Easy-RSA inline file: pkcs12
-# commonName: ${inline_CN}${NL}"
-					print "<pkcs12>"
-					cat "$inline_tmp"
-					print "</pkcs12>"
-				} > "$inline_out" || die "export_pkcs - make inline"
-
-				inline_msg="\
+		# Inline pkcs12
+		if inline_file p12 "$file_name_base" "$pkcs_out"; then
+			[ "$EASYRSA_NO_INLINE" ] || notice "\
 A BASE64 encoded inline file has also been created at:
-* ${inline_out}${NL}"
-			else
-				inline_msg="\
-Failed to create a BASE64 encoded inline file${NL}"
-			fi
+* ${inline_out}"
+		else
+			warn "export_pkcs: inline_file p12 FAILED"
 		fi
 		;;
 	p7)
@@ -3912,9 +3905,6 @@ Failed to create a BASE64 encoded inline file${NL}"
 	notice "\
 Successful export of $pkcs_type file. Your exported file is at:
 * $pkcs_out"
-	[ "$inline_msg" ] && print "$inline_msg"
-
-	return 0
 } # => export_pkcs()
 
 # set-pass backend
@@ -7047,7 +7037,7 @@ case "$cmd" in
 		;;
 	inline)
 		require_pki=1; require_ca=""; verify_working_env
-		inline_file "$@"
+		inline_file std "$@"
 		;;
 	export-p12)
 		require_pki=1; require_ca=""; verify_working_env
