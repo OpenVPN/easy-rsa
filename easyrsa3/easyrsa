@@ -5663,9 +5663,6 @@ Please, correct these errors and try again."
 		die "Failed to dry-run the '$target_file' file."
 	fi
 
-	# Protect $EASYRSA_ALIAS_DAYS from vars abuse
-	[ "$EASYRSA_ALIAS_DAYS" = undefined ] && unset -v EASYRSA_ALIAS_DAYS
-
 	verbose "source_vars; sourced $target_file"
 	unset -v EASYRSA_CALLER target_file err_msg
 } # => source_vars()
@@ -5846,6 +5843,9 @@ Using Easy-RSA 'vars' configuration:
 		easyrsa_exit_with_error error_info \
 		require_pki require_ca \
 		prompt_restore mktemp_counter
+
+	# Protect $EASYRSA_ALIAS_DAYS from vars abuse
+	[ "$EASYRSA_ALIAS_DAYS" = undefined ] && unset -v EASYRSA_ALIAS_DAYS
 
 	# then set defaults
 	default_vars
@@ -6668,6 +6668,8 @@ detect_host
 
 # Protect variables from alteration by sourcing vars file
 # undocumented, not designed for use
+[ -z "$EASYRSA_ALIAS_DAYS" ] || \
+	warn "EASYRSA_ALIAS_DAYS is not suitable for external use, resetting.."
 export EASYRSA_ALIAS_DAYS=undefined # protect from sourcing vars
 unset -v EASYRSA_FORCE_VARS # has no effect after sourcing vars
 
