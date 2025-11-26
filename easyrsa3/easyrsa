@@ -2071,10 +2071,10 @@ Conflicting certificate exists at:
 	fi
 
 	# inline key/cert/fingerprint
-	inline_file std "$file_name_base"
+	inline_file pfp "$file_name_base"
 
 	# Mark PKI as self-signed only
-	pfp_data='peer-fp-mode - Please DO NOT DELETE this file'
+	pfp_data='# peer-fp-mode - Please DO NOT DELETE this file'
 	print "$pfp_data" > "$EASYRSA_PKI"/peer-fp.mode || \
 		die "Failed to setup peer-fingerprint mode."
 
@@ -2889,7 +2889,7 @@ inline_file() {
 
 	# Set inline type
 	case "$1" in
-		std|p12) inline_type="$1" ;;
+		std|p12|pfp) inline_type="$1" ;;
 		*) die "unknown inline type"
 	esac
 	shift # scrape off inline_type
