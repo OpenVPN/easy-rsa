@@ -2,6 +2,9 @@ Easy-RSA 3 ChangeLog
 
 3.2.5 (TBD)
 
+   * Create new inline file type 'pfp', peer-fingerprint (353adc5) (#1407)
+   * export_pkcs(), PKCS12 inline: Respect $EASYRSA_NO_INLINE (35d7ad3) (#1407)
+     Original bug report: Sébastien Luttringer (#1406)
    * Introduce global option --force-vars (5560d3c) (#1405)
    * source_vars(): Add 'set -e' to dry-run, sub-shell sourcing vars (6598711) (#1405)
    * source_vars(): Add grep check for assignment by '=' (fc36545) (#1405)
