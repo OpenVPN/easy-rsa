@@ -2074,7 +2074,7 @@ Conflicting certificate exists at:
 	inline_file pfp "$file_name_base"
 
 	# Mark PKI as self-signed only
-	pfp_data='# peer-fp-mode - Please DO NOT DELETE this file'
+	pfp_data='# Easy-RSA peer-fp-mode - Please DO NOT DELETE this file'
 	print "$pfp_data" > "$EASYRSA_PKI"/peer-fp.mode || \
 		die "Failed to setup peer-fingerprint mode."
 
@@ -2916,7 +2916,7 @@ inline_file() {
 	fi
 	unset -v readme
 
-	# Use inline type
+	# Use inline type p12
 	case "$inline_type" in
 	p12)
 		inline_out="${EASYRSA_PKI}/inline/private/${1}.p12-inline"
@@ -3183,6 +3183,58 @@ $ca_data
 
 $tls_data
 " > "$inline_out"
+
+	# Use inline type pfp
+	case "$inline_type" in
+	pfp)
+		# create/update peer fingerprint list, for $inline_crt_type
+		case "$inline_crt_type" in
+			self-signed-server) list_type=server; used_by_type=client ;;
+			self-signed-client) list_type=client; used_by_type=server ;;
+			*) die "Unsupported pfp cert-type: '$inline_crt_type'"
+		esac
+
+		pfp_error_msg=
+		pfp_list_tmp=
+		easyrsa_mktemp pfp_list_tmp
+
+		# create fingerprint list header
+		pfp_list_file="$EASYRSA_PKI"/inline/pfp-"$list_type".list-inline
+		if [ ! -f "$pfp_list_file" ]; then
+			print "\
+# Easy-RSA Inline file
+# Certificate type: $inline_crt_type
+# This file is for use by your $used_by_type
+<peer-fingerprint>
+</peer-fingerprint>" > "$pfp_list_file" || \
+				pfp_error_msg="Failed to create pfp header!${NL}"
+		fi
+
+		# set new CN and fingerprint
+		new_pfp="\
+# commonName: $inline_crt_CN
+$crt_fingerprint"
+
+		# add new fingerprint to list
+		{
+			sed -e /'<\/peer-fingerprint>'/d "$pfp_list_file"
+			print "${new_pfp}${NL}</peer-fingerprint>"
+		} > "$pfp_list_tmp" || \
+			pfp_error_msg="${pfp_error_msg}Failed to update pfp file!${NL}"
+
+		# move tmp-file to list file
+		mv "$pfp_list_tmp" "$pfp_list_file" || \
+			pfp_error_msg="${pfp_error_msg}Failed to move pfp temp file${NL}"
+
+		# user messages
+		if [ "$pfp_error_msg" ]; then
+			warn "inline_file() pfp;${NL}${pfp_error_msg}"
+		else
+			notice "\
+Updated the '$inline_crt_type' peer-fingerprint list at:
+* $pfp_list_file"
+		fi
+	esac
 
 	# user info
 	if [ "$inline_incomplete" ]; then
