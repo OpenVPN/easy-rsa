@@ -22,7 +22,7 @@ Global options:
 
 --version       : Prints EasyRSA version and build information
 --verbose|-v    : Enable verbose output
---batch         : Set automatic (no-prompts when possible) mode
+--batch|-b      : Set automatic (no-prompts when possible) mode
 --silent|-s     : Disable all warnings, notices and information
 --sbatch        : Combined --silent and --batch operating mode
 --silent-ssl|-S : Silence SSL output (Requires batch mode)
@@ -33,11 +33,11 @@ Global options:
 --passout=ARG   : Set -passout ARG for openssl (eg: pass:xEasyRSAy)
 --raw-ca        : Build CA with password via RAW SSL input
 
---vars=FILE     : Define a specific 'vars' file to use for Easy-RSA config
-                  (Default vars file is in the current working directory)
 --pki=DIR       : Declare the PKI directory
                   (Default PKI directory is sub-directory 'pki')
                   See Advanced.md for in depth usage.
+--vars=FILE     : Define a specific 'vars' file to use for Easy-RSA config
+                  (Default vars file is in the current working PKI)
 
 --umask=ARG     : Define a UMASK (Default 077)
 --no-umask      : Do not use a UMASK, fall back to file system default.
@@ -6851,7 +6851,7 @@ while :; do
 			empty_ok=1
 			export EASYRSA_NS_COMMENT="$val"
 			;;
-		--batch)
+		-b|--batch)
 			empty_ok=1
 			export EASYRSA_BATCH=1
 			;;
