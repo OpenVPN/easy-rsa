@@ -3207,7 +3207,7 @@ $tls_data
 # This file is for use by your $used_by_type
 <peer-fingerprint>
 </peer-fingerprint>" > "$pfp_list_file" || \
-				pfp_error_msg="Failed to create pfp header!${NL}"
+				pfp_error_msg="header Failed!${NL}"
 		fi
 
 		# set new CN and fingerprint
@@ -3215,24 +3215,33 @@ $tls_data
 # commonName: $inline_crt_CN
 $crt_fingerprint"
 
-		# add new fingerprint to list
-		{
-			sed -e /'<\/peer-fingerprint>'/d "$pfp_list_file"
-			print "${new_pfp}${NL}</peer-fingerprint>"
-		} > "$pfp_list_tmp" || \
-			pfp_error_msg="${pfp_error_msg}Failed to update pfp file!${NL}"
+		# delete trailing '</peer-fingerprint' line
+		if [ -z "$pfp_error_msg" ]; then
+			sed -e /'<\/peer-fingerprint>'/d "$pfp_list_file" \
+				>> "$pfp_list_tmp" || \
+					pfp_error_msg="${pfp_error_msg}sed Failed!${NL}"
+		fi
+
+		# add new fingerprint and trailing '</peer-fingerprint' lines
+		if [ -z "$pfp_error_msg" ]; then
+			print "${new_pfp}${NL}</peer-fingerprint>" \
+				>> "$pfp_list_tmp" || \
+					pfp_error_msg="${pfp_error_msg}update Failed!${NL}"
+		fi
 
 		# move tmp-file to list file
-		mv "$pfp_list_tmp" "$pfp_list_file" || \
-			pfp_error_msg="${pfp_error_msg}Failed to move pfp temp file${NL}"
+		if [ -z "$pfp_error_msg" ]; then
+			mv "$pfp_list_tmp" "$pfp_list_file" || \
+				pfp_error_msg="${pfp_error_msg}move Failed!${NL}"
+		fi
 
-		# user messages
-		if [ "$pfp_error_msg" ]; then
-			warn "inline_file() pfp;${NL}${pfp_error_msg}"
-		else
+		# user info
+		if [ -z "$pfp_error_msg" ]; then
 			notice "\
 Updated the '$inline_crt_type' peer-fingerprint list at:
 * $pfp_list_file"
+		else
+			warn "inline_file() pfp;${NL}${pfp_error_msg}"
 		fi
 	esac
 
