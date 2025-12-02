@@ -24,14 +24,13 @@ Global options:
 --verbose|-v    : Enable verbose output
 --batch|-b      : Set automatic (no-prompts when possible) mode
 --silent|-s     : Disable all warnings, notices and information
---sbatch        : Combined --silent and --batch operating mode
 --silent-ssl|-S : Silence SSL output (Requires batch mode)
 
 --nopass|no-pass: Do not use passwords
                   Can NOT be used with --passin or --passout
 --passin=ARG    : Set -passin ARG for openssl (eg: pass:xEasyRSAy)
 --passout=ARG   : Set -passout ARG for openssl (eg: pass:xEasyRSAy)
---raw-ca        : Build CA with password via RAW SSL input
+--rawca|raw-ca  : Build CA with password via RAW SSL input
 
 --pki=DIR       : Declare the PKI directory
                   (Default PKI directory is sub-directory 'pki')
@@ -129,8 +128,8 @@ Command list:
   expire <file_name_base>
   renew-ca
   renew <file_name_base>
-  revoke <file_name_base> [ cmd-opts ] #(DEPRECATED)
-  revoke-issued <file_name_base> [ cmd-opts ] #(REPLACEMENT)
+  revoke <file_name_base> [ cmd-opts ]          # DEPRECATED
+  revoke-issued <file_name_base> [ cmd-opts ]   # REPLACEMENT
   revoke-expired <file_name_base> [ cmd-opts ]
   revoke-renewed <file_name_base> [ cmd-opts ]
   gen-crl
@@ -150,11 +149,11 @@ Command list:
   export-p12 <file_name_base> [ cmd-opts ]
   set-pass <file_name_base> [ cmd-opts ]
   gen-tls-auth-key / gen-tls-crypt-key
-  write <type>
+  write <TYPE>
   serial|check-serial <SERIAL>
-  display-dn <form> <DIR/FILE_NAME>
+  display-dn <FORM> <DIR/FILE_NAME>
   show-eku <file_name_base>|<DIR/FILE_NAME>
-  rand <decimal_number>
+  rand <Decimal-Number>
 "
 } # => usage()
 
@@ -6962,7 +6961,7 @@ while :; do
 		-*)
 			user_error "\
 Unknown option '$opt'.
-Run 'easyrsa help options' for option help."
+Run 'easyrsa help' for option help."
 			;;
 		*)
 			break
@@ -7004,6 +7003,7 @@ fi
 # Set cmd now
 cmd="$1"
 [ "$1" ] && shift # scrape off command
+fn_name="$cmd"
 
 # Hand off to the function responsible
 # ONLY verify_working_env() for valid commands
