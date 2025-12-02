@@ -2,6 +2,7 @@ Easy-RSA 3 ChangeLog
 
 3.2.5 (TBD)
 
+   * Add '-b' alias for --batch (575a964) (#1411)
    * Introduce peer-fingerprint inline lists (94c3690) (#1410)
    * Create new inline file type 'pfp', peer-fingerprint (353adc5) (#1407)
    * export_pkcs(), PKCS12 inline: Respect $EASYRSA_NO_INLINE (35d7ad3) (#1407)
