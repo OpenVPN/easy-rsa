@@ -2,6 +2,7 @@ Easy-RSA 3 ChangeLog
 
 3.2.5 (TBD)
 
+   * New function ssl_cert_sig_digest() (f9d2b49) (#1414)
    * Add '-b' alias for --batch (575a964) (#1411)
    * Introduce peer-fingerprint inline lists (94c3690) (#1410)
    * Create new inline file type 'pfp', peer-fingerprint (353adc5) (#1407)
