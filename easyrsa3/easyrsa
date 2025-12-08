@@ -5400,21 +5400,21 @@ ssl_cert_digest() {
 		# remove the 'WithRSAEncryption' part
 		*WithRSAEncryption)
 			fn_ssl_out="${fn_ssl_out%%With*}"
-		"$EASYRSA_OPENSSL" dgst "-$fn_ssl_out" "$1" || \
-			die "ssl_cert_digest - Bad Sig-Alg: '$fn_ssl_out'"
+			"$EASYRSA_OPENSSL" dgst "-$fn_ssl_out" "$1" || \
+				die "ssl_cert_digest - RSA Bad digest: '$fn_ssl_out'"
 		;;
 		# remove the 'ecdsa-with-' part
 		ecdsa-with-*)
 			fn_ssl_out="${fn_ssl_out##*with-}"
-		"$EASYRSA_OPENSSL" dgst "-$fn_ssl_out" "$1" || \
-			die "ssl_cert_digest - Bad Sig-Alg: '$fn_ssl_out'"
+			"$EASYRSA_OPENSSL" dgst "-$fn_ssl_out" "$1" || \
+				die "ssl_cert_digest - EC Bad digest: '$fn_ssl_out'"
 		;;
 		# remove everything for Edwards Curve
 		ED25519|ED448)
 			fn_ssl_out=""
 			# digest verification is not required
 		;;
-		*) die "ssl_cert_digest - Bad Sig-Alg: '$fn_ssl_out'"
+		*) die "ssl_cert_digest - Unknown Sig-Alg: '$fn_ssl_out'"
 	esac
 
 	force_set_var "$2" "$fn_ssl_out" || \
