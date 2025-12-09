@@ -5410,7 +5410,7 @@ ssl_cert_digest() {
 				die "ssl_cert_digest - EC Bad digest: '$fn_ssl_out'"
 		;;
 		# remove everything for Edwards Curve
-		ED25519|ED448)
+		E[dD]25519|E[dD]448)
 			fn_ssl_out=""
 			# digest verification is not required
 		;;
