@@ -209,7 +209,7 @@ Easy-RSA 3 ChangeLog
    * New X509 Type: 'selfsign' Internal only (999533e) (#1135)
    * New commands: self-sign-server and self-sign-client (9f8a1d1) (#1127)
    * build-ca: Command 'req', remove SSL option '-keyout' (4e02c8a) (#1123)
-     Resolve CVE-2024-13454
+     Resolve CVE-2024-13454 - Original bug report: Marcus Stoegbauer (#1122)
      https://community.openvpn.net/Security%20Announcements/CVE-2024-13454
    * Remove escape_hazard(), obsolete (ca76697)
    * Remove command and function display_cn(), unused (be8f400) (#1114)
