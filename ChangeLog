@@ -1,6 +1,6 @@
 Easy-RSA 3 ChangeLog
 
-3.2.5 (TBD)
+3.2.5 (2025-12-13)
 
    * ssl_cert_digest(): Support Edwards curve with LibreSSL (1eaa31e) (#1415)
    * New function ssl_cert_sig_digest() (f9d2b49) (#1414)
@@ -23,6 +23,7 @@ Easy-RSA 3 ChangeLog
    * peer-fingerprint: Allow 'show-cert' to be used (7cf55e0) (#1397)
    * init-pki: Introduce configurable cryptography (a8da392) (#1397)
 
+   * Update OpenSSL for Windows to 3.6.0 (62a0cea)
    * Replace "local" openssl-easyrsa.cnf (80702d6..b31443d) (#1394)
 
      Original bug report: #1390 'OpenBSD/LibreSSL failure'
