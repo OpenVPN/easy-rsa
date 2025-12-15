@@ -6778,6 +6778,11 @@ trap "exit 15" 15
 # Get host details - No configurable input allowed
 detect_host
 
+# Allow selective use of 'set -e'
+if [ "$EASYRSA_SET_ERREXIT" ]; then
+	set -e || die "Cannot set -e"
+fi
+
 # Protect variables from alteration by sourcing vars file
 # undocumented, not designed for use
 [ -z "$EASYRSA_ALIAS_DAYS" ] || \

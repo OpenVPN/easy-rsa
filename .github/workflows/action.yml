@@ -26,6 +26,7 @@ jobs:
       EASYRSA_NIX: 1
       TERM: xterm-256color
       EASYRSA_SILENT_SSL: 1
+      EASYRSA_SET_ERREXIT: 1
 
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
@@ -53,6 +54,7 @@ jobs:
       EASYRSA_WIN_QUICK: 1
       TERM: xterm-256color
       EASYRSA_SILENT_SSL: 1
+      EASYRSA_SET_ERREXIT: 1
 
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
@@ -80,6 +82,7 @@ jobs:
       EASYRSA_MAC: 1
       TERM: xterm-256color
       EASYRSA_SILENT_SSL: 1
+      EASYRSA_SET_ERREXIT: 1
 
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
