@@ -1500,8 +1500,8 @@ Your newly created PKI dir is:
 
 	# Select and show Auto-configured vars file
 	unset -v EASYRSA_NO_VARS EASYRSA_VARS_FILE
-	select_vars
-	if [ "$EASYRSA_VARS_FILE" ]; then
+
+	if select_vars; then
 		information "\
 IMPORTANT: PKI algorithm is $auto_algo${NL}
 Using Easy-RSA Auto-configured 'vars' file:
