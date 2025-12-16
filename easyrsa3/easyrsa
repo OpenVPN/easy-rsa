@@ -1080,6 +1080,7 @@ and then try running the easyrsa command again."
 	fi
 
 	# if 'cleanup' is called without 'ok' then an error occurred
+	print "*** Easy-RSA has encountered a FATAL error, please report this."
 	verbose "Exit: Final Fail = true"
 	exit 1 # Exit: Final Fail, unknown error
 } # => cleanup()
