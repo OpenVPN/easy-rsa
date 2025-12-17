@@ -1,5 +1,9 @@
 Easy-RSA 3 ChangeLog
 
+3.2.6 (TBD)
+
+   * CI: Enable shell switch errexit, set by env-var $EASYRSA_SET_ERREXIT (772d6f6) (#1417)
+
 3.2.5 (2025-12-13)
 
    * ssl_cert_digest(): Support Edwards curve with LibreSSL (1eaa31e) (#1415)

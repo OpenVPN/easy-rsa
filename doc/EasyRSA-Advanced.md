@@ -170,7 +170,7 @@ short description is shown below:
  *  `EASYRSA_PASSOUT` (CLI: `--passout`) - allows to specify a source for
     password using any openssl password options like pass:1234 or env:var
  *  `EASYRSA_NO_PASS` (CLI: `--nopass`) - disable use of passwords
- *  `EASYRSA_UMASK` (CLI: `--umask`) - safe umask to use for file creation.
+ *  `EASYRSA_UMASK` (CLI: `--umask`) - safe umask to use for file creation
     Defaults to `077`
  *  `EASYRSA_NO_UMASK` (CLI: `--no-umask`) - disable safe umask. Files will be
     created using the system's default
@@ -183,5 +183,6 @@ short description is shown below:
  *  `EASYRSA_FORCE_SAFE_SSL` (CLI: `--force-safe-ssl`) - expand environment
     variables in SSL config
  *  `EASYRSA_FORCE_VARS` (CLI: `--force-vars`) - ignore known errors in 'vars' file
+ *  `EASYRSA_SET_ERREXIT` - Enable `errexit`, IE. `set -e`, within `easyrsa` script
 
 **NOTE:** the global options must be provided before the commands.
