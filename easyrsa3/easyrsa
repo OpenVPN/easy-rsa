@@ -1080,6 +1080,7 @@ and then try running the easyrsa command again."
 	fi
 
 	# if 'cleanup' is called without 'ok' then an error occurred
+	print "*** Easy-RSA has encountered a FATAL error, please report this."
 	verbose "Exit: Final Fail = true"
 	exit 1 # Exit: Final Fail, unknown error
 } # => cleanup()
@@ -1500,8 +1501,8 @@ Your newly created PKI dir is:
 
 	# Select and show Auto-configured vars file
 	unset -v EASYRSA_NO_VARS EASYRSA_VARS_FILE
-	select_vars
-	if [ "$EASYRSA_VARS_FILE" ]; then
+
+	if select_vars; then
 		information "\
 IMPORTANT: PKI algorithm is $auto_algo${NL}
 Using Easy-RSA Auto-configured 'vars' file:
@@ -6777,6 +6778,11 @@ trap "exit 15" 15
 
 # Get host details - No configurable input allowed
 detect_host
+
+# Allow selective use of 'set -e'
+if [ "$EASYRSA_SET_ERREXIT" ]; then
+	set -e || die "Cannot set -e"
+fi
 
 # Protect variables from alteration by sourcing vars file
 # undocumented, not designed for use
