@@ -6782,6 +6782,7 @@ detect_host
 # Allow selective use of 'set -e'
 if [ "$EASYRSA_SET_ERREXIT" ]; then
 	set -e || die "Cannot set -e"
+	print "  # ENABLED: shell option errexit"
 fi
 
 # Protect variables from alteration by sourcing vars file
