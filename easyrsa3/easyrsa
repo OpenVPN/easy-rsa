@@ -21,16 +21,16 @@ NOTE: Global options MUST be provided before the command.
 Global options:
 
 --version       : Prints EasyRSA version and build information
---verbose|-v    : Enable verbose output
 --batch|-b      : Set automatic (no-prompts when possible) mode
 --silent|-s     : Disable all warnings, notices and information
 --silent-ssl|-S : Silence SSL output (Requires batch mode)
+--verbose|-v    : Enable verbose output
 
---nopass|no-pass: Do not use passwords
+--nopass        : Do not use passwords
                   Can NOT be used with --passin or --passout
 --passin=ARG    : Set -passin ARG for openssl (eg: pass:xEasyRSAy)
 --passout=ARG   : Set -passout ARG for openssl (eg: pass:xEasyRSAy)
---rawca|raw-ca  : Build CA with password via RAW SSL input
+--rawca         : Build CA with password via RAW SSL input
 
 --pki=DIR       : Declare the PKI directory
                   (Default PKI directory is sub-directory 'pki')
@@ -39,14 +39,14 @@ Global options:
                   (Default vars file is in the current working PKI)
 
 --umask=ARG     : Define a UMASK (Default 077)
---no-umask      : Do not use a UMASK, fall back to file system default.
+--noumask       : Do not use a UMASK, fall back to file system default.
 --ssl-cnf=FILE  : Define a specific OpenSSL config file for Easy-RSA to use
                   (Default config file is in the EasyRSA PKI directory)
 --force-safe-ssl: Always generate a safe SSL config file
                   (Default: Generate Safe SSL config once per instance)
 --force-vars    : Ignore known errors in 'vars' file
---no-lockfile   : Disable lock-file (Useful for read-only PKI)
---no-inline     : Disable inline file creation
+--nolockfile    : Disable lock-file (Useful for read-only PKI)
+--noinline      : Disable inline file creation
 --tmp-dir=DIR   : Declare the temporary directory
                   (Default temporary directory is the EasyRSA PKI directory)
 --keep-tmp=NAME : Keep the original temporary session by name: NAME
@@ -56,7 +56,7 @@ Global options:
 Certificate & Request options: (these impact cert/req field values)
 
 --text          : Create certificate requests with human readable text
---notext|no-text: Create certificates without human readable text
+--notext        : Create certificates without human readable text
 --days=#        : Sets the signing validity to the specified number of days
                   Applies to other commands. For details, see: 'help days'
 --startdate=DATE: Sets the SSL option '-startdate' (Format '[YY]YYMMDDhhmmssZ')
@@ -64,7 +64,7 @@ Certificate & Request options: (these impact cert/req field values)
 
 --digest=ALG    : Digest to use in the requests & certificates
 --keysize=#     : Size in bits of keypair to generate (RSA Only)
---use-algo=ALG  : Crypto alg to use: choose rsa (default), ec or ed
+--algo=ALG      : Crypto algorithm to use: choose rsa (default), ec or ed
 --curve=NAME    : For elliptic curve, sets the named curve
                   (Default: algo ec: secp384r1, algo ed: ed25519)
                   (--use-algo and --curve can be used to configure 'init-pki')
@@ -6825,11 +6825,11 @@ while :; do
 		--pki-dir|--pki)
 			export EASYRSA_PKI="$val"
 			;;
-		--no-lockfile)
+		--nolockfile|--no-lockfile)
 			empty_ok=1
 			export EASYRSA_NO_LOCKFILE=1
 			;;
-		--no-inline)
+		--noinline|--no-inline)
 			empty_ok=1
 			export EASYRSA_NO_INLINE=1
 			;;
@@ -6839,7 +6839,7 @@ while :; do
 		--umask)
 			export EASYRSA_UMASK="$val"
 			;;
-		--no-umask)
+		--noumask|--no-umask)
 			empty_ok=1
 			export EASYRSA_NO_UMASK=1
 			;;
@@ -6849,7 +6849,7 @@ while :; do
 		--keep-tmp)
 			export EASYRSA_KEEP_TEMP="$val"
 			;;
-		--use-algo)
+		--algo|--use-algo)
 			export EASYRSA_ALGO="$val"
 			;;
 		--keysize)
@@ -6917,7 +6917,7 @@ while :; do
 			empty_ok=1
 			export EASYRSA_SILENT=1
 			;;
-		--sbatch|--silent-batch)
+		--sb|--sbatch|--silent-batch)
 			empty_ok=1
 			export EASYRSA_SILENT=1
 			export EASYRSA_BATCH=1
