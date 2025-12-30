@@ -838,22 +838,17 @@ easyrsa_random() {
 	die "easyrsa_random failed"
 } # => easyrsa_random()
 
-# Set clobber on|off
+# Set noclobber on|off
 set_no_clobber() {
+	verbose "set_no_clobber; $1"
 	case "$1" in
 		on)
-			if [ "$easyrsa_host_os" = win ]; then
-				set -o noclobber && return
-			else
-				set -C && return
-			fi
+			set -o noclobber && return
+			set -C && return
 		;;
 		off)
-			if [ "$easyrsa_host_os" = win ]; then
-				set +o noclobber && return
-			else
-				set +C && return
-			fi
+			set +o noclobber && return
+			set +C && return
 		;;
 		*)
 			: # drop to error
