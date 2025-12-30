@@ -932,13 +932,13 @@ easyrsa_mktemp() {
 	[ -d "$secured_session" ] || die "\
 easyrsa_mktemp - Temporary session undefined (--tmp-dir)"
 
+	# Force noclobber
+	set_no_clobber on
+
 	# Create shotfile
 	for high in 0 1; do
 		for low in 0 1 2 3 4 5 6 7 8 9; do
 			shotfile="${secured_session}/temp.${high}${low}"
-
-			# Force noclobber
-			set_no_clobber on
 
 			# atomic:
 			printf "" 2>/dev/null 1>"$shotfile" || continue
