@@ -3736,6 +3736,10 @@ The certificate file is not in a valid X509 format:
 	# External CA list file
 	external_ca_list="$EASYRSA_PKI"/inline/external-ca.list
 
+	# Create 'pki/inline' directory
+	mkdir -p "$EASYRSA_PKI"/inline || \
+		die "import_ca() - failed to create 'inline' directory."
+
 	# tmp-file for imported CA
 	ext_ca_tmp=
 	easyrsa_mktemp ext_ca_tmp
@@ -3746,14 +3750,14 @@ The certificate file is not in a valid X509 format:
 	name_opts="utf8,sep_multiline,space_eq,lname,align"
 	easyrsa_openssl x509 -in "$in_ext_ca" -out "$ext_ca_tmp" \
 		-text -nameopt "$name_opts" -certopt "$cert_opts" || \
-			die "import_ca(): OpenSSL failure to process the input"
+			die "import_ca() - OpenSSL failure to process the input"
 
 	# TODO: Verify Root CA chain
 	# ---------------------------
 
 	# now import it
 	cat "$ext_ca_tmp" >>"$external_ca_list" || \
-		die "import_ca(): failed to write list file."
+		die "import_ca() - failed to write list file."
 
 	notice "\
 External CA successfully imported into: $external_ca_list."
