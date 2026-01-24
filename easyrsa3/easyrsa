@@ -143,6 +143,7 @@ Command list:
   show-renew <file_name_base> (Optional)
   verify-cert <file_name_base>
   import-req <request_file_path> <short_name_base>
+  import-ca <DIR/FILE_NAME>
   export-p1 <file_name_base> [ cmd-opts ]
   export-p7 <file_name_base> [ cmd-opts ]
   export-p8 <file_name_base> [ cmd-opts ]
@@ -408,6 +409,23 @@ Usage: easyrsa [ OPTIONS.. ] <COMMAND> <TARGET> [ cmd-opts.. ]"
 
       Example usage:
         import-req /some/where/bob_request.req bob"
+	;;
+	import-ca)
+		text="
+* import-ca <DIR/FILE_NAME>
+
+      Import a CA certificate from a file
+
+      Add the specified file to the 'pki/inline/external-ca.list' file,
+      for use by inline files. Allows multiple external CAs.
+
+      The 'pki/inline/external-ca.list' file is automatically added
+      to all new inline files, within the <ca>..</ca> tags.
+
+      This allows simple inline support for Sub CAs and cross-signed CAs.
+
+      Example usage:
+        import-ca '/another/pki/ca.crt'"
 	;;
 	export-p12)
 		text="
