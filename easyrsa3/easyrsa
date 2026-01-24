@@ -2896,6 +2896,7 @@ inline_file() {
 	tls_source="$EASYRSA_PKI"/private/easyrsa-tls.key
 	old_tls_key_file="$EASYRSA_PKI"/easyrsa-keepsafe-tls.key
 	dh_params_source="$EASYRSA_PKI"/dh.pem
+	external_ca_list="$EASYRSA_PKI"/inline/external-ca.list
 
 	# make inline dir
 	mkdir -p "$EASYRSA_PKI"/inline/private || \
@@ -3025,6 +3026,7 @@ $(cat "$key_source")
 
 	# CA certificate
 	ca_data=
+	ext_ca_data=
 	case "$inline_crt_type" in
 		# OpenVPN 2.5 or older does not support --peer-fingerprint
 		# Easy-RSA does not support old OpenVPN because it is not
@@ -3041,9 +3043,15 @@ $(cat "$key_source")
 		;;
 		*)
 			if [ -f "$ca_source" ]; then
+				# External CA
+				if [ -f "$external_ca_list" ]; then
+					ext_ca_data="${NL}$(cat "$external_ca_list")"
+				fi
+
+				# Standard CA
 				ca_data="\
 <ca>
-$(cat "$ca_source")
+$(cat "$ca_source")${ext_ca_data}
 </ca>"
 			else
 				inline_incomplete=1
