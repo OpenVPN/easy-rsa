@@ -5324,11 +5324,11 @@ This file is stored at:
 # Prints CA cert details in a readable format
 show_ca() {
 	# opts support
-	out_opts="no_pubkey,no_sigdump"
+	cert_opts="no_pubkey,no_sigdump"
 	name_opts="utf8,sep_multiline,space_eq,lname,align"
 	while [ "$1" ]; do
 		case "$1" in
-			full) out_opts= ;;
+			full) cert_opts= ;;
 			*) warn "Ignoring unknown command option: '$1'"
 		esac
 		shift
@@ -5341,18 +5341,18 @@ show_ca() {
 	[ -f "$in_file" ] || user_error "\
 No such $type file with a basename of '$name' is present.
 Expected to find this file at:
-$in_file"
+* $in_file"
 
 	verify_file "$format" "$in_file" || user_error "\
 This file is not a valid $type file:
-$in_file"
+* $in_file"
 
 	notice "\
 Showing details for CA certificate, at:
 * $in_file${NL}"
 
-	easyrsa_openssl "$format" -in "$in_file" -noout -text \
-		-nameopt "$name_opts" -certopt "$out_opts" || \
+	easyrsa_openssl "$format" -in "$in_file" -noout \
+		-text -nameopt "$name_opts" -certopt "$cert_opts" || \
 			die "OpenSSL failure to process the input"
 } # => show_ca()
 
