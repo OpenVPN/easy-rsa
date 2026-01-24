@@ -3,6 +3,7 @@ Easy-RSA 3 ChangeLog
 3.2.6 (TBD)
 
    * Introduce new command 'import-ca' (fae716f) (#1423)
+   * inline_file(): Introduce external CA list file (ce61d91) (#1423)
    * set_no_clobber(): Try shell long option 'set -o noclobber' first (87e31ce) (#1421)
    * CI: Enable shell switch errexit, set by env-var $EASYRSA_SET_ERREXIT (772d6f6) (#1417)
 
