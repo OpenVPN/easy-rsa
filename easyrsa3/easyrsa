@@ -3742,10 +3742,10 @@ The certificate file is not in a valid X509 format:
 
 	# Write External CA data to tmp-file
 	# opts support
-	out_opts=
+	cert_opts=
 	name_opts="utf8,sep_multiline,space_eq,lname,align"
-	easyrsa_openssl x509 -in "$in_ext_ca" -out "$ext_ca_tmp" -text \
-		-nameopt "$name_opts" -certopt "$out_opts" || \
+	easyrsa_openssl x509 -in "$in_ext_ca" -out "$ext_ca_tmp" \
+		-text -nameopt "$name_opts" -certopt "$cert_opts" || \
 			die "import_ca(): OpenSSL failure to process the input"
 
 	# TODO: Verify Root CA chain
