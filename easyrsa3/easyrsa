@@ -3720,14 +3720,15 @@ Request successfully imported with short-name: $short_name
 This request is now ready to be signed."
 } # => import_req()
 
-# import-req backend
+# import external CA to pki/inline/external-ca.list
+# for use by intermediate CA, inline files
 import_ca() {
 	# pull passed paths
 	in_ext_ca="$1"
 
 	# CA file must exist
 	[ -f "$in_ext_ca" ] || user_error "\
-Missing file: $in_ext_ca"
+Missing file: '$in_ext_ca'"
 
 	verify_file x509 "$in_ext_ca" || user_error "\
 The certificate file is not in a valid X509 format:
