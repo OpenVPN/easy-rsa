@@ -2387,8 +2387,9 @@ The certificate request file is not in a valid X509 format:
 	# Randomize Serial number
 	if [ "$EASYRSA_RAND_SN" != no ]; then
 		serial=""
-		check_serial=""
-		unset -v serial_is_unique
+		serial_is_unique=""
+		check_serial="" # set by check_serial_unique(), used for err-msg
+
 		for i in 1 2 3 4 5; do
 			easyrsa_random 16 serial
 
@@ -2777,6 +2778,7 @@ check_serial_unique() {
 		)" || :
 
 	# Check for duplicate serial in CA db
+	unique_serial_true=
 	case "$check_serial" in
 		(*"not present in db"*)
 			unique_serial_true=1
@@ -2788,7 +2790,6 @@ check_serial_unique() {
 			die "check_serial_unique(): Duplicate Subject conflict"
 			;;
 		*)
-			unique_serial_true=
 			verbose "check_serial_unique; unique_serial=false"
 	esac
 
