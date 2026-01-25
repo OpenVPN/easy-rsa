@@ -3010,7 +3010,7 @@ $(cat "$crt_source")
 		# strip prefix
 		inline_crt_CN="${inline_crt_CN#*= }"
 	else
-		inline_incomplete=1
+		inline_incomplete="Missing certificate"
 		crt_data="\
 # When you recieve your signed certificate place it in the
 # 'pki/issued' sub-dir of your PKI and use command 'inline'
@@ -3032,7 +3032,7 @@ $(cat "$crt_source")
 $(cat "$key_source")
 </key>"
 	else
-		inline_incomplete=1
+		inline_incomplete="Missing private key"
 		key_data="\
 # When you recieve your key place it in the
 # 'pki/private' sub-dir of your PKI and use command 'inline'
@@ -3072,7 +3072,7 @@ $(cat "$key_source")
 $(cat "$ca_source")${ext_ca_data}
 </ca>"
 			else
-				inline_incomplete=1
+				inline_incomplete="Missing CA"
 				ca_data="\
 # When you recieve your CA certificate place it in the
 # 'pki' sub-dir of your PKI and use command 'inline'
@@ -3095,7 +3095,7 @@ $(cat "$ca_source")${ext_ca_data}
 $(cat "$dh_params_source")
 </dh>"
 			else
-				inline_incomplete=1
+				inline_incomplete="Missing dh-params"
 				dh_params_data="${NL}
 # <dh>
 # * Paste your Diffie-Hellman parameters file here *
@@ -3156,11 +3156,11 @@ dh none"
 ${tls_key_data}
 </${tls_key_label}>"
 			else
-				inline_incomplete=1
+				inline_incomplete="Unknown TLS Key"
 				tls_data="# Easy-RSA TLS Key not recognised!"
 			fi
 		else
-			inline_incomplete=1
+			inline_incomplete="Missing TLS Key, see 'easyrsa help gen-tls'"
 			tls_data="# Easy-RSA TLS Key not found!"
 		fi
 	fi
@@ -3172,10 +3172,10 @@ ${tls_key_data}
 		client|self-signed-client)
 			key_direction="key-direction 1" ;;
 		*)
-		verbose "inline: Unsupported cert-type: $inline_crt_type"
-		tls_key_label=
-		key_direction=
-		tls_data="# No TLS Key support for cert-type: $inline_crt_type"
+			tls_key_label=
+			key_direction=
+			tls_data="# No TLS Key support for cert-type: $inline_crt_type"
+			verbose "inline: Unsupported cert-type: $inline_crt_type"
 	esac
 
 	# Add --key-direction for TLS-AUTH
@@ -3270,7 +3270,9 @@ Updated the '$inline_crt_type' peer-fingerprint list at:
 	if [ "$inline_incomplete" ]; then
 		warn "\
 INCOMPLETE Inline file created:
-* $inline_out"
+* $inline_out
+
+$inline_incomplete"
 	else
 		notice "\
 Inline file created:
