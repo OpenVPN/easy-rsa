@@ -3759,6 +3759,13 @@ The certificate file is not in a valid X509 format:
 	# TODO: Verify Root CA chain
 	# ---------------------------
 
+	# create external CA list file with header
+	if [ ! -f "$external_ca_list" ]; then
+		header="# Easy-RSA Inline file: External CA list"
+		print "$header" >"$external_ca_list" || \
+			die "import_ca() - failed to create list file."
+	fi
+
 	# now import it
 	cat "$ext_ca_tmp" >>"$external_ca_list" || \
 		die "import_ca() - failed to write list file."
