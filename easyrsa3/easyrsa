@@ -2311,7 +2311,7 @@ sign_req() {
 	case "$crt_type" in
 		ca)
 			# Inline file not required for signing a sub CA
-			EASYRSA_DISABLE_INLINE=1
+			EASYRSA_NO_INLINE=1
 		;;
 		server|serverClient|client|codeSigning|email)
 			: # All known types
@@ -2728,7 +2728,6 @@ Signing failed (openssl output above may have more detail)"
 
 	# inline file
 	inline_file std "$file_name_base"
-	verbose "inline_file CREATED: $inline_out"
 
 	# Success messages
 	notice "\
@@ -3279,6 +3278,7 @@ $inline_incomplete"
 Inline file created:
 * $inline_out"
 	fi
+	verbose "inline_file; COMPLETED"
 } # => inline_file()
 
 # revoke backend
