@@ -3749,12 +3749,21 @@ The certificate file is not in a valid X509 format:
 	easyrsa_mktemp ext_ca_tmp
 
 	# Write External CA data to tmp-file
+	# LibreSSL issue: https://github.com/libressl/portable/issues/1228
 	# opts support
 	cert_opts=
 	name_opts="utf8,sep_multiline,space_eq,lname,align"
-	easyrsa_openssl x509 -in "$in_ext_ca" -out "$ext_ca_tmp" \
-		-text -nameopt "$name_opts" -certopt "$cert_opts" || \
-			die "import_ca() - OpenSSL failure to process the input"
+	if [ "$ssl_lib_name" = libressl ]; then
+		verbose "Extract full text CA for _$ssl_lib_name_"
+		"$EASYRSA_OPENSSL" x509 -in "$in_ext_ca" \
+			-text -nameopt "$name_opts" -certopt "$cert_opts" \
+			>"$ext_ca_tmp" || \
+				die "import_ca() - OpenSSL failure to process the input"
+	else
+		easyrsa_openssl x509 -in "$in_ext_ca" -out "$ext_ca_tmp" \
+			-text -nameopt "$name_opts" -certopt "$cert_opts" || \
+				die "import_ca() - OpenSSL failure to process the input"
+	fi
 
 	# TODO: Verify Root CA chain
 	# ---------------------------
@@ -3771,7 +3780,7 @@ The certificate file is not in a valid X509 format:
 		die "import_ca() - failed to write list file."
 
 	notice "\
-External CA successfully imported into: $external_ca_list."
+External CA successfully imported into: $external_ca_list"
 } # => import_ca()
 
 # export pkcs#12, pkcs#7, pkcs#8 or pkcs#1
