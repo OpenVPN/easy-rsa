@@ -414,15 +414,18 @@ Usage: easyrsa [ OPTIONS.. ] <COMMAND> <TARGET> [ cmd-opts.. ]"
 		text="
 * import-ca <DIR/FILE_NAME>
 
-      Import a CA certificate from a file
+      Import a CA certificate from '<DIR/FILE_NAME>'
 
       Add the specified file to the 'pki/inline/external-ca.list' file,
-      for use by inline files. Allows multiple external CAs.
+      for use by OpenVPN inline files. Allows multiple external CAs.
 
       The 'pki/inline/external-ca.list' file is automatically added
       to all new inline files, within the <ca>..</ca> tags.
 
-      This allows simple inline support for Sub CAs and cross-signed CAs.
+      This allows OpenVPN inline support for PKIs with independent CAs,
+      Sub CAs or cross-signed CAs.
+
+      The <DIR/FILE_NAME> is imported WITHOUT X509/CA verification.
 
       Example usage:
         import-ca '/another/pki/ca.crt'"
