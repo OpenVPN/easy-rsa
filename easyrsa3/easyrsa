@@ -143,6 +143,7 @@ Command list:
   show-renew <file_name_base> (Optional)
   verify-cert <file_name_base>
   import-req <request_file_path> <short_name_base>
+  import-ca <DIR/FILE_NAME>
   export-p1 <file_name_base> [ cmd-opts ]
   export-p7 <file_name_base> [ cmd-opts ]
   export-p8 <file_name_base> [ cmd-opts ]
@@ -408,6 +409,26 @@ Usage: easyrsa [ OPTIONS.. ] <COMMAND> <TARGET> [ cmd-opts.. ]"
 
       Example usage:
         import-req /some/where/bob_request.req bob"
+	;;
+	import-ca)
+		text="
+* import-ca <DIR/FILE_NAME>
+
+      Import a CA certificate from '<DIR/FILE_NAME>'
+
+      Add the specified file to the 'pki/inline/external-ca.list' file,
+      for use by OpenVPN inline files. Allows multiple external CAs.
+
+      The 'pki/inline/external-ca.list' file is automatically added
+      to all new inline files, within the <ca>..</ca> tags.
+
+      This allows OpenVPN inline support for PKIs with independent CAs,
+      Sub CAs or cross-signed CAs.
+
+      The <DIR/FILE_NAME> is imported WITHOUT X509/CA verification.
+
+      Example usage:
+        import-ca '/another/pki/ca.crt'"
 	;;
 	export-p12)
 		text="
@@ -943,11 +964,11 @@ easyrsa_mktemp - Temporary session undefined (--tmp-dir)"
 			# atomic:
 			printf "" 2>/dev/null 1>"$shotfile" || continue
 
-			# unset noclobber
-			set_no_clobber off
-
 			# Assign external temp-file name
 			if force_set_var "$1" "$shotfile"; then
+				# unset noclobber
+				set_no_clobber off
+
 				# Update counter
 				mktemp_counter="$((mktemp_counter+1))"
 				verbose "easyrsa_mktemp; $1 CREATED: $shotfile"
@@ -2293,7 +2314,7 @@ sign_req() {
 	case "$crt_type" in
 		ca)
 			# Inline file not required for signing a sub CA
-			EASYRSA_DISABLE_INLINE=1
+			EASYRSA_NO_INLINE=1
 		;;
 		server|serverClient|client|codeSigning|email)
 			: # All known types
@@ -2369,8 +2390,9 @@ The certificate request file is not in a valid X509 format:
 	# Randomize Serial number
 	if [ "$EASYRSA_RAND_SN" != no ]; then
 		serial=""
-		check_serial=""
-		unset -v serial_is_unique
+		serial_is_unique=""
+		check_serial="" # set by check_serial_unique(), used for err-msg
+
 		for i in 1 2 3 4 5; do
 			easyrsa_random 16 serial
 
@@ -2709,7 +2731,6 @@ Signing failed (openssl output above may have more detail)"
 
 	# inline file
 	inline_file std "$file_name_base"
-	verbose "inline_file CREATED: $inline_out"
 
 	# Success messages
 	notice "\
@@ -2759,6 +2780,7 @@ check_serial_unique() {
 		)" || :
 
 	# Check for duplicate serial in CA db
+	unique_serial_true=
 	case "$check_serial" in
 		(*"not present in db"*)
 			unique_serial_true=1
@@ -2770,7 +2792,6 @@ check_serial_unique() {
 			die "check_serial_unique(): Duplicate Subject conflict"
 			;;
 		*)
-			unique_serial_true=
 			verbose "check_serial_unique; unique_serial=false"
 	esac
 
@@ -2896,6 +2917,7 @@ inline_file() {
 	tls_source="$EASYRSA_PKI"/private/easyrsa-tls.key
 	old_tls_key_file="$EASYRSA_PKI"/easyrsa-keepsafe-tls.key
 	dh_params_source="$EASYRSA_PKI"/dh.pem
+	external_ca_list="$EASYRSA_PKI"/inline/external-ca.list
 
 	# make inline dir
 	mkdir -p "$EASYRSA_PKI"/inline/private || \
@@ -2991,7 +3013,7 @@ $(cat "$crt_source")
 		# strip prefix
 		inline_crt_CN="${inline_crt_CN#*= }"
 	else
-		inline_incomplete=1
+		inline_incomplete="Missing certificate"
 		crt_data="\
 # When you recieve your signed certificate place it in the
 # 'pki/issued' sub-dir of your PKI and use command 'inline'
@@ -3013,7 +3035,7 @@ $(cat "$crt_source")
 $(cat "$key_source")
 </key>"
 	else
-		inline_incomplete=1
+		inline_incomplete="Missing private key"
 		key_data="\
 # When you recieve your key place it in the
 # 'pki/private' sub-dir of your PKI and use command 'inline'
@@ -3025,6 +3047,7 @@ $(cat "$key_source")
 
 	# CA certificate
 	ca_data=
+	ext_ca_data=
 	case "$inline_crt_type" in
 		# OpenVPN 2.5 or older does not support --peer-fingerprint
 		# Easy-RSA does not support old OpenVPN because it is not
@@ -3041,12 +3064,18 @@ $(cat "$key_source")
 		;;
 		*)
 			if [ -f "$ca_source" ]; then
+				# External CA
+				if [ -f "$external_ca_list" ]; then
+					ext_ca_data="${NL}$(cat "$external_ca_list")"
+				fi
+
+				# Standard CA
 				ca_data="\
 <ca>
-$(cat "$ca_source")
+$(cat "$ca_source")${ext_ca_data}
 </ca>"
 			else
-				inline_incomplete=1
+				inline_incomplete="Missing CA"
 				ca_data="\
 # When you recieve your CA certificate place it in the
 # 'pki' sub-dir of your PKI and use command 'inline'
@@ -3069,7 +3098,7 @@ $(cat "$ca_source")
 $(cat "$dh_params_source")
 </dh>"
 			else
-				inline_incomplete=1
+				inline_incomplete="Missing dh-params"
 				dh_params_data="${NL}
 # <dh>
 # * Paste your Diffie-Hellman parameters file here *
@@ -3130,11 +3159,11 @@ dh none"
 ${tls_key_data}
 </${tls_key_label}>"
 			else
-				inline_incomplete=1
+				inline_incomplete="Unknown TLS Key"
 				tls_data="# Easy-RSA TLS Key not recognised!"
 			fi
 		else
-			inline_incomplete=1
+			inline_incomplete="Missing TLS Key, see 'easyrsa help gen-tls'"
 			tls_data="# Easy-RSA TLS Key not found!"
 		fi
 	fi
@@ -3146,10 +3175,10 @@ ${tls_key_data}
 		client|self-signed-client)
 			key_direction="key-direction 1" ;;
 		*)
-		verbose "inline: Unsupported cert-type: $inline_crt_type"
-		tls_key_label=
-		key_direction=
-		tls_data="# No TLS Key support for cert-type: $inline_crt_type"
+			tls_key_label=
+			key_direction=
+			tls_data="# No TLS Key support for cert-type: $inline_crt_type"
+			verbose "inline: Unsupported cert-type: $inline_crt_type"
 	esac
 
 	# Add --key-direction for TLS-AUTH
@@ -3244,12 +3273,15 @@ Updated the '$inline_crt_type' peer-fingerprint list at:
 	if [ "$inline_incomplete" ]; then
 		warn "\
 INCOMPLETE Inline file created:
-* $inline_out"
+* $inline_out
+
+$inline_incomplete"
 	else
 		notice "\
 Inline file created:
 * $inline_out"
 	fi
+	verbose "inline_file; COMPLETED"
 } # => inline_file()
 
 # revoke backend
@@ -3693,6 +3725,66 @@ Conflicting file already exists at:
 Request successfully imported with short-name: $short_name
 This request is now ready to be signed."
 } # => import_req()
+
+# import external CA to pki/inline/external-ca.list
+# for use by intermediate CA, inline files
+import_ca() {
+	# pull passed paths
+	in_ext_ca="$1"
+
+	# CA file must exist
+	[ -f "$in_ext_ca" ] || user_error "\
+Missing file: '$in_ext_ca'"
+
+	verify_file x509 "$in_ext_ca" || user_error "\
+The certificate file is not in a valid X509 format:
+* $in_ext_ca"
+
+	# External CA list file
+	external_ca_list="$EASYRSA_PKI"/inline/external-ca.list
+
+	# Create 'pki/inline' directory
+	mkdir -p "$EASYRSA_PKI"/inline || \
+		die "import_ca() - failed to create 'inline' directory."
+
+	# tmp-file for imported CA
+	ext_ca_tmp=
+	easyrsa_mktemp ext_ca_tmp
+
+	# Write External CA data to tmp-file
+	# LibreSSL issue: https://github.com/libressl/portable/issues/1228
+	# opts support
+	cert_opts=
+	name_opts="utf8,sep_multiline,space_eq,lname,align"
+	if [ "$ssl_lib_name" = libressl ]; then
+		verbose "Extract full text CA for _$ssl_lib_name_"
+		"$EASYRSA_OPENSSL" x509 -in "$in_ext_ca" \
+			-text -nameopt "$name_opts" -certopt "$cert_opts" \
+			>"$ext_ca_tmp" || \
+				die "import_ca() - OpenSSL failure to process the input"
+	else
+		easyrsa_openssl x509 -in "$in_ext_ca" -out "$ext_ca_tmp" \
+			-text -nameopt "$name_opts" -certopt "$cert_opts" || \
+				die "import_ca() - OpenSSL failure to process the input"
+	fi
+
+	# TODO: Verify Root CA chain
+	# ---------------------------
+
+	# create external CA list file with header
+	if [ ! -f "$external_ca_list" ]; then
+		header="# Easy-RSA Inline file: External CA list"
+		print "$header" >"$external_ca_list" || \
+			die "import_ca() - failed to create list file."
+	fi
+
+	# now import it
+	cat "$ext_ca_tmp" >>"$external_ca_list" || \
+		die "import_ca() - failed to write list file."
+
+	notice "\
+External CA successfully imported into: $external_ca_list"
+} # => import_ca()
 
 # export pkcs#12, pkcs#7, pkcs#8 or pkcs#1
 export_pkcs() {
@@ -5259,11 +5351,11 @@ This file is stored at:
 # Prints CA cert details in a readable format
 show_ca() {
 	# opts support
-	out_opts="no_pubkey,no_sigdump"
+	cert_opts="no_pubkey,no_sigdump"
 	name_opts="utf8,sep_multiline,space_eq,lname,align"
 	while [ "$1" ]; do
 		case "$1" in
-			full) out_opts= ;;
+			full) cert_opts= ;;
 			*) warn "Ignoring unknown command option: '$1'"
 		esac
 		shift
@@ -5276,18 +5368,18 @@ show_ca() {
 	[ -f "$in_file" ] || user_error "\
 No such $type file with a basename of '$name' is present.
 Expected to find this file at:
-$in_file"
+* $in_file"
 
 	verify_file "$format" "$in_file" || user_error "\
 This file is not a valid $type file:
-$in_file"
+* $in_file"
 
 	notice "\
 Showing details for CA certificate, at:
 * $in_file${NL}"
 
-	easyrsa_openssl "$format" -in "$in_file" -noout -text \
-		-nameopt "$name_opts" -certopt "$out_opts" || \
+	easyrsa_openssl "$format" -in "$in_file" -noout \
+		-text -nameopt "$name_opts" -certopt "$cert_opts" || \
 			die "OpenSSL failure to process the input"
 } # => show_ca()
 
@@ -7147,6 +7239,10 @@ case "$cmd" in
 	import-req)
 		require_pki=1; require_ca=""; verify_working_env
 		import_req "$@"
+		;;
+	import-ca)
+		require_pki=1; require_ca=1; verify_working_env
+		import_ca "$@"
 		;;
 	expire)
 		require_pki=1; require_ca=1; verify_working_env
