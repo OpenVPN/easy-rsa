@@ -144,6 +144,7 @@ Command list:
   verify-cert <file_name_base>
   import-req <request_file_path> <short_name_base>
   import-ca <DIR/FILE_NAME>
+  import-tls-key <DIR/FILE_NAME>
   export-p1 <file_name_base> [ cmd-opts ]
   export-p7 <file_name_base> [ cmd-opts ]
   export-p8 <file_name_base> [ cmd-opts ]
@@ -429,6 +430,23 @@ Usage: easyrsa [ OPTIONS.. ] <COMMAND> <TARGET> [ cmd-opts.. ]"
 
       Example usage:
         import-ca '/another/pki/ca.crt'"
+	;;
+	import-tls-key)
+		text="
+* import-tls-key <DIR/FILE_NAME>
+
+      Import an OpenVPN TLS key from '<DIR/FILE_NAME>'
+
+      Copy the specified file to 'pki/private/easyrsa-tls.key' file,
+      for use by OpenVPN inline files.
+
+      The 'pki/private/easyrsa-tls.key' file is automatically added
+      to all new inline files, within the <tls-*>..</tls-*> tags.
+
+      The <DIR/FILE_NAME> is imported WITHOUT verification.
+
+      Example usage:
+        import-tls-key '/another/pki/private/easyrsa-tls.key'"
 	;;
 	export-p12)
 		text="
