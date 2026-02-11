@@ -2,6 +2,8 @@ Easy-RSA 3 ChangeLog
 
 3.2.6 (TBD)
 
+   * X509-Type ca: Enable 'basicConstraints = critical' for CA/subCA certificates
+     (5a5adb4) (#1428) - Original discussion: #1418
    * inline_file(): $inline_incomplete, add descriptive message (0df7946) (#1423)
    * Introduce new command 'import-ca' (fae716f) (#1423)
    * inline_file(): Introduce external CA list file (ce61d91) (#1423)
