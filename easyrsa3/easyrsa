@@ -3786,6 +3786,31 @@ The certificate file is not in a valid X509 format:
 External CA successfully imported into: $external_ca_list"
 } # => import_ca()
 
+# import external TLS Key to pki/private/easyrsa-tls.key
+# for use by inline files
+import_tls_key() {
+	# pull passed paths
+	in_ext_tls_key="$1"
+
+	# in_ext_tls_key file must exist
+	[ -f "$in_ext_tls_key" ] || user_error "\
+Missing file: '$in_ext_tls_key'"
+
+	# imported tls_key file
+	out_ext_tls_key="$EASYRSA_PKI"/private/easyrsa-tls.key
+
+	# Create 'pki/private' directory
+	mkdir -p "$EASYRSA_PKI"/private || \
+		die "import_tls_key() - failed to create 'private' directory."
+
+	# now import it
+	cp "$in_ext_tls_key" "$out_ext_tls_key" || \
+		die "import_tls_key() - failed to import TLS Key."
+
+	notice "\
+External TLS Key successfully imported into: $out_ext_tls_key"
+} # => import_tls_key()
+
 # export pkcs#12, pkcs#7, pkcs#8 or pkcs#1
 export_pkcs() {
 	pkcs_type="$1"
@@ -7243,6 +7268,10 @@ case "$cmd" in
 	import-ca)
 		require_pki=1; require_ca=1; verify_working_env
 		import_ca "$@"
+		;;
+	import-tls-key)
+		require_pki=1; require_ca=""; verify_working_env
+		import_tls_key "$@"
 		;;
 	expire)
 		require_pki=1; require_ca=1; verify_working_env
