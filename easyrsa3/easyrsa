@@ -6463,7 +6463,7 @@ create_legacy_stream() {
 	ca)
 	# ca
 		cat <<- "CREATE_X509_TYPE_CA"
-		basicConstraints = CA:TRUE
+		basicConstraints = critical,CA:TRUE
 		subjectKeyIdentifier = hash
 		authorityKeyIdentifier = keyid:always,issuer:always
 		keyUsage = cRLSign, keyCertSign
