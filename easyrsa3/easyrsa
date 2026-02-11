@@ -6410,8 +6410,8 @@ write_legacy_file_v2() {
 			create_legacy_stream "$write_type" > "$write_file" || \
 				die "write over-write failed"
 		else
-			# Preserve existing file and fail
-			die "write_legacy_file_v2; over-write BLOCKED for $write_type"
+			# Preserve existing file and continue
+			warn "write_legacy_file_v2; over-write BLOCKED for $write_type"
 		fi
 	# $write_file does not exist, so create it
 	elif [ "$write_file" ]; then
