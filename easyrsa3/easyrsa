@@ -144,6 +144,7 @@ Command list:
   verify-cert <file_name_base>
   import-req <request_file_path> <short_name_base>
   import-ca <DIR/FILE_NAME>
+  import-tls-key <DIR/FILE_NAME>
   export-p1 <file_name_base> [ cmd-opts ]
   export-p7 <file_name_base> [ cmd-opts ]
   export-p8 <file_name_base> [ cmd-opts ]
@@ -429,6 +430,23 @@ Usage: easyrsa [ OPTIONS.. ] <COMMAND> <TARGET> [ cmd-opts.. ]"
 
       Example usage:
         import-ca '/another/pki/ca.crt'"
+	;;
+	import-tls-key)
+		text="
+* import-tls-key <DIR/FILE_NAME>
+
+      Import an OpenVPN TLS key from '<DIR/FILE_NAME>'
+
+      Copy the specified file to 'pki/private/easyrsa-tls.key' file,
+      for use by OpenVPN inline files.
+
+      The 'pki/private/easyrsa-tls.key' file is automatically added
+      to all new inline files, within the <tls-*>..</tls-*> tags.
+
+      The <DIR/FILE_NAME> is imported WITHOUT verification.
+
+      Example usage:
+        import-tls-key '/another/pki/private/easyrsa-tls.key'"
 	;;
 	export-p12)
 		text="
@@ -861,7 +879,7 @@ easyrsa_random() {
 
 # Set noclobber on|off
 set_no_clobber() {
-	verbose "set_no_clobber; $1"
+	verbose "${2:-undefined}; set_no_clobber; $1"
 	case "$1" in
 		on)
 			set -o noclobber && return
@@ -880,14 +898,15 @@ set_no_clobber() {
 # Create lock-file
 create_lock_file() {
 	# Force noclobber
-	set_no_clobber on
+	set_no_clobber on create_lock_file
 
 	# Create lock-file from PID
 	[ "$1" ] || die "create_lock_file - input"
 	print "$$" 2>/dev/null 1>"$1" || return 1
+	verbose "create_lock_file; CREATED '$1'"
 
 	# unset noclobber
-	set_no_clobber off
+	set_no_clobber off create_lock_file
 } # => create_lock_file()
 
 # Remove lock-file, if lock_data matches PID
@@ -954,7 +973,7 @@ easyrsa_mktemp() {
 easyrsa_mktemp - Temporary session undefined (--tmp-dir)"
 
 	# Force noclobber
-	set_no_clobber on
+	set_no_clobber on easyrsa_mktemp
 
 	# Create shotfile
 	for high in 0 1; do
@@ -966,12 +985,13 @@ easyrsa_mktemp - Temporary session undefined (--tmp-dir)"
 
 			# Assign external temp-file name
 			if force_set_var "$1" "$shotfile"; then
-				# unset noclobber
-				set_no_clobber off
-
 				# Update counter
 				mktemp_counter="$((mktemp_counter+1))"
 				verbose "easyrsa_mktemp; $1 CREATED: $shotfile"
+
+				# unset noclobber
+				set_no_clobber off easyrsa_mktemp
+
 				return
 			else
 				die "easyrsa_mktemp - force_set_var $1 failed"
@@ -3786,6 +3806,31 @@ The certificate file is not in a valid X509 format:
 External CA successfully imported into: $external_ca_list"
 } # => import_ca()
 
+# import external TLS Key to pki/private/easyrsa-tls.key
+# for use by inline files
+import_tls_key() {
+	# pull passed paths
+	in_ext_tls_key="$1"
+
+	# in_ext_tls_key file must exist
+	[ -f "$in_ext_tls_key" ] || user_error "\
+Missing file: '$in_ext_tls_key'"
+
+	# imported tls_key file
+	out_ext_tls_key="$EASYRSA_PKI"/private/easyrsa-tls.key
+
+	# Create 'pki/private' directory
+	mkdir -p "$EASYRSA_PKI"/private || \
+		die "import_tls_key() - failed to create 'private' directory."
+
+	# now import it
+	cp "$in_ext_tls_key" "$out_ext_tls_key" || \
+		die "import_tls_key() - failed to import TLS Key."
+
+	notice "\
+External TLS Key successfully imported into: $out_ext_tls_key"
+} # => import_tls_key()
+
 # export pkcs#12, pkcs#7, pkcs#8 or pkcs#1
 export_pkcs() {
 	pkcs_type="$1"
@@ -6238,10 +6283,10 @@ select_x509_type_tmp() {
 	easyrsa_mktemp new_x509_type_file_tmp
 
 	cp "$x509_type_source" "$new_x509_type_file_tmp" || \
-		die "create_x509_type_tmp; copy x509-type failed"
+		die "select_x509_type_tmp; copy x509-type failed"
 
 	verbose "\
-create_x509_type_tmp; new_x509_type_file_tmp = '$new_x509_type_file_tmp'"
+select_x509_type_tmp; new_x509_type_file_tmp = '$new_x509_type_file_tmp'"
 } # => select_x509_type_tmp()
 
 # Write x509 type file to a temp file
@@ -6365,8 +6410,8 @@ write_legacy_file_v2() {
 			create_legacy_stream "$write_type" > "$write_file" || \
 				die "write over-write failed"
 		else
-			# Preserve existing file and fail
-			die "write_legacy_file_v2; over-write BLOCKED for $write_type"
+			# Preserve existing file and continue
+			warn "write_legacy_file_v2; over-write BLOCKED for $write_type"
 		fi
 	# $write_file does not exist, so create it
 	elif [ "$write_file" ]; then
@@ -6835,14 +6880,14 @@ print_version() {
 	ssl_version="$(
 			"${EASYRSA_OPENSSL:-openssl}" version 2>/dev/null
 		)"
-		cat << VERSION_TEXT
-EasyRSA Version Information
-Version:     $EASYRSA_version
-Generated:   ~DATE~
-SSL Lib:     ${ssl_version:-undefined}
-Git Commit:  ~GITHEAD~
-Source Repo: https://github.com/OpenVPN/easy-rsa
-VERSION_TEXT
+	cat <<- VERSION_TEXT
+		EasyRSA Version Information
+		Version:     $EASYRSA_version
+		Generated:   ~DATE~
+		SSL Lib:     ${ssl_version:-undefined}
+		Git Commit:  ~GITHEAD~
+		Source Repo: https://github.com/OpenVPN/easy-rsa
+		VERSION_TEXT
 } # => print_version()
 
 
@@ -7243,6 +7288,10 @@ case "$cmd" in
 	import-ca)
 		require_pki=1; require_ca=1; verify_working_env
 		import_ca "$@"
+		;;
+	import-tls-key)
+		require_pki=1; require_ca=""; verify_working_env
+		import_tls_key "$@"
 		;;
 	expire)
 		require_pki=1; require_ca=1; verify_working_env
