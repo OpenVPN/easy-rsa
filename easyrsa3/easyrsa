@@ -6283,10 +6283,10 @@ select_x509_type_tmp() {
 	easyrsa_mktemp new_x509_type_file_tmp
 
 	cp "$x509_type_source" "$new_x509_type_file_tmp" || \
-		die "create_x509_type_tmp; copy x509-type failed"
+		die "select_x509_type_tmp; copy x509-type failed"
 
 	verbose "\
-create_x509_type_tmp; new_x509_type_file_tmp = '$new_x509_type_file_tmp'"
+select_x509_type_tmp; new_x509_type_file_tmp = '$new_x509_type_file_tmp'"
 } # => select_x509_type_tmp()
 
 # Write x509 type file to a temp file
