@@ -3812,20 +3812,30 @@ import_tls_key() {
 	# pull passed paths
 	in_ext_tls_key="$1"
 
-	# in_ext_tls_key file must exist
-	[ -f "$in_ext_tls_key" ] || user_error "\
-Missing file: '$in_ext_tls_key'"
-
 	# imported tls_key file
 	out_ext_tls_key="$EASYRSA_PKI"/private/easyrsa-tls.key
+
+	# in_ext_tls_key file must exist
+	[ -f "$in_ext_tls_key" ] || user_error "\
+Cannot read from missing file: '$in_ext_tls_key'"
+
+	# out_ext_tls_key file must exist
+	[ ! -f "$out_ext_tls_key" ] || user_error "\
+Cannot write to existing file: '$out_ext_tls_key'"
 
 	# Create 'pki/private' directory
 	mkdir -p "$EASYRSA_PKI"/private || \
 		die "import_tls_key() - failed to create 'private' directory."
 
+	# Force noclobber
+	set_no_clobber on import_tls_key
+
 	# now import it
-	cp "$in_ext_tls_key" "$out_ext_tls_key" || \
+	cat "$in_ext_tls_key" >"$out_ext_tls_key" || \
 		die "import_tls_key() - failed to import TLS Key."
+
+	# Force noclobber
+	set_no_clobber off import_tls_key
 
 	notice "\
 External TLS Key successfully imported into: $out_ext_tls_key"
