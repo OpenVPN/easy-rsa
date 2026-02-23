@@ -119,12 +119,35 @@ fi
 #  * rsa
 #  * ec
 #  * ed
+#  * pqc  (Post-Quantum Cryptography, requires OpenSSL 3.5+ or OQS provider)
 #
 #set_var EASYRSA_ALGO		rsa
 
 # Define the named curve, used in ec & ed modes:
 #
 #set_var EASYRSA_CURVE		secp384r1
+
+# Post-Quantum Cryptography (PQC) settings:
+# Used when EASYRSA_ALGO is set to 'pqc'
+# Requires OpenSSL 3.5+ or the OQS provider for OpenSSL 3.x
+#
+# Choose a PQC signature algorithm. Examples:
+#   Pure PQC:  ml-dsa-44, ml-dsa-65, ml-dsa-87 (FIPS 204 - ML-DSA/Dilithium)
+#              slh-dsa-sha2-128s, slh-dsa-shake-256f (FIPS 205 - SLH-DSA/SPHINCS+)
+#              falcon512, falcon1024 (FIPS 206 - FN-DSA/Falcon)
+#   Hybrid:    p256_ml-dsa-44, p384_ml-dsa-65, p521_ml-dsa-87
+#              ed25519_ml-dsa-44, ed448_ml-dsa-65
+#
+# Run 'easyrsa list-pqc' to see all available algorithms.
+# Run 'easyrsa pqc-recommend' for algorithm recommendations.
+#
+#set_var EASYRSA_PQC_ALGO	ml-dsa-65
+#
+# Optional: specify the PQC provider name (default: auto-detect)
+#set_var EASYRSA_PQC_PROVIDER	oqsprovider
+#
+# Optional: specify the path to the provider shared library
+#set_var EASYRSA_PQC_PROVIDER_PATH	/usr/lib/ossl-modules/oqsprovider.so
 
 # In how many days should the root CA key expire?
 #
