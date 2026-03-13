@@ -64,10 +64,15 @@ Certificate & Request options: (these impact cert/req field values)
 
 --digest=ALG    : Digest to use in the requests & certificates
 --keysize=#     : Size in bits of keypair to generate (RSA Only)
---algo=ALG      : Crypto algorithm to use: choose rsa (default), ec or ed
+--algo=ALG      : Crypto algorithm to use: choose rsa (default), ec, ed or pqc
 --curve=NAME    : For elliptic curve, sets the named curve
                   (Default: algo ec: secp384r1, algo ed: ed25519)
                   (--use-algo and --curve can be used to configure 'init-pki')
+--pqc-algo=ALG  : Post-Quantum algorithm (requires OpenSSL 3.5+ or OQS provider)
+                  Examples: ml-dsa-44, ml-dsa-65, ml-dsa-87, p384_ml-dsa-65
+                  Use 'easyrsa list-pqc' to see all available algorithms
+--pqc-provider=NAME : OpenSSL provider for PQC (default: auto-detect)
+--pqc-provider-path=PATH : Path to PQC provider module
 
 --subca-len=#   : Path length of signed intermediate CA certificates
 --copy-ext      : Copy included request X509 extensions (namely subjAltName)
@@ -156,6 +161,18 @@ Command list:
   display-dn <FORM> <DIR/FILE_NAME>
   show-eku <file_name_base>|<DIR/FILE_NAME>
   rand <Decimal-Number>
+
+Post-Quantum Cryptography commands (requires OpenSSL 3.5+ or OQS provider):
+
+  list-pqc                      List available PQC algorithms
+  pqc-status                    Show PQC configuration and support status
+  pqc-set-algo <ALG>            Set PQC algorithm for next operations
+  pqc-recommend [ USE ]         Show recommended PQC algorithms
+                                (USE: ca|server|client|vpn|email|codesign)
+  pqc-key-info <FILE>           Show PQC key information
+  pqc-verify <CERT>             Verify a PQC certificate
+  pqc-migration                 Show PQC migration guide
+  pqc-help                      Show PQC-specific help
 "
 } # => usage()
 
@@ -669,6 +686,24 @@ Generate TLS keys for use with OpenVPN:
 
 Only ONE TLS key is allowed to exist. (pki/private/easyrsa-tls.key)
 This TLS key will be automatically added to inline files."
+	;;
+	list-pqc|pqc-*)
+		text="
+* Post-Quantum Cryptography (PQC) Commands:
+
+      list-pqc              List all available PQC algorithms
+      pqc-status            Show PQC configuration and status
+      pqc-set-algo <ALG>    Set PQC algorithm for next operations
+      pqc-recommend [USE]   Show recommended algorithms
+      pqc-key-info <FILE>   Show PQC key information
+      pqc-verify <CERT>     Verify a PQC certificate
+      pqc-migration         Show PQC migration guide
+      pqc-help              Show detailed PQC help
+
+      Requires OpenSSL 3.5+ or OQS provider.
+      Supported families: ML-DSA, SLH-DSA, Falcon, ML-KEM, MAYO, CROSS,
+                          HQC, BIKE, FrodoKEM + hybrid variants."
+		text_only=1
 	;;
 	"")
 		usage
@@ -1425,6 +1460,696 @@ $verify_ca_help_note"
 	done
 } # => verify_ca_init()
 
+# ============================================================
+# Post-Quantum Cryptography (PQC) Support for OpenSSL 3.5+
+# ============================================================
+# NIST-standardized and candidate post-quantum / hybrid algorithms
+# supported by OpenSSL 3.5+ via built-in PQC or the OQS provider.
+# ============================================================
+
+# --- PQC Algorithm Definitions ---
+
+# Pure PQC Signature Algorithms (FIPS 204, FIPS 205, FIPS 206)
+EASYRSA_PQC_SIG_ALGS="\
+ml-dsa-44 ml-dsa-65 ml-dsa-87 \
+slh-dsa-sha2-128s slh-dsa-sha2-128f \
+slh-dsa-sha2-192s slh-dsa-sha2-192f \
+slh-dsa-sha2-256s slh-dsa-sha2-256f \
+slh-dsa-shake-128s slh-dsa-shake-128f \
+slh-dsa-shake-192s slh-dsa-shake-192f \
+slh-dsa-shake-256s slh-dsa-shake-256f \
+falcon512 falcon1024 \
+mayo1 mayo2 mayo3 mayo5 \
+cross-rsdp-128-balanced cross-rsdp-128-fast cross-rsdp-128-small \
+cross-rsdp-192-balanced cross-rsdp-192-fast cross-rsdp-192-small \
+cross-rsdp-256-balanced cross-rsdp-256-fast cross-rsdp-256-small"
+
+# Pure PQC KEM Algorithms (FIPS 203)
+EASYRSA_PQC_KEM_ALGS="\
+ml-kem-512 ml-kem-768 ml-kem-1024 \
+hqc-128 hqc-192 hqc-256 \
+bike-l1 bike-l3 bike-l5 \
+frodokem-640-aes frodokem-640-shake \
+frodokem-976-aes frodokem-976-shake \
+frodokem-1344-aes frodokem-1344-shake"
+
+# Hybrid Signature Algorithms (Classical + PQC)
+EASYRSA_PQC_HYBRID_SIG_ALGS="\
+p256_ml-dsa-44 p384_ml-dsa-65 p521_ml-dsa-87 \
+rsa3072_ml-dsa-44 ed25519_ml-dsa-44 ed448_ml-dsa-65 \
+p256_ml-dsa-65 p521_ml-dsa-65 ed25519_ml-dsa-65 \
+ed448_ml-dsa-87 p384_ml-dsa-87 \
+p256_slh-dsa-sha2-128s p256_slh-dsa-sha2-128f \
+p384_slh-dsa-sha2-192s p384_slh-dsa-sha2-192f \
+p521_slh-dsa-sha2-256s p521_slh-dsa-sha2-256f \
+p256_slh-dsa-shake-128s p256_slh-dsa-shake-128f \
+p384_slh-dsa-shake-192s p384_slh-dsa-shake-192f \
+p521_slh-dsa-shake-256s p521_slh-dsa-shake-256f \
+rsa3072_slh-dsa-sha2-128s rsa3072_slh-dsa-sha2-128f \
+rsa3072_slh-dsa-shake-128s rsa3072_slh-dsa-shake-128f \
+ed25519_slh-dsa-sha2-128s ed25519_slh-dsa-sha2-128f \
+ed25519_slh-dsa-shake-128s ed25519_slh-dsa-shake-128f \
+ed448_slh-dsa-sha2-192s ed448_slh-dsa-sha2-192f \
+ed448_slh-dsa-sha2-256s ed448_slh-dsa-sha2-256f \
+ed448_slh-dsa-shake-192s ed448_slh-dsa-shake-192f \
+ed448_slh-dsa-shake-256s ed448_slh-dsa-shake-256f \
+p256_falcon512 p521_falcon1024 \
+rsa3072_falcon512 ed25519_falcon512 ed448_falcon1024 \
+p256_mayo1 p256_mayo2 p384_mayo3 p521_mayo5 \
+rsa3072_mayo1 rsa3072_mayo2 \
+ed25519_mayo1 ed25519_mayo2 ed448_mayo3 ed448_mayo5"
+
+# Hybrid KEM Algorithms (Classical + PQC)
+EASYRSA_PQC_HYBRID_KEM_ALGS="\
+p256_ml-kem-512 p384_ml-kem-768 p521_ml-kem-1024 \
+x25519_ml-kem-512 x25519_ml-kem-768 \
+x448_ml-kem-768 x448_ml-kem-1024 \
+p256_ml-kem-768 p384_ml-kem-1024 x25519_ml-kem-1024 \
+p256_hqc-128 p384_hqc-192 p521_hqc-256 \
+x25519_hqc-128 x448_hqc-256 \
+p256_bike-l1 p384_bike-l3 p521_bike-l5 \
+x25519_bike-l1 x448_bike-l3 \
+p256_frodokem-640-aes p256_frodokem-640-shake \
+p384_frodokem-976-aes p384_frodokem-976-shake \
+p521_frodokem-1344-aes p521_frodokem-1344-shake \
+x25519_frodokem-640-aes x25519_frodokem-640-shake \
+x448_frodokem-976-aes x448_frodokem-976-shake"
+
+# Security level mapping for PQC algorithms
+# NIST Level 1 (~AES-128), Level 3 (~AES-192), Level 5 (~AES-256)
+pqc_security_level() {
+	case "$1" in
+		ml-dsa-44|ml-kem-512|*-128*|falcon512|mayo1|mayo2|hqc-128|bike-l1|frodokem-640*)
+			echo "1" ;;
+		ml-dsa-65|ml-kem-768|*-192*|mayo3|hqc-192|bike-l3|frodokem-976*)
+			echo "3" ;;
+		ml-dsa-87|ml-kem-1024|*-256*|falcon1024|mayo5|hqc-256|bike-l5|frodokem-1344*)
+			echo "5" ;;
+		p256_*|rsa3072_*|ed25519_*|x25519_*|p384_*|ed448_*|x448_*|p521_*)
+			_pqc_part="$(echo "$1" | sed 's/^[^_]*_//')"
+			pqc_security_level "$_pqc_part" ;;
+		*)
+			echo "unknown" ;;
+	esac
+}
+
+# Check if an algorithm is a PQC signature algorithm
+is_pqc_sig_algo() {
+	_algo="$1"
+	for _a in $EASYRSA_PQC_SIG_ALGS $EASYRSA_PQC_HYBRID_SIG_ALGS; do
+		[ "$_algo" = "$_a" ] && return 0
+	done
+	return 1
+}
+
+# Check if an algorithm is a PQC KEM algorithm
+is_pqc_kem_algo() {
+	_algo="$1"
+	for _a in $EASYRSA_PQC_KEM_ALGS $EASYRSA_PQC_HYBRID_KEM_ALGS; do
+		[ "$_algo" = "$_a" ] && return 0
+	done
+	return 1
+}
+
+# Check if an algorithm is hybrid (classical + PQC)
+is_hybrid_algo() {
+	case "$1" in
+		p256_*|p384_*|p521_*|rsa3072_*|ed25519_*|ed448_*|x25519_*|x448_*)
+			return 0 ;;
+		*)
+			return 1 ;;
+	esac
+}
+
+# Check if an algorithm is a pure PQC algorithm (not hybrid)
+is_pure_pqc_algo() {
+	_algo="$1"
+	for _a in $EASYRSA_PQC_SIG_ALGS $EASYRSA_PQC_KEM_ALGS; do
+		[ "$_algo" = "$_a" ] && return 0
+	done
+	return 1
+}
+
+# Get the algorithm type/family
+pqc_algo_family() {
+	case "$1" in
+		*ml-dsa*)     echo "ML-DSA (FIPS 204 - Dilithium)" ;;
+		*ml-kem*)     echo "ML-KEM (FIPS 203 - Kyber)" ;;
+		*slh-dsa*)    echo "SLH-DSA (FIPS 205 - SPHINCS+)" ;;
+		*falcon*)     echo "FN-DSA (FIPS 206 - Falcon)" ;;
+		*mayo*)       echo "MAYO" ;;
+		*cross*)      echo "CROSS" ;;
+		*hqc*)        echo "HQC" ;;
+		*bike*)       echo "BIKE" ;;
+		*frodokem*)   echo "FrodoKEM" ;;
+		*)            echo "Unknown" ;;
+	esac
+}
+
+# Verify OpenSSL version supports PQC
+check_openssl_pqc_support() {
+	_openssl_version="$("$EASYRSA_OPENSSL" version 2>/dev/null)"
+	_version_num="$(echo "$_openssl_version" | \
+		sed -n 's/OpenSSL \([0-9]*\.[0-9]*\).*/\1/p')"
+
+	_major="$(echo "$_version_num" | cut -d. -f1)"
+	_minor="$(echo "$_version_num" | cut -d. -f2)"
+
+	if [ -z "$_major" ] || [ -z "$_minor" ]; then
+		verbose "Could not determine OpenSSL version for PQC check."
+		# Check if oqsprovider is available as fallback
+		if "$EASYRSA_OPENSSL" list -providers 2>/dev/null | \
+			grep -qi "oqs"
+		then
+			verbose "OQS Provider detected."
+			return 0
+		fi
+		return 1
+	fi
+
+	if [ "$_major" -lt 3 ] || \
+		{ [ "$_major" -eq 3 ] && [ "$_minor" -lt 5 ]; }
+	then
+		# Check if oqsprovider is available as fallback
+		if "$EASYRSA_OPENSSL" list -providers 2>/dev/null | \
+			grep -qi "oqs"
+		then
+			verbose "OQS Provider detected - PQC available via provider."
+			return 0
+		fi
+		return 1
+	fi
+
+	return 0
+}
+
+# Check if a specific PQC algorithm is available in the current OpenSSL
+check_pqc_algo_available() {
+	_algo="$1"
+	_type="$2"  # "sig" or "kem"
+
+	if [ "$_type" = "sig" ] || is_pqc_sig_algo "$_algo"; then
+		"$EASYRSA_OPENSSL" list -signature-algorithms 2>/dev/null | \
+			grep -qi "$_algo" && return 0
+	fi
+
+	if [ "$_type" = "kem" ] || is_pqc_kem_algo "$_algo"; then
+		"$EASYRSA_OPENSSL" list -kem-algorithms 2>/dev/null | \
+			grep -qi "$_algo" && return 0
+	fi
+
+	"$EASYRSA_OPENSSL" list -all-algorithms 2>/dev/null | \
+		grep -qi "$_algo" && return 0
+
+	return 1
+}
+
+# Validate PQC algorithm for certificate signing
+pqc_validate_for_signing() {
+	_algo="$1"
+
+	if is_pqc_kem_algo "$_algo" && ! is_pqc_sig_algo "$_algo"; then
+		user_error "\
+Algorithm '$_algo' is a KEM algorithm and cannot be used for signing.
+
+KEM algorithms are used for key exchange/encapsulation only.
+For certificate signing, use PQC signature algorithms:
+
+  FIPS 204 (ML-DSA):  ml-dsa-44, ml-dsa-65, ml-dsa-87
+  FIPS 205 (SLH-DSA): slh-dsa-sha2-128s, slh-dsa-shake-128f, ...
+  FIPS 206 (Falcon):  falcon512, falcon1024
+
+Run 'easyrsa list-pqc' for the complete list."
+	fi
+
+	return 0
+}
+
+# Get the digest algorithm appropriate for PQC
+# Most PQC signature schemes have built-in hash; digest is ignored
+pqc_get_digest() {
+	case "$1" in
+		*ml-dsa*|*slh-dsa*|*falcon*|*mayo*|*cross*)
+			# These use internal hash; no separate digest needed
+			echo "" ;;
+		*)
+			# For hybrid with unknown PQC, use SHA-384 as default
+			echo "sha384" ;;
+	esac
+}
+
+# List all available PQC algorithms on the current system
+list_available_pqc_algos() {
+	print ""
+	print "  Post-Quantum Cryptography Algorithms"
+	print "  ======================================"
+	print ""
+
+	if ! check_openssl_pqc_support; then
+		print "  PQC support not available."
+		print "  Requires OpenSSL 3.5+ or OQS provider."
+		print ""
+		_openssl_version="$("$EASYRSA_OPENSSL" version 2>/dev/null)"
+		print "  Current OpenSSL: $_openssl_version"
+		return 1
+	fi
+
+	print "  --- Pure PQC Signature Algorithms ---"
+	print ""
+	for _algo in $EASYRSA_PQC_SIG_ALGS; do
+		if check_pqc_algo_available "$_algo" "sig"; then
+			_level="$(pqc_security_level "$_algo")"
+			_family="$(pqc_algo_family "$_algo")"
+			printf "    [AVAILABLE]     %-30s  Level %s  %s\n" \
+				"$_algo" "$_level" "$_family"
+		else
+			printf "    [UNAVAILABLE]   %-30s\n" "$_algo"
+		fi
+	done
+
+	print ""
+	print "  --- Hybrid Signature Algorithms (Classical + PQC) ---"
+	print ""
+	for _algo in $EASYRSA_PQC_HYBRID_SIG_ALGS; do
+		if check_pqc_algo_available "$_algo" "sig"; then
+			_level="$(pqc_security_level "$_algo")"
+			_family="$(pqc_algo_family "$_algo")"
+			printf "    [AVAILABLE]     %-40s  Level %s  %s\n" \
+				"$_algo" "$_level" "$_family"
+		else
+			printf "    [UNAVAILABLE]   %-40s\n" "$_algo"
+		fi
+	done
+
+	print ""
+	print "  --- Pure PQC KEM Algorithms ---"
+	print ""
+	for _algo in $EASYRSA_PQC_KEM_ALGS; do
+		if check_pqc_algo_available "$_algo" "kem"; then
+			_level="$(pqc_security_level "$_algo")"
+			_family="$(pqc_algo_family "$_algo")"
+			printf "    [AVAILABLE]     %-30s  Level %s  %s\n" \
+				"$_algo" "$_level" "$_family"
+		else
+			printf "    [UNAVAILABLE]   %-30s\n" "$_algo"
+		fi
+	done
+
+	print ""
+	print "  --- Hybrid KEM Algorithms (Classical + PQC) ---"
+	print ""
+	for _algo in $EASYRSA_PQC_HYBRID_KEM_ALGS; do
+		if check_pqc_algo_available "$_algo" "kem"; then
+			_level="$(pqc_security_level "$_algo")"
+			_family="$(pqc_algo_family "$_algo")"
+			printf "    [AVAILABLE]     %-40s  Level %s  %s\n" \
+				"$_algo" "$_level" "$_family"
+		else
+			printf "    [UNAVAILABLE]   %-40s\n" "$_algo"
+		fi
+	done
+
+	print ""
+	return 0
+}
+
+# Get recommended PQC algorithm based on use case
+pqc_recommend() {
+	_use_case="${1:-general}"
+	print ""
+	print "  PQC Algorithm Recommendations"
+	print "  ==============================="
+	print ""
+	case "$_use_case" in
+		ca|root-ca)
+			print "  For Root CA certificates (long-term, high security):"
+			print "    Pure PQC:   ml-dsa-87          (NIST Level 5, FIPS 204)"
+			print "    Hybrid:     p521_ml-dsa-87      (Maximum backward compat)"
+			print "    Stateless:  slh-dsa-sha2-256s   (Hash-based, conservative)"
+			print ""
+			print "  Note: SLH-DSA has larger sigs but relies only on hash security."
+			;;
+		server|tls-server)
+			print "  For TLS Server certificates:"
+			print "    Pure PQC:   ml-dsa-65          (NIST Level 3, balanced)"
+			print "    Hybrid:     p384_ml-dsa-65      (Backward compatible)"
+			print "    Fast:       ml-dsa-44           (NIST Level 1, fastest)"
+			print ""
+			print "  For TLS KEM (key exchange):"
+			print "    Pure PQC:   ml-kem-768          (NIST Level 3)"
+			print "    Hybrid:     x25519_ml-kem-768   (Most compatible)"
+			;;
+		client|tls-client)
+			print "  For TLS Client certificates:"
+			print "    Pure PQC:   ml-dsa-44          (NIST Level 1, fast verify)"
+			print "    Hybrid:     p256_ml-dsa-44      (Backward compatible)"
+			print "    Compact:    falcon512           (Smallest signatures)"
+			;;
+		email|smime)
+			print "  For S/MIME email certificates:"
+			print "    Pure PQC:   ml-dsa-65          (NIST Level 3)"
+			print "    Hybrid:     p384_ml-dsa-65      (Email client compat)"
+			;;
+		codesign|code-signing)
+			print "  For Code Signing certificates:"
+			print "    Pure PQC:   ml-dsa-87          (NIST Level 5, long-term)"
+			print "    Hybrid:     p521_ml-dsa-87      (Maximum security)"
+			print "    Hash-based: slh-dsa-sha2-256f   (Conservative, fast sign)"
+			;;
+		vpn|openvpn)
+			print "  For OpenVPN certificates:"
+			print "    Pure PQC:   ml-dsa-65          (NIST Level 3)"
+			print "    Hybrid:     p384_ml-dsa-65      (Recommended for transition)"
+			print ""
+			print "  For OpenVPN TLS key exchange:"
+			print "    Hybrid:     x25519_ml-kem-768   (Best performance + PQC)"
+			;;
+		*)
+			print "  General purpose recommendation:"
+			print "    Pure PQC:   ml-dsa-65          (NIST Level 3, balanced)"
+			print "    Hybrid:     p384_ml-dsa-65      (Backward compatible)"
+			print ""
+			print "  Usage: easyrsa pqc-recommend [ca|server|client|email|codesign|vpn]"
+			;;
+	esac
+	print ""
+}
+
+# Print PQC key information
+pqc_key_info() {
+	_keyfile="$1"
+
+	[ "$_keyfile" ] || user_error "PQC key file path required."
+	[ -f "$_keyfile" ] || user_error "\
+Key file not found: $_keyfile"
+
+	print ""
+	print "  PQC Key Information"
+	print "  ==================="
+	print ""
+
+	"$EASYRSA_OPENSSL" pkey -in "$_keyfile" -noout -text 2>/dev/null | \
+		head -20
+
+	_key_algo="$("$EASYRSA_OPENSSL" pkey -in "$_keyfile" -noout \
+		-text 2>/dev/null | head -1)"
+	print ""
+	print "  Algorithm: $_key_algo"
+
+	if echo "$_key_algo" | grep -qi \
+		"ml-dsa\|slh-dsa\|falcon\|mayo\|cross\|ml-kem"
+	then
+		print "  Type: Post-Quantum"
+		_algo_name="$(echo "$_key_algo" | grep -oi \
+			'ml-dsa-[0-9]*\|slh-dsa-[a-z0-9-]*\|falcon[0-9]*\|mayo[0-9]*\|ml-kem-[0-9]*' \
+			| head -1)"
+		if [ -n "$_algo_name" ]; then
+			print "  Family: $(pqc_algo_family "$_algo_name")"
+			print "  Security Level: NIST Level $(pqc_security_level "$_algo_name")"
+		fi
+	fi
+
+	print ""
+	return 0
+}
+
+# Verify a PQC certificate
+pqc_verify_cert() {
+	_certfile="$1"
+	_cafile="${2:-}"
+
+	[ "$_certfile" ] || user_error "Certificate file path required."
+	[ -f "$_certfile" ] || user_error "\
+Certificate file not found: $_certfile"
+
+	# Try default CA file if not specified
+	if [ -z "$_cafile" ] && [ -f "$EASYRSA_PKI/ca.crt" ]; then
+		_cafile="$EASYRSA_PKI/ca.crt"
+	fi
+
+	print ""
+	print "  PQC Certificate Verification"
+	print "  =============================="
+
+	"$EASYRSA_OPENSSL" x509 -in "$_certfile" -noout \
+		-subject -issuer -dates 2>/dev/null
+	print ""
+
+	_sig_algo="$("$EASYRSA_OPENSSL" x509 -in "$_certfile" -noout \
+		-text 2>/dev/null | grep "Signature Algorithm:" | \
+		head -1 | sed 's/.*: //')"
+	print "  Signature Algorithm: $_sig_algo"
+
+	_pk_algo="$("$EASYRSA_OPENSSL" x509 -in "$_certfile" -noout \
+		-text 2>/dev/null | grep "Public Key Algorithm:" | \
+		head -1 | sed 's/.*: //')"
+	print "  Public Key Algorithm: $_pk_algo"
+
+	if echo "$_sig_algo $_pk_algo" | grep -qi \
+		"ml-dsa\|slh-dsa\|falcon\|mayo\|cross"
+	then
+		print "  PQC Status: YES - Post-Quantum Protected"
+		if echo "$_sig_algo $_pk_algo" | grep -qi \
+			"p256\|p384\|p521\|rsa\|ed25519\|ed448"
+		then
+			print "  Hybrid Mode: YES - Classical + PQC"
+		else
+			print "  Hybrid Mode: NO - Pure PQC"
+		fi
+	else
+		print "  PQC Status: NO - Classical algorithm"
+	fi
+
+	if [ -f "$_cafile" ]; then
+		print ""
+		if "$EASYRSA_OPENSSL" verify -CAfile "$_cafile" \
+			"$_certfile" >/dev/null 2>&1
+		then
+			print "  Chain Verification: OK"
+		else
+			print "  Chain Verification: FAILED"
+			"$EASYRSA_OPENSSL" verify -CAfile "$_cafile" \
+				"$_certfile" 2>&1
+		fi
+	fi
+
+	print ""
+	return 0
+}
+
+# PQC status and configuration
+pqc_status() {
+	print ""
+	print "  EasyRSA Post-Quantum Cryptography Status"
+	print "  =========================================="
+	print ""
+
+	_openssl_version="$("$EASYRSA_OPENSSL" version 2>/dev/null)"
+	print "  OpenSSL: $_openssl_version"
+
+	if check_openssl_pqc_support 2>/dev/null; then
+		print "  PQC Support: AVAILABLE"
+	else
+		print "  PQC Support: NOT AVAILABLE"
+	fi
+
+	print ""
+	print "  Providers:"
+	"$EASYRSA_OPENSSL" list -providers 2>/dev/null | sed 's/^/    /'
+
+	print ""
+	print "  Current PQC Configuration:"
+	print "    EASYRSA_PQC_ALGO:     ${EASYRSA_PQC_ALGO:-(not set)}"
+	print "    EASYRSA_PQC_PROVIDER: ${EASYRSA_PQC_PROVIDER:-(auto-detect)}"
+
+	if [ -f "$EASYRSA_PKI/ca.crt" ] 2>/dev/null; then
+		print ""
+		print "  Existing CA Certificate:"
+		_ca_algo="$("$EASYRSA_OPENSSL" x509 -in "$EASYRSA_PKI/ca.crt" \
+			-noout -text 2>/dev/null | \
+			grep "Public Key Algorithm:" | head -1 | sed 's/.*: //')"
+		print "    Public Key Algorithm: $_ca_algo"
+		_ca_sig="$("$EASYRSA_OPENSSL" x509 -in "$EASYRSA_PKI/ca.crt" \
+			-noout -text 2>/dev/null | \
+			grep "Signature Algorithm:" | head -1 | sed 's/.*: //')"
+		print "    Signature Algorithm: $_ca_sig"
+
+		if echo "$_ca_algo $_ca_sig" | grep -qi \
+			"ml-dsa\|slh-dsa\|falcon\|mayo\|cross"
+		then
+			print "    PQC Status: YES"
+		else
+			print "    PQC Status: NO (classical)"
+		fi
+	fi
+
+	print ""
+	return 0
+}
+
+# Set PQC algorithm
+pqc_set_algo() {
+	_algo="$1"
+
+	[ "$_algo" ] || user_error "\
+Please specify a PQC algorithm.
+Run 'easyrsa list-pqc' to see available algorithms."
+
+	# Validate it's a known PQC algorithm
+	if ! is_pqc_sig_algo "$_algo" && ! is_pqc_kem_algo "$_algo"
+	then
+		user_error "\
+'$_algo' is not a recognized PQC algorithm.
+Run 'easyrsa list-pqc' to see available algorithms."
+	fi
+
+	if ! check_pqc_algo_available "$_algo"; then
+		warn "\
+Algorithm '$_algo' may not be available in your OpenSSL."
+	fi
+
+	export EASYRSA_PQC_ALGO="$_algo"
+	export EASYRSA_ALGO="pqc"
+
+	print ""
+	print "  PQC algorithm set: $_algo"
+	print "  Family: $(pqc_algo_family "$_algo")"
+	print "  Security Level: NIST Level $(pqc_security_level "$_algo")"
+
+	if is_hybrid_algo "$_algo"; then
+		print "  Mode: Hybrid (Classical + Post-Quantum)"
+	else
+		print "  Mode: Pure Post-Quantum"
+	fi
+
+	print ""
+	print "  To make it permanent, add to your 'vars' file:"
+	print "    set_var EASYRSA_ALGO        pqc"
+	print "    set_var EASYRSA_PQC_ALGO    \"$_algo\""
+	print ""
+
+	return 0
+}
+
+# PQC migration guide
+pqc_migration_info() {
+	print ""
+	print "  PQC Migration Guide"
+	print "  ===================="
+	print ""
+	print "  Phase 1 - Hybrid Mode (Recommended for transition):"
+	print "    Use hybrid algorithms that combine classical + PQC:"
+	print "      easyrsa --pqc-algo=p384_ml-dsa-65 --algo=pqc build-ca"
+	print ""
+	print "    This ensures backward compatibility while adding PQC."
+	print ""
+	print "  Phase 2 - Pure PQC Mode (After ecosystem maturity):"
+	print "      easyrsa --pqc-algo=ml-dsa-65 --algo=pqc build-ca"
+	print ""
+	print "  Phase 3 - Full PQC (Long-term goal):"
+	print "    All certificates and key exchanges use PQC:"
+	print "      CA:     ml-dsa-87 or slh-dsa-sha2-256s"
+	print "      Server: ml-dsa-65"
+	print "      Client: ml-dsa-44"
+	print "      KEM:    ml-kem-768"
+	print ""
+	print "  Important Notes:"
+	print "    - FIPS 204 (ML-DSA) is the primary recommendation"
+	print "    - FIPS 205 (SLH-DSA) is the conservative hash-based alt"
+	print "    - FIPS 203 (ML-KEM) is for key encapsulation/exchange"
+	print "    - Hybrid mode provides crypto-agility during transition"
+	print ""
+}
+
+# PQC help text
+pqc_help() {
+	print ""
+	print "  EasyRSA Post-Quantum Cryptography Commands"
+	print "  ============================================"
+	print ""
+	print "  list-pqc          List all available PQC algorithms"
+	print "  pqc-status        Show PQC configuration and status"
+	print "  pqc-set-algo ALG  Set PQC algorithm for next operations"
+	print "  pqc-recommend USE Show recommended algorithms"
+	print "                    (ca|server|client|vpn|email|codesign)"
+	print "  pqc-key-info FILE Show PQC key information"
+	print "  pqc-verify CERT   Verify a PQC certificate"
+	print "  pqc-migration     Show PQC migration guide"
+	print "  pqc-help          Show this help message"
+	print ""
+	print "  PQC-enabled standard commands:"
+	print "    easyrsa --algo=pqc --pqc-algo=ml-dsa-65 build-ca"
+	print "    easyrsa --algo=pqc --pqc-algo=ml-dsa-65 gen-req myserver nopass"
+	print "    easyrsa sign-req server myserver"
+	print ""
+	print "  Or use pqc-set-algo first:"
+	print "    easyrsa pqc-set-algo ml-dsa-65"
+	print "    easyrsa build-ca"
+	print ""
+	print "  For hybrid (classical + PQC) certificates:"
+	print "    easyrsa --algo=pqc --pqc-algo=p384_ml-dsa-65 build-ca"
+	print ""
+	print "  Environment Variables:"
+	print "    EASYRSA_ALGO=pqc                Enable PQC mode"
+	print "    EASYRSA_PQC_ALGO=ml-dsa-65      Set PQC algorithm"
+	print "    EASYRSA_PQC_PROVIDER=oqsprovider Set provider"
+	print "    EASYRSA_PQC_PROVIDER_PATH=/path/to/oqsprovider.so"
+	print ""
+	print "  Supported Algorithm Families:"
+	print "    ML-DSA    (FIPS 204) - Primary signature standard"
+	print "    SLH-DSA   (FIPS 205) - Stateless hash-based sigs"
+	print "    FN-DSA    (FIPS 206) - Falcon sigs (compact)"
+	print "    ML-KEM    (FIPS 203) - Key encapsulation mechanism"
+	print "    MAYO      - Signature scheme (candidate)"
+	print "    CROSS     - Signature scheme (candidate)"
+	print "    HQC       - KEM (candidate)"
+	print "    BIKE      - KEM (candidate)"
+	print "    FrodoKEM  - KEM (conservative, lattice-based)"
+	print ""
+}
+
+# PQC command handler
+pqc_command_handler() {
+	_cmd="$1"
+	shift
+
+	case "$_cmd" in
+		list-pqc|pqc-list)
+			list_available_pqc_algos
+			;;
+		pqc-status)
+			pqc_status
+			;;
+		pqc-set-algo)
+			pqc_set_algo "$@"
+			;;
+		pqc-recommend)
+			pqc_recommend "$@"
+			;;
+		pqc-key-info)
+			pqc_key_info "$@"
+			;;
+		pqc-verify)
+			pqc_verify_cert "$@"
+			;;
+		pqc-migration)
+			pqc_migration_info
+			;;
+		pqc-help)
+			pqc_help
+			;;
+		*)
+			return 1
+			;;
+	esac
+
+	return 0
+}
+
+# ============================================================
+# End of Post-Quantum Cryptography Definitions
+# ============================================================
+
 # init-pki backend:
 init_pki() {
 	verbose "BEGIN: algo: '$EASYRSA_ALGO' | curve: '$EASYRSA_CURVE'"
@@ -1444,12 +2169,24 @@ init_pki() {
 				export EASYRSA_ALGO="$1"
 				export EASYRSA_CURVE=ed25519
 			;;
+			pqc)
+				export EASYRSA_ALGO=pqc
+				unset -v EASYRSA_CURVE
+			;;
 			*)
-				export EASYRSA_CURVE="$1"
-				case "$EASYRSA_CURVE" in
-					ed*) export EASYRSA_ALGO=ed ;;
-					*) export EASYRSA_ALGO=ec
-				esac
+				# Check if it's a PQC algorithm name
+				if is_pqc_sig_algo "$1" || is_pqc_kem_algo "$1"
+				then
+					export EASYRSA_ALGO=pqc
+					export EASYRSA_PQC_ALGO="$1"
+					unset -v EASYRSA_CURVE
+				else
+					export EASYRSA_CURVE="$1"
+					case "$EASYRSA_CURVE" in
+						ed*) export EASYRSA_ALGO=ed ;;
+						*) export EASYRSA_ALGO=ec
+					esac
+				fi
 		esac
 		shift
 	done
@@ -1459,6 +2196,7 @@ init_pki() {
 		rsa) : ;; # ok
 		ec) set_var EASYRSA_CURVE secp384r1 ;;
 		ed) set_var EASYRSA_CURVE ed25519 ;;
+		pqc) set_var EASYRSA_PQC_ALGO ml-dsa-65 ;; # Default PQC algo
 		*) die "Unknown EASYRSA_ALGO: '$EASYRSA_ALGO'"
 	esac
 
@@ -1479,11 +2217,12 @@ init_pki() {
 			user_error "Invalid PKI: $EASYRSA_PKI"
 	esac
 
-	#  Auto-configuration $pki/vars for ec/ed
+	#  Auto-configuration $pki/vars for ec/ed/pqc
 	case "$EASYRSA_ALGO" in
 		rsa) auto_algo= ;; # ok
 		ec) auto_algo="Auto-configured for Elliptic curve '$EASYRSA_CURVE'" ;;
 		ed) auto_algo="Auto-configured for Edwards curve '$EASYRSA_CURVE'" ;;
+		pqc) auto_algo="Auto-configured for Post-Quantum '$EASYRSA_PQC_ALGO'" ;;
 		*) die "Auto-configuration, Unknown EASYRSA_ALGO: '$EASYRSA_ALGO'"
 	esac
 
@@ -1512,7 +2251,7 @@ and initialize a fresh PKI here. $auto_algo"
 	write_legacy_file_v2 vars "$EASYRSA_PKI"/vars.example || \
 		die "init_pki() - Failed to create vars.example"
 
-	#  Auto-configuration $pki/vars for ec/ed
+	#  Auto-configuration $pki/vars for ec/ed/pqc
 	case "$EASYRSA_ALGO" in
 	ec|ed)
 		# sed search and replace regex
@@ -1526,6 +2265,28 @@ and initialize a fresh PKI here. $auto_algo"
 		sed -e s/"$s_alg"/"$r_alg"/ -e s/"$s_crv"/"$r_crv"/ \
 			"$EASYRSA_PKI"/vars.example > "$EASYRSA_PKI"/vars || \
 				die "sed auto-vars"
+	;;
+	pqc)
+		# Auto-configure vars for PQC
+		s_alg='#set_var[[:blank:]]*EASYRSA_ALGO[[:blank:]]*rsa'
+		r_alg="set_var EASYRSA_ALGO pqc   # -->  $auto_algo"
+
+		# Create Auto-configured vars file with PQC settings
+		sed -e s/"$s_alg"/"$r_alg"/ \
+			"$EASYRSA_PKI"/vars.example > "$EASYRSA_PKI"/vars || \
+				die "sed auto-vars (pqc)"
+
+		# Append PQC-specific settings
+		{
+			printf '\n# Post-Quantum Cryptography settings\n'
+			printf 'set_var EASYRSA_PQC_ALGO\t%s\n' "$EASYRSA_PQC_ALGO"
+			[ -n "$EASYRSA_PQC_PROVIDER" ] && \
+				printf 'set_var EASYRSA_PQC_PROVIDER\t%s\n' \
+					"$EASYRSA_PQC_PROVIDER"
+			[ -n "$EASYRSA_PQC_PROVIDER_PATH" ] && \
+				printf 'set_var EASYRSA_PQC_PROVIDER_PATH\t%s\n' \
+					"$EASYRSA_PQC_PROVIDER_PATH"
+		} >> "$EASYRSA_PKI"/vars || die "append PQC vars"
 	esac
 
 	# User notice
@@ -1888,6 +2649,29 @@ Please update 'openssl-easyrsa.cnf' to the latest Easy-RSA release."
 		${out_key_pass_tmp:+ -pass file:"$out_key_pass_tmp"} \
 			|| die "Failed create CA private key"
 	;;
+	pqc)
+	# Post-Quantum Cryptography key generation
+	pqc_validate_for_signing "$EASYRSA_PQC_ALGO"
+
+	verbose "Generating PQC CA key: $EASYRSA_PQC_ALGO \
+($(pqc_algo_family "$EASYRSA_PQC_ALGO"))"
+
+	# Build provider arguments
+	_pqc_prov_args=""
+	if [ -n "$EASYRSA_PQC_PROVIDER" ]; then
+		_pqc_prov_args="-provider $EASYRSA_PQC_PROVIDER -provider default"
+	fi
+
+	"$EASYRSA_OPENSSL" genpkey \
+		-algorithm "$EASYRSA_PQC_ALGO" \
+		$_pqc_prov_args \
+		-out "$out_key_tmp" \
+		${cipher:+ "$cipher"} \
+		${EASYRSA_PASSOUT:+ -pass "$EASYRSA_PASSOUT"} \
+		${out_key_pass_tmp:+ -pass file:"$out_key_pass_tmp"} \
+			|| die "Failed create PQC CA private key ($EASYRSA_PQC_ALGO)"
+	unset -v _pqc_prov_args
+	;;
 	*) die "Unknown algorithm: $EASYRSA_ALGO"
 	esac
 
@@ -1902,6 +2686,19 @@ Please update 'openssl-easyrsa.cnf' to the latest Easy-RSA release."
 		verbose "CA key pass created via temp-files"
 	fi
 
+	# For PQC, decide whether to pass digest
+	# PQC algorithms have built-in hashing
+	_ca_digest_args=""
+	if [ "$EASYRSA_ALGO" = "pqc" ]; then
+		_pqc_digest="$(pqc_get_digest "$EASYRSA_PQC_ALGO")"
+		if [ -n "$_pqc_digest" ]; then
+			_ca_digest_args="-$_pqc_digest"
+		fi
+		# else: no -md for pure PQC (built-in hash)
+	else
+		_ca_digest_args="${EASYRSA_DIGEST:+-$EASYRSA_DIGEST}"
+	fi
+
 	# Generate the CA keypair:
 	easyrsa_openssl req -utf8 -new \
 		-key "$out_key_tmp" \
@@ -1910,13 +2707,14 @@ Please update 'openssl-easyrsa.cnf' to the latest Easy-RSA release."
 		${x509:+ -x509} \
 		${EASYRSA_TEXT_ON:+ -text} \
 		${date_stamp:+ -days "$EASYRSA_CA_EXPIRE"} \
-		${EASYRSA_DIGEST:+ -"$EASYRSA_DIGEST"} \
+		${_ca_digest_args:+ "$_ca_digest_args"} \
 		${EASYRSA_NO_PASS:+ "$no_password"} \
 		${EASYRSA_PASSIN:+ -passin "$EASYRSA_PASSIN"} \
 		${EASYRSA_PASSOUT:+ -passout "$EASYRSA_PASSOUT"} \
 		${in_key_pass_tmp:+ -passin file:"$in_key_pass_tmp"} \
 		${out_key_pass_tmp:+ -passout file:"$out_key_pass_tmp"} \
 			|| die "Failed to build the CA keypair"
+	unset -v _ca_digest_args _pqc_digest
 
 	# Move temp-files to target-files
 	mv "$out_key_tmp" "$out_key" || mv_temp_error=1
@@ -2044,10 +2842,16 @@ Conflicting certificate exists at:
 			set_var EASYRSA_CURVE ed25519
 			newkey_params="$EASYRSA_CURVE"
 			;;
+		pqc)
+			# Post-Quantum Cryptography
+			pqc_validate_for_signing "$EASYRSA_PQC_ALGO"
+			newkey_params="$EASYRSA_PQC_ALGO"
+			verbose "self_sign PQC algo: $EASYRSA_PQC_ALGO"
+			;;
 		*)
 			user_error "Unrecognised algorithm: '$EASYRSA_ALGO'"
 	esac
-	verbose "Use ALGO:'$EASYRSA_ALGO' / CURVE:'$EASYRSA_CURVE'"
+	verbose "Use ALGO:'$EASYRSA_ALGO' / CURVE:'${EASYRSA_CURVE:-$EASYRSA_PQC_ALGO}'"
 
 	# Assign tmp-file for config
 	adjusted_ssl_cnf_tmp=""
@@ -2115,11 +2919,19 @@ Conflicting certificate exists at:
 		die "Failed to setup peer-fingerprint mode."
 
 	# User info
-	notice "\
+	if [ "$EASYRSA_ALGO" = "pqc" ]; then
+		notice "\
+Self-signed PQC '$EASYRSA_PQC_ALGO' \
+key and certificate created:
+* $key_out
+* $crt_out"
+	else
+		notice "\
 Self-signed '$EASYRSA_ALGO/$EASYRSA_CURVE' \
 key and certificate created:
 * $key_out
 * $crt_out"
+	fi
 } # => self_sign()
 
 # gen-dh backend:
@@ -2290,11 +3102,55 @@ $EASYRSA_EXTRA_EXTS"
 			# Edwards curve name
 			algo_opts="$EASYRSA_CURVE"
 			;;
+		pqc)
+			# Post-Quantum Cryptography
+			pqc_validate_for_signing "$EASYRSA_PQC_ALGO"
+			algo_opts="$EASYRSA_PQC_ALGO"
+			verbose "gen_req PQC algo: $EASYRSA_PQC_ALGO"
+			;;
 		*)
 			die "gen_req - Unknown algorithm: $EASYRSA_ALGO"
 	esac
 
-	# Generate request
+	# For PQC, generate key and req separately
+	# because -newkey may not work with all PQC algorithms
+	if [ "$EASYRSA_ALGO" = "pqc" ]; then
+		# Build provider arguments
+		_pqc_prov_args=""
+		if [ -n "$EASYRSA_PQC_PROVIDER" ]; then
+			_pqc_prov_args="-provider $EASYRSA_PQC_PROVIDER -provider default"
+		fi
+
+		# Generate PQC key
+		"$EASYRSA_OPENSSL" genpkey \
+			-algorithm "$EASYRSA_PQC_ALGO" \
+			$_pqc_prov_args \
+			-out "$key_out_tmp" \
+			${EASYRSA_NO_PASS:+ "$no_password"} \
+			${EASYRSA_PASSOUT:+ -pass "$EASYRSA_PASSOUT"} \
+				|| die "Failed to generate PQC key ($EASYRSA_PQC_ALGO)"
+
+		# Determine digest for req
+		_pqc_digest="$(pqc_get_digest "$EASYRSA_PQC_ALGO")"
+
+		# Generate CSR with the PQC key
+		if easyrsa_openssl req -utf8 -new \
+			-key "$key_out_tmp" \
+			-out "$req_out_tmp" \
+			${ssl_batch:+ -batch} \
+			${EASYRSA_TEXT_ON:+ -text} \
+			${text:+ -text} \
+			${_pqc_digest:+ -"$_pqc_digest"} \
+			${EASYRSA_NO_PASS:+ "$no_password"} \
+			${EASYRSA_PASSIN:+ -passin "$EASYRSA_PASSIN"}
+		then
+			: # ok
+		else
+			die "Failed to generate PQC request ($EASYRSA_PQC_ALGO)"
+		fi
+		unset -v _pqc_prov_args _pqc_digest
+	else
+	# Generate request (classical algorithms)
 	if easyrsa_openssl req -utf8 -new -newkey "$algo_opts" \
 		-keyout "$key_out_tmp" \
 		-out "$req_out_tmp" \
@@ -2308,6 +3164,7 @@ $EASYRSA_EXTRA_EXTS"
 	else
 		die "Failed to generate request"
 	fi
+	fi # PQC or classical
 
 	# Move temp-files to target-files
 	mv "$key_out_tmp" "$key_out" || mv_temp_error=1
@@ -5679,8 +6536,40 @@ Elliptic curve cryptography cannot be use with algo '$EASYRSA_ALGO'"
 			>/dev/null 2>&1 || user_error \
 				"Edwards Curve '$EASYRSA_CURVE' not found."
 		;;
+	pqc)
+		# Post-Quantum Cryptography
+		[ "$EASYRSA_PQC_ALGO" ] || user_error "\
+PQC mode requires EASYRSA_PQC_ALGO to be set.
+Use --pqc-algo=ALG or 'easyrsa pqc-set-algo ALG' first."
+
+		# Validate algorithm is recognized
+		if ! is_pqc_sig_algo "$EASYRSA_PQC_ALGO" && \
+			! is_pqc_kem_algo "$EASYRSA_PQC_ALGO"
+		then
+			user_error "\
+Unrecognized PQC algorithm: '$EASYRSA_PQC_ALGO'
+Run 'easyrsa list-pqc' to see available algorithms."
+		fi
+
+		# Check OpenSSL PQC support
+		if ! check_openssl_pqc_support; then
+			user_error "\
+Post-Quantum Cryptography requires OpenSSL 3.5+ or OQS provider.
+Current: $($EASYRSA_OPENSSL version 2>/dev/null)"
+		fi
+
+		# Verify algorithm is available
+		if ! check_pqc_algo_available "$EASYRSA_PQC_ALGO"; then
+			warn "\
+PQC algorithm '$EASYRSA_PQC_ALGO' not found in OpenSSL.
+It may still work if your provider is configured separately."
+		fi
+
+		verbose "PQC algo: $EASYRSA_PQC_ALGO \
+($(pqc_algo_family "$EASYRSA_PQC_ALGO"), Level $(pqc_security_level "$EASYRSA_PQC_ALGO"))"
+		;;
 	*) user_error "\
-Unknown algorithm '$EASYRSA_ALGO': Must be 'rsa', 'ec' or 'ed'"
+Unknown algorithm '$EASYRSA_ALGO': Must be 'rsa', 'ec', 'ed' or 'pqc'"
 	esac
 	verbose "\
 verify_algo_params; OK: Algo '$EASYRSA_ALGO' - Curve '${EASYRSA_CURVE:-None}'"
@@ -5952,8 +6841,11 @@ default_vars() {
 		ed)
 			set_var EASYRSA_CURVE		ed25519
 			;;
+		pqc)
+			set_var EASYRSA_PQC_ALGO	ml-dsa-65
+			;;
 		*) user_error "\
-Algorithm '$EASYRSA_ALGO' is invalid: Must be 'rsa', 'ec' or 'ed'"
+Algorithm '$EASYRSA_ALGO' is invalid: Must be 'rsa', 'ec', 'ed' or 'pqc'"
 	esac
 
 	set_var EASYRSA_CA_EXPIRE		3650
@@ -6675,12 +7567,22 @@ fi
 #  * rsa
 #  * ec
 #  * ed
+#  * pqc  (Post-Quantum, requires OpenSSL 3.5+ or OQS provider)
 #
 #set_var EASYRSA_ALGO		rsa
 
 # Define the named curve, used in ec & ed modes:
 #
 #set_var EASYRSA_CURVE		secp384r1
+
+# Post-Quantum Cryptography (PQC) settings:
+# Used when EASYRSA_ALGO is set to 'pqc'
+# Run 'easyrsa list-pqc' for available algorithms
+# Run 'easyrsa pqc-recommend' for recommendations
+#
+#set_var EASYRSA_PQC_ALGO	ml-dsa-65
+#set_var EASYRSA_PQC_PROVIDER	oqsprovider
+#set_var EASYRSA_PQC_PROVIDER_PATH	/usr/lib/ossl-modules/oqsprovider.so
 
 # In how many days should the root CA key expire?
 #
@@ -7004,6 +7906,16 @@ while :; do
 				ed*) set_var EASYRSA_ALGO ed ;;
 				*) set_var EASYRSA_ALGO ec
 			esac
+			;;
+		--pqc-algo)
+			export EASYRSA_PQC_ALGO="$val"
+			export EASYRSA_ALGO="pqc"
+			;;
+		--pqc-provider)
+			export EASYRSA_PQC_PROVIDER="$val"
+			;;
+		--pqc-provider-path)
+			export EASYRSA_PQC_PROVIDER_PATH="$val"
 			;;
 		--dn-mode)
 			export EASYRSA_DN="$val"
@@ -7440,6 +8352,39 @@ case "$cmd" in
 	rand|random)
 		require_pki=""; require_ca=""; verify_working_env
 		easyrsa_random "$1"
+		;;
+	# Post-Quantum Cryptography commands
+	list-pqc|pqc-list)
+		require_pki=""; require_ca=""; verify_working_env
+		list_available_pqc_algos
+		;;
+	pqc-status)
+		require_pki=""; require_ca=""; verify_working_env
+		pqc_status
+		;;
+	pqc-set-algo)
+		require_pki=""; require_ca=""; verify_working_env
+		pqc_set_algo "$@"
+		;;
+	pqc-recommend)
+		require_pki=""; require_ca=""; verify_working_env
+		pqc_recommend "$@"
+		;;
+	pqc-key-info)
+		require_pki=""; require_ca=""; verify_working_env
+		pqc_key_info "$@"
+		;;
+	pqc-verify)
+		require_pki=1; require_ca=""; verify_working_env
+		pqc_verify_cert "$@"
+		;;
+	pqc-migration)
+		require_pki=""; require_ca=""; verify_working_env
+		pqc_migration_info
+		;;
+	pqc-help)
+		require_pki=""; require_ca=""; verify_working_env
+		pqc_help
 		;;
 	help)
 		cmd_help "$1"
