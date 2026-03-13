@@ -1,6 +1,6 @@
 Easy-RSA 3 ChangeLog
 
-3.2.6 (TBD)
+3.2.6 (2026-03-13)
 
    * Introduce command 'import-tls-key' - Import an OpenVPN TLS key (cb4735b) (#1429)
    * X509-Type ca: Enable 'basicConstraints = critical' for CA/subCA certificates
