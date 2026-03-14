@@ -390,3 +390,127 @@ class TestParity:
             crl = x509.load_pem_x509_crl(crl_pem)
             revoked = list(crl)
             assert len(revoked) > 0, f"CRL in {pki_dir} has no revoked certificates"
+
+
+# ---------------------------------------------------------------------------
+# TLS key generation tests (Python-only, no openvpn binary required)
+# ---------------------------------------------------------------------------
+
+class TestTLSKeyGen:
+    """Tests for pure-Python TLS key generation (no openvpn binary)."""
+
+    def _init_pki(self, tmp_path):
+        pki_dir = tmp_path / "pki"
+        result = run_python(["init-pki"], pki_dir)
+        assert result.returncode == 0
+        return pki_dir
+
+    def test_gen_tls_auth_creates_file(self, tmp_path):
+        pki_dir = self._init_pki(tmp_path)
+        result = run_python(["gen-tls-key", "tls-auth"], pki_dir)
+        assert result.returncode == 0, f"gen-tls-key tls-auth failed:\n{result.stderr}"
+        key_file = pki_dir / "private" / "easyrsa-tls.key"
+        assert key_file.exists()
+
+    def test_gen_tls_auth_format(self, tmp_path):
+        pki_dir = self._init_pki(tmp_path)
+        run_python(["gen-tls-key", "tls-auth"], pki_dir)
+        key_file = pki_dir / "private" / "easyrsa-tls.key"
+        content = key_file.read_text()
+        assert "-----BEGIN OpenVPN Static key V1-----" in content
+        assert "-----END OpenVPN Static key V1-----" in content
+        # Verify hex lines (16 bytes = 32 hex chars each)
+        lines = content.splitlines()
+        hex_lines = [l for l in lines if l and not l.startswith("#") and not l.startswith("---")]
+        assert len(hex_lines) == 16, f"Expected 16 hex lines, got {len(hex_lines)}"
+        for line in hex_lines:
+            assert len(line) == 32, f"Hex line wrong length: {line!r}"
+            int(line, 16)  # must be valid hex
+
+    def test_gen_tls_crypt_creates_file(self, tmp_path):
+        pki_dir = self._init_pki(tmp_path)
+        result = run_python(["gen-tls-key", "tls-crypt"], pki_dir)
+        assert result.returncode == 0, f"gen-tls-key tls-crypt failed:\n{result.stderr}"
+        key_file = pki_dir / "private" / "easyrsa-tls.key"
+        assert key_file.exists()
+
+    def test_gen_tls_crypt_format(self, tmp_path):
+        pki_dir = self._init_pki(tmp_path)
+        run_python(["gen-tls-key", "tls-crypt"], pki_dir)
+        content = (pki_dir / "private" / "easyrsa-tls.key").read_text()
+        assert "-----BEGIN OpenVPN Static key V1-----" in content
+        assert "-----END OpenVPN Static key V1-----" in content
+
+    def test_gen_tls_crypt_v2_server_creates_file(self, tmp_path):
+        pki_dir = self._init_pki(tmp_path)
+        result = run_python(["gen-tls-key", "tls-crypt-v2-server"], pki_dir)
+        assert result.returncode == 0, f"gen-tls-key tls-crypt-v2-server failed:\n{result.stderr}"
+        key_file = pki_dir / "private" / "easyrsa-tls.key"
+        assert key_file.exists()
+
+    def test_gen_tls_crypt_v2_server_format(self, tmp_path):
+        pki_dir = self._init_pki(tmp_path)
+        run_python(["gen-tls-key", "tls-crypt-v2-server"], pki_dir)
+        content = (pki_dir / "private" / "easyrsa-tls.key").read_text()
+        assert "-----BEGIN OpenVPN tls-crypt-v2 server key-----" in content
+        assert "-----END OpenVPN tls-crypt-v2 server key-----" in content
+        # Decode payload and verify 128 bytes
+        import base64, re
+        m = re.search(
+            r"-----BEGIN OpenVPN tls-crypt-v2 server key-----\s+([A-Za-z0-9+/=\s]+?)\s*-----END",
+            content,
+        )
+        assert m, "Could not extract base64 payload"
+        raw = base64.b64decode(m.group(1).replace("\n", ""))
+        assert len(raw) == 128, f"Server key payload should be 128 bytes, got {len(raw)}"
+
+    def test_gen_tls_crypt_v2_client_creates_file(self, tmp_path):
+        pki_dir = self._init_pki(tmp_path)
+        run_python(["gen-tls-key", "tls-crypt-v2-server"], pki_dir)
+        result = run_python(["gen-tls-key", "tls-crypt-v2-client"], pki_dir)
+        # Client key goes to a different path; but command succeeds
+        assert result.returncode == 0, f"gen-tls-key tls-crypt-v2-client failed:\n{result.stderr}"
+
+    def test_gen_tls_crypt_v2_client_format(self, tmp_path):
+        import base64, re
+        pki_dir = self._init_pki(tmp_path)
+        run_python(["gen-tls-key", "tls-crypt-v2-server"], pki_dir)
+        # Rename server key so we can generate client key
+        server_key = pki_dir / "private" / "easyrsa-tls.key"
+        server_backup = pki_dir / "private" / "server.key"
+        server_key.rename(server_backup)
+        result = run_python(
+            ["gen-tls-key", "tls-crypt-v2-client", str(server_backup)], pki_dir
+        )
+        assert result.returncode == 0, f"gen-tls-key tls-crypt-v2-client failed:\n{result.stderr}"
+        client_key = pki_dir / "private" / "easyrsa-tls.key"
+        content = client_key.read_text()
+        assert "-----BEGIN OpenVPN tls-crypt-v2 client key-----" in content
+        assert "-----END OpenVPN tls-crypt-v2 client key-----" in content
+        # Decode and verify 555-byte payload (256 Kc + 299 WKc)
+        m = re.search(
+            r"-----BEGIN OpenVPN tls-crypt-v2 client key-----\s+([A-Za-z0-9+/=\s]+?)\s*-----END",
+            content,
+        )
+        assert m, "Could not extract base64 payload"
+        raw = base64.b64decode(m.group(1).replace("\n", ""))
+        assert len(raw) == 555, f"Client key payload should be 555 bytes, got {len(raw)}"
+
+    def test_gen_tls_crypt_v2_client_requires_server_key(self, tmp_path):
+        """Generating a client key without a server key should fail gracefully."""
+        pki_dir = self._init_pki(tmp_path)
+        result = run_python(["gen-tls-key", "tls-crypt-v2-client"], pki_dir)
+        assert result.returncode != 0
+
+    def test_gen_tls_key_permissions(self, tmp_path):
+        import stat
+        pki_dir = self._init_pki(tmp_path)
+        run_python(["gen-tls-key", "tls-auth"], pki_dir)
+        key_file = pki_dir / "private" / "easyrsa-tls.key"
+        mode = key_file.stat().st_mode & 0o777
+        assert mode == 0o600, f"Key file permissions should be 0o600, got {oct(mode)}"
+
+    def test_gen_tls_key_invalid_type(self, tmp_path):
+        pki_dir = self._init_pki(tmp_path)
+        result = run_python(["gen-tls-key", "invalid-type"], pki_dir)
+        assert result.returncode != 0

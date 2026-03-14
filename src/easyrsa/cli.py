@@ -137,12 +137,13 @@ def _build_parser() -> argparse.ArgumentParser:
 
     # --- gen-tls-key ---
     p_gtk = subparsers.add_parser("gen-tls-key", help="Generate a TLS authentication/crypt key")
-    p_gtk.add_argument("key_name", metavar="NAME", nargs="?", default="tc",
-                        help="Name for the key (default: tc)")
-    p_gtk.add_argument("--type", dest="key_type", default="tls-crypt-v2-server",
+    p_gtk.add_argument("key_type", metavar="TYPE", nargs="?", default="tls-crypt",
                         choices=["tls-auth", "tls-crypt", "tls-crypt-v2-server",
                                  "tls-crypt-v2-client"],
-                        help="Key type (default: tls-crypt-v2-server)")
+                        help="Key type: tls-auth, tls-crypt, tls-crypt-v2-server, "
+                             "tls-crypt-v2-client (default: tls-crypt)")
+    p_gtk.add_argument("server_key_path", metavar="SERVER-KEY", nargs="?", default=None,
+                        help="Path to server key (required for tls-crypt-v2-client)")
 
     # --- revoke ---
     p_rev = subparsers.add_parser("revoke", help="Revoke a certificate")
@@ -434,7 +435,8 @@ def _dispatch(args: argparse.Namespace, config: EasyRSAConfig, session: Session)
 
     elif cmd == "gen-tls-key":
         from .commands.tls import gen_tls_key
-        gen_tls_key(config, session, args.key_name, args.key_type)
+        server_path = Path(args.server_key_path) if args.server_key_path else None
+        gen_tls_key(config, session, args.key_type, server_path)
         return 0
 
     elif cmd == "revoke":
