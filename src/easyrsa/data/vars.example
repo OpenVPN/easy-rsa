@@ -1,0 +1,79 @@
+# Easy-RSA 3 parameter settings
+#
+# This file is the Python rewrite equivalent of the original vars.example.
+# Copy this file to "vars" in your PKI directory or in the easy-rsa directory
+# and edit to suit your needs.
+#
+# All settings use the set_var KEY "value" syntax.
+# Lines beginning with # are comments.
+
+# Define X509 DN mode.
+# Choices: cn_only (default) or org
+#
+#set_var EASYRSA_DN        "cn_only"
+
+# Organizational fields (used with "org" mode):
+#
+#set_var EASYRSA_REQ_COUNTRY   "US"
+#set_var EASYRSA_REQ_PROVINCE  "California"
+#set_var EASYRSA_REQ_CITY      "San Francisco"
+#set_var EASYRSA_REQ_ORG       "Copyleft Certificate Co"
+#set_var EASYRSA_REQ_EMAIL     "me@example.net"
+#set_var EASYRSA_REQ_OU        "My Organizational Unit"
+
+# Common Name for the CA
+#set_var EASYRSA_REQ_CN        "Easy-RSA CA"
+
+# Set no password mode
+#set_var EASYRSA_NO_PASS       1
+
+# Key size in bits (for RSA)
+#set_var EASYRSA_KEY_SIZE      2048
+
+# Crypto algorithm: rsa, ec, or ed
+#set_var EASYRSA_ALGO          rsa
+
+# Named curve for EC/Ed modes
+#set_var EASYRSA_CURVE         secp384r1
+
+# CA expiry in days
+#set_var EASYRSA_CA_EXPIRE     3650
+
+# Certificate expiry in days
+#set_var EASYRSA_CERT_EXPIRE   825
+
+# CRL expiry in days
+#set_var EASYRSA_CRL_DAYS      180
+
+# Random serial numbers
+#set_var EASYRSA_RAND_SN       "yes"
+
+# Pre-expiry window in days
+#set_var EASYRSA_PRE_EXPIRY_WINDOW  90
+
+# Auto-generate subjectAltName
+#set_var EASYRSA_AUTO_SAN      1
+
+# Mark extensions as critical
+#set_var EASYRSA_BC_CRIT       1
+#set_var EASYRSA_KU_CRIT       1
+#set_var EASYRSA_EKU_CRIT      1
+#set_var EASYRSA_SAN_CRIT      1
+
+# Disable automatic inline file creation
+#set_var EASYRSA_NO_INLINE     1
+
+# Cryptographic digest
+#set_var EASYRSA_DIGEST        "sha256"
+
+# Batch mode (no interactive prompts)
+#set_var EASYRSA_BATCH         ""
+
+# X509 extensions directory
+#set_var EASYRSA_EXT_DIR       "/path/to/x509-types"
+
+# KDC realm (for KDC certificate type)
+#set_var EASYRSA_KDC_REALM     "CHANGEME.EXAMPLE.COM"
+
+# Serial number for organizational DNs
+#set_var EASYRSA_REQ_SERIAL    ""

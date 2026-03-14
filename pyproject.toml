@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "easyrsa"
+version = "3.2.0"
+requires-python = ">=3.8"
+dependencies = ["cryptography>=41.0"]
+
+[project.scripts]
+easyrsa = "easyrsa.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+"easyrsa.data" = ["**/*"]
+"easyrsa.data.x509-types" = ["*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
