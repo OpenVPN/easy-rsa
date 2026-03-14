@@ -133,23 +133,54 @@ run_unit_test ()
 } # => run_unit_test ()
 
 # RUN local regression tests (always present in-tree, no download needed)
+# Prefers the Python version; falls back to the shell version when Python 3
+# is not available.
 run_local_regression_tests ()
 {
-	local_test_bin="${ERSA_UT}/unit-tests-pr1436.sh"
-	if [ -f "${local_test_bin}" ]; then
-		log ">>> BEGIN local regression tests: ${local_test_bin}"
+	py_test_bin="${ERSA_UT}/unit-tests-pr1436.py"
+	sh_test_bin="${ERSA_UT}/unit-tests-pr1436.sh"
+
+	# Map op-test verb flags to the Python/shell -v flag
+	_lrt_verb=""
+	case "${verb}" in -v|-vv) _lrt_verb="-v" ;; esac
+
+	# Prefer Python 3 when available
+	_py_bin=""
+	for _candidate in python3 python; do
+		if command -v "${_candidate}" >/dev/null 2>&1; then
+			case "$("${_candidate}" --version 2>&1)" in
+				Python\ 3.*) _py_bin="${_candidate}"; break ;;
+			esac
+		fi
+	done
+
+	if [ "${_py_bin}" ] && [ -f "${py_test_bin}" ]; then
+		log ">>> BEGIN Python regression tests: ${py_test_bin}"
 		if [ "${dry_run}" ]; then
-			log "<<dry-run>> sh ${local_test_bin} ${verb}"
+			log "<<dry-run>> ${_py_bin} ${py_test_bin} ${_lrt_verb}"
 		else
-			if sh "${local_test_bin}" "${verb}"; then
-				log "<<< END local regression tests: OK"
+			if "${_py_bin}" "${py_test_bin}" ${_lrt_verb:+"${_lrt_verb}"}; then
+				log "<<< END Python regression tests: OK"
 			else
-				log "<<< END local regression tests: FAIL"
+				log "<<< END Python regression tests: FAIL"
+				estat=1
+			fi
+		fi
+	elif [ -f "${sh_test_bin}" ]; then
+		log "Python 3 not found; falling back to shell regression tests"
+		log ">>> BEGIN shell regression tests: ${sh_test_bin}"
+		if [ "${dry_run}" ]; then
+			log "<<dry-run>> sh ${sh_test_bin} ${_lrt_verb}"
+		else
+			if sh "${sh_test_bin}" ${_lrt_verb:+"${_lrt_verb}"}; then
+				log "<<< END shell regression tests: OK"
+			else
+				log "<<< END shell regression tests: FAIL"
 				estat=1
 			fi
 		fi
 	else
-		log "local regression tests not found: ${local_test_bin}"
+		log "regression tests not found (tried .py and .sh)"
 	fi
 } # => run_local_regression_tests ()
 
