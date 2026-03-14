@@ -975,28 +975,28 @@ easyrsa_mktemp - Temporary session undefined (--tmp-dir)"
 	# Force noclobber
 	set_no_clobber on easyrsa_mktemp
 
-	# Create shotfile
-	for high in 0 1; do
-		for low in 0 1 2 3 4 5 6 7 8 9; do
-			shotfile="${secured_session}/temp.${high}${low}"
+	# Create shotfile (max 20 slots: temp.00 to temp.19)
+	i=0
+	while [ "$i" -lt 20 ]; do
+		shotfile="${secured_session}/temp.$(printf '%02d' "$i")"
+		i=$((i + 1))
 
-			# atomic:
-			printf "" 2>/dev/null 1>"$shotfile" || continue
+		# atomic:
+		printf "" 2>/dev/null 1>"$shotfile" || continue
 
-			# Assign external temp-file name
-			if force_set_var "$1" "$shotfile"; then
-				# Update counter
-				mktemp_counter="$((mktemp_counter+1))"
-				verbose "easyrsa_mktemp; $1 CREATED: $shotfile"
+		# Assign external temp-file name
+		if force_set_var "$1" "$shotfile"; then
+			# Update counter
+			mktemp_counter="$((mktemp_counter+1))"
+			verbose "easyrsa_mktemp; $1 CREATED: $shotfile"
 
-				# unset noclobber
-				set_no_clobber off easyrsa_mktemp
+			# unset noclobber
+			set_no_clobber off easyrsa_mktemp
 
-				return
-			else
-				die "easyrsa_mktemp - force_set_var $1 failed"
-			fi
-		done
+			return
+		else
+			die "easyrsa_mktemp - force_set_var $1 failed"
+		fi
 	done
 
 	# In case of subshell abuse, report to error log
@@ -1585,6 +1585,7 @@ locate_support_files; EASYRSA_SSL_CONF: ${EASYRSA_SSL_CONF:-built-in}"
 } # => locate_support_files()
 
 # Disable terminal echo, if possible, otherwise warn
+# Propagates the exit status of read so callers can detect EOF.
 hide_read_pass() {
 	# 3040 - In POSIX sh, set option [name] is undefined
 	# 3045 - In POSIX sh, some-command-with-flag is undefined
@@ -1593,20 +1594,25 @@ hide_read_pass() {
 	if stty -echo 2>/dev/null; then
 		prompt_restore=1
 		read -r "$@"
+		ret=$?
 		stty echo
 	elif (set +o echo 2>/dev/null); then
 		prompt_restore=2
 		set +o echo
 		read -r "$@"
+		ret=$?
 		set -o echo
 	elif (echo | read -r -s 2>/dev/null) ; then
 		read -r -s "$@"
+		ret=$?
 	else
 		warn "\
 Could not disable echo. Password will be shown on screen!"
 		read -r "$@"
+		ret=$?
 	fi
 	prompt_restore=0
+	return $ret
 } # => hide_read_pass()
 
 # Get passphrase
@@ -1614,7 +1620,7 @@ get_passphrase() {
 	while :; do
 		r=""
 		printf '\n%s' "$2"
-		hide_read_pass r
+		hide_read_pass r || return 1
 
 		if [ "${#r}" -lt 4 ]; then
 			printf '\n%s\n' \
@@ -1780,8 +1786,8 @@ Raw CA mode
 				die "get_passphrase out failed."
 
 		# Validate passphrase
-		p="$(cat "$in_key_pass_tmp")" || die "passphrase in malfunction"
-		q="$(cat "$out_key_pass_tmp")" || die "passphrase out malfunction"
+		read -r p < "$in_key_pass_tmp" || die "passphrase in malfunction"
+		read -r q < "$out_key_pass_tmp" || die "passphrase out malfunction"
 		if [ "$p" = "$q" ]; then
 			# Clear possible conflicts and use temp-files not vars
 			unset -v EASYRSA_PASSOUT EASYRSA_PASSIN p q r
@@ -6165,7 +6171,7 @@ set_var() {
 	[ -z "$3" ] || \
 		user_error "set_var - excess input '$*'"
 	case "$1" in
-		*=*) user_error "set_var - var '$1'"
+		''|*=*|*[!A-Za-z0-9_]*|[0-9]*) user_error "set_var - var '$1'"
 	esac
 	eval "export \"$1\"=\"\${$1-$2}\"" && return
 	die "set_var - eval '$*'"
