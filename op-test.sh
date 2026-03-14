@@ -132,6 +132,28 @@ run_unit_test ()
 	fi
 } # => run_unit_test ()
 
+# RUN local regression tests (always present in-tree, no download needed)
+run_local_regression_tests ()
+{
+	local_test_bin="${ERSA_UT}/unit-tests-pr1436.sh"
+	if [ -f "${local_test_bin}" ]; then
+		log ">>> BEGIN local regression tests: ${local_test_bin}"
+		if [ "${dry_run}" ]; then
+			log "<<dry-run>> sh ${local_test_bin} ${verb}"
+		else
+			if sh "${local_test_bin}" "${verb}"; then
+				log "<<< END local regression tests: OK"
+			else
+				log "<<< END local regression tests: FAIL"
+				estat=1
+			fi
+		fi
+	else
+		log "local regression tests not found: ${local_test_bin}"
+	fi
+} # => run_local_regression_tests ()
+
+
 ########################################
 
 ## DOWNLOAD unit-test
@@ -460,6 +482,7 @@ download_unit_test_help
 
 run_shellcheck
 run_unit_test
+run_local_regression_tests
 
 # No trap required..
 clean_up
