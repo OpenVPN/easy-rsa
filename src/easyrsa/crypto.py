@@ -46,8 +46,6 @@ def _get_hash(digest: str, key=None):
         "sha384": hashes.SHA384(),
         "sha512": hashes.SHA512(),
         "sha224": hashes.SHA224(),
-        "sha1": hashes.SHA1(),
-        "md5": hashes.MD5(),
     }
     h = digest_map.get(digest.lower())
     if h is None:
@@ -66,8 +64,6 @@ def _get_ec_curve(curve_name: str):
         "secp256r1": ec.SECP256R1(),
         "prime256v1": ec.SECP256R1(),
         "secp521r1": ec.SECP521R1(),
-        "secp224r1": ec.SECP224R1(),
-        "secp192r1": ec.SECP192R1(),
         "brainpoolP256r1": ec.BrainpoolP256R1(),
         "brainpoolP384r1": ec.BrainpoolP384R1(),
         "brainpoolP512r1": ec.BrainpoolP512R1(),

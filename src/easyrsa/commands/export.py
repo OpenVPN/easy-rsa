@@ -13,7 +13,7 @@ from ..crypto import (
     load_private_key,
     serialize_private_key,
 )
-from ..errors import EasyRSAUserError
+from ..errors import EasyRSAUserError, validate_name
 from ..passphrase import load_key_password, parse_passin, parse_passout, prompt_passphrase
 from ..session import Session
 
@@ -29,6 +29,7 @@ def export_p12(
     legacy: bool = False,
 ) -> None:
     """Export a PKCS#12 file."""
+    validate_name(name)
     crt_in = config.pki_dir / "issued" / f"{name}.crt"
     key_in = config.pki_dir / "private" / f"{name}.key"
     ca_crt = config.pki_dir / "ca.crt"
@@ -90,6 +91,7 @@ def export_p12(
 
     pkcs_out.parent.mkdir(parents=True, exist_ok=True)
     pkcs_out.write_bytes(p12_bytes)
+    pkcs_out.chmod(0o600)
 
     # Also create inline p12 file (base64)
     _create_p12_inline(config, name, pkcs_out, cert)
@@ -117,6 +119,7 @@ def _create_p12_inline(config: EasyRSAConfig, name: str, p12_path: Path, cert) -
         f"<pkcs12>\n{b64}\n</pkcs12>\n"
     )
     inline_out.write_text(content, encoding="utf-8")
+    inline_out.chmod(0o600)
 
 
 def export_p7(
@@ -125,7 +128,8 @@ def export_p7(
     name: str,
     noca: bool = False,
 ) -> None:
-    """Export a PKCS#7 (cert chain) file using cryptography or openssl fallback."""
+    """Export a PKCS#7 (cert chain) file using openssl subprocess."""
+    validate_name(name)
     crt_in = config.pki_dir / "issued" / f"{name}.crt"
     ca_crt = config.pki_dir / "ca.crt"
     pkcs_out = config.pki_dir / "issued" / f"{name}.p7b"
@@ -133,26 +137,14 @@ def export_p7(
     if not crt_in.exists():
         raise EasyRSAUserError(f"Missing User Certificate:\n* {crt_in}")
 
-    # Use cryptography library PKCS7 builder
-    try:
-        from cryptography.hazmat.primitives.serialization import pkcs7
-        from cryptography.hazmat.primitives.serialization import Encoding
-
-        cert = load_cert(crt_in.read_bytes())
-        builder = pkcs7.PKCS7SignatureBuilder()
-
-        # PKCS7 cert-only (no signatures) — use openssl as fallback if not available
-        # The cryptography library PKCS7 signing is complex; use openssl for cert chain
-        raise ImportError("Use openssl fallback for PKCS7 cert-only")
-    except (ImportError, AttributeError):
-        # Fallback to openssl subprocess for PKCS#7
-        import subprocess
-        cmd = ["openssl", "crl2pkcs7", "-nocrl", "-certfile", str(crt_in), "-out", str(pkcs_out)]
-        if not noca and ca_crt.exists():
-            cmd += ["-certfile", str(ca_crt)]
-        result = subprocess.run(cmd, capture_output=True)
-        if result.returncode != 0:
-            raise EasyRSAUserError(f"Failed to export PKCS#7:\n{result.stderr.decode()}")
+    # Use openssl subprocess for PKCS#7 cert-only bundle
+    import subprocess
+    cmd = ["openssl", "crl2pkcs7", "-nocrl", "-certfile", str(crt_in), "-out", str(pkcs_out)]
+    if not noca and ca_crt.exists():
+        cmd += ["-certfile", str(ca_crt)]
+    result = subprocess.run(cmd, capture_output=True)
+    if result.returncode != 0:
+        raise EasyRSAUserError(f"Failed to export PKCS#7:\n{result.stderr.decode()}")
 
     print(f"\nNotice: Successful export of p7 file. Your exported file is at:\n* {pkcs_out}")
 
@@ -164,6 +156,7 @@ def export_p8(
     nopass: bool = False,
 ) -> None:
     """Export private key as PKCS#8."""
+    validate_name(name)
     key_in = config.pki_dir / "private" / f"{name}.key"
     pkcs_out = config.pki_dir / "private" / f"{name}.p8"
 
@@ -188,6 +181,7 @@ def export_p8(
     p8_bytes = key.private_bytes(Encoding.PEM, PrivateFormat.PKCS8, encryption)
 
     pkcs_out.write_bytes(p8_bytes)
+    pkcs_out.chmod(0o600)
     print(f"\nNotice: Successful export of p8 file. Your exported file is at:\n* {pkcs_out}")
 
 
@@ -198,6 +192,7 @@ def export_p1(
     nopass: bool = False,
 ) -> None:
     """Export RSA private key in PKCS#1 (TraditionalOpenSSL) format."""
+    validate_name(name)
     key_in = config.pki_dir / "private" / f"{name}.key"
     pkcs_out = config.pki_dir / "private" / f"{name}.p1"
 
@@ -222,4 +217,5 @@ def export_p1(
     p1_bytes = key.private_bytes(Encoding.PEM, PrivateFormat.TraditionalOpenSSL, encryption)
 
     pkcs_out.write_bytes(p1_bytes)
+    pkcs_out.chmod(0o600)
     print(f"\nNotice: Successful export of p1 file. Your exported file is at:\n* {pkcs_out}")

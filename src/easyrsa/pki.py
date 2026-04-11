@@ -38,9 +38,13 @@ def init_pki(pki_dir: Path, algo: str = "rsa", curve: str = "", batch: bool = Fa
                 raise EasyRSAUserError("init-pki aborted by user.")
         shutil.rmtree(pki_dir)
 
-    # Create required directories
+    # Create required directories with appropriate permissions
     for subdir in _PKI_DIRS:
-        (pki_dir / subdir).mkdir(parents=True, exist_ok=True)
+        d = pki_dir / subdir
+        if subdir == "private":
+            d.mkdir(parents=True, exist_ok=True, mode=0o700)
+        else:
+            d.mkdir(parents=True, exist_ok=True, mode=0o755)
 
     # Write vars.example from package data
     _write_vars_example(pki_dir)
@@ -161,7 +165,7 @@ def create_ca_dirs(pki_dir: Path) -> None:
     """Create the CA-specific subdirectories."""
     for subdir in ["certs_by_serial", "revoked/certs_by_serial",
                    "revoked/private_by_serial", "revoked/reqs_by_serial"]:
-        (pki_dir / subdir).mkdir(parents=True, exist_ok=True)
+        (pki_dir / subdir).mkdir(parents=True, exist_ok=True, mode=0o755)
 
 
 def init_ca_files(pki_dir: Path) -> None:
@@ -169,9 +173,11 @@ def init_ca_files(pki_dir: Path) -> None:
     index = pki_dir / "index.txt"
     if not index.exists():
         index.write_text("", encoding="utf-8")
+        index.chmod(0o600)
 
     attr = pki_dir / "index.txt.attr"
     attr.write_text("unique_subject = no\n", encoding="utf-8")
+    attr.chmod(0o600)
 
     serial = pki_dir / "serial"
     if not serial.exists():
