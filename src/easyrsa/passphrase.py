@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import getpass
 import os
+import sys
 from pathlib import Path
 from typing import Optional
 
@@ -13,19 +14,19 @@ from .errors import EasyRSAUserError
 def prompt_passphrase(prompt: str, confirm: bool = False, allow_empty: bool = False) -> bytes:
     """Prompt for a passphrase interactively.
 
-    Enforces minimum 4-character length (unless allow_empty=True).
+    Enforces minimum 8-character length (unless allow_empty=True).
     If confirm=True, prompts twice and ensures they match.
     Returns the passphrase as bytes (empty bytes b"" if allowed and no input given).
     """
     while True:
         pw = getpass.getpass(prompt)
-        if not allow_empty and len(pw) < 4:
-            print("Passphrase must be at least 4 characters!")
+        if not allow_empty and len(pw) < 8:
+            print("Passphrase must be at least 8 characters!")
             continue
         if allow_empty and pw == "":
             return b""
-        if len(pw) < 4:
-            print("Passphrase must be at least 4 characters!")
+        if len(pw) < 8:
+            print("Passphrase must be at least 8 characters!")
             continue
         if confirm:
             pw2 = getpass.getpass("Confirm passphrase: ")
@@ -46,6 +47,11 @@ def parse_passin(passin_str: str) -> Optional[bytes]:
     if not passin_str:
         return None
     if passin_str.startswith("pass:"):
+        print(
+            "Warning: Using pass: exposes the passphrase in process listings. "
+            "Prefer file: or env: instead.",
+            file=sys.stderr,
+        )
         return passin_str[5:].encode("utf-8")
     if passin_str.startswith("file:"):
         fp = Path(passin_str[5:])

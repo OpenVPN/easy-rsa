@@ -63,6 +63,7 @@ def build_inline(
     pri_dir.mkdir(parents=True, exist_ok=True)
     pri_out = pri_dir / f"{name}.inline"
     pri_out.write_text(pri_content, encoding="utf-8")
+    pri_out.chmod(0o600)
 
     print(f"\nNotice: Inline file created at:\n* {pub_out}")
     print(f"\nNotice: Private inline file created at:\n* {pri_out}")

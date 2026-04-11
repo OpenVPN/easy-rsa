@@ -651,8 +651,9 @@ def main(argv: Optional[list] = None) -> int:
         return 130
     except Exception as e:
         print(f"\nUnexpected error: {e}", file=sys.stderr)
-        import traceback
-        traceback.print_exc()
+        if config.verbose:
+            import traceback
+            traceback.print_exc()
         return 1
 
 

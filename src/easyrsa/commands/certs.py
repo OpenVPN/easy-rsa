@@ -5,6 +5,7 @@ from __future__ import annotations
 import ipaddress
 import re
 import shutil
+import sys
 from pathlib import Path
 from typing import Optional
 
@@ -28,7 +29,7 @@ from ..crypto import (
     serialize_private_key,
     sign_csr,
 )
-from ..errors import EasyRSAUserError
+from ..errors import EasyRSAUserError, validate_name
 from ..index import (
     IndexRecord,
     append_record,
@@ -71,6 +72,7 @@ def gen_req(
 
     name: file_name_base
     """
+    validate_name(name)
     key_out = config.pki_dir / "private" / f"{name}.key"
     req_out = config.pki_dir / "reqs" / f"{name}.req"
 
@@ -166,6 +168,7 @@ def sign_req(
     cert_type: 'server', 'client', 'serverClient', 'ca', etc.
     name: file_name_base
     """
+    validate_name(name)
     from ..pki import verify_ca
     verify_ca(config.pki_dir)
 
@@ -298,9 +301,12 @@ def sign_req(
     if not config.no_inline and cert_type != "ca":
         from ..inline import build_inline
         try:
-            build_inline(config, name, "std")
-        except Exception:
-            pass
+            build_inline(config, name)
+        except Exception as e:
+            if config.verbose:
+                import traceback
+                traceback.print_exc()
+            print(f"\nWarning: Failed to create inline file: {e}", file=sys.stderr)
 
     print(f"\nNotice: Certificate created at:\n* {crt_out}")
 
@@ -361,6 +367,7 @@ def build_full(
     nopass: bool = False,
 ) -> None:
     """Generate key+CSR and immediately sign it (build-*-full)."""
+    validate_name(name)
     req_out = config.pki_dir / "reqs" / f"{name}.req"
     key_out = config.pki_dir / "private" / f"{name}.key"
     crt_out = config.pki_dir / "issued" / f"{name}.crt"
@@ -386,6 +393,7 @@ def build_full(
 
 def renew(config: EasyRSAConfig, session: Session, name: str) -> None:
     """Renew a certificate keeping the same key and request."""
+    validate_name(name)
     from ..pki import verify_ca
     verify_ca(config.pki_dir)
 
