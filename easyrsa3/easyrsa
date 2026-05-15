@@ -3022,7 +3022,7 @@ $(cat "$crt_source")
 		crt_fingerprint="${crt_fingerprint#*=}"
 
 		# Certificate type
-		inline_crt_type=
+		inline_crt_type="$crt_type"
 		ssl_cert_x509v3_eku "$crt_source" inline_crt_type || \
 			warn "inline_file: Unknown cert-type: '$inline_crt_type'"
 
