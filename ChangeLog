@@ -1,5 +1,9 @@
 Easy-RSA 3 ChangeLog
 
+3.2.7 (TBD)
+
+   * verify_working_env(): Do not reset '$require_pki' and '$require_ca' (9d34430) (#1450)
+
 3.2.6 (2026-03-13)
 
    * Introduce command 'import-tls-key' - Import an OpenVPN TLS key (cb4735b) (#1429)
