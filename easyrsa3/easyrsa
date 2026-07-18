@@ -6099,7 +6099,6 @@ Using Easy-RSA 'vars' configuration:
 		selfsign_eku \
 		internal_batch mv_temp_error \
 		easyrsa_exit_with_error error_info \
-		require_pki require_ca \
 		prompt_restore mktemp_counter
 
 	# Protect $EASYRSA_ALIAS_DAYS from vars abuse
