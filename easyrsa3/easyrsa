@@ -5303,10 +5303,10 @@ Please check the details above are correct, before continuing."
 	notice "\
 CA certificate has been successfully renewed.
 
-Your old CA cerificate has been added to the expired CA list at:
+Your old CA certificate has been added to the expired CA list at:
 * $exp_ca_cert_list
 
-Your renewed CA cerificate is at:
+Your renewed CA certificate is at:
 * $ca_cert_file"
 } # => renew_ca_cert()
 
