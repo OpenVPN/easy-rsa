@@ -5971,6 +5971,9 @@ Algorithm '$EASYRSA_ALGO' is invalid: Must be 'rsa', 'ec' or 'ed'"
 
 	set_var EASYRSA_MAX_TEMP		1
 
+	# configure EASYRSA_SAN_CRIT for use
+	export EASYRSA_SAN_CRIT="${EASYRSA_SAN_CRIT:+critical,}"
+
 	verbose "default_vars; COMPLETED"
 } # => default_vars()
 
@@ -7129,7 +7132,7 @@ while :; do
 			;;
 		--san-crit|--san-critical)
 			empty_ok=1
-			export EASYRSA_SAN_CRIT='critical,'
+			export EASYRSA_SAN_CRIT=1
 			;;
 		--bc-crit|--bc-critical)
 			empty_ok=1
