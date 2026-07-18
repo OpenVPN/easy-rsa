@@ -3,6 +3,8 @@ Easy-RSA 3 ChangeLog
 3.2.7 (TBD)
 
    * verify_working_env(): Do not reset '$require_pki' and '$require_ca' (9d34430) (#1450)
+   * Remove EASYRSA_SAN_CRIT from 'Add full --san to extra extensions' (19c10ab) (#1448)
+   * default_vars(): If defined, set EASYRSA_SAN_CRIT to 'critical,' (97e1020) (#1448)
 
 3.2.6 (2026-03-13)
 
