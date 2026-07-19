@@ -1616,9 +1616,9 @@ get_passphrase() {
 		printf '\n%s' "$2"
 		hide_read_pass r
 
-		if [ "${#r}" -lt 4 ]; then
+		if [ "${#r}" -lt 8 ]; then
 			printf '\n%s\n' \
-				"Passphrase must be at least 4 characters!"
+				"Passphrase must be at least 8 characters!"
 		else
 			printf '%s' "$r" > "$1" || die "get_passphrase() malfunction"
 			print
@@ -1974,6 +1974,7 @@ Error: didn't find a file base name as the first argument.
 Run easyrsa without commands for usage and command help."
 
 	file_name_base="$1"
+	validate_file_name_base "$file_name_base"
 	shift
 
 	# Prohibit --req-cn
@@ -2174,6 +2175,7 @@ Error: gen-req must have a file-name-base as the first argument.
 Run easyrsa without commands for usage and commands."
 
 	file_name_base="$1"
+	validate_file_name_base "$file_name_base"
 	shift # scrape off file-name-base
 
 	# Set ssl batch mode as required
@@ -2351,6 +2353,7 @@ corresponding SSL configuration file in the 'x509-types' folder."
 	[ "$file_name_base" ] || user_error "\
 Incorrect number of arguments provided to sign-req:
 expected 2, got $# (see command help for usage)"
+	validate_file_name_base "$file_name_base"
 
 	req_in="$EASYRSA_PKI/reqs/$file_name_base.req"
 	crt_out="$EASYRSA_PKI/issued/$file_name_base.crt"
@@ -3317,6 +3320,7 @@ Run easyrsa without commands for usage and command help."
 
 	# Assign file_name_base and dust off!
 	file_name_base="$1"
+	validate_file_name_base "$file_name_base"
 	shift
 
 	in_dir="$EASYRSA_PKI"
@@ -3545,6 +3549,7 @@ Run easyrsa without commands for usage and command help."
 
 	# Assign file_name_base and dust off!
 	file_name_base="$1"
+	validate_file_name_base "$file_name_base"
 	shift
 
 	# input
@@ -3721,6 +3726,7 @@ import_req() {
 	[ "$short_name" ] || user_error "\
 Unable to import: incorrect command syntax.
 Run easyrsa without commands for usage and command help."
+	validate_file_name_base "$short_name"
 
 	# Request file must exist
 	[ -f "$in_req" ] || user_error "\
@@ -3851,6 +3857,7 @@ Unable to export '$pkcs_type': incorrect command syntax.
 Run easyrsa without commands for usage and command help."
 
 	file_name_base="$1"
+	validate_file_name_base "$file_name_base"
 	shift
 
 	crt_in="$EASYRSA_PKI/issued/$file_name_base.crt"
@@ -4125,6 +4132,7 @@ Missing argument: no name/file supplied."
 
 	# parse command options
 	cipher="-aes256"
+	set_pass_raw_path=
 	while [ "$1" ]; do
 		case "$1" in
 			nopass)
@@ -4132,11 +4140,15 @@ Missing argument: no name/file supplied."
 				;;
 			file)
 				file="$raw_file"
+				set_pass_raw_path=1
 				;;
 			*) user_error "Unknown command option: '$1'"
 		esac
 		shift
 	done
+
+	# Validate the short-name when not using a raw file path
+	[ "$set_pass_raw_path" ] || validate_file_name_base "$raw_file"
 
 	# If nopass then do not encrypt else encrypt with password.
 	if [ "$EASYRSA_NO_PASS" ]; then
@@ -4777,6 +4789,7 @@ Run easyrsa without commands for usage and command help."
 
 	# Assign file_name_base and dust off!
 	file_name_base="$1"
+	validate_file_name_base "$file_name_base"
 	shift
 
 	# Assign input files
@@ -5045,6 +5058,7 @@ Run easyrsa without commands for usage and command help."
 
 	# Assign file_name_base and dust off!
 	file_name_base="$1"
+	validate_file_name_base "$file_name_base"
 	shift
 
 	# function opts support
@@ -5652,10 +5666,30 @@ verify_algo_params() {
 	rsa)
 		[ "$EASYRSA_CURVE" ] && user_error "\
 Elliptic curve cryptography cannot be use with algo '$EASYRSA_ALGO'"
+		# Warn if RSA key size is below the recommended minimum
+		if [ "$EASYRSA_KEY_SIZE" -lt 2048 ] 2>/dev/null; then
+			warn "\
+RSA key size '$EASYRSA_KEY_SIZE' is below the recommended minimum of 2048 bits.
+Please use a key size of at least 2048 bits."
+		fi
 		# Set RSA key size
 		EASYRSA_ALGO_PARAMS="$EASYRSA_KEY_SIZE"
 		;;
 	ec)
+		# Warn on cryptographically weak curves
+		case "$EASYRSA_CURVE" in
+			secp192r1|prime192v1)
+				warn "\
+Elliptic curve '$EASYRSA_CURVE' provides only 96 bits of security \
+and is considered weak. Please use secp384r1 or secp521r1."
+			;;
+			secp224r1)
+				warn "\
+Elliptic curve '$EASYRSA_CURVE' provides only 112 bits of security \
+and is below the recommended minimum. Please use secp384r1 or secp521r1."
+			;;
+		esac
+
 		if [ -f "$EASYRSA_ALGO_PARAMS" ]; then
 			# User supplied file
 			verbose "External ecparams file '$EASYRSA_ALGO_PARAMS'"
@@ -5688,6 +5722,20 @@ verify_algo_params; OK: Algo '$EASYRSA_ALGO' - Curve '${EASYRSA_CURVE:-None}'"
 
 # Check for conflicting input options
 mutual_exclusions() {
+	# Warn when a cryptographically weak or broken digest is requested
+	case "$EASYRSA_DIGEST" in
+		md5|MD5)
+			warn "\
+Digest 'md5' is cryptographically broken and must not be used.
+Please choose a secure digest such as 'sha256' or 'sha512'."
+		;;
+		sha1|SHA1)
+			warn "\
+Digest 'sha1' is cryptographically weak and deprecated for certificates.
+Please choose a secure digest such as 'sha256' or 'sha512'."
+		;;
+	esac
+
 	# --nopass cannot be used with --passout
 	if [ "$EASYRSA_PASSOUT" ]; then
 		# --passout MUST take priority over --nopass
@@ -6158,6 +6206,25 @@ Using Easy-RSA 'vars' configuration:
 	verbose "COMPLETED Handover-to: $cmd"
 	fn_name="$cmd"
 } # => verify_working_env()
+
+# Validate a file_name_base argument to prevent path traversal and
+# injection via special characters in file paths.
+# Accepts only alphanumeric characters, hyphens, underscores, and dots,
+# and rejects names that are or begin with '..'.
+validate_file_name_base() {
+	[ "$1" ] || user_error "validate_file_name_base - empty name"
+	case "$1" in
+		..|../*|*/..*)
+			user_error "\
+Invalid file-name-base '$1': path traversal sequences are not allowed."
+		;;
+		*[!/a-zA-Z0-9._-]*)
+			user_error "\
+Invalid file-name-base '$1': only alphanumeric characters, \
+hyphens, underscores, and dots are permitted."
+		;;
+	esac
+} # => validate_file_name_base()
 
 # variable assignment by indirection.
 # Sets '$1' as the value contained in '$2'
@@ -7089,9 +7156,21 @@ while :; do
 			;;
 		--passin)
 			export EASYRSA_PASSIN="$val"
+			case "$val" in
+				pass:*)
+					warn "\
+Option --passin uses 'pass:' format: the password may be \
+visible to other processes via the process list."
+			esac
 			;;
 		--passout)
 			export EASYRSA_PASSOUT="$val"
+			case "$val" in
+				pass:*)
+					warn "\
+Option --passout uses 'pass:' format: the password may be \
+visible to other processes via the process list."
+			esac
 			;;
 		--rawca|--raw-ca)
 			empty_ok=1
