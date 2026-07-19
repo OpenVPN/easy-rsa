@@ -7422,7 +7422,8 @@ case "$cmd" in
 		*)
 			# Only allow 'type' on command line
 			# Internally, overwrite and file-name is allowed
-			write_legacy_file_v2 "$1" && unset -v EASYRSA_VERBOSE
+			require_pki=""; require_ca=""; verify_working_env
+			write_legacy_file_v2 "$1"
 		esac
 		;;
 	serial|check-serial)
