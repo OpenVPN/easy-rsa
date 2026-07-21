@@ -3293,8 +3293,15 @@ $crt_fingerprint"
 
 		# move tmp-file to list file
 		if [ -z "$pfp_error_msg" ]; then
+			# back up the current pfp list
+			if [ -f "$pfp_list_file" ]; then
+				rm -f "$pfp_list_file".old
+				mv "$pfp_list_file" "$pfp_list_file".old || \
+					pfp_error_msg="${pfp_error_msg}move 1 Failed!${NL}"
+			fi
+
 			mv "$pfp_list_tmp" "$pfp_list_file" || \
-				pfp_error_msg="${pfp_error_msg}move Failed!${NL}"
+				pfp_error_msg="${pfp_error_msg}move 2 Failed!${NL}"
 		fi
 
 		# user info
