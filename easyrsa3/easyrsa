@@ -2293,6 +2293,15 @@ $EASYRSA_EXTRA_EXTS"
 			;;
 		ec)
 			# Elliptic curve parameters-file
+			# OpenSSL for Windows cannot load bash style file name
+			# as the -newkey "$newkey_params"
+			# eg:      -newkey ec:/c/Users/me/foo.txt
+			# becomes: -newkey ec:/Users/me/foo.txt
+			if [ "$OS" = Windows_NT ]; then
+				EASYRSA_ALGO_PARAMS="${EASYRSA_ALGO_PARAMS#/?}"
+				verbose "EASYRSA_ALGO_PARAMS: $EASYRSA_ALGO_PARAMS"
+			fi
+
 			algo_opts="$EASYRSA_ALGO:$EASYRSA_ALGO_PARAMS"
 			;;
 		ed)
