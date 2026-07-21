@@ -2098,7 +2098,7 @@ Conflicting certificate exists at:
 		-newkey "$newkey_params" \
 		-keyout "$tmp_key_out" \
 		-out "$tmp_crt_out" \
-		-subj "/CN=$file_name_base" \
+		${EASYRSA_BATCH:+ -batch} \
 		${EASYRSA_TEXT_ON:+ -text} \
 		${EASYRSA_NO_PASS:+ "$no_password"} \
 		${EASYRSA_PASSIN:+ -passin "$EASYRSA_PASSIN"} \
