@@ -1034,7 +1034,7 @@ Temporary session not preserved."
 			else
 				# create temp-snapshot
 				keep_tmp="$EASYRSA_TEMP_DIR/tmp/$EASYRSA_KEEP_TEMP"
-				mkdir -p "${EASYRSA_TEMP_DIR}/tmp/${keep_tmp}" || die \
+				mkdir -p "${keep_tmp}" || die \
 					"cleanup() - Failed to create '${keep_tmp}' directory."
 
 				rm -rf "$keep_tmp"
