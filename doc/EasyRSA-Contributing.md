@@ -129,3 +129,11 @@ Keeping your fork synchronised
 
 
     Your fork is now synchronised.
+
+### Notes:
+
+-   Use SSL for Github:
+
+    ```
+    git config --global url.ssh://git@github.com/.insteadOf https://github.com/
+    ```

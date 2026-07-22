@@ -1034,7 +1034,7 @@ Temporary session not preserved."
 			else
 				# create temp-snapshot
 				keep_tmp="$EASYRSA_TEMP_DIR/tmp/$EASYRSA_KEEP_TEMP"
-				mkdir -p "${EASYRSA_TEMP_DIR}/tmp/${keep_tmp}" || die \
+				mkdir -p "${keep_tmp}" || die \
 					"cleanup() - Failed to create '${keep_tmp}' directory."
 
 				rm -rf "$keep_tmp"
@@ -2037,6 +2037,15 @@ Conflicting certificate exists at:
 				-out "$selfsign_params_file" || \
 					die "self_sign - params-file failed"
 
+			# OpenSSL for Windows cannot load bash style file name
+			# as the -newkey "$newkey_params"
+			# eg:      -newkey ec:/c/Users/me/foo.txt
+			# becomes: -newkey ec:/Users/me/foo.txt
+			if [ "$OS" = Windows_NT ]; then
+				selfsign_params_file="${selfsign_params_file#/?}"
+				verbose "selfsign_params_file: $selfsign_params_file"
+			fi
+
 			newkey_params="$EASYRSA_ALGO":"$selfsign_params_file"
 			;;
 		ed)
@@ -2089,7 +2098,7 @@ Conflicting certificate exists at:
 		-newkey "$newkey_params" \
 		-keyout "$tmp_key_out" \
 		-out "$tmp_crt_out" \
-		-subj "/CN=$file_name_base" \
+		${EASYRSA_BATCH:+ -batch} \
 		${EASYRSA_TEXT_ON:+ -text} \
 		${EASYRSA_NO_PASS:+ "$no_password"} \
 		${EASYRSA_PASSIN:+ -passin "$EASYRSA_PASSIN"} \
@@ -2284,6 +2293,15 @@ $EASYRSA_EXTRA_EXTS"
 			;;
 		ec)
 			# Elliptic curve parameters-file
+			# OpenSSL for Windows cannot load bash style file name
+			# as the -newkey "$newkey_params"
+			# eg:      -newkey ec:/c/Users/me/foo.txt
+			# becomes: -newkey ec:/Users/me/foo.txt
+			if [ "$OS" = Windows_NT ]; then
+				EASYRSA_ALGO_PARAMS="${EASYRSA_ALGO_PARAMS#/?}"
+				verbose "EASYRSA_ALGO_PARAMS: $EASYRSA_ALGO_PARAMS"
+			fi
+
 			algo_opts="$EASYRSA_ALGO:$EASYRSA_ALGO_PARAMS"
 			;;
 		ed)
@@ -2796,6 +2814,7 @@ check_serial_unique() {
 	# Check for openssl -status of serial number
 	# Always errors out - Do not capture error
 	check_serial="$(
+			export OPENSSL_CONF="$EASYRSA_SSL_CONF"
 			"$EASYRSA_OPENSSL" ca -status "$1" 2>&1
 		)" || :
 
@@ -3275,8 +3294,15 @@ $crt_fingerprint"
 
 		# move tmp-file to list file
 		if [ -z "$pfp_error_msg" ]; then
+			# back up the current pfp list
+			if [ -f "$pfp_list_file" ]; then
+				rm -f "$pfp_list_file".old
+				mv "$pfp_list_file" "$pfp_list_file".old || \
+					pfp_error_msg="${pfp_error_msg}move 1 Failed!${NL}"
+			fi
+
 			mv "$pfp_list_tmp" "$pfp_list_file" || \
-				pfp_error_msg="${pfp_error_msg}move Failed!${NL}"
+				pfp_error_msg="${pfp_error_msg}move 2 Failed!${NL}"
 		fi
 
 		# user info
