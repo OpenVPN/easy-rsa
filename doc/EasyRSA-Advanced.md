@@ -149,8 +149,15 @@ short description is shown below:
  *  `EASYRSA_EXTRA_EXTS` - user defined extensions to add to the request or cert
  *  `EASYRSA_CP_EXT` (CLI: `--copy-ext`) - copy extensions from request to cert
  *  `EASYRSA_KEY_SIZE` (CLI: `--keysize`) - set the key size in bits to generate
- *  `EASYRSA_ALGO` (CLI: `--use-algo`) - set the crypto alg to use: rsa, ec or ed
+ *  `EASYRSA_ALGO` (CLI: `--use-algo`) - set the crypto alg to use: rsa, ec, ed
+    or pqc
  *  `EASYRSA_CURVE` (CLI: `--curve`) - define the named EC curve to use
+ *  `EASYRSA_PQC_ALGO` (CLI: `--pqc-algo`) - select the exact PQC signing
+    algorithm reported by `easyrsa list-pqc`
+ *  `EASYRSA_PQC_PROVIDER` (CLI: `--pqc-provider`) - explicitly load and trust
+    a PQC-only OpenSSL provider for discovery, validation and key generation
+ *  `EASYRSA_PQC_PROVIDER_PATH` (CLI: `--pqc-provider-path`) - set the module
+    directory for the selected PQC provider
  *  `EASYRSA_CA_EXPIRE` (CLI: `--days`) - set the CA expiration time in days
  *  `EASYRSA_CERT_EXPIRE` (CLI: `--days`) - set the cert expiration time in days
  *  `EASYRSA_CRL_DAYS` (CLI: `--days`) - set the CRL 'next publish' time in days
