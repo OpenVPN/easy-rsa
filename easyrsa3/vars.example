@@ -119,7 +119,7 @@ fi
 #  * rsa
 #  * ec
 #  * ed
-#  * pqc  (Post-Quantum Cryptography, requires OpenSSL 3.5+ or OQS provider)
+#  * pqc  (Post-Quantum, requires OpenSSL 3.5+ or an explicit PQC provider)
 #
 #set_var EASYRSA_ALGO		rsa
 
@@ -129,17 +129,19 @@ fi
 
 # Post-Quantum Cryptography (PQC) settings:
 # Used when EASYRSA_ALGO is set to 'pqc'
-# Requires OpenSSL 3.5+ or the OQS provider for OpenSSL 3.x
+# OpenSSL 3.5+ provides the native default algorithm shown below.
 #
-# Choose a signature algorithm reported by the active OpenSSL provider.
-# Run 'easyrsa list-pqc' to inspect active provider algorithms.
+# Choose a signature algorithm reported by 'easyrsa list-pqc'.
+# An external provider requires its exact runtime algorithm name; no native
+# algorithm name is assumed for an external provider.
 #
 #set_var EASYRSA_PQC_ALGO	ml-dsa-65
 #
-# Optional: load a named PQC provider
+# Optional: explicitly load and trust a PQC-only provider. Provider activation
+# from the system openssl.cnf is not inherited by Easy-RSA's safe configuration.
 #set_var EASYRSA_PQC_PROVIDER	oqsprovider
 #
-# Optional: specify the OpenSSL provider module directory
+# Optional: specify the OpenSSL provider module directory.
 #set_var EASYRSA_PQC_PROVIDER_PATH	/usr/lib/ossl-modules
 
 # In how many days should the root CA key expire?

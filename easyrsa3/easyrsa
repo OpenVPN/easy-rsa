@@ -68,9 +68,9 @@ Certificate & Request options: (these impact cert/req field values)
 --curve=NAME    : For elliptic curve, sets the named curve
                   (Default: algo ec: secp384r1, algo ed: ed25519)
                   (--use-algo and --curve can be used to configure 'init-pki')
---pqc-algo=ALG  : Post-Quantum algorithm (requires OpenSSL 3.5+ or OQS provider)
-                  Use 'easyrsa list-pqc' to inspect active providers
---pqc-provider=NAME : Load a named OpenSSL PQC provider
+--pqc-algo=ALG  : Post-Quantum algorithm (OpenSSL 3.5+ or explicit PQC provider)
+                  Use 'easyrsa list-pqc' to inspect the selected provider
+--pqc-provider=NAME : Explicitly load and trust a PQC-only OpenSSL provider
 --pqc-provider-path=DIR : OpenSSL provider module directory
 
 --subca-len=#   : Path length of signed intermediate CA certificates
@@ -161,15 +161,15 @@ Command list:
   show-eku <file_name_base>|<DIR/FILE_NAME>
   rand <Decimal-Number>
 
-Post-Quantum Cryptography commands (requires OpenSSL 3.5+ or OQS provider):
+Post-Quantum Cryptography commands (requires OpenSSL 3.5+ or an explicitly
+configured PQC provider):
 
-  list-pqc                      List active provider algorithms
+  list-pqc                      List selected provider algorithms
   pqc-status                    Show PQC configuration and support status
-  pqc-set-algo <ALG>            Set PQC algorithm for next operations
+  pqc-set-algo <ALG>            Validate ALG and show configuration
   pqc-recommend                 Show provider-based selection guidance
-                                (USE: ca|server|client|vpn|email|codesign)
   pqc-key-info <FILE>           Show PQC key information
-  pqc-verify <CERT>             Verify a PQC certificate
+  pqc-verify <CERT> [CA]        Verify a PQC certificate
   pqc-migration                 Show PQC migration guide
   pqc-help                      Show PQC-specific help
 "
@@ -200,10 +200,14 @@ Usage: easyrsa [ OPTIONS.. ] <COMMAND> <TARGET> [ cmd-opts.. ]"
         $ easyrsa init-pki ed ed448
         $ easyrsa --use-algo=ed --curve=ed448 init-pki
 
+      A PQC PKI can be initialized with an algorithm from list-pqc:
+        $ easyrsa init-pki ML-DSA-65
+        $ easyrsa --use-algo=pqc --pqc-algo=ML-DSA-65 init-pki
+
       Note: cmd-opts take priority over '--' global options"
 		opts="
-      * Optional algorithm 'ec' or 'ed'  (Default: rsa)
-      * Optional curve name (Default: None, secp384r1 or ed25519)"
+      * Optional algorithm 'ec', 'ed' or 'pqc'  (Default: rsa)
+      * Optional curve or PQC signature algorithm name"
 	;;
 	self-sign*)
 		text="
@@ -690,16 +694,16 @@ This TLS key will be automatically added to inline files."
 		text="
 * Post-Quantum Cryptography (PQC) Commands:
 
-      list-pqc              List active provider algorithms
+      list-pqc              List selected provider algorithms
       pqc-status            Show PQC configuration and status
-      pqc-set-algo <ALG>    Set PQC algorithm for next operations
+      pqc-set-algo <ALG>    Validate ALG and show configuration
       pqc-recommend         Show provider-based selection guidance
       pqc-key-info <FILE>   Show PQC key information
-      pqc-verify <CERT>     Verify a PQC certificate
+      pqc-verify <CERT> [CA] Verify a PQC certificate
       pqc-migration         Show PQC migration guide
       pqc-help              Show detailed PQC help
 
-      Requires OpenSSL 3.5+ or a configured PQC provider."
+      Requires OpenSSL 3.5+ or an explicitly configured PQC provider."
 		text_only=1
 	;;
 	"")
@@ -770,6 +774,7 @@ DIRECTORY STATUS (commands would take effect on these locations)
 	case "$EASYRSA_ALGO" in
 		rsa) print "    Key size: $EASYRSA_KEY_SIZE" ;;
 		ec|ed) print "       Curve: $EASYRSA_CURVE" ;;
+		pqc) print "    PQC algo: $EASYRSA_PQC_ALGO" ;;
 		*) print "   Algorithm: UNKNOWN!"
 	esac
 
@@ -1550,7 +1555,7 @@ pqc_is_native_signature_algorithm() {
 	pqc_native_signature_oid="$(
 		printf '%s\n' "$pqc_native_signature_result" | sed -n \
 			's/.*2\.16\.840\.1\.101\.3\.4\.3\.\([0-9][0-9]*\).*/\1/p' | \
-			head -1
+			sed -n '1p'
 		)"
 	case "$pqc_native_signature_oid" in
 		''|*[!0-9]*) return 1 ;;
@@ -1561,10 +1566,11 @@ pqc_is_native_signature_algorithm() {
 		-propquery "provider=default"
 } # => pqc_is_native_signature_algorithm()
 
-# Accept algorithms supplied by a selected PQC provider only when that
-# provider supplies both the signature and its key manager. Algorithms
-# already supplied by the default provider must pass the native PQC check
-# above, which prevents RSA/EC/EdDSA from being relabelled as PQC.
+# Accept algorithms supplied by an explicitly selected PQC provider only
+# when that provider supplies both the signature and its key manager.
+# Reject names also supplied by the default provider: this prevents both
+# classical algorithms being relabelled as PQC and ambiguous provider
+# selection during key generation.
 pqc_is_provider_signature_algorithm() {
 	pqc_signature_provider="$1"
 	pqc_signature_algorithm="$2"
@@ -1585,18 +1591,19 @@ pqc_is_provider_signature_algorithm() {
 	return 0
 } # => pqc_is_provider_signature_algorithm()
 
-# Check if the selected providers expose a PQC signing key algorithm.
+# Check if the selected provider exposes a PQC signing key algorithm.
+# An explicitly selected external provider is a strict trust boundary;
+# never fall back to the native provider for the requested key algorithm.
 is_pqc_sig_algo() {
-	pqc_is_native_signature_algorithm "$1" && return 0
-
-	if [ "$EASYRSA_PQC_PROVIDER" ]; then
+	case "${EASYRSA_PQC_PROVIDER:-default}" in
+	default)
+		pqc_is_native_signature_algorithm "$1"
+		;;
+	*)
 		pqc_is_provider_signature_algorithm \
 			"$EASYRSA_PQC_PROVIDER" "$1"
-		return
-	fi
-
-	# oqsprovider may already be activated by openssl.cnf.
-	pqc_is_provider_signature_algorithm oqsprovider "$1"
+		;;
+	esac
 } # => is_pqc_sig_algo()
 
 # Check native KEM metadata without treating RSA, EC, X25519, or X448 as
@@ -1635,28 +1642,17 @@ pqc_is_provider_kem_algorithm() {
 	return 0
 } # => pqc_is_provider_kem_algorithm()
 
-# Check if the selected providers expose a PQC KEM key algorithm.
+# Check if the selected provider exposes a PQC KEM key algorithm.
 is_pqc_kem_algo() {
-	pqc_is_native_kem_algorithm "$1" && return 0
-
-	if [ "$EASYRSA_PQC_PROVIDER" ]; then
+	case "${EASYRSA_PQC_PROVIDER:-default}" in
+	default)
+		pqc_is_native_kem_algorithm "$1"
+		;;
+	*)
 		pqc_is_provider_kem_algorithm "$EASYRSA_PQC_PROVIDER" "$1"
-		return
-	fi
-
-	pqc_is_provider_kem_algorithm oqsprovider "$1"
+		;;
+	esac
 } # => is_pqc_kem_algo()
-
-# Verify that OpenSSL or a configured provider exposes PQC capability.
-check_openssl_pqc_support() {
-	if [ "$EASYRSA_PQC_ALGO" ]; then
-		is_pqc_sig_algo "$EASYRSA_PQC_ALGO"
-		return
-	fi
-
-	# ML-DSA-65 is EasyRSA's default PQC algorithm.
-	is_pqc_sig_algo ml-dsa-65
-}
 
 # Validate PQC algorithm for certificate signing
 pqc_validate_for_signing() {
@@ -1674,7 +1670,7 @@ Run 'easyrsa list-pqc' and select a signature algorithm."
 
 	user_error "\
 Algorithm '$_algo' is not available as a post-quantum signing key.
-Run 'easyrsa list-pqc' to inspect the active providers."
+Run 'easyrsa list-pqc' to inspect the selected provider."
 }
 
 # Select native PQC entries using the NIST runtime OIDs exposed by OpenSSL.
@@ -1697,6 +1693,7 @@ pqc_filter_native_kems() {
 
 # List the runtime algorithm inventory reported by OpenSSL.
 list_available_pqc_algos() {
+	[ "$#" = 0 ] || user_error "list-pqc does not accept arguments."
 	print ""
 	print "  OpenSSL Algorithms for PQC Selection"
 	print "  ====================================="
@@ -1726,31 +1723,6 @@ list_available_pqc_algos() {
 				-propquery "provider=default" | \
 				pqc_filter_native_kems
 			)" || die "Failed to list native PQC KEMs"
-
-		# Include oqsprovider when it is activated by openssl.cnf.
-		pqc_oqs_signature_algorithms="$(
-			pqc_openssl_list -signature-algorithms \
-				-propquery "provider=oqsprovider"
-			)" || :
-		case "$pqc_oqs_signature_algorithms" in
-			*[[:alnum:]]*)
-				pqc_signature_algorithms="\
-$pqc_signature_algorithms
-$pqc_oqs_signature_algorithms"
-				pqc_list_source="$pqc_list_source and oqsprovider"
-				;;
-		esac
-		pqc_oqs_kem_algorithms="$(
-			pqc_openssl_list -kem-algorithms \
-				-propquery "provider=oqsprovider"
-			)" || :
-		case "$pqc_oqs_kem_algorithms" in
-			*[[:alnum:]]*)
-				pqc_kem_algorithms="\
-$pqc_kem_algorithms
-$pqc_oqs_kem_algorithms"
-				;;
-		esac
 	fi
 
 	case "$pqc_signature_algorithms$pqc_kem_algorithms" in
@@ -1758,7 +1730,7 @@ $pqc_oqs_kem_algorithms"
 		*)
 			user_error "\
 No PQC algorithms were reported by $pqc_list_source.
-Requires OpenSSL 3.5+ or a configured PQC provider."
+Requires OpenSSL 3.5+ or an explicitly configured PQC provider."
 			;;
 	esac
 
@@ -1774,15 +1746,19 @@ Requires OpenSSL 3.5+ or a configured PQC provider."
 	unset -v \
 		pqc_signature_algorithms \
 		pqc_kem_algorithms \
-		pqc_oqs_signature_algorithms \
-		pqc_oqs_kem_algorithms \
 		pqc_list_source
 	return 0
 }
 
 # Give selection guidance without maintaining an algorithm catalog.
 pqc_recommend() {
-	_pqc_candidate="${EASYRSA_PQC_ALGO:-ml-dsa-65}"
+	[ "$#" = 0 ] || user_error "pqc-recommend does not accept arguments."
+	_pqc_candidate="$EASYRSA_PQC_ALGO"
+	if [ -z "$_pqc_candidate" ]; then
+		case "${EASYRSA_PQC_PROVIDER:-default}" in
+			default) _pqc_candidate=ml-dsa-65 ;;
+		esac
+	fi
 	print ""
 	print "  PQC Algorithm Selection"
 	print "  ======================="
@@ -1794,7 +1770,9 @@ pqc_recommend() {
 	print "  2. Check the provider and relying application's current guidance."
 	print "  3. Test the complete CA, certificate, and verification workflow."
 	print ""
-	if is_pqc_sig_algo "$_pqc_candidate"; then
+	if [ -z "$_pqc_candidate" ]; then
+		print "  No signing algorithm is selected for the external provider."
+	elif is_pqc_sig_algo "$_pqc_candidate"; then
 		print "  Current/default signing algorithm is available: $_pqc_candidate"
 	else
 		print "  Current/default signing algorithm is unavailable: $_pqc_candidate"
@@ -1806,6 +1784,7 @@ pqc_recommend() {
 
 # Print PQC key information
 pqc_key_info() {
+	[ "$#" = 1 ] || user_error "pqc-key-info requires exactly one key file."
 	_keyfile="$1"
 
 	[ "$_keyfile" ] || user_error "PQC key file path required."
@@ -1817,20 +1796,28 @@ Key file not found: $_keyfile"
 	print "  ==================="
 	print ""
 
-	pqc_openssl pkey -in "$_keyfile" -noout -text 2>/dev/null | \
-		head -20
+	_key_text="$(
+		pqc_openssl pkey -in "$_keyfile" \
+			${EASYRSA_PASSIN:+ -passin "$EASYRSA_PASSIN"} \
+			-noout -text_pub 2>/dev/null
+		)" || user_error "Unable to read PQC key: $_keyfile"
 
-	_key_algo="$(pqc_openssl pkey -in "$_keyfile" -noout \
-		-text 2>/dev/null | head -1)"
+	printf '%s\n' "$_key_text" | sed -n '1,20p'
+	_key_algo="$(printf '%s\n' "$_key_text" | sed -n '1p')"
 	print ""
 	print "  Algorithm: $_key_algo"
 
 	print ""
+	unset -v _keyfile _key_text _key_algo
 	return 0
 }
 
 # Verify a PQC certificate
 pqc_verify_cert() {
+	case "$#" in
+		1|2) : ;;
+		*) user_error "pqc-verify requires CERT and optional CA files." ;;
+	esac
 	_certfile="$1"
 	_cafile="${2:-}"
 
@@ -1838,48 +1825,64 @@ pqc_verify_cert() {
 	[ -f "$_certfile" ] || user_error "\
 Certificate file not found: $_certfile"
 
-	# Try default CA file if not specified
+	_cert_text="$(
+		pqc_openssl x509 -in "$_certfile" -noout -text 2>/dev/null
+		)" || user_error "Invalid certificate file: $_certfile"
+
+	# Use the current PKI CA when no CA file was specified.
 	if [ -z "$_cafile" ] && [ -f "$EASYRSA_PKI/ca.crt" ]; then
 		_cafile="$EASYRSA_PKI/ca.crt"
 	fi
+	[ "$_cafile" ] || user_error "\
+No CA certificate was specified and the current PKI has no CA certificate."
+	[ -f "$_cafile" ] || user_error "CA certificate file not found: $_cafile"
+	pqc_openssl x509 -in "$_cafile" -noout 2>/dev/null || \
+		user_error "Invalid CA certificate file: $_cafile"
 
 	print ""
 	print "  PQC Certificate Verification"
 	print "  =============================="
 
 	pqc_openssl x509 -in "$_certfile" -noout \
-		-subject -issuer -dates 2>/dev/null
+		-subject -issuer -dates 2>/dev/null || \
+			user_error "Unable to read certificate: $_certfile"
 	print ""
 
-	_sig_algo="$(pqc_openssl x509 -in "$_certfile" -noout \
-		-text 2>/dev/null | grep "Signature Algorithm:" | \
-		head -1 | sed 's/.*: //')"
+	_sig_algo="$(printf '%s\n' "$_cert_text" | \
+		sed -n 's/^[[:blank:]]*Signature Algorithm:[[:blank:]]*//p' | \
+			sed -n '1p')"
 	print "  Signature Algorithm: $_sig_algo"
 
-	_pk_algo="$(pqc_openssl x509 -in "$_certfile" -noout \
-		-text 2>/dev/null | grep "Public Key Algorithm:" | \
-		head -1 | sed 's/.*: //')"
+	_pk_algo="$(printf '%s\n' "$_cert_text" | \
+		sed -n 's/^[[:blank:]]*Public Key Algorithm:[[:blank:]]*//p' | \
+			sed -n '1p')"
 	print "  Public Key Algorithm: $_pk_algo"
 
-	if [ -f "$_cafile" ]; then
-		print ""
-		if pqc_openssl verify -CAfile "$_cafile" \
-			"$_certfile" >/dev/null 2>&1
-		then
-			print "  Chain Verification: OK"
-		else
-			print "  Chain Verification: FAILED"
-			pqc_openssl verify -CAfile "$_cafile" \
-				"$_certfile" 2>&1
-		fi
+	print ""
+	if _verify_output="$(
+		pqc_openssl verify -CAfile "$_cafile" "$_certfile" 2>&1
+		)"
+	then
+		print "  Chain Verification: OK"
+	else
+		print "  Chain Verification: FAILED"
+		printf '%s\n' "$_verify_output"
+		unset -v \
+			_certfile _cafile _cert_text \
+			_sig_algo _pk_algo _verify_output
+		return 1
 	fi
 
 	print ""
+	unset -v \
+		_certfile _cafile _cert_text \
+		_sig_algo _pk_algo _verify_output
 	return 0
 }
 
 # PQC status and configuration
 pqc_status() {
+	[ "$#" = 0 ] || user_error "pqc-status does not accept arguments."
 	print ""
 	print "  EasyRSA Post-Quantum Cryptography Status"
 	print "  =========================================="
@@ -1888,40 +1891,57 @@ pqc_status() {
 	_openssl_version="$("$EASYRSA_OPENSSL" version 2>/dev/null)"
 	print "  OpenSSL: $_openssl_version"
 
-	if check_openssl_pqc_support 2>/dev/null; then
-		print "  PQC Support: AVAILABLE"
+	_status_algo="$EASYRSA_PQC_ALGO"
+	if [ -z "$_status_algo" ]; then
+		case "${EASYRSA_PQC_PROVIDER:-default}" in
+			default) _status_algo=ml-dsa-65 ;;
+		esac
+	fi
+	if [ -z "$_status_algo" ]; then
+		print "  Selected PQC signing algorithm: NOT SET"
+	elif is_pqc_sig_algo "$_status_algo" 2>/dev/null; then
+		print "  Selected/default signing algorithm ($_status_algo): AVAILABLE"
 	else
-		print "  PQC Support: NOT AVAILABLE"
+		print "  Selected/default signing algorithm ($_status_algo): UNAVAILABLE"
 	fi
 
 	print ""
-	print "  Providers:"
-	pqc_openssl list -providers 2>/dev/null | sed 's/^/    /'
+	_provider_text="$(pqc_openssl list -providers 2>&1)" || user_error "\
+Unable to load the configured OpenSSL providers:
+$_provider_text"
+	printf '%s\n' "$_provider_text" | sed 's/^/  /'
 
 	print ""
 	print "  Current PQC Configuration:"
 	print "    EASYRSA_PQC_ALGO:     ${EASYRSA_PQC_ALGO:-(not set)}"
-	print "    EASYRSA_PQC_PROVIDER: ${EASYRSA_PQC_PROVIDER:-(active providers)}"
+	print "    EASYRSA_PQC_PROVIDER: ${EASYRSA_PQC_PROVIDER:-(default)}"
 
 	if [ -f "$EASYRSA_PKI/ca.crt" ] 2>/dev/null; then
 		print ""
 		print "  Existing CA Certificate:"
-		_ca_algo="$(pqc_openssl x509 -in "$EASYRSA_PKI/ca.crt" \
-			-noout -text 2>/dev/null | \
-			grep "Public Key Algorithm:" | head -1 | sed 's/.*: //')"
+		_ca_text="$(pqc_openssl x509 -in "$EASYRSA_PKI/ca.crt" \
+			-noout -text 2>/dev/null)" || \
+				user_error "Unable to read the current CA certificate."
+		_ca_algo="$(printf '%s\n' "$_ca_text" | sed -n \
+			's/^[[:blank:]]*Public Key Algorithm:[[:blank:]]*//p' | \
+				sed -n '1p')"
 		print "    Public Key Algorithm: $_ca_algo"
-		_ca_sig="$(pqc_openssl x509 -in "$EASYRSA_PKI/ca.crt" \
-			-noout -text 2>/dev/null | \
-			grep "Signature Algorithm:" | head -1 | sed 's/.*: //')"
+		_ca_sig="$(printf '%s\n' "$_ca_text" | sed -n \
+			's/^[[:blank:]]*Signature Algorithm:[[:blank:]]*//p' | \
+				sed -n '1p')"
 		print "    Signature Algorithm: $_ca_sig"
 	fi
 
 	print ""
+	unset -v \
+		_openssl_version _status_algo _provider_text \
+		_ca_text _ca_algo _ca_sig
 	return 0
 }
 
 # Set PQC algorithm
 pqc_set_algo() {
+	[ "$#" = 1 ] || user_error "pqc-set-algo requires exactly one algorithm."
 	_algo="$1"
 
 	[ "$_algo" ] || user_error "\
@@ -1930,24 +1950,31 @@ Run 'easyrsa list-pqc' to see available algorithms."
 
 	pqc_validate_for_signing "$_algo"
 
-	export EASYRSA_PQC_ALGO="$_algo"
-	export EASYRSA_ALGO="pqc"
+	print ""
+	print "  PQC signing algorithm is available: $_algo"
 
 	print ""
-	print "  PQC algorithm set: $_algo"
-
-	print ""
-	print "  To make it permanent, add to your 'vars' file:"
+	print "  To use it, add these settings to your 'vars' file:"
 	print "    set_var EASYRSA_ALGO        pqc"
 	printf "    set_var EASYRSA_PQC_ALGO    '%s'\n" \
 		"$(pqc_quote_vars_value "$_algo")"
+	if [ "$EASYRSA_PQC_PROVIDER" ]; then
+		printf "    set_var EASYRSA_PQC_PROVIDER '%s'\n" \
+			"$(pqc_quote_vars_value "$EASYRSA_PQC_PROVIDER")"
+	fi
+	if [ "$EASYRSA_PQC_PROVIDER_PATH" ]; then
+		printf "    set_var EASYRSA_PQC_PROVIDER_PATH '%s'\n" \
+			"$(pqc_quote_vars_value "$EASYRSA_PQC_PROVIDER_PATH")"
+	fi
 	print ""
 
+	unset -v _algo
 	return 0
 }
 
 # PQC migration guide
 pqc_migration_info() {
+	[ "$#" = 0 ] || user_error "pqc-migration does not accept arguments."
 	print ""
 	print "  PQC Migration Guide"
 	print "  ===================="
@@ -1966,16 +1993,17 @@ pqc_migration_info() {
 
 # PQC help text
 pqc_help() {
+	[ "$#" = 0 ] || user_error "pqc-help does not accept arguments."
 	print ""
 	print "  EasyRSA Post-Quantum Cryptography Commands"
 	print "  ============================================"
 	print ""
-	print "  list-pqc          List active provider algorithms"
+	print "  list-pqc          List selected provider algorithms"
 	print "  pqc-status        Show PQC configuration and status"
-	print "  pqc-set-algo ALG  Set PQC algorithm for next operations"
+	print "  pqc-set-algo ALG  Validate ALG and show configuration"
 	print "  pqc-recommend     Show provider-based selection guidance"
 	print "  pqc-key-info FILE Show PQC key information"
-	print "  pqc-verify CERT   Verify a PQC certificate"
+	print "  pqc-verify CERT [CA] Verify a PQC certificate"
 	print "  pqc-migration     Show PQC migration guide"
 	print "  pqc-help          Show this help message"
 	print ""
@@ -1984,54 +2012,18 @@ pqc_help() {
 	print "    easyrsa --algo=pqc --pqc-algo=ALG gen-req myserver nopass"
 	print "    easyrsa sign-req server myserver"
 	print ""
-	print "  Or use pqc-set-algo first:"
+	print "  Validate an algorithm before updating 'vars':"
 	print "    easyrsa pqc-set-algo ALG"
-	print "    easyrsa build-ca"
 	print ""
 	print "  Environment Variables:"
 	print "    EASYRSA_ALGO=pqc                Enable PQC mode"
 	print "    EASYRSA_PQC_ALGO=ALG            Set PQC algorithm"
-	print "    EASYRSA_PQC_PROVIDER=oqsprovider Set provider"
+	print "    EASYRSA_PQC_PROVIDER=oqsprovider Select a trusted PQC provider"
 	print "    EASYRSA_PQC_PROVIDER_PATH=/path/to/ossl-modules"
 	print ""
-}
-
-# PQC command handler
-pqc_command_handler() {
-	_cmd="$1"
-	shift
-
-	case "$_cmd" in
-		list-pqc|pqc-list)
-			list_available_pqc_algos
-			;;
-		pqc-status)
-			pqc_status
-			;;
-		pqc-set-algo)
-			pqc_set_algo "$@"
-			;;
-		pqc-recommend)
-			pqc_recommend "$@"
-			;;
-		pqc-key-info)
-			pqc_key_info "$@"
-			;;
-		pqc-verify)
-			pqc_verify_cert "$@"
-			;;
-		pqc-migration)
-			pqc_migration_info
-			;;
-		pqc-help)
-			pqc_help
-			;;
-		*)
-			return 1
-			;;
-	esac
-
-	return 0
+	print "  External providers must be selected explicitly. Use the exact"
+	print "  algorithm name reported by list-pqc for that provider."
+	print ""
 }
 
 # ============================================================
@@ -2086,7 +2078,19 @@ KEM algorithm '$1' cannot be used to configure a signing PKI."
 		rsa) : ;; # ok
 		ec) set_var EASYRSA_CURVE secp384r1 ;;
 		ed) set_var EASYRSA_CURVE ed25519 ;;
-		pqc) set_var EASYRSA_PQC_ALGO ml-dsa-65 ;; # Default PQC algo
+		pqc)
+			case "${EASYRSA_PQC_PROVIDER:-default}" in
+			default)
+				set_var EASYRSA_PQC_ALGO ml-dsa-65
+				;;
+			*)
+				[ "$EASYRSA_PQC_ALGO" ] || user_error "\
+An algorithm must be selected explicitly for PQC provider \
+'$EASYRSA_PQC_PROVIDER'.
+Run 'easyrsa --pqc-provider=$EASYRSA_PQC_PROVIDER list-pqc'."
+				;;
+			esac
+			;;
 		*) die "Unknown EASYRSA_ALGO: '$EASYRSA_ALGO'"
 	esac
 
@@ -3022,6 +3026,11 @@ $EASYRSA_EXTRA_EXTS"
 			${EASYRSA_PASSOUT:+ -pass "$EASYRSA_PASSOUT"} \
 				|| die "Failed to generate PQC key ($EASYRSA_PQC_ALGO)"
 
+		# The new key is encrypted with PASSOUT, so use the same
+		# passphrase to read it while creating the CSR.
+		_pqc_key_passin="$EASYRSA_PASSOUT"
+		[ "$_pqc_key_passin" ] || _pqc_key_passin="$EASYRSA_PASSIN"
+
 		# Generate CSR with the PQC key
 		if easyrsa_openssl req -utf8 -new \
 			-key "$key_out_tmp" \
@@ -3030,13 +3039,13 @@ $EASYRSA_EXTRA_EXTS"
 			${EASYRSA_TEXT_ON:+ -text} \
 			${text:+ -text} \
 			${EASYRSA_NO_PASS:+ "$no_password"} \
-			${EASYRSA_PASSIN:+ -passin "$EASYRSA_PASSIN"}
+			${_pqc_key_passin:+ -passin "$_pqc_key_passin"}
 		then
 			: # ok
 		else
 			die "Failed to generate PQC request ($EASYRSA_PQC_ALGO)"
 		fi
-		unset -v _pqc_key_cipher
+		unset -v _pqc_key_cipher _pqc_key_passin
 	else
 	# Generate request (classical algorithms)
 	if easyrsa_openssl req -utf8 -new -newkey "$algo_opts" \
@@ -6441,16 +6450,18 @@ Elliptic curve cryptography cannot be use with algo '$EASYRSA_ALGO'"
 		;;
 	pqc)
 		# Post-Quantum Cryptography
+		if [ -z "$EASYRSA_PQC_ALGO" ] && \
+			[ "$EASYRSA_PQC_PROVIDER" ] && \
+			[ "$EASYRSA_PQC_PROVIDER" != default ]
+		then
+			user_error "\
+An algorithm must be selected explicitly for PQC provider \
+'$EASYRSA_PQC_PROVIDER'.
+Run 'easyrsa --pqc-provider=$EASYRSA_PQC_PROVIDER list-pqc'."
+		fi
 		[ "$EASYRSA_PQC_ALGO" ] || user_error "\
 PQC mode requires EASYRSA_PQC_ALGO to be set.
-Use --pqc-algo=ALG or 'easyrsa pqc-set-algo ALG' first."
-
-		# Check OpenSSL PQC support
-		if ! check_openssl_pqc_support; then
-			user_error "\
-Post-Quantum Cryptography requires OpenSSL 3.5+ or OQS provider.
-Current: $($EASYRSA_OPENSSL version 2>/dev/null)"
-		fi
+Use --pqc-algo=ALG or add EASYRSA_PQC_ALGO to 'vars'."
 
 		# Verify the provider exposes a signing implementation.
 		pqc_validate_for_signing "$EASYRSA_PQC_ALGO"
@@ -6731,7 +6742,9 @@ default_vars() {
 			set_var EASYRSA_CURVE		ed25519
 			;;
 		pqc)
-			set_var EASYRSA_PQC_ALGO	ml-dsa-65
+			case "${EASYRSA_PQC_PROVIDER:-default}" in
+				default) set_var EASYRSA_PQC_ALGO ml-dsa-65 ;;
+			esac
 			;;
 		*) user_error "\
 Algorithm '$EASYRSA_ALGO' is invalid: Must be 'rsa', 'ec', 'ed' or 'pqc'"
@@ -6929,8 +6942,15 @@ Using Easy-RSA 'vars' configuration:
 		# global safe ssl cnf temp
 		write_global_safe_ssl_cnf_tmp
 
-		# Verify selected algorithm and parameters
-		verify_algo_params
+		# Diagnostic commands must remain available when the selected
+		# algorithm is invalid or no longer exposed by a provider.
+		case "$cmd" in
+			list-pqc|pqc-list|pqc-status|pqc-set-algo|pqc-recommend|\
+			pqc-key-info|pqc-verify|pqc-migration|pqc-help)
+				: # validation is handled by the command when required
+				;;
+			*) verify_algo_params ;;
+		esac
 	else
 		verbose "temp-dir: Missing: ${EASYRSA_TEMP_DIR:-undefined}"
 	fi
@@ -7458,7 +7478,7 @@ fi
 #  * rsa
 #  * ec
 #  * ed
-#  * pqc  (Post-Quantum, requires OpenSSL 3.5+ or OQS provider)
+#  * pqc  (Post-Quantum, requires OpenSSL 3.5+ or an explicit PQC provider)
 #
 #set_var EASYRSA_ALGO		rsa
 
@@ -7468,11 +7488,19 @@ fi
 
 # Post-Quantum Cryptography (PQC) settings:
 # Used when EASYRSA_ALGO is set to 'pqc'
-# Run 'easyrsa list-pqc' to inspect active provider algorithms
-# Run 'easyrsa pqc-recommend' for provider-based selection guidance
+# OpenSSL 3.5+ provides the native default algorithm shown below.
+#
+# Choose a signature algorithm reported by 'easyrsa list-pqc'.
+# An external provider requires its exact runtime algorithm name; no native
+# algorithm name is assumed for an external provider.
 #
 #set_var EASYRSA_PQC_ALGO	ml-dsa-65
+#
+# Optional: explicitly load and trust a PQC-only provider. Provider activation
+# from the system openssl.cnf is not inherited by Easy-RSA's safe configuration.
 #set_var EASYRSA_PQC_PROVIDER	oqsprovider
+#
+# Optional: specify the OpenSSL provider module directory.
 #set_var EASYRSA_PQC_PROVIDER_PATH	/usr/lib/ossl-modules
 
 # In how many days should the root CA key expire?
@@ -8251,11 +8279,11 @@ case "$cmd" in
 	# Post-Quantum Cryptography commands
 	list-pqc|pqc-list)
 		require_pki=""; require_ca=""; verify_working_env
-		list_available_pqc_algos
+		list_available_pqc_algos "$@"
 		;;
 	pqc-status)
 		require_pki=""; require_ca=""; verify_working_env
-		pqc_status
+		pqc_status "$@"
 		;;
 	pqc-set-algo)
 		require_pki=""; require_ca=""; verify_working_env
@@ -8270,16 +8298,16 @@ case "$cmd" in
 		pqc_key_info "$@"
 		;;
 	pqc-verify)
-		require_pki=1; require_ca=""; verify_working_env
-		pqc_verify_cert "$@"
+		require_pki=""; require_ca=""; verify_working_env
+		pqc_verify_cert "$@" || easyrsa_exit_with_error=1
 		;;
 	pqc-migration)
 		require_pki=""; require_ca=""; verify_working_env
-		pqc_migration_info
+		pqc_migration_info "$@"
 		;;
 	pqc-help)
 		require_pki=""; require_ca=""; verify_working_env
-		pqc_help
+		pqc_help "$@"
 		;;
 	help)
 		cmd_help "$1"
