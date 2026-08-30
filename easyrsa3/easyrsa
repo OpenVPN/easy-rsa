@@ -1256,6 +1256,10 @@ easyrsa_openssl() {
 		rand) die "easyrsa_openssl: Illegal SSL command: rand"
 	esac
 
+	# configure PQC provider context
+	[ "$EASYRSA_PQC_PROVIDER" ] && \
+		set -- -provider "$EASYRSA_PQC_PROVIDER" "$@"
+
 	# expand EASYRSA_SSL_CONF and export to OPENSSL_CONF
 	[ -f "$EASYRSA_SSL_CONF" ] || \
 			die "easyrsa_openssl - Missing EASYRSA_SSL_CONF"
