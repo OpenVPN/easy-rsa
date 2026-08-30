@@ -1429,6 +1429,14 @@ $verify_ca_help_note"
 	done
 } # => verify_ca_init()
 
+# Post-Quantum Cryptography (PQC) support
+#
+# OpenSSL and its active providers are the authority for available
+# algorithms. Do not maintain a duplicate algorithm inventory here.
+pqc_openssl() {
+	easyrsa_openssl "$@"
+} # => pqc_openssl()
+
 # init-pki backend:
 init_pki() {
 	verbose "BEGIN: algo: '$EASYRSA_ALGO' | curve: '$EASYRSA_CURVE'"
