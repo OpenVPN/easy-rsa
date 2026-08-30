@@ -8031,6 +8031,39 @@ case "$cmd" in
 		require_pki=""; require_ca=""; verify_working_env
 		easyrsa_random "$1"
 		;;
+	# Post-Quantum Cryptography commands
+	list-pqc|pqc-list)
+		require_pki=""; require_ca=""; verify_working_env
+		list_available_pqc_algos "$@"
+		;;
+	pqc-status)
+		require_pki=""; require_ca=""; verify_working_env
+		pqc_status "$@"
+		;;
+	pqc-set-algo)
+		require_pki=""; require_ca=""; verify_working_env
+		pqc_set_algo "$@"
+		;;
+	pqc-recommend)
+		require_pki=""; require_ca=""; verify_working_env
+		pqc_recommend "$@"
+		;;
+	pqc-key-info)
+		require_pki=""; require_ca=""; verify_working_env
+		pqc_key_info "$@"
+		;;
+	pqc-verify)
+		require_pki=""; require_ca=""; verify_working_env
+		pqc_verify_cert "$@" || easyrsa_exit_with_error=1
+		;;
+	pqc-migration)
+		require_pki=""; require_ca=""; verify_working_env
+		pqc_migration_info "$@"
+		;;
+	pqc-help)
+		require_pki=""; require_ca=""; verify_working_env
+		pqc_help "$@"
+		;;
 	help)
 		cmd_help "$1"
 		;;
