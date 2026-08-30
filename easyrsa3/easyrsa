@@ -7581,6 +7581,16 @@ while :; do
 				*) set_var EASYRSA_ALGO ec
 			esac
 			;;
+		--pqc-algo)
+			export EASYRSA_PQC_ALGO="$val"
+			export EASYRSA_ALGO="pqc"
+			;;
+		--pqc-provider)
+			export EASYRSA_PQC_PROVIDER="$val"
+			;;
+		--pqc-provider-path)
+			export EASYRSA_PQC_PROVIDER_PATH="$val"
+			;;
 		--dn-mode)
 			export EASYRSA_DN="$val"
 			;;
