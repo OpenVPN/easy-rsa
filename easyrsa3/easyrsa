@@ -1435,6 +1435,12 @@ $verify_ca_help_note"
 #
 # OpenSSL and its active providers are the authority for available
 # algorithms. Do not maintain a duplicate algorithm inventory here.
+# Run an OpenSSL command with the configured provider context.
+# This raw wrapper preserves the command's return status and output.
+easyrsa_ssl() {
+	die "FORBID useless easyrsa_ssl() wrapper"
+} # => easyrsa_ssl()
+
 pqc_openssl() {
 	easyrsa_openssl "$@"
 } # => pqc_openssl()
