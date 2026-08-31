@@ -10,6 +10,8 @@
 # and the Licensing/ directory of this project for full licensing
 # details.
 
+set -e
+
 # Help/usage output to stdout
 usage() {
 	# command help:
@@ -1595,6 +1597,10 @@ is_pqc_kem_algo() {
 
 # Validate PQC algorithm for certificate signing
 pqc_validate_for_signing() {
+	[ "$pqc_validate_for_signing_count" ] && \
+		die "pqc_validate_for_signing_count exceeded"
+	pqc_validate_for_signing_count=1
+
 	_algo="$1"
 
 	if is_pqc_sig_algo "$_algo"; then
