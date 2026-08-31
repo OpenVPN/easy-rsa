@@ -6558,8 +6558,13 @@ default_vars() {
 		ed)
 			set_var EASYRSA_CURVE		ed25519
 			;;
-		*) user_error "\
-Algorithm '$EASYRSA_ALGO' is invalid: Must be 'rsa', 'ec' or 'ed'"
+		pqc)
+			case "${EASYRSA_PQC_PROVIDER:-default}" in
+				default) set_var EASYRSA_PQC_ALGO ml-dsa-65 ;;
+			esac
+			;;
+		*) user_error "default_vars - \
+Algorithm '$EASYRSA_ALGO' is invalid: Must be 'rsa', 'ec', 'ed' or 'pqc'"
 	esac
 
 	set_var EASYRSA_CA_EXPIRE		3650
