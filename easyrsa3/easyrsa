@@ -6265,8 +6265,28 @@ Elliptic curve cryptography cannot be use with algo '$EASYRSA_ALGO'"
 			>/dev/null 2>&1 || user_error \
 				"Edwards Curve '$EASYRSA_CURVE' not found."
 		;;
+	pqc)
+		# Post-Quantum Cryptography
+		if [ -z "$EASYRSA_PQC_ALGO" ] && \
+			[ "$EASYRSA_PQC_PROVIDER" ] && \
+			[ "$EASYRSA_PQC_PROVIDER" != default ]
+		then
+			user_error "\
+An algorithm must be selected explicitly for PQC provider \
+'$EASYRSA_PQC_PROVIDER'.
+Run 'easyrsa --pqc-provider=$EASYRSA_PQC_PROVIDER list-pqc'."
+		fi
+		[ "$EASYRSA_PQC_ALGO" ] || user_error "\
+PQC mode requires EASYRSA_PQC_ALGO to be set.
+Use --pqc-algo=ALG or add EASYRSA_PQC_ALGO to 'vars'."
+
+		# Verify the provider exposes a signing implementation.
+		pqc_validate_for_signing "$EASYRSA_PQC_ALGO"
+
+		verbose "PQC algo: $EASYRSA_PQC_ALGO"
+		;;
 	*) user_error "\
-Unknown algorithm '$EASYRSA_ALGO': Must be 'rsa', 'ec' or 'ed'"
+Unknown algorithm '$EASYRSA_ALGO': Must be 'rsa', 'ec', 'ed' or 'pqc'"
 	esac
 	verbose "\
 verify_algo_params; OK: Algo '$EASYRSA_ALGO' - Curve '${EASYRSA_CURVE:-None}'"
