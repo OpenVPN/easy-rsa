@@ -2498,6 +2498,15 @@ Please update 'openssl-easyrsa.cnf' to the latest Easy-RSA release."
 		${out_key_pass_tmp:+ -pass file:"$out_key_pass_tmp"} \
 			|| die "Failed create CA private key"
 	;;
+	pqc)
+	easyrsa_openssl genpkey \
+		-algorithm "$EASYRSA_PQC_ALGO" \
+		-out "$out_key_tmp" \
+		${cipher:+ "$cipher"} \
+		${EASYRSA_PASSOUT:+ -pass "$EASYRSA_PASSOUT"} \
+		${out_key_pass_tmp:+ -pass file:"$out_key_pass_tmp"} \
+			|| die "Failed create PQC CA private key ($EASYRSA_PQC_ALGO)"
+	;;
 	*) die "Unknown algorithm: $EASYRSA_ALGO"
 	esac
 
@@ -2512,6 +2521,12 @@ Please update 'openssl-easyrsa.cnf' to the latest Easy-RSA release."
 		verbose "CA key pass created via temp-files"
 	fi
 
+	# Let PQC providers select their required digest behavior.
+	# env-var EASYRSA_DIGEST is required for openssl config file
+	if [ "$EASYRSA_ALGO" = "pqc" ]; then
+		export EASYRSA_DIGEST=""
+	fi
+
 	# Generate the CA keypair:
 	easyrsa_openssl req -utf8 -new \
 		-key "$out_key_tmp" \
@@ -2520,7 +2535,6 @@ Please update 'openssl-easyrsa.cnf' to the latest Easy-RSA release."
 		${x509:+ -x509} \
 		${EASYRSA_TEXT_ON:+ -text} \
 		${date_stamp:+ -days "$EASYRSA_CA_EXPIRE"} \
-		${EASYRSA_DIGEST:+ -"$EASYRSA_DIGEST"} \
 		${EASYRSA_NO_PASS:+ "$no_password"} \
 		${EASYRSA_PASSIN:+ -passin "$EASYRSA_PASSIN"} \
 		${EASYRSA_PASSOUT:+ -passout "$EASYRSA_PASSOUT"} \
