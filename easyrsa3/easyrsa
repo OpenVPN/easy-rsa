@@ -2677,10 +2677,16 @@ Conflicting certificate exists at:
 			set_var EASYRSA_CURVE ed25519
 			newkey_params="$EASYRSA_CURVE"
 			;;
+		pqc)
+			# Post-Quantum Cryptography
+			newkey_params="$EASYRSA_PQC_ALGO"
+			verbose "self_sign PQC algo: $EASYRSA_PQC_ALGO"
+			;;
 		*)
 			user_error "Unrecognised algorithm: '$EASYRSA_ALGO'"
 	esac
-	verbose "Use ALGO:'$EASYRSA_ALGO' / CURVE:'$EASYRSA_CURVE'"
+	verbose "Use ALGO: '$EASYRSA_ALGO'"
+	verbose "With: '${EASYRSA_CURVE:-$EASYRSA_PQC_ALGO}'"
 
 	# Assign tmp-file for config
 	adjusted_ssl_cnf_tmp=""
@@ -2748,11 +2754,19 @@ Conflicting certificate exists at:
 		die "Failed to setup peer-fingerprint mode."
 
 	# User info
-	notice "\
+	if [ "$EASYRSA_ALGO" = "pqc" ]; then
+		notice "\
+Self-signed PQC '$EASYRSA_PQC_ALGO' \
+key and certificate created:
+* $key_out
+* $crt_out"
+	else
+		notice "\
 Self-signed '$EASYRSA_ALGO/$EASYRSA_CURVE' \
 key and certificate created:
 * $key_out
 * $crt_out"
+	fi
 } # => self_sign()
 
 # gen-dh backend:
