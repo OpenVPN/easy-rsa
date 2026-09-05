@@ -2936,6 +2936,11 @@ $EASYRSA_EXTRA_EXTS"
 			# Edwards curve name
 			algo="$EASYRSA_CURVE"
 			;;
+		pqc)
+			# Post-Quantum Cryptography
+			algo_opts="$EASYRSA_PQC_ALGO"
+			verbose "PQC algo: $EASYRSA_PQC_ALGO"
+			;;
 		*)
 			die "gen_req - Unknown algorithm: $EASYRSA_ALGO"
 	esac
