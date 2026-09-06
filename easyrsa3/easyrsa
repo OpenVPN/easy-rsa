@@ -2054,6 +2054,8 @@ Run 'easyrsa --pqc-provider=$EASYRSA_PQC_PROVIDER list-pqc'."
 
 	# Verify user settings
 	verbose "TRY: Algo: '$EASYRSA_ALGO' - Curve: '$EASYRSA_CURVE'"
+	# reset $pqc_validate_for_signing_count for init-pki ONLY
+	pqc_validate_for_signing_count=
 	verify_algo_params
 
 	# EasyRSA will NOT do 'rm -rf /'
