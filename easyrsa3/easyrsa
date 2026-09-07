@@ -2925,11 +2925,14 @@ $EASYRSA_EXTRA_EXTS"
 	easyrsa_mktemp req_out_tmp
 
 	# Set algorithm options
-	algo_opts=""
+	algo=""
+	ec_paramfile=""
+	pkey_opt=""
 	case "$EASYRSA_ALGO" in
 		rsa)
 			# RSA bit-length
-			algo_opts="$EASYRSA_ALGO:$EASYRSA_ALGO_PARAMS"
+			algo="$EASYRSA_ALGO"
+			pkey_opt="rsa_keygen_bits:$EASYRSA_ALGO_PARAMS"
 			;;
 		ec)
 			# Elliptic curve parameters-file
@@ -2942,36 +2945,33 @@ $EASYRSA_EXTRA_EXTS"
 				verbose "EASYRSA_ALGO_PARAMS: $EASYRSA_ALGO_PARAMS"
 			fi
 
-			algo_opts="$EASYRSA_ALGO:$EASYRSA_ALGO_PARAMS"
+			ec_paramfile="$EASYRSA_ALGO_PARAMS"
 			;;
 		ed)
 			# Edwards curve name
-			algo_opts="$EASYRSA_CURVE"
+			algo="$EASYRSA_CURVE"
 			;;
 		pqc)
 			# Post-Quantum Cryptography
-			algo_opts="$EASYRSA_PQC_ALGO"
-			verbose "PQC algo: $EASYRSA_PQC_ALGO"
+			algo="$EASYRSA_PQC_ALGO"
 			;;
 		*)
 			die "gen_req - Unknown algorithm: $EASYRSA_ALGO"
 	esac
 
-	# For PQC, generate key and req separately
-	# because -newkey may not work with all PQC algorithms
-
 	# genpkey writes an unencrypted key unless a cipher is given.
-	cipher=
-	[ "$EASYRSA_NO_PASS" ] || cipher=-aes256
+	[ "$EASYRSA_NO_PASS" ] && unset -v cipher
 
 	# Generate key
 	# -passout defines the new key password to generate the key
 	easyrsa_openssl genpkey \
-		-algorithm "$algo_opts" \
 		-out "$key_out_tmp" \
+		${algo:+ -algorithm "$algo"} \
+		${ec_paramfile:+ -paramfile "$ec_paramfile"} \
+		${pkey_opt:+ -pkeyopt "$pkey_opt"} \
 		${cipher:+ "$cipher"} \
 		${EASYRSA_PASSOUT:+ -passout "$EASYRSA_PASSOUT"} \
-			|| die "Failed to generate PQC key ($EASYRSA_PQC_ALGO)"
+			|| die "Failed to generate key"
 
 	# Generate request
 	# -passin uses the new key password to read the key
