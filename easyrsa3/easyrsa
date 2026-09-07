@@ -6249,7 +6249,13 @@ ssl_cert_digest() {
 			fn_ssl_out=""
 			# digest verification is not required
 		;;
-		*) die "ssl_cert_digest - Unknown Sig-Alg: '$fn_ssl_out'"
+		*)
+			if is_pqc_sig_algo "$fn_ssl_out"; then
+				fn_ssl_out=""
+				# Let the PQC provider select its digest behavior
+			else
+				die "ssl_cert_digest - Unknown Sig-Alg: '$fn_ssl_out'"
+			fi
 	esac
 
 	force_set_var "$2" "$fn_ssl_out" || \
