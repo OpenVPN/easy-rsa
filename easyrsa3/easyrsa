@@ -2927,7 +2927,6 @@ $EASYRSA_EXTRA_EXTS"
 		rsa)
 			# RSA bit-length
 			algo="$EASYRSA_ALGO"
-<<<<<<< HEAD
 			pkey_opt1="rsa_keygen_bits:$EASYRSA_ALGO_PARAMS"
 			;;
 		ec)
