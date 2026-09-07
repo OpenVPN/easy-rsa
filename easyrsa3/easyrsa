@@ -2927,6 +2927,7 @@ $EASYRSA_EXTRA_EXTS"
 		rsa)
 			# RSA bit-length
 			algo="$EASYRSA_ALGO"
+<<<<<<< HEAD
 			pkey_opt1="rsa_keygen_bits:$EASYRSA_ALGO_PARAMS"
 			;;
 		ec)
@@ -2940,8 +2941,7 @@ $EASYRSA_EXTRA_EXTS"
 			;;
 		pqc)
 			# Post-Quantum Cryptography
-			algo_opts="$EASYRSA_PQC_ALGO"
-			verbose "PQC algo: $EASYRSA_PQC_ALGO"
+			algo="$EASYRSA_PQC_ALGO"
 			;;
 		*)
 			die "gen_req - Unknown algorithm: $EASYRSA_ALGO"
