@@ -6355,7 +6355,7 @@ Elliptic curve cryptography cannot be use with algo '$EASYRSA_ALGO'"
 			unset -v EASYRSA_ALGO_PARAMS
 			easyrsa_mktemp EASYRSA_ALGO_PARAMS
 			"$EASYRSA_OPENSSL" ecparam -name "$EASYRSA_CURVE" \
-				-out "$EASYRSA_ALGO_PARAMS" >/dev/null 2>&1 || user_error \
+				-out "$EASYRSA_ALGO_PARAMS" || user_error \
 					"Failed to generate ecparams for curve '$EASYRSA_CURVE'"
 		else
 			# Verify only
