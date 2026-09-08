@@ -2926,19 +2926,18 @@ $EASYRSA_EXTRA_EXTS"
 
 	# Set algorithm options
 	algo=""
-	ec_paramfile=""
-	pkey_opt=""
+	pkey_opt1=""
+	pkey_opt2=""
 	case "$EASYRSA_ALGO" in
 		rsa)
 			# RSA bit-length
 			algo="$EASYRSA_ALGO"
-			pkey_opt="rsa_keygen_bits:$EASYRSA_ALGO_PARAMS"
+			pkey_opt1="rsa_keygen_bits:$EASYRSA_ALGO_PARAMS"
 			;;
 		ec)
 			# Elliptic curve parameters-file
-			[ -f "$EASYRSA_ALGO_PARAMS" ] || \
-				die "Missing EC params file: '$EASYRSA_ALGO_PARAMS'"
-			ec_paramfile="$EASYRSA_ALGO_PARAMS"
+			algo="$EASYRSA_ALGO"
+			pkey_opt1="ec_paramgen_curve:$EASYRSA_CURVE"
 			;;
 		ed)
 			# Edwards curve name
@@ -2962,27 +2961,23 @@ $EASYRSA_EXTRA_EXTS"
 	easyrsa_openssl genpkey \
 		-out "$key_out_tmp" \
 		${algo:+ -algorithm "$algo"} \
-		${ec_paramfile:+ -paramfile "$ec_paramfile"} \
-		${pkey_opt:+ -pkeyopt "$pkey_opt"} \
+		${pkey_opt1:+ -pkeyopt "$pkey_opt1"} \
+		${pkey_opt2:+ -pkeyopt "$pkey_opt2"} \
 		${cipher:+ "$cipher"} \
 		${EASYRSA_PASSOUT:+ -pass "$EASYRSA_PASSOUT"} \
 			|| die "Failed to generate key"
 
 	# Generate request
 	# -passin uses the new key password to read the key
-	if easyrsa_openssl req -utf8 -new \
+	easyrsa_openssl req -utf8 -new \
 		-key "$key_out_tmp" \
 		-out "$req_out_tmp" \
 		${ssl_batch:+ -batch} \
 		${EASYRSA_TEXT_ON:+ -text} \
 		${text:+ -text} \
 		${EASYRSA_NO_PASS:+ "$no_password"} \
-		${EASYRSA_PASSOUT:+ -passin "$EASYRSA_PASSOUT"}
-	then
-		: # ok
-	else
-		die "Failed to generate request"
-	fi
+		${EASYRSA_PASSOUT:+ -passin "$EASYRSA_PASSOUT"} \
+			|| die "Failed to generate request"
 
 	# Move temp-files to target-files
 	mv "$key_out_tmp" "$key_out" || mv_temp_error=1
