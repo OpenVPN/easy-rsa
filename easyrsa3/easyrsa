@@ -2956,14 +2956,16 @@ $EASYRSA_EXTRA_EXTS"
 	[ "$EASYRSA_NO_PASS" ] && unset -v cipher
 
 	# Generate key
-	# -passout defines the new key password to generate the key
+	# -pass defines the new key password to generate the key
+	# -pass should be -passout -- option names are a problem
+	# https://github.com/OpenVPN/easy-rsa/issues/838
 	easyrsa_openssl genpkey \
 		-out "$key_out_tmp" \
 		${algo:+ -algorithm "$algo"} \
 		${ec_paramfile:+ -paramfile "$ec_paramfile"} \
 		${pkey_opt:+ -pkeyopt "$pkey_opt"} \
 		${cipher:+ "$cipher"} \
-		${EASYRSA_PASSOUT:+ -passout "$EASYRSA_PASSOUT"} \
+		${EASYRSA_PASSOUT:+ -pass "$EASYRSA_PASSOUT"} \
 			|| die "Failed to generate key"
 
 	# Generate request
