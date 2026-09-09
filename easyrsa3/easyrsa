@@ -2645,50 +2645,34 @@ Cannot self-sign this request for '$file_name_base'.
 Conflicting certificate exists at:
 * $crt_out"
 
-	# Check algo and curve
+	# Set algorithm options
+	algo=""
+	pkey_opt1=""
+	pkey_opt2=""
 	case "$EASYRSA_ALGO" in
-		rsa|ec)
-			# Silently use ec instead of rsa
-			export EASYRSA_ALGO=ec
-			# Selectively set --curve=secp384r1
-			set_var EASYRSA_CURVE secp384r1
-
-			# temp-file for params-file
-			selfsign_params_file=""
-			easyrsa_mktemp selfsign_params_file
-
-			# params-file
-			"$EASYRSA_OPENSSL" ecparam \
-				-name "$EASYRSA_CURVE" \
-				-out "$selfsign_params_file" || \
-					die "self_sign - params-file failed"
-
-			# OpenSSL for Windows cannot load bash style file name
-			# as the -newkey "$newkey_params"
-			# eg:      -newkey ec:/c/Users/me/foo.txt
-			# becomes: -newkey ec:/Users/me/foo.txt
-			if [ "$OS" = Windows_NT ]; then
-				selfsign_params_file="${selfsign_params_file#/?}"
-				verbose "selfsign_params_file: $selfsign_params_file"
-			fi
-
-			newkey_params="$EASYRSA_ALGO":"$selfsign_params_file"
+		rsa)
+			# RSA bit-length
+			algo="$EASYRSA_ALGO"
+			pkey_opt1="rsa_keygen_bits:$EASYRSA_ALGO_PARAMS"
+			;;
+		ec)
+			# Elliptic curve parameters-file
+			algo="$EASYRSA_ALGO"
+			pkey_opt1="ec_paramgen_curve:$EASYRSA_CURVE"
 			;;
 		ed)
-			# Selectively set --curve=ed25519
-			set_var EASYRSA_CURVE ed25519
-			newkey_params="$EASYRSA_CURVE"
+			# Edwards curve name
+			algo="$EASYRSA_CURVE"
 			;;
 		pqc)
 			# Post-Quantum Cryptography
-			newkey_params="$EASYRSA_PQC_ALGO"
-			verbose "self_sign PQC algo: $EASYRSA_PQC_ALGO"
+			algo="$EASYRSA_PQC_ALGO"
 			;;
 		*)
-			user_error "Unrecognised algorithm: '$EASYRSA_ALGO'"
+			die "gen_req - Unknown algorithm: $EASYRSA_ALGO"
 	esac
 	verbose "Use ALGO: '$EASYRSA_ALGO'"
-	verbose "With: '${EASYRSA_CURVE:-$EASYRSA_PQC_ALGO}'"
+	verbose "${pkey_opt1:+With: '$pkey_opt1'}"
 
 	# Assign tmp-file for config
 	adjusted_ssl_cnf_tmp=""
@@ -2725,19 +2709,36 @@ Conflicting certificate exists at:
 	tmp_crt_out=""
 	easyrsa_mktemp tmp_crt_out
 
+	# genpkey writes an unencrypted key unless a cipher is given.
+	cipher=""
+	[ "$EASYRSA_NO_PASS" ] || cipher="-aes256"
+
+	# Generate key
+	# -pass defines the new key password to generate the key
+	# -pass should be -passout -- option names are a problem
+	# https://github.com/OpenVPN/easy-rsa/issues/838
+	easyrsa_openssl genpkey \
+		-out "$tmp_key_out" \
+		${algo:+ -algorithm "$algo"} \
+		${pkey_opt1:+ -pkeyopt "$pkey_opt1"} \
+		${pkey_opt2:+ -pkeyopt "$pkey_opt2"} \
+		${cipher:+ "$cipher"} \
+		${EASYRSA_PASSOUT:+ -pass "$EASYRSA_PASSOUT"} \
+			|| die "Failed to generate key"
+
 	# create self-signed key pair
+	# -passin defines the key password to generate the certificate
 	easyrsa_openssl req -x509 -utf8 -sha256 -text \
-		-newkey "$newkey_params" \
-		-keyout "$tmp_key_out" \
+		-key "$tmp_key_out" \
 		-out "$tmp_crt_out" \
 		${EASYRSA_BATCH:+ -batch} \
 		${EASYRSA_TEXT_ON:+ -text} \
 		${EASYRSA_NO_PASS:+ "$no_password"} \
-		${EASYRSA_PASSIN:+ -passin "$EASYRSA_PASSIN"} \
-		${EASYRSA_PASSOUT:+ -passout "$EASYRSA_PASSOUT"} \
+		${EASYRSA_PASSOUT:+ -passin "$EASYRSA_PASSOUT"} \
 		${EASYRSA_CERT_EXPIRE:+ -days "$EASYRSA_CERT_EXPIRE"} \
 		${EASYRSA_START_DATE:+ -startdate "$EASYRSA_START_DATE"} \
-		${EASYRSA_END_DATE:+ -enddate "$EASYRSA_END_DATE"}
+		${EASYRSA_END_DATE:+ -enddate "$EASYRSA_END_DATE"} \
+			|| die "Failed to generate certificate"
 
 	# Move temp-files to target-files
 	mv "$tmp_key_out" "$key_out" || mv_temp_error=1
