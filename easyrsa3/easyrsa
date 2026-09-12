@@ -3666,6 +3666,8 @@ $(cat "$inline_tmp")
 	inline_private=
 
 	# output
+	tmp_inline=
+	easyrsa_mktemp tmp_inline
 	inline_out="${EASYRSA_PKI}/inline/${1}.inline"
 
 	# Generate Inline data
@@ -3726,7 +3728,7 @@ $(cat "$inline_tmp")
 # commonName: $inline_crt_CN
 # SHA256 fingerprint:
 # $crt_fingerprint
-# Decimal serial number: $crt_serial_dec" > "$inline_out" || \
+# Decimal serial number: $crt_serial_dec" > "$tmp_inline" || \
 		die "inline_file; write header"
 
 	# Write Certificate
@@ -3735,10 +3737,10 @@ $(cat "$inline_tmp")
 			print "${NL}<cert>"
 			cat "$crt_source"
 			print "</cert>"
-		} >> "$inline_out" || \
+		} >> "$tmp_inline" || \
 				die "inline_file; write crt_source"
 	else
-		print "$no_crt_data" >> "$inline_out" || \
+		print "$no_crt_data" >> "$tmp_inline" || \
 			die "inline_file; write no_crt_data"
 	fi
 
@@ -3749,7 +3751,7 @@ $(cat "$inline_tmp")
 			print "${NL}<key>"
 			cat "$key_source"
 			print "</key>"
-		} >> "$inline_out" || \
+		} >> "$tmp_inline" || \
 				die "inline_file; write key_source"
 	else
 		inline_incomplete="Missing private key"
@@ -3760,7 +3762,7 @@ $(cat "$inline_tmp")
 # <key>
 # * Paste your private key here *
 # </key>"
-		print "$no_key_data" >> "$inline_out" || \
+		print "$no_key_data" >> "$tmp_inline" || \
 			die "inline_file; write no_key_data"
 	fi
 
@@ -3773,13 +3775,13 @@ $(cat "$inline_tmp")
 			print "\
 # Since OpenVPN 2.6 --peer-fingerprint --client does not require a CA
 # OpenVPN 2.5 or older requires the self-siged-server certificate
-# placed here." >> "$inline_out" || \
+# placed here." >> "$tmp_inline" || \
 				die "inline_file; write CA self-signed-client"
 		;;
 		self-signed-server)
 			print "\
 # CA ceriticate not required for --peer-fingerprint server" \
-				>> "$inline_out" || \
+				>> "$tmp_inline" || \
 					die "inline_file; write CA self-signed-server"
 		;;
 		*)
@@ -3794,7 +3796,7 @@ $(cat "$inline_tmp")
 						cat "$external_ca_list"
 					fi
 					print "</ca>"
-				} >> "$inline_out" || \
+				} >> "$tmp_inline" || \
 						die "inline_file; write CA ca_source"
 			else
 				inline_incomplete="Missing CA"
@@ -3805,7 +3807,7 @@ $(cat "$inline_tmp")
 # <ca>
 # * Paste your CA certificate here *
 # </ca>"
-				print "$no_ca_data" >> "$inline_out" || \
+				print "$no_ca_data" >> "$tmp_inline" || \
 					die "inline_file; write no_ca_data"
 			fi
 	esac
@@ -3844,7 +3846,7 @@ dh none"
 		*) : # ok, not server
 	esac
 	# Append DH data to CA data
-	print "${NL}${dh_params_data}" >> "$inline_out" || \
+	print "${NL}${dh_params_data}" >> "$tmp_inline" || \
 		die "inline_file; write dh_params_data"
 
 	# TLS KEY - Set TLS auth|crypt key inline label
@@ -3912,12 +3914,16 @@ ${tls_key_data}
 	fi
 
 	# Write TLS KEY
-	print "${NL}$tls_data" >> "$inline_out" || \
+	print "${NL}$tls_data" >> "$tmp_inline" || \
 		die "inline_file; write tls_data"
 
 	# If inline file has keys then redirect to 'private' dir
 	[ "$inline_private" ] && \
 		inline_out="${EASYRSA_PKI}/inline/private/${1}.inline"
+
+	# Move completed temp inline file to target out file
+	mv "$tmp_inline" "$inline_out" || \
+		warn "Failed to move inline temp-file to target-file"
 
 	# Use inline type pfp
 	case "$inline_type" in
