@@ -3598,6 +3598,7 @@ inline_file() {
 		verbose "inline_file; DISABLED"
 		return
 	fi
+	verbose "inline_file; BEGIN"
 
 	# Set inline type
 	case "$1" in
@@ -3670,11 +3671,6 @@ $(cat "$inline_tmp")
 	# Generate Inline data
 	# Certificate
 	if [ -f "$crt_source" ]; then
-		crt_data="\
-<cert>
-$(cat "$crt_source")
-</cert>"
-
 		# Calculate decimal value for serial number
 		# because openvpn uses decimal serial
 		# for '--crl-verify /path/to/dir dir'
@@ -3710,7 +3706,7 @@ $(cat "$crt_source")
 		inline_crt_CN="${inline_crt_CN#*= }"
 	else
 		inline_incomplete="Missing certificate"
-		crt_data="\
+		no_crt_data="
 # When you recieve your signed certificate place it in the
 # 'pki/issued' sub-dir of your PKI and use command 'inline'
 # to rebuild this inline file with your certificate.
@@ -3723,62 +3719,94 @@ $(cat "$crt_source")
 		inline_crt_CN=unknown
 	fi
 
-	# Private key
+	# Write Header
+	print "\
+# Easy-RSA Inline file
+# Certificate type: $inline_crt_type
+# commonName: $inline_crt_CN
+# SHA256 fingerprint:
+# $crt_fingerprint
+# Decimal serial number: $crt_serial_dec" > "$inline_out" || \
+		die "inline_file; write header"
+
+	# Write Certificate
+	if [ -f "$crt_source" ]; then
+		{
+			print "${NL}<cert>"
+			cat "$crt_source"
+			print "</cert>"
+		} >> "$inline_out" || \
+				die "inline_file; write crt_source"
+	else
+		print "$no_crt_data" >> "$inline_out" || \
+			die "inline_file; write no_crt_data"
+	fi
+
+	# Write Private Key
 	if [ -f "$key_source" ]; then
 		inline_private=1
-		key_data="\
-<key>
-$(cat "$key_source")
-</key>"
+		{
+			print "${NL}<key>"
+			cat "$key_source"
+			print "</key>"
+		} >> "$inline_out" || \
+				die "inline_file; write key_source"
 	else
 		inline_incomplete="Missing private key"
-		key_data="\
+		no_key_data="\
 # When you recieve your key place it in the
 # 'pki/private' sub-dir of your PKI and use command 'inline'
 # to rebuild this inline file with your key.
 # <key>
 # * Paste your private key here *
 # </key>"
+		print "$no_key_data" >> "$inline_out" || \
+			die "inline_file; write no_key_data"
 	fi
 
-	# CA certificate
-	ca_data=
-	ext_ca_data=
+	# Write CA certificate
 	case "$inline_crt_type" in
 		# OpenVPN 2.5 or older does not support --peer-fingerprint
 		# Easy-RSA does not support old OpenVPN because it is not
 		# possible to determine which self-siged-server cert to use.
 		self-signed-client)
-			ca_data="\
+			print "\
 # Since OpenVPN 2.6 --peer-fingerprint --client does not require a CA
 # OpenVPN 2.5 or older requires the self-siged-server certificate
-# placed here."
+# placed here." >> "$inline_out" || \
+				die "inline_file; write CA self-signed-client"
 		;;
 		self-signed-server)
-			ca_data="\
-# CA ceriticate not required for --peer-fingerprint server"
+			print "\
+# CA ceriticate not required for --peer-fingerprint server" \
+				>> "$inline_out" || \
+					die "inline_file; write CA self-signed-server"
 		;;
 		*)
 			if [ -f "$ca_source" ]; then
-				# External CA
-				if [ -f "$external_ca_list" ]; then
-					ext_ca_data="${NL}$(cat "$external_ca_list")"
-				fi
-
 				# Standard CA
-				ca_data="\
-<ca>
-$(cat "$ca_source")${ext_ca_data}
-</ca>"
+				{
+					print "${NL}<ca>"
+					cat "$ca_source"
+					# Write External CA
+					if [ -f "$external_ca_list" ]; then
+						print "${NL}# External CA"
+						cat "$external_ca_list"
+					fi
+					print "</ca>"
+				} >> "$inline_out" || \
+						die "inline_file; write CA ca_source"
 			else
 				inline_incomplete="Missing CA"
-				ca_data="\
+				no_ca_data="\
 # When you recieve your CA certificate place it in the
 # 'pki' sub-dir of your PKI and use command 'inline'
 # to rebuild this inline file with your CA certificate.
 # <ca>
 # * Paste your CA certificate here *
 # </ca>"
+				print "$no_ca_data" >> "$inline_out" || \
+					die "inline_file; write no_ca_data"
 			fi
 	esac
 
@@ -3789,34 +3817,35 @@ $(cat "$ca_source")${ext_ca_data}
 		# Collect DH data
 		if [ "$EASYRSA_ALGO" = rsa ]; then
 			if [ -f "$dh_params_source" ]; then
-				dh_params_data="${NL}
+				dh_params_data="\
 <dh>
 $(cat "$dh_params_source")
 </dh>"
 			else
 				inline_incomplete="Missing dh-params"
-				dh_params_data="${NL}
+				dh_params_data="\
 # <dh>
 # * Paste your Diffie-Hellman parameters file here *
 # </dh>"
 			fi
 		else
 			# ok, not RSA
-			dh_params_data="${NL}
+			dh_params_data="\
 # Diffie-Hellman parameters file not required
 dh none"
 		fi
 		;;
 		self-signed-server)
 			# ok, self-sign
-			dh_params_data="${NL}
+			dh_params_data="\
 # Diffie-Hellman parameters file not required
 dh none"
 		;;
 		*) : # ok, not server
 	esac
 	# Append DH data to CA data
-	ca_data="${ca_data}${dh_params_data}"
+	print "${NL}${dh_params_data}" >> "$inline_out" || \
+		die "inline_file; write dh_params_data"
 
 	# TLS KEY - Set TLS auth|crypt key inline label
 	tls_key_data=
@@ -3882,27 +3911,13 @@ ${tls_key_data}
 		tls_data="${tls_data}${NL}${NL}${key_direction}"
 	fi
 
+	# Write TLS KEY
+	print "${NL}$tls_data" >> "$inline_out" || \
+		die "inline_file; write tls_data"
+
 	# If inline file has keys then redirect to 'private' dir
 	[ "$inline_private" ] && \
 		inline_out="${EASYRSA_PKI}/inline/private/${1}.inline"
-
-	# Print data
-	print "\
-# Easy-RSA Inline file
-# Certificate type: $inline_crt_type
-# commonName: $inline_crt_CN
-# SHA256 fingerprint:
-# $crt_fingerprint
-# Decimal serial number: $crt_serial_dec
-
-$crt_data
-
-$key_data
-
-$ca_data
-
-$tls_data
-" > "$inline_out"
 
 	# Use inline type pfp
 	case "$inline_type" in
