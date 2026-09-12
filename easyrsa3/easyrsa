@@ -3922,7 +3922,8 @@ ${tls_key_data}
 		inline_out="${EASYRSA_PKI}/inline/private/${1}.inline"
 
 	# Move completed temp inline file to target out file
-	mv "$tmp_inline" "$inline_out" || \
+	# Use cat, bacause windows/mv.exe will not overwrite
+	cat "$tmp_inline" > "$inline_out" || \
 		warn "Failed to move inline temp-file to target-file"
 
 	# Use inline type pfp
