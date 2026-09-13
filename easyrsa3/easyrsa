@@ -1899,6 +1899,7 @@ pqc_set_algo() {
 Please specify a PQC algorithm.
 Run 'easyrsa list-pqc' to see available algorithms."
 
+	pqc_validate_for_signing_count=
 	pqc_validate_for_signing "$_algo"
 
 	print ""
