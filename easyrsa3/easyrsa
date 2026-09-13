@@ -3616,6 +3616,11 @@ inline_file() {
 	dh_params_source="$EASYRSA_PKI"/dh.pem
 	external_ca_list="$EASYRSA_PKI"/inline/external-ca.list
 
+	# output
+	tmp_inline=
+	easyrsa_mktemp tmp_inline
+	inline_out="${EASYRSA_PKI}/inline/${1}.inline"
+
 	# make inline dir
 	mkdir -p "$EASYRSA_PKI"/inline/private || \
 		die "inline_file() - failed to create 'inline' directory."
@@ -3633,6 +3638,7 @@ inline_file() {
 	# Use inline type p12
 	case "$inline_type" in
 	p12)
+		# Redirect to private
 		inline_out="${EASYRSA_PKI}/inline/private/${1}.p12-inline"
 
 		# Get cert CN
@@ -3643,19 +3649,21 @@ inline_file() {
 		inline_CN="${inline_CN##*= }"
 
 		# BASE64 encode pkcs12 source file
-		inline_tmp=
-		easyrsa_mktemp inline_tmp
-		"$EASYRSA_OPENSSL" enc -a -in "$2" > "$inline_tmp" || return 1
+		tmp_b64=""
+		easyrsa_mktemp tmp_b64
+		"$EASYRSA_OPENSSL" enc -a -in "$2" > "$tmp_b64" || return 1
 
 		# make inline file
-		print "\
+		{
+			print "\
 # Easy-RSA Inline file
 # Inline type: BASE64 pkcs12
 # commonName: ${inline_CN}
 
-<pkcs12>
-$(cat "$inline_tmp")
-</pkcs12>" > "$inline_out" || return 1
+<pkcs12>"
+			cat "$tmp_b64"
+			print "</pkcs12>"
+		} > "$inline_out" || return 1
 
 		# p12 inline file completed
 		return
@@ -3664,11 +3672,6 @@ $(cat "$inline_tmp")
 	# flags
 	inline_incomplete=
 	inline_private=
-
-	# output
-	tmp_inline=
-	easyrsa_mktemp tmp_inline
-	inline_out="${EASYRSA_PKI}/inline/${1}.inline"
 
 	# Generate Inline data
 	# Certificate
