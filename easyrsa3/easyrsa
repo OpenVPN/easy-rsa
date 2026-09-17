@@ -2814,9 +2814,7 @@ check_serial_unique() {
 	# Check for openssl -status of serial number
 	# Always errors out - Do not capture error
 	check_serial="$(
-			[ "$ssl_lib_name" = openssl ] && \
-				export OPENSSL_CONF="$EASYRSA_SSL_CONF"
-			"$EASYRSA_OPENSSL" ca -status "$1" 2>&1
+			easyrsa_openssl ca -status "$1" 2>&1
 		)" || :
 
 	# Check for duplicate serial in CA db
