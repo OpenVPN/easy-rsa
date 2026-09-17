@@ -2814,7 +2814,8 @@ check_serial_unique() {
 	# Check for openssl -status of serial number
 	# Always errors out - Do not capture error
 	check_serial="$(
-			export OPENSSL_CONF="$EASYRSA_SSL_CONF"
+			[ "$ssl_lib_name" = openssl ] && \
+				export OPENSSL_CONF="$EASYRSA_SSL_CONF"
 			"$EASYRSA_OPENSSL" ca -status "$1" 2>&1
 		)" || :
 
@@ -2839,6 +2840,7 @@ check_serial_unique() {
 		if [ "$unique_serial_true" ]; then
 			return 0
 		else
+			verbose "check_serial_unique; check_serial:${NL}$check_serial"
 			return 1
 		fi
 	fi
