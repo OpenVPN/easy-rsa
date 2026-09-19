@@ -1,6 +1,6 @@
 Easy-RSA 3 ChangeLog
 
-3.2.7 (TBD)
+3.2.7 (2026-09-19)
 
    * Minor changes required to support Git Bash for Windows
      (ade5653) (dd55451) (f2591fc) (5d389e4) (cb1c437) (#1454)
