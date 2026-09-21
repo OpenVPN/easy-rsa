@@ -2729,7 +2729,7 @@ Conflicting certificate exists at:
 
 	# create self-signed key pair
 	# -passin defines the key password to generate the certificate
-	easyrsa_openssl req -x509 -utf8 -sha256 -text \
+	easyrsa_openssl req -x509 -new -utf8 -sha256 -text \
 		-key "$tmp_key_out" \
 		-out "$tmp_crt_out" \
 		${EASYRSA_BATCH:+ -batch} \
