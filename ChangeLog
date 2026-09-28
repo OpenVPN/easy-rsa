@@ -2,6 +2,8 @@ Easy-RSA 3 ChangeLog
 
 3.2.8 (TBD)
 
+   * gen-req: Remove batch mode access to delete existing files
+     (9724683) (#1469)
    * inline_file(): Workaround Win/printf.exe limit by using cat
      (afc796a) (#1467)
 
