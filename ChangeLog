@@ -2,6 +2,8 @@ Easy-RSA 3 ChangeLog
 
 3.2.8 (TBD)
 
+   * X509 Types: Remove 'keyEncipherment' from 'keyUsage'
+     (a6d6580) (#1472)
    * gen-req: Remove batch mode access to delete existing files
      (9724683) (#1469)
    * inline_file(): Workaround Win/printf.exe limit by using cat
