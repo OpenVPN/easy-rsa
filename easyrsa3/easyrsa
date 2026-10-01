@@ -6543,7 +6543,8 @@ create_legacy_stream() {
 		basicConstraints = CA:FALSE
 		subjectKeyIdentifier = hash
 		authorityKeyIdentifier = keyid,issuer:always
-		keyUsage = digitalSignature,keyEncipherment
+		# keyUsage = digitalSignature,keyEncipherment
+		keyUsage = digitalSignature
 		CREATE_X509_TYPE_EASYRSA
 		;;
 	serverClient)
@@ -6583,7 +6584,7 @@ create_legacy_stream() {
 		subjectKeyIdentifier = hash
 		authorityKeyIdentifier = keyid:always,issuer:always
 		basicConstraints = CA:TRUE
-		keyUsage = digitalSignature,keyEncipherment
+		keyUsage = digitalSignature
 		CREATE_X509_TYPE_SELFSIGN
 
 		print "extendedKeyUsage = $selfsign_eku"
@@ -6600,6 +6601,8 @@ create_legacy_stream() {
 		;;
 	email)
 	# email
+	# `keyEncipherment` remains because using easyrsa for email
+	# certificates will likely involve very old email software.
 		cat <<- "CREATE_X509_TYPE_EMAIL"
 		basicConstraints = CA:FALSE
 		subjectKeyIdentifier = hash
