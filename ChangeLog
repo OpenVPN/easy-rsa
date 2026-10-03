@@ -2,6 +2,8 @@ Easy-RSA 3 ChangeLog
 
 3.2.8 (TBD)
 
+   * gen-req: Split key from request generation
+     (0e116a7) (#1474)
    * X509 Types: Remove 'keyEncipherment' from 'keyUsage'
      (a6d6580) (#1472)
    * gen-req: Remove batch mode access to delete existing files
