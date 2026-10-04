@@ -2820,6 +2820,7 @@ check_serial_unique() {
 			if [ "$EASYRSA_FORCE_SAFE_SSL" ]; then
 				: # Use the previously exported safe OPENSSL_CONF
 			else
+				# shellcheck disable=SC2030 # local to subshell
 				export OPENSSL_CONF="$EASYRSA_SSL_CONF"
 			fi
 			"$EASYRSA_OPENSSL" ca -status "$1" 2>&1
@@ -3835,7 +3836,7 @@ The certificate file is not in a valid X509 format:
 	cert_opts=
 	name_opts="utf8,sep_multiline,space_eq,lname,align"
 	if [ "$ssl_lib_name" = libressl ]; then
-		verbose "Extract full text CA for _$ssl_lib_name_"
+		verbose "Extract full text CA for $ssl_lib_name"
 		"$EASYRSA_OPENSSL" x509 -in "$in_ext_ca" \
 			-text -nameopt "$name_opts" -certopt "$cert_opts" \
 			>"$ext_ca_tmp" || \
@@ -6258,6 +6259,8 @@ write_global_safe_ssl_cnf_tmp() {
 	easyrsa_mktemp global_safe_ssl_cnf_tmp
 	write_legacy_file_v2 safe-cnf "$global_safe_ssl_cnf_tmp" \
 		overwrite || die "verify_working_env - write safe-cnf"
+	# shellcheck disable=SC2031 # modified in a subshell
+	# see check_serial_unique()
 	export OPENSSL_CONF="$global_safe_ssl_cnf_tmp"
 	verbose "\
 write_global_safe_ssl_cnf_tmp; GLOBAL OPENSSL_CONF = $OPENSSL_CONF"
