@@ -2438,6 +2438,9 @@ The certificate request file is not in a valid X509 format:
 			easyrsa_random 16 serial
 
 			# Require 128bit serial number
+			# The value of $serial is a 128bit string returned by rand
+			# not a formatted serial number. Only a string beginning
+			# with '00' is cropped by conversion to serial number
 			[ "$serial" = "${serial#00}" ] || continue
 
 			# Check for duplicate serial in CA db
