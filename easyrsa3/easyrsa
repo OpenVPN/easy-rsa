@@ -2281,6 +2281,7 @@ $EASYRSA_EXTRA_EXTS"
 
 	# Set algorithm options
 	algo=""
+	cipher="-aes256"
 	pkey_opt1=""
 	pkey_opt2=""
 	case "$EASYRSA_ALGO" in
