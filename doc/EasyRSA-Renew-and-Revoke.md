@@ -48,7 +48,7 @@ in the original.
 User added attributes from `$EASYRSA_EXTRA_EXTS`, that are not supported,
 are dropped.
 
-If the renewed certificate requires unsupported attibutes or changing the
+If the renewed certificate requires unsupported attributes or changing the
 `commonName` then the following process, that of expiry and then signing a
 new certificate from the original request file, is required.
 
