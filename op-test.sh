@@ -113,7 +113,9 @@ run_unit_test ()
 			estat=1
 		else
 			log ">>>>>>: sh ${utest_bin} ${verb}"
-			if sh "${utest_bin}" "${verb}" "$use_passwords"; then
+			if sh "${utest_bin}" "${verb}" "$use_passwords" \
+				${no_delete:+ -k}
+			then
 				log "OK"
 				estat=0
 				if [ "$EASYRSA_BY_TINCANTECH" ]; then
