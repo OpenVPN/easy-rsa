@@ -291,8 +291,8 @@ Usage: easyrsa [ OPTIONS.. ] <COMMAND> <TARGET> [ cmd-opts.. ]"
       certificates which have been either 'expired' or 'renewed' by
       Easy-RSA commands 'expire' or 'renew'.
 
-      Commmand 'revoke' is DEPRECATED and can ONLY be used in batch mode.
-      Commmand 'revoke-issued' REPLACES command 'revoke'.
+      Command 'revoke' is DEPRECATED and can ONLY be used in batch mode.
+      Command 'revoke-issued' REPLACES command 'revoke'.
 
       REQUIRED COMMANDS:
 
@@ -3058,7 +3058,7 @@ inline_file() {
 	else
 		inline_incomplete="Missing certificate"
 		no_crt_data="
-# When you recieve your signed certificate place it in the
+# When you receive your signed certificate place it in the
 # 'pki/issued' sub-dir of your PKI and use command 'inline'
 # to rebuild this inline file with your certificate.
 # <cert>
@@ -3105,7 +3105,7 @@ inline_file() {
 	else
 		inline_incomplete="Missing private key"
 		no_key_data="\
-# When you recieve your key place it in the
+# When you receive your key place it in the
 # 'pki/private' sub-dir of your PKI and use command 'inline'
 # to rebuild this inline file with your key.
 # <key>
@@ -3150,7 +3150,7 @@ inline_file() {
 			else
 				inline_incomplete="Missing CA"
 				no_ca_data="\
-# When you recieve your CA certificate place it in the
+# When you receive your CA certificate place it in the
 # 'pki' sub-dir of your PKI and use command 'inline'
 # to rebuild this inline file with your CA certificate.
 # <ca>
@@ -3271,7 +3271,7 @@ ${tls_key_data}
 		inline_out="${EASYRSA_PKI}/inline/private/${1}.inline"
 
 	# Move completed temp inline file to target out file
-	# Use cat, bacause windows/mv.exe will not overwrite
+	# Use cat, because windows/mv.exe will not overwrite
 	cat "$tmp_inline" > "$inline_out" || \
 		warn "Failed to move inline temp-file to target-file"
 
@@ -4999,7 +4999,7 @@ The inline credentials files:
 * $inline_pub
 * $inline_pri
 
-The CA attibutes file will be set to 'unique_subject = no'.
+The CA attributes file will be set to 'unique_subject = no'.
 Required to create a new certificate with an existing name."
 
 	# Set 'unique_subject = no' in index.txt.attr
