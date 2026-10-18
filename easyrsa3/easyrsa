@@ -2942,7 +2942,7 @@ $EASYRSA_EXTRA_EXTS"
 			;;
 		pqc)
 			# Post-Quantum Cryptography
-			algo_opts="$EASYRSA_PQC_ALGO"
+			algo="$EASYRSA_PQC_ALGO"
 			;;
 		*)
 			die "gen_req - Unknown algorithm: $EASYRSA_ALGO"
