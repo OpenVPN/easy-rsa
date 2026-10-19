@@ -197,7 +197,7 @@ an old certificate/key pair, which has been _rebuilt_ by command `rebuild`.
 Renew CA Certificate
 ====================
 
-Easy-RSA Version `3.2.2+ includes command `renew-ca`, which will create a new
+Easy-RSA Version `3.2.2+` includes command `renew-ca`, which will create a new
 CA certificate using the original CA key.  This new certificate will completely
 replace the previous CA certificate.  This command can be safely tested without
 disturbing your current PKI. The command requires user confirmation before
