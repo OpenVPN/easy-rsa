@@ -108,7 +108,7 @@ The supported locations are listed, in order of preference, as follows:
 * `/etc/easy-rsa`
 
 The x509-type files can be created by using command: `easyrsa write legacy`.
-To OVER-WRITE any existing files use command: `eaysrsa write legacy-hard`.
+To OVER-WRITE any existing files use command: `easyrsa write legacy-hard`.
 This will create the files in the current PKI.  If created then these new
 files take priority over system wide versions of the same files.
 

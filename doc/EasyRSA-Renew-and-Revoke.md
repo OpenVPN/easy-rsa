@@ -48,7 +48,7 @@ in the original.
 User added attributes from `$EASYRSA_EXTRA_EXTS`, that are not supported,
 are dropped.
 
-If the renewed certificate requires unsupported attibutes or changing the
+If the renewed certificate requires unsupported attributes or changing the
 `commonName` then the following process, that of expiry and then signing a
 new certificate from the original request file, is required.
 
@@ -158,7 +158,7 @@ Using `renew` version 4
 
 #### Upgrade Easy-RSA to version `3.2.0+` is required.
 
-This is the most comprensive version of `renew`, which supports automatic
+This is the most comprehensive version of `renew`, which supports automatic
 copying of Easy-RSA X509 extensions.
 
 
@@ -257,7 +257,7 @@ Please consider the method outlined here, which requires very little work:
 
    These new `inline` files can be used by OpenVPN, examples below:
 
-   * specify: `--config <INLNE-FILE>` in the OpenVPN user config file.
+   * specify: `--config <INLINE-FILE>` in the OpenVPN user config file.
    * Use copy/paste to add the new details to the OpenVPN user config file.
    * Use `cat` to append the `inline` file to the OpenVPN user config file.
 
