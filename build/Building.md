@@ -20,6 +20,16 @@ When ready, set a match version on the tarball & inside dir with:
 For development use, omitting the --version param creates by default a
 `git-development` version.
 
+Debian Linux Build dependencies
+---
+
+The `python3-markdown` and `zip` packages are needed.  To install these
+packages on Debian Linux, use this command prior to building:
+
+```
+    apt install python3-markdown zip
+```
+
 Windows Build Extras
 ---
 
