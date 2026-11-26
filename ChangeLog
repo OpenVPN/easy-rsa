@@ -2,6 +2,9 @@ Easy-RSA 3 ChangeLog
 
 3.2.8 (TBD)
 
+   * mutual_exclusions: Allow --startdate/--enddate for command alias 'sign'
+     (5e7270e) (#1491)
+     Original bug report: Arpit Jain <arpitjain099@gmail.com>
    * gen-req: Switch to -pkeyopt to specify key parameters
      (c81f797) (#1483)
      Original bug report: Roman Maksimov rmaksimov@github #1476
