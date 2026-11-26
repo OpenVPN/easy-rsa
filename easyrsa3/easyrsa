@@ -5787,7 +5787,7 @@ Format of --startdate/--enddate must be [YY]YYMMDDhhmmssZ"
 	# --enddate may over-rule EASYRSA_CERT_EXPIRE
 	if [ "$EASYRSA_END_DATE" ]; then
 		case "$cmd" in
-			sign-req|build-*-full|renew)
+			sign|sign-req|build-*-full|renew)
 				# User specified EASYRSA_ALIAS_DAYS IS over-ruled
 				if [ "$EASYRSA_ALIAS_DAYS" ]; then
 					warn "\
