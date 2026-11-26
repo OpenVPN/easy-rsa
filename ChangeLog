@@ -2,6 +2,14 @@ Easy-RSA 3 ChangeLog
 
 3.2.8 (TBD)
 
+   * Rename internal variable EASYRSA_FORCE_VARS to force_vars
+     (4403758) (#1492)
+   * Rename internal variable EASYRSA_ALIAS_DAYS to alias_days
+     (9c61e21) (#1492)
+   * Prohibit use of EASYRSA_ALIAS_DAYS in 'vars' file
+     (b33d960) (#1492)
+   * Move internal variable initialisation to before processing options
+     (9dfacb6) (#1492)
    * mutual_exclusions: Allow --startdate/--enddate for command alias 'sign'
      (5e7270e) (#1491)
      Original bug report: Arpit Jain <arpitjain099@gmail.com>
