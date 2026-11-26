@@ -5825,6 +5825,8 @@ To correct this problem, it is recommended that you either:
 init_vars() {
 	unset -v \
 		OPENSSL_CONF \
+		EASYRSA_ALIAS_DAYS \
+		EASYRSA_FORCE_VARS \
 		verify_ssl_lib_ok \
 		ssl_batch \
 		secured_session \
@@ -5912,6 +5914,7 @@ Missing vars file:
 	# Sanitize target_file
 	if grep -v '^[[:blank:]]*#' "$target_file" | grep -q \
 		-e 'EASYRSA_PASSIN' -e 'EASYRSA_PASSOUT' \
+		-e 'EASYRSA_ALIAS_DAYS' \
 		-e '`' \
 		-e 'EASYRSA_[_[:upper:]]*=.*' \
 		-e 'export[[:blank:]]' \
@@ -5930,6 +5933,17 @@ These problems have been found in your 'vars' settings:
 			err_msg="${err_msg}${NL}
   Use of 'EASYRSA_PASSIN' or 'EASYRSA_PASSOUT':
   Storing password information in the 'vars' file is not permitted."
+			# enforce this rule
+			unset -v EASYRSA_FORCE_VARS
+		fi
+
+		# Prohibit use of EASYRSA_ALIAS_DAYS
+		if grep -v '^[[:blank:]]*#' "$target_file" | \
+			grep -q -e 'EASYRSA_ALIAS_DAYS'
+		then
+			err_msg="${err_msg}${NL}
+  Use of 'EASYRSA_ALIAS_DAYS':
+  Setting EASYRSA_ALIAS_DAYS in the 'vars' file is not permitted."
 			# enforce this rule
 			unset -v EASYRSA_FORCE_VARS
 		fi
@@ -7000,13 +7014,6 @@ init_vars || die "init_vars failed"
 
 # Get host details - No configurable input allowed
 detect_host
-
-# Protect variables from alteration by sourcing vars file
-# undocumented, not designed for use
-[ -z "$EASYRSA_ALIAS_DAYS" ] || \
-	warn "EASYRSA_ALIAS_DAYS is not suitable for external use, resetting.."
-export EASYRSA_ALIAS_DAYS=undefined # protect from sourcing vars
-unset -v EASYRSA_FORCE_VARS # has no effect after sourcing vars
 
 # Parse options
 while :; do
