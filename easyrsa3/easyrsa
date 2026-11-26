@@ -5826,7 +5826,7 @@ init_vars() {
 	unset -v \
 		OPENSSL_CONF \
 		alias_days \
-		EASYRSA_FORCE_VARS \
+		force_vars \
 		verify_ssl_lib_ok \
 		ssl_batch \
 		secured_session \
@@ -5934,7 +5934,7 @@ These problems have been found in your 'vars' settings:
   Use of 'EASYRSA_PASSIN' or 'EASYRSA_PASSOUT':
   Storing password information in the 'vars' file is not permitted."
 			# enforce this rule
-			unset -v EASYRSA_FORCE_VARS
+			unset -v force_vars
 		fi
 
 		# Prohibit use of alias_days
@@ -5945,7 +5945,7 @@ These problems have been found in your 'vars' settings:
   Use of 'alias_days':
   Setting alias_days in the 'vars' file is not permitted."
 			# enforce this rule
-			unset -v EASYRSA_FORCE_VARS
+			unset -v force_vars
 		fi
 
 		# No backticks
@@ -5985,7 +5985,7 @@ These problems have been found in your 'vars' settings:
 		fi
 
 		# Fatal error
-		if [ "$EASYRSA_FORCE_VARS" ]; then
+		if [ "$force_vars" ]; then
 			warn "${err_msg}"
 			verbose "source_vars; ignore 'vars' errors"
 		else
@@ -7157,7 +7157,7 @@ while :; do
 			;;
 		--force-vars)
 			empty_ok=1
-			export EASYRSA_FORCE_VARS=1
+			export force_vars=1
 			;;
 		--nopass|--no-pass)
 			empty_ok=1
