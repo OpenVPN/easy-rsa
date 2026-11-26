@@ -5821,6 +5821,30 @@ To correct this problem, it is recommended that you either:
 	verbose "mutual_exclusions; COMPLETED"
 } # => mutual_exclusions()
 
+# Initialisation requirements
+init_vars() {
+	unset -v \
+		OPENSSL_CONF \
+		verify_ssl_lib_ok \
+		ssl_batch \
+		secured_session \
+		write_recursion \
+		text \
+		prohibit_no_pass \
+		quiet_vars \
+		invalid_vars \
+		local_request \
+		error_build_full_cleanup \
+		selfsign_eku \
+		internal_batch \
+		mv_temp_error \
+		easyrsa_exit_with_error \
+		error_info \
+		prompt_restore \
+		mktemp_counter \
+		# EOL
+} # => init_vars()
+
 # Select vars in order preference:
 # Here sourcing of 'vars' if present occurs.
 # If not present, defaults are used to support
@@ -6140,19 +6164,6 @@ verify_working_env() {
 Using Easy-RSA 'vars' configuration:
 * $EASYRSA_VARS_FILE"
 	fi
-
-	# Initialisation requirements
-	unset -v \
-		OPENSSL_CONF \
-		verify_ssl_lib_ok ssl_batch \
-		secured_session write_recursion \
-		text prohibit_no_pass \
-		quiet_vars invalid_vars \
-		local_request error_build_full_cleanup \
-		selfsign_eku \
-		internal_batch mv_temp_error \
-		easyrsa_exit_with_error error_info \
-		prompt_restore mktemp_counter
 
 	# Protect $EASYRSA_ALIAS_DAYS from vars abuse
 	[ "$EASYRSA_ALIAS_DAYS" = undefined ] && unset -v EASYRSA_ALIAS_DAYS
@@ -6978,14 +6989,17 @@ trap "exit 3" 3
 trap "exit 6" 6
 trap "exit 15" 15
 
-# Get host details - No configurable input allowed
-detect_host
-
 # Allow selective use of 'set -e'
 if [ "$EASYRSA_SET_ERREXIT" ]; then
 	set -e || die "Cannot set -e"
 	print "  # ENABLED: shell option errexit"
 fi
+
+# Initialize internals
+init_vars || die "init_vars failed"
+
+# Get host details - No configurable input allowed
+detect_host
 
 # Protect variables from alteration by sourcing vars file
 # undocumented, not designed for use
