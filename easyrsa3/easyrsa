@@ -80,7 +80,7 @@ Certificate & Request options: (these impact cert/req field values)
                   If commonName is 'n.n.n.n' then set 'IP:commonName'
 
 --san-crit      : Mark X509v3 subjectAltName as critical
---bc-crit       : Add X509 'basicContraints = critical' attribute.
+--bc-crit       : Add X509 'basicConstraints = critical' attribute.
 --ku-crit       : Add X509 'keyUsage = critical' attribute.
 --eku-crit      : Add X509 'extendedKeyUsage = critical' attribute.
 
@@ -1225,7 +1225,7 @@ expand_safe_ssl_cnf() {
 	then
 		# expand via sed
 		# Use subshell to preserve cn_org values,
-		# otherwise they become double esaped
+		# otherwise they become double escaped
 		(
 			escape_hazard || return 1
 			sed_expand_ssl_config "$1" "$2" || return 1
@@ -2584,7 +2584,7 @@ basicConstraints is not defined, cannot use 'pathlen'"
 
 	# Get request CN
 	# EASYRSA_REQ_CN MUST always be set to the CSR CN
-	# or use --new-subect
+	# or use --new-subject
 	EASYRSA_REQ_CN="$(
 		"$EASYRSA_OPENSSL" req -utf8 -in "$req_in" -noout \
 			-subject -nameopt multiline | grep 'commonName'
@@ -3118,17 +3118,17 @@ inline_file() {
 	case "$inline_crt_type" in
 		# OpenVPN 2.5 or older does not support --peer-fingerprint
 		# Easy-RSA does not support old OpenVPN because it is not
-		# possible to determine which self-siged-server cert to use.
+		# possible to determine which self-signed-server cert to use.
 		self-signed-client)
 			print "\
 # Since OpenVPN 2.6 --peer-fingerprint --client does not require a CA
-# OpenVPN 2.5 or older requires the self-siged-server certificate
+# OpenVPN 2.5 or older requires the self-signed-server certificate
 # placed here." >> "$tmp_inline" || \
 				die "inline_file; write CA self-signed-client"
 		;;
 		self-signed-server)
 			print "\
-# CA ceriticate not required for --peer-fingerprint server" \
+# CA certificate not required for --peer-fingerprint server" \
 				>> "$tmp_inline" || \
 					die "inline_file; write CA self-signed-server"
 		;;
@@ -4536,7 +4536,7 @@ read_db() {
 
 	while read -r db_status db_notAfter db_record; do
 
-		# Quiet schellcheck
+		# Quiet shellcheck
 		# SC2034 (warning): db_notAfter appears unused
 		unused="$db_notAfter"
 		db_notAfter="$unused"
@@ -4645,7 +4645,7 @@ read_db() {
 	# Add CA to show-expire
 	case  "$report" in
 	expire)
-		# Extract -endate
+		# Extract -enddate
 		ca_enddate="$(
 			"$EASYRSA_OPENSSL" x509 -in "$EASYRSA_PKI"/ca.crt \
 				-noout -enddate
